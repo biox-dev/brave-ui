@@ -48,18 +48,25 @@ const PublishToolsV2: FC<any> = ({ type, store, callback }) => {
 
 
             <Button size="small" color="cyan" variant="solid" onClick={async () => {
-                // publishToStore(relation_id, record.store_id)
-                // callback && callback()
                 const values = await form.validateFields()
-                const resp = await http.post(`/workflow/publish-workflow`, {
-                    ...values,
-                    workflow_id: store?.id,
-                    // force: force
-                })
+                const payload = {
+                    url: values.url,
+                    version: values.version,
+                    message: values.update_info,
+                }
+                if (type === "script") {
+                    await http.post(`/workflow/publish-script`, {
+                        ...payload,
+                        script_id: store?.id,
+                    })
+                } else {
+                    await http.post(`/workflow/publish-workflow`, {
+                        ...payload,
+                        workflow_id: store?.id,
+                    })
+                }
                 message.success("Published successfully")
                 callback && callback()
-                // loadData()
-
             }}>Publish Store</Button>
 
             {store?.store_id && <Button size="small" color="cyan" variant="solid" onClick={() => {

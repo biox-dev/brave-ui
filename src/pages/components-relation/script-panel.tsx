@@ -7,7 +7,7 @@ import { CreateOrUpdatePipelineComponent } from "@/components/create-pipeline"
 import { useModal } from "@/hooks/useModal"
 import axios from "axios"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
-import { ApartmentOutlined, CopyOutlined, DeleteOutlined } from "@ant-design/icons"
+import { ApartmentOutlined, CopyOutlined, DeleteOutlined, RedoOutlined } from "@ant-design/icons"
 import { useSideViewContext } from "@/context/side/SideViewContext"
 import { useStoreRender } from "@/context/render/RenderProvider"
 import ViewResolver from "@/core/ui-renderer/ViewResolver"
@@ -37,6 +37,11 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
         const resp = await http.get(`/script/${scriptId}/get-script`)
         setScript(resp.data)
         setLoading(false)
+    }
+    const loadData =()=>{
+        if (script?.id) {
+            loadScript(script?.id)
+        }
     }
 
     useEffect(() => {
@@ -212,7 +217,7 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
                                         }
 
                                     </Tooltip>}
-{/* 
+                                    {/* 
                                     <Popconfirm title="Reinstall?" onConfirm={async () => {
                                         // /reinstall-relation/{relation_id}
                                         await axios.post(`/reinstall-relation/${script.id}`)
@@ -262,6 +267,7 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
                                     </>}
 
                                 {renderViewButton(panel, setPanel, "PublishToolsV2", "Publish")}
+                                <Button size="small" color="cyan" variant="outlined" icon={<RedoOutlined />} onClick={loadData}></Button>
 
                             </Space>}
 
