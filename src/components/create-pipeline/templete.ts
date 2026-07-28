@@ -1,4 +1,54 @@
 
+
+export const INPUTS = [
+  {
+    "label": "SeuratObject File",
+    "name": "seuratObject",
+    "type": "SelectSample",
+    "input_type": "file",
+    "component_id": "DEFAULT",
+    "resolver": {
+      "accept_formats": [
+        "DEFAULT"
+      ]
+    },
+    "mode": "none",
+    "db": true,
+    "rules": [
+      {
+        "required": true,
+        "message": "need input!"
+      }
+    ]
+  }, {
+    "name": "x_input",
+    "label": "X input",
+    "db": true,
+    "input_type": "file",
+    "resolver": {
+      "accept_formats": [
+        "TABLE"
+      ]
+    },
+    "component_id": "TABLE",
+    "columns": [],
+    "modes": [
+      0
+    ],
+    "columns_rules": [
+      0
+    ],
+    "rules": [
+      {
+        "required": true,
+        "message": "This field cannot be empty!"
+      }
+    ],
+    "type": "CollectedSampleSelect"
+  }
+]
+
+
 export const softwareTemplete = {
   "databases": [
     {
@@ -85,7 +135,7 @@ export const scriptTemplete = {
       "type": "BaseInput",
       "required": true
     }
-    
+
   ],
   "outputs": [
     {
@@ -100,7 +150,7 @@ export const scriptTemplete = {
       "type": "BaseInput",
       "initialValue": "params_value",
     }
-   
+
   ],
   "resources": {
     "cpu": 4,

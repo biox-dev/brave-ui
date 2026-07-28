@@ -99,21 +99,21 @@ const App: React.FC = () => {
     // const [sideView, setSideView] = useState<string>("llm-card")
     // const [isConnect, setIsConnect] = useState<"UNKNOW" | "CONNECT" | "NOT_CONNECT">("UNKNOW")
 
-    const ping = async () => {
-        try {
-            await axios.get(`${baseURL}/brave-api/ping`)
-            // setIsConnect("CONNECT")
-            dispatch(setUserItem({ network: "CONNECT" }))
+    // const ping = async () => {
+    //     try {
+    //         await axios.get(`${baseURL}/brave-api/ping`)
+    //         // setIsConnect("CONNECT")
+    //         dispatch(setUserItem({ network: "CONNECT" }))
 
-        } catch (error) {
-            // setIsConnect("NOT_CONNECT")
-            dispatch(setUserItem({ network: "NOT_CONNECT" }))
+    //     } catch (error) {
+    //         // setIsConnect("NOT_CONNECT")
+    //         dispatch(setUserItem({ network: "NOT_CONNECT" }))
 
-        }
-    }
-    useEffect(() => {
-        ping()
-    }, [baseURL])
+    //     }
+    // }
+    // useEffect(() => {
+    //     ping()
+    // }, [baseURL])
 
     useEffect(() => {
         setSiderCollapsed(isMobileLayout)

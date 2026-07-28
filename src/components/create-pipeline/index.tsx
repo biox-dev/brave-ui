@@ -161,7 +161,7 @@ const Tools: FC<any> = ({ components }) => {
         </Form.Item>
     </>
 }
-import { softwareTemplete, scriptTemplete, fileTemplete } from './templete'
+import { softwareTemplete, scriptTemplete, fileTemplete, INPUTS } from './templete'
 import ContainerPage from "@/pages/container"
 import { useSelector } from "react-redux"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
@@ -272,6 +272,9 @@ const ScriptContent: FC<any> = ({ data, form }) => {
             {/* <TextArea ></TextArea> */}
             <TextAreaComp templete={""}></TextAreaComp>
         </Form.Item>
+
+                    
+
         <Form.Item name={"content"} label="content" >
             {/* <TextAreaComp templete={""}></TextAreaComp> */}
             <TextArea></TextArea>
@@ -913,6 +916,10 @@ export const CreateOrUpdatePipelineV2: FC<any> = ({ script_id, structure, callba
                                     </Typography>
                                 )}
                             </Form.Item>
+
+                                    <Typography>
+                                        <pre>{JSON.stringify(INPUTS, null, 2)}</pre>
+                                    </Typography>
                         </>
                     }
                 ]} />
