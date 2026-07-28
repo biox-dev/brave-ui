@@ -1,4 +1,4 @@
-import { Button, Card, Col, Empty, Modal, Popconfirm, Row, Segmented, Skeleton, Space, Table } from "antd"
+import { Button, Card, Col, Empty, Modal, Popconfirm, Row, Segmented, Skeleton, Space, Spin, Table, Tag, Tooltip } from "antd"
 import { FC, use, useEffect, useRef, useState } from "react"
 import ComponentsPage from "../../components/workflow-page/component/page"
 import { useParams } from "react-router"
@@ -13,6 +13,8 @@ import { useStoreRender } from "@/context/render/RenderProvider"
 import ViewResolver from "@/core/ui-renderer/ViewResolver"
 import ScriptPage from "@/components/workflow-page/script-page"
 import { invoke } from "@/core/ui-system/invokeV2"
+import { renderViewButton } from "@/utils/render-view-btn"
+import { http } from "@/api/client/http"
 
 const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
     const { modal, openModal, closeModal } = useModal();
@@ -23,11 +25,19 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
     const loadTable = () => {
         tabeRef.current?.reload()
     }
-    const { setSideView,  setSideOptions } = useSideViewContext();
+    const { setSideView, setSideOptions } = useSideViewContext();
     const { script, setScript, clear } = useStoreRender()
 
     let [segmentedOptions, setSegmentedOptions] = useState<any[]>([])
-    const [panel, setPanel] = useState<any>()
+    const [panel, setPanel] = useState<any>("analysisNodePage")
+    const [loading, setLoading] = useState(false)
+
+    const loadScript = async (scriptId: any) => {
+        setLoading(true)
+        const resp = await http.get(`/script/${scriptId}/get-script`)
+        setScript(resp.data)
+        setLoading(false)
+    }
 
     useEffect(() => {
 
@@ -116,7 +126,18 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
                             padding: "0"
                         }
                     }}
-                    extra={<>
+                    extra={<Space>
+                        <Button size="small" color="cyan" variant="solid" onClick={async () => {
+                            // openModal("installComponents", { relation_type: "tools" })
+                            await invoke.installComponentsV2.openAsync({
+                                storeType: "script",
+                            }, {
+                                width: "80%",
+                                title: `Install script`,
+                                footer: null,
+                            })
+                            // loadData()
+                        }}>Intsall</Button>
                         <Button size="small" color="cyan" variant="solid" onClick={async () => {
                             // openModal("createOrUpdatePipelineComponent", {
                             //     data: undefined,
@@ -127,40 +148,98 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
                             // setPanel("createOrUpdateComponent")
                             // setScript(null)
                             await invoke.createOrUpdateComponent.openAsync({})
-                            
+
                         }}>
                             Create
                         </Button>
-                    </>}
+                    </Space>}
                     size="small"
                 >
                     {/* <ComponentsPage
                         ref={tabeRef}
                         component_type={component_type}
                         setComponent={setScript} ></ComponentsPage> */}
-                        <ScriptPage onOk={setScript}></ScriptPage>
+                    <ScriptPage onOk={(script) => {
+
+                        loadScript(script?.id)
+                    }}></ScriptPage>
                 </Card>
 
             </Col>
             <Col lg={18} sm={18} xs={24}>
                 {/* {JSON.stringify(component)} */}
-                {script ? <>
+                <Spin spinning={loading}>
+
+                    {script ? <>
 
 
-                    <Card
-                        size="small"
-                        title={<Space>
-                            {script?.component_name || ''}
-                            {script?.component_id && <>
+                        <Card
+                            size="small"
+                            title={<Space>
+                                {script?.component_name || ''}
+                                {script?.component_id && <>
 
-                                <Popconfirm title="Copy component ?" onConfirm={async (e: any) => {
-                                    e.stopPropagation()
-                                    await axios.post(`/copy-component/${script.component_id}`)
-                                    message.success("Component copied!")
+                                    <Popconfirm title="Copy component ?" onConfirm={async (e: any) => {
+                                        e.stopPropagation()
+                                        await axios.post(`/copy-component/${script.component_id}`)
+                                        message.success("Component copied!")
+                                        // reload()
+                                        loadTable()
+                                    }}>
+                                        <CopyOutlined onClick={(e) => {
+                                            e.stopPropagation()
+
+                                        }} />
+
+                                    </Popconfirm>
+
+
+                                </>}
+
+                                {script?.store_origin && <Tag color="blue">{script?.store_origin}</Tag>}
+
+                                {script && <>
+                                    {!script?.store_version ? <>
+                                        <Tag color="red"> {script?.version} (unpublished)</Tag>
+                                    </> : <Tooltip title={script?.store_url}>
+                                        {script?.store_version === script?.version ?
+                                            <Tag style={{ cursor: "pointer" }} onClick={() => {
+                                                window.open(script?.store_url, "_blank")
+                                            }}> {script.version}</Tag> :
+                                            <Tag color="red" style={{ cursor: "pointer" }} onClick={() => {
+                                                window.open(script?.store_url, "_blank")
+                                            }}>store/current: {script?.store_version}/{script?.version}</Tag>
+                                        }
+
+                                    </Tooltip>}
+{/* 
+                                    <Popconfirm title="Reinstall?" onConfirm={async () => {
+                                        // /reinstall-relation/{relation_id}
+                                        await axios.post(`/reinstall-relation/${script.id}`)
+                                        message.success("ReInstalled successfully!")
+                                        loadScript()
+
+                                    }}>
+                                        <Button variant="solid" size="small" style={{ cursor: "pointer" }}>ReInstall</Button>
+
+                                    </Popconfirm> */}
+
+                                </>}
+
+
+                            </Space>}
+                            extra={<Space>
+
+                                {/* <Button size="small" color="primary" variant="solid" onClick={() => navigateView("toolsCard")}>Back</Button> */}
+
+                                <Popconfirm title="Are you sure to delete this component?" onConfirm={async (e: any) => {
+                                    await axios.delete(`/delete-component/${script.component_id}`)
+                                    message.success("Component deleted!")
+                                    setPanel("deleted")
                                     // reload()
                                     loadTable()
                                 }}>
-                                    <CopyOutlined onClick={(e) => {
+                                    <DeleteOutlined style={{ color: "red" }} onClick={(e) => {
                                         e.stopPropagation()
 
                                     }} />
@@ -168,71 +247,55 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
                                 </Popconfirm>
 
 
-                            </>}
+                                {script?.component_id &&
+                                    <>
+                                        <ApartmentOutlined style={{ cursor: "pointer" }} onClick={(e) => {
+                                            e.stopPropagation()
+                                            openModal("componentRelation", {
+                                                component_id: script.component_id,
+                                                component_name: script.component_name,
+                                            })
+                                        }} />
+                                        <Segmented size="small" value={panel}
+                                            onChange={(val: any) => setPanel(val)}
+                                            options={segmentedOptions} />
+                                    </>}
 
-                        </Space>}
-                        extra={<Space>
+                                {renderViewButton(panel, setPanel, "PublishToolsV2", "Publish")}
 
-                            {/* <Button size="small" color="primary" variant="solid" onClick={() => navigateView("toolsCard")}>Back</Button> */}
+                            </Space>}
 
-                            <Popconfirm title="Are you sure to delete this component?" onConfirm={async (e: any) => {
-                                await axios.delete(`/delete-component/${script.component_id}`)
-                                message.success("Component deleted!")
-                                setPanel("deleted")
-                                // reload()
-                                loadTable()
-                            }}>
-                                <DeleteOutlined style={{ color: "red" }} onClick={(e) => {
-                                    e.stopPropagation()
+                        >
+                            {panel ? <>
+                                <ViewResolver
+                                    type="script"
+                                    store={script}
+                                    callback={loadTable}
+                                    view={panel}
+                                    script_id={script.id}
+                                    component={script}
+                                    openModal={openModal}
+                                    structure={{
+                                        component_type: component_type,
+                                    }}
+                                // component_type={component_type}
+                                ></ViewResolver>
 
-                                }} />
+                            </> : <Skeleton active></Skeleton>}
 
-                            </Popconfirm>
-
-
-                            {script?.component_id &&
-                                <>
-                                    <ApartmentOutlined style={{ cursor: "pointer" }} onClick={(e) => {
-                                        e.stopPropagation()
-                                        openModal("componentRelation", {
-                                            component_id: script.component_id,
-                                            component_name: script.component_name,
-                                        })
-                                    }} />
-                                    <Segmented size="small" value={panel}
-                                        onChange={(val: any) => setPanel(val)}
-                                        options={segmentedOptions} />
-                                </>}
-                        </Space>}
-
-                    >
-                        {panel ? <>
-                            <ViewResolver
-                                callback={loadTable}
-                                view={panel}
-                                script_id={script.id}
-                                component={script}
-                                openModal={openModal}
-                                structure={{
-                                    component_type: component_type,
-                                }}
-                            // component_type={component_type}
-                            ></ViewResolver>
-
-                        </> : <Skeleton active></Skeleton>}
-
-                        {/* {panel == "deleted" ? <Empty description="Component has been deleted"></Empty> : <>
+                            {/* {panel == "deleted" ? <Empty description="Component has been deleted"></Empty> : <>
 
 
                         </>} */}
-                    </Card >
+                        </Card >
 
 
-                </> : <>
-                    <Card>
-                        <Empty description="Please select a component on the left"></Empty>
-                    </Card>
-                </>}
+                    </> : <>
+                        <Card>
+                            <Empty description="Please select a component on the left"></Empty>
+                        </Card>
+                    </>}
+                </Spin>
                 {/* {component_type} */}
                 {/* <ComponentDetails componentType={component_type} /> */}
             </Col>

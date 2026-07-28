@@ -7,7 +7,7 @@ import TextArea from "antd/es/input/TextArea"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
 import { ur } from "@faker-js/faker"
 import { http } from "@/api/client/http"
-const PublishToolsV2: FC<any> = ({ workflow, callback }) => {
+const PublishToolsV2: FC<any> = ({ type, store, callback }) => {
     // const [force, setForce] = useState(true)
     // const [data, setData] = useState<any>(null)
     const [loading, setLoading] = useState(false)
@@ -29,21 +29,23 @@ const PublishToolsV2: FC<any> = ({ workflow, callback }) => {
 
 
     useEffect(() => {
-        form.setFieldsValue(workflow)
-    }, [workflow])
+        form.setFieldsValue(store)
+    }, [store])
 
     return <Card size="small"
         extra={<Space>
-         
-            {workflow?.store_id && <Tag>
-                {workflow?.store_id }
-            </Tag>}
 
+            {store?.store_id && <Tag>
+                {store?.store_id}
+            </Tag>}
+            <Tag>
+                {type}
+            </Tag>
             {/* <Button size="small" color="cyan" variant="solid" onClick={async () => {
                 const resp = await http.post(`/workflow/${workflow?.id}/generate-workflow-json`)
                 message.success("Generated successfully")
             }}> Generate </Button> */}
-    
+
 
             <Button size="small" color="cyan" variant="solid" onClick={async () => {
                 // publishToStore(relation_id, record.store_id)
@@ -51,7 +53,7 @@ const PublishToolsV2: FC<any> = ({ workflow, callback }) => {
                 const values = await form.validateFields()
                 const resp = await http.post(`/workflow/publish-workflow`, {
                     ...values,
-                    workflow_id: workflow?.id,
+                    workflow_id: store?.id,
                     // force: force
                 })
                 message.success("Published successfully")
@@ -60,8 +62,8 @@ const PublishToolsV2: FC<any> = ({ workflow, callback }) => {
 
             }}>Publish Store</Button>
 
-            {workflow?.store_id && <Button size="small" color="cyan" variant="solid" onClick={() => {
-                invoke.publishStore.open(workflow, {
+            {store?.store_id && <Button size="small" color="cyan" variant="solid" onClick={() => {
+                invoke.publishStore.open(store, {
                     footer: null,
                     width: 640,
                     title: "Publish Store"
@@ -73,7 +75,7 @@ const PublishToolsV2: FC<any> = ({ workflow, callback }) => {
 
         </Space>}
     >
-           {/* {JSON.stringify(workflow)} */}
+        {/* {JSON.stringify(workflow)} */}
 
         {/* {JSON.stringify(workflow)} */}
         <Flex justify="center">

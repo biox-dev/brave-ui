@@ -1,6 +1,11 @@
 :where(.css-dev-only-do-not-override-1uvq8a1).ant-tabs-right >.ant-tabs-content-holder >.ant-tabs-content>.ant-tabs-tabpane{
       padding-right: 1rem !important
 }
+
+/* 分析节点列表选中行高亮 */
+.analysis-node-row-selected td {
+  background-color: #e6f4ff !important;
+}
 /* :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;

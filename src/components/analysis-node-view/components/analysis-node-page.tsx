@@ -65,6 +65,13 @@ const AnalysisNodePage = ({
 	const { setAnalysisNodeId, analysisNodeId } = useStoreRender()
 	const message = useGlobalMessage()
 
+	// 当 analysisNodeId 有值时，同步选中对应的行
+	useEffect(() => {
+		if (analysisNodeId) {
+			setSelectedID(analysisNodeId);
+		}
+	}, [analysisNodeId]);
+
 	// const [nodeID,setNodeId] = useState<any>()
 	const columns: ColumnsType<AnalysisNodeItem> = [
 		{
@@ -84,22 +91,8 @@ const AnalysisNodePage = ({
 			ellipsis: true,
 			render: (value: string) => value || "-",
 		},
-		{
-			title: "Analysis ID",
-			dataIndex: "analysis_id",
-			key: "analysis_id",
-			width: 200,
-			ellipsis: true,
-			render: (value: string) => value || "-",
-		},
-		{
-			title: "Script ID",
-			dataIndex: "script_id",
-			key: "script_id",
-			width: 180,
-			ellipsis: true,
-			render: (value: string) => value || "-",
-		},
+		
+		
 		{
 			title: "Status",
 			dataIndex: "status",
@@ -107,13 +100,7 @@ const AnalysisNodePage = ({
 			width: 120,
 			render: (value: string) => <Tag color={statusColor(value)}>{value || "-"}</Tag>,
 		},
-		{
-			title: "Executor",
-			dataIndex: "executor",
-			key: "executor",
-			width: 120,
-			render: (value: string) => value || "-",
-		},
+		
 		{
 			title: "Created At",
 			dataIndex: "created_at",
@@ -127,6 +114,26 @@ const AnalysisNodePage = ({
 			key: "updated_at",
 			width: 210,
 			render: (value: string) => (value ? new Date(value).toLocaleString() : "-"),
+		},{
+			title: "Script ID",
+			dataIndex: "script_id",
+			key: "script_id",
+			width: 180,
+			ellipsis: true,
+			render: (value: string) => value || "-",
+		},{
+			title: "Analysis ID",
+			dataIndex: "analysis_id",
+			key: "analysis_id",
+			width: 200,
+			ellipsis: true,
+			render: (value: string) => value || "-",
+		},{
+			title: "Executor",
+			dataIndex: "executor",
+			key: "executor",
+			width: 120,
+			render: (value: string) => value || "-",
 		}, {
 			title: "action",
 			key: "action",
@@ -310,6 +317,9 @@ const AnalysisNodePage = ({
 				size="small"
 				scroll={{ x: 1500 }}
 				locale={{ emptyText: error ? "Failed to load analysis nodes" : "No analysis nodes" }}
+				rowClassName={(record) =>
+					record.id === analysisNodeId ? "analysis-node-row-selected" : ""
+				}
 				rowSelection={
 					selectable
 						? {

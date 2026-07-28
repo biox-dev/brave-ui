@@ -364,7 +364,7 @@ const Pipeline: FC<any> = ({ }) => {
                         <Button size="small" color="cyan" variant="solid" onClick={async () => {
                             // openModal("installComponents", { relation_type: "tools" })
                             await invoke.installComponentsV2.openAsync({
-                                relation_type: "tools",
+                                storeType: "workflow",
                             }, {
                                 width: "80%",
                                 title: `Install ${relation_type}`,
@@ -410,24 +410,36 @@ const Pipeline: FC<any> = ({ }) => {
                             {component?.name}
                         </Tooltip>
                         {component?.store_origin && <Tag color="blue">{component?.store_origin}</Tag>}
-                        {/* <Tag color="blue">{component?.script_type}</Tag> */}
-                        {/* {component?.category &&
-                    <Tag style={{ marginLeft: "0.5rem" }} color="blue">{component?.category}</Tag>
-                } */}
+
                         {component && <>
                             {!component?.store_version ? <>
                                 <Tag color="red"> {component?.version} (unpublished)</Tag>
-                            </> : <Tooltip title={component?.store_url}>
-                                {component?.store_version === component?.version ?
-                                    <Tag style={{ cursor: "pointer" }} onClick={() => {
-                                        window.open(component?.store_url, "_blank")
-                                    }}> {component.version}</Tag> :
-                                    <Tag color="red" style={{ cursor: "pointer" }} onClick={() => {
-                                        window.open(component?.store_url, "_blank")
-                                    }}>store/current: {component?.store_version}/{component?.version}</Tag>
-                                }
+                            </> : <>
 
-                            </Tooltip>}
+                                <Tooltip title={component?.store_url}>
+                                    {component?.store_version === component?.version ?
+                                        <Tag style={{ cursor: "pointer" }} onClick={() => {
+                                            window.open(component?.store_url, "_blank")
+                                        }}> {component.version}</Tag> :
+                                        <Tag color="red" style={{ cursor: "pointer" }} onClick={() => {
+                                            window.open(component?.store_url, "_blank")
+                                        }}>store/current: {component?.store_version}/{component?.version}</Tag>
+                                    }
+
+                                </Tooltip>
+
+                                <Popconfirm title="Reinstall?" onConfirm={async () => {
+                                    // /reinstall-relation/{relation_id}
+                                    await axios.post(`/reinstall-relation/${component.relation_id}`)
+                                    messageApi.success("ReInstalled successfully!")
+                                    loadData()
+
+                                }}>
+                                    <Button variant="solid" size="small" style={{ cursor: "pointer" }}>ReInstall</Button>
+
+                                </Popconfirm>
+                            </>}
+
 
                         </>}
 
@@ -452,16 +464,6 @@ const Pipeline: FC<any> = ({ }) => {
 
 
 
-                                <Popconfirm title="Reinstall?" onConfirm={async () => {
-                                    // /reinstall-relation/{relation_id}
-                                    await axios.post(`/reinstall-relation/${component.relation_id}`)
-                                    messageApi.success("ReInstalled successfully!")
-                                    loadData()
-
-                                }}>
-                                    <Button variant="solid" size="small" style={{ cursor: "pointer" }}>ReInstall</Button>
-
-                                </Popconfirm>
 
                                 <Popconfirm title={`Git pull ${component?.store_url} ?`} onConfirm={async () => {
                                     // /reinstall-relation/{relation_id}
@@ -750,12 +752,14 @@ const Pipeline: FC<any> = ({ }) => {
 
                     {(component) ? <>
                         <ViewResolver
+                            type={"workflow"}
+                            store={component}
                             setView={setView}
                             ref={leftRef}
                             store_id={component?.store_id}
                             relation_id={component?.relation_id}
                             workflow_id={workflow?.id}
-                            workflow={component}
+                            // workflow={component}
                             callback={loadData}
                             component_id={component?.component_id}
                             component={component}

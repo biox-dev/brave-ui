@@ -7,7 +7,7 @@ import { useComponentStore } from "@/store-zustand/components";
 import StoreSidebar from "./components/store-sidebar";
 import StoreContent from "./components/store-content";
 import StorePages from "./components/store-pages";
-const InstallComponents: FC<any> = ({ relation_type, onOk, onCancel }) => {
+const InstallComponents: FC<any> = ({ storeType, onOk, onCancel }) => {
 
     const message = useGlobalMessage()
     // const [address, setAddress] = useState("local")
@@ -97,7 +97,7 @@ const InstallComponents: FC<any> = ({ relation_type, onOk, onCancel }) => {
         <div style={{ marginBottom: "1rem" }}></div>
         <StorePages
             ref={pageRef}
-            storeType={relation_type === "tools" ? "workflow" : relation_type}
+            storeType={storeType}
             onOk={onOk}
             onCancel={onCancel}
         ></StorePages>
