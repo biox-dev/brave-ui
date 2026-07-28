@@ -227,8 +227,11 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
                                                     okText="Install"
                                                     title={`Install ${item.name} ?`}
                                                     onConfirm={async () => {
+                                                        const endpoint = normalizedStoreType === "script"
+                                                            ? `/workflow/install-script/${item.id}`
+                                                            : `/workflow/install-workflow/${item.id}`
                                                         await http.post(
-                                                            `/workflow/install-workflow/${item.id}`,
+                                                            endpoint,
                                                             {
                                                                 // force: true,
                                                                 // store_id: item.store_id,
