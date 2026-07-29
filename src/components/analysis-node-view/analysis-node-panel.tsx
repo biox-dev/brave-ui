@@ -1,6 +1,8 @@
+import { http } from "@/api/client/http";
 import { useStoreRender } from "@/context/render/RenderProvider";
 import { ViewRegistry } from "@/core/component-registry/registry-types";
 import ViewResolver from "@/core/ui-renderer/ViewResolver";
+import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { renderCloseViewButton, renderViewButton } from "@/utils/render-view-btn";
 import { Button, Card, Divider, Flex, Popconfirm, Space, Switch } from "antd";
 import axios from "axios";
@@ -11,7 +13,7 @@ type AnalysisNodePanelView = "analysisNodesReport" | "analysisNodes" | "analysis
 
 const AnalysisNodePanel: FC<any> = () => {
     const { openAnalysis, relation, analysisId, setAnalysisId, clear, setRelation, closeAnalysis, setFormParam } = useStoreRender()
-
+    const message = useGlobalMessage()
     const [view, setView] = useState<AnalysisNodePanelView>("analysisNodesReport");
     const setPanelView = (nextView: string) => setView(nextView as AnalysisNodePanelView);
     const navigate = useNavigate()
@@ -26,11 +28,21 @@ const AnalysisNodePanel: FC<any> = () => {
         variant="borderless"
         title={title}
         extra={<Space>
-            {relation?.relation_id && <Button size="small" color="primary" variant="solid" onClick={() =>
+            {/* {relation?.relation_id && <Button size="small" color="primary" variant="solid" onClick={() =>
                 navigate(`/c/tools/${relation?.relation_id}`)
-            }>Go tools</Button>}
-            
-        
+            }>Go tools</Button>} */}
+            <Button
+                size="small"
+                // color="cyan"
+                variant="solid"
+                onClick={async () => {
+                    await http.post(`/analysis/publish-to-doc/${analysisId}`)
+                    message.success("copy success!")
+                }}
+            >
+                Publish Doc
+            </Button>
+
             {renderViewButton(view, setPanelView, "analysisNodesReport", "Report")}
 
             {renderViewButton(view, setPanelView, "analysisNodes", "Nodes")}

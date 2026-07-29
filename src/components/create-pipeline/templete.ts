@@ -45,6 +45,102 @@ export const INPUTS = [
       }
     ],
     "type": "CollectedSampleSelect"
+  }, {
+    "label": "SeuratObjects  File",
+    "name": "seuratObjects",
+    "type": "NestSelectSample",
+    "input_type": "file",
+    "append": [
+      {
+        "name": "feature_genes",
+        "label": "feature genes",
+        "type": "BaseTextAreaNum",
+        "initialValue": "",
+        "tooltip": "Comma-separated gene list for FeaturePlot"
+      }, {
+        "name": "node_name",
+        "label": "Cell type",
+        "type": "BaseInput",
+        "initialValue": "",
+        "tooltip": "cell type"
+      }
+    ],
+    "component_id": "TABLE",
+    "resolver": {
+      "accept_formats": [
+        "TABLE"
+      ]
+    },
+    "db": true,
+    "rules": [
+      {
+        "required": true,
+        "message": "\u8be5\u5b57\u6bb5\u4e0d\u80fd\u4e3a\u7a7a!"
+      }
+    ]
+  }, {
+    "label": "deg  File",
+    "name": "degs",
+    "input_type": "file",
+    "type": "NestSelectSampleV2",
+    "append": [
+      {
+        "name": "cell_type",
+        "label": "cell_type",
+        "type": "CollectedSampleSelectV2",
+        "db": true,
+        "input_type": "file",
+        "initialValue": "",
+        "tooltip": "cell_type"
+      },
+      {
+        "name": "name",
+        "label": "name",
+        "type": "BaseInput",
+        "initialValue": "",
+        "tooltip": "name"
+      }
+    ],
+    "component_id": "TABLE",
+    "resolver": {
+      "accept_formats": [
+        "TABLE"
+      ]
+    },
+    "db": true,
+    "rules": [
+      {
+        "required": true,
+        "message": "\u8be5\u5b57\u6bb5\u4e0d\u80fd\u4e3a\u7a7a!"
+      }
+    ]
+  }, {
+    "name": "phenos",
+    "label": "Pheno Files",
+    "db": true,
+    "input_type": "file",
+    "resolver": {
+      "accept_formats": [
+        "TABLE"
+      ]
+    },
+    "component_id": "TABLE",
+    "columns": [
+      "pheno_name"
+    ],
+    "modes": [
+      0
+    ],
+    "columns_rules": [
+      0
+    ],
+    "rules": [
+      {
+        "required": true,
+        "message": "This field cannot be empty!"
+      }
+    ],
+    "type": "NestCollectedSampleSelect"
   }
 ]
 

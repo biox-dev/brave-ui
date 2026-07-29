@@ -244,7 +244,7 @@ const FormJsonComp: FC<any> = memo(({ formJson, dataMap = {}, analysisResultId }
             Component: SelectSample,
         }, NestSelectSample: {
             Component: NestSelectSample
-        },NestSelectSampleV2:{
+        }, NestSelectSampleV2: {
             Component: NestSelectSampleV2
         },
         GroupSelectSampleButton: {
@@ -778,7 +778,7 @@ export const CollectedGroupSelectSampleButton2: FC<any> = ({ label, name, rules,
 
     </>
 }
-export const CollectedSampleSelect: FC<any> = ({ label, modes = [], columns, groups, name: name_, columns_rules = [], rules, data, filter, group, groupField: groupField_, analysisResultId }) => {
+export const CollectedSampleSelect: FC<any> = ({ label, modes = [], columns, append,groups, name: name_, columns_rules = [], rules, data, filter, group, groupField: groupField_, analysisResultId }) => {
     const [sampleGrouped, setSampleGrouped] = useState<any>()
     const [options, setOptions] = useState<any>([])
     const [collectFiles, setCollectFiles] = useState<any>([])
@@ -945,7 +945,22 @@ export const CollectedSampleSelect: FC<any> = ({ label, modes = [], columns, gro
 
         ))}
 
+        {append && Array.isArray(append) && append.map((item: any, index: any) => {
+            const { name:appendName, type, ...rest } = item
+            return <div key={index}>
+                {/* {name}-{appendName} */}
+                {/* {item?.type == "CollectedSampleSelectV2" && <CollectedSampleSelectV2  {...grest}  {...rest} name={[listIndex, name]} ></CollectedSampleSelectV2>} */}
+                {/* {item?.type == "SelectSample" && <SelectSample name={[name, listIndex]} {...rest} {...grest}></SelectSample>} */}
+                {item?.type == "BaseTextAreaNum" && <BaseTextAreaNum name={[name, appendName]} {...rest} ></BaseTextAreaNum>}
+                {item?.type == "BaseSelect" && <BaseSelect name={[name, appendName]} {...rest}></BaseSelect>}
+                {item?.type == "BaseInput" && <BaseInput name={[name, appendName]} {...rest}></BaseInput>}
+                {item?.type == "BaseInputNumber" && <BaseInputNumber name={[name, appendName]} {...rest}></BaseInputNumber>}
 
+
+            </div>
+        }
+
+        )}
 
     </>
 }
@@ -1372,12 +1387,12 @@ export const NestSelectSampleV2: FC<any> = ({ name, append, ...grest }) => {
                             {/* <CollectedSampleSelect name={} {...rest}></CollectedSampleSelect> */}
                             {/* {JSON.stringify(listIndex)} */}
                             <Card style={{ flex: 1, marginBottom: "0.5rem", marginRight: "0.5rem" }} size="small">
-                               
+
                                 {append && Array.isArray(append) && append.map((item: any, index: any) => {
                                     const { name, type, ...rest } = item
                                     return <div key={index}>
-                                  
-                                        {item?.type == "CollectedSampleSelectV2" && <CollectedSampleSelectV2  {...grest}  {...rest} name={[listIndex,name]} ></CollectedSampleSelectV2>}
+
+                                        {item?.type == "CollectedSampleSelectV2" && <CollectedSampleSelectV2  {...grest}  {...rest} name={[listIndex, name]} ></CollectedSampleSelectV2>}
                                         {/* {item?.type == "SelectSample" && <SelectSample name={[name, listIndex]} {...rest} {...grest}></SelectSample>} */}
                                         {item?.type == "BaseTextAreaNum" && <BaseTextAreaNum name={[listIndex, name]} {...rest} ></BaseTextAreaNum>}
                                         {item?.type == "BaseSelect" && <BaseSelect name={[listIndex, name]} {...rest}></BaseSelect>}
@@ -1438,7 +1453,7 @@ export const CollectedSampleSelectV2: FC<any> = ({ label, modes = [], columns, g
     const groupField = Form.useWatch(group, form);
     const groupFormValues = Form.useWatch(basePath, form);
 
-    const selectCollectFile = Form.useWatch(["abundances_meta",...name_, "file"], form);
+    const selectCollectFile = Form.useWatch(["abundances_meta", ...name_, "file"], form);
 
 
     // const calculateGroup = (sampleGroup: any, groupField: any) => {
@@ -1613,7 +1628,7 @@ export const NestSelectSample: FC<any> = ({ name, append, ...rest }) => {
                                         {item?.type == "BaseInput" && <BaseInput name={[listIndex, name]} {...rest}></BaseInput>}
                                         {item?.type == "BaseInputNumber" && <BaseInputNumber name={[listIndex, name]} {...rest}></BaseInputNumber>}
 
-                                        
+
                                     </div>
                                 }
 

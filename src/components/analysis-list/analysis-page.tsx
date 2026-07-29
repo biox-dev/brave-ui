@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Button, Card, Flex, Space, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { ReloadOutlined } from "@ant-design/icons";
+import { FileTextOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useAnalysisPageQuery } from "@/hooks/usePaginationV2";
 import type { AnalysisItem } from "@/api/analysis";
 import { useComponentStore } from "@/store-zustand/components";
 import { useStoreRender } from "@/context/render/RenderProvider";
 import AnalysisNodePanel from "../analysis-node-view/analysis-node-panel";
+import { http } from "@/api/client/http";
+import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 
 const { Text } = Typography;
 
@@ -81,6 +83,13 @@ const AnalysisPage = ({
 	const selectable = Boolean(onOk || onCancel);
 	const { setAnalysisId, analysisId } = useStoreRender();
 	const { register, unregister } = useComponentStore();
+
+	// 当 analysisId 有值时，同步选中对应的行
+	useEffect(() => {
+		if (analysisId) {
+			setSelectedID(analysisId);
+		}
+	}, [analysisId]);
 
 	const columns: ColumnsType<AnalysisItem> = [
 		{
@@ -190,6 +199,7 @@ const AnalysisPage = ({
 			cacheTime: 5 * 60_000,
 		}
 	);
+	const message = useGlobalMessage()
 
 	useEffect(() => {
 		setQuery({
@@ -262,13 +272,41 @@ const AnalysisPage = ({
 		};
 	}, [register, unregister, instance]);
 
+	const [publishing, setPublishing] = useState(false);
+
+	const handlePublishToDoc = async () => {
+		if (!relation_id) {
+			message.warning("No script_id available");
+			return;
+		}
+		setPublishing(true);
+		try {
+			// TODO
+			await http.post(`/workflow/publish-to-doc/${relation_id}`);
+			message.success("Published to doc successfully");
+			refetch();
+		} catch {
+			message.error("Failed to publish to doc");
+		} finally {
+			setPublishing(false);
+		}
+	};
 	return (
 		<Card
 			size="small"
 			title={title || "Analysis List By Active Project"}
 			extra={
 				<Space>
+
 					<Text type="secondary">Total: {total}</Text>
+					<Button
+						icon={<FileTextOutlined />}
+						onClick={handlePublishToDoc}
+						loading={publishing}
+						disabled={!relation_id}
+					>
+						Publish to Doc
+					</Button>
 					<Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
 						Refresh
 					</Button>
@@ -285,6 +323,9 @@ const AnalysisPage = ({
 				size="small"
 				scroll={{ x: 1800 }}
 				locale={{ emptyText: error ? "Failed to load analyses" : "No analyses" }}
+				rowClassName={(record) =>
+					record.id === analysisId ? "analysis-node-row-selected" : ""
+				}
 				rowSelection={
 					selectable
 						? {

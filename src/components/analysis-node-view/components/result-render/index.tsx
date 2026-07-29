@@ -635,7 +635,7 @@ const AnalysisResultDisplay: FC<any> = ({ analsyisResult, prefix = "" }) => {
                                     {analsyisResult.files.map((item: any, index: any) => {
                                         const filePath = item?.filepath || item?.path || item?.url || ""
                                         const fileName = item?.filename || filePath.split("/").pop() || `File ${index + 1}`
-
+                                        const url = item?.url
                                         return (
                                             <Card key={index} size="small" styles={{ body: { padding: "8px 12px" } }}>
                                                 <Flex justify="space-between" align="center" gap={8} wrap>
@@ -643,6 +643,9 @@ const AnalysisResultDisplay: FC<any> = ({ analsyisResult, prefix = "" }) => {
                                                         <Typography.Text strong>{fileName}</Typography.Text>
                                                         <Typography.Text type="secondary" style={{ wordBreak: "break-all" }}>
                                                             {filePath}
+                                                        </Typography.Text>
+                                                        <Typography.Text type="secondary" style={{ wordBreak: "break-all" }}>
+                                                            {url}
                                                         </Typography.Text>
                                                     </Flex>
 
@@ -655,7 +658,7 @@ const AnalysisResultDisplay: FC<any> = ({ analsyisResult, prefix = "" }) => {
                                                                     message.error("Invalid file path")
                                                                     return
                                                                 }
-                                                                openFileByPath({ filePath, title: fileName })
+                                                                openFileByPath({ filePath, title: fileName, url })
                                                             }}
                                                         >
                                                             Open

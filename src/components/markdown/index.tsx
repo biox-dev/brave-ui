@@ -331,6 +331,9 @@ const Markdown: FC<any> = ({ data ,prefix=""}) => {
             </div>
           )
         },
+        a: ({ node, href, children, ...props }) => (
+          <a href={resolveImageSrc(baseURL, `${prefix}${href}`)} {...props}>{children}</a>
+        ),
         img: ({ node, src, ...props }) => (
           <div className="markdown-image">
             {/* {src} */}

@@ -14,9 +14,10 @@ const SHEET_FILE_EXTENSIONS = new Set(["xlsx", "xls", "csv", "tsv", "ods"])
 type OpenFileByPathOptions = {
     filePath: string
     title?: string
+    url?: string
 }
 
-export const openFileByPath = ({ filePath, title }: OpenFileByPathOptions) => {
+export const openFileByPath = ({ filePath, title, url }: OpenFileByPathOptions) => {
     if (!filePath) {
         return
     }
@@ -30,7 +31,9 @@ export const openFileByPath = ({ filePath, title }: OpenFileByPathOptions) => {
         })
         return
     }
+    if (url) {
+        window.open(url, "_blank")
 
-    const url = `/brave-api/file-operation/download?path=${encodeURIComponent(filePath)}`
-    window.open(url, "_blank")
+    }
+    // url = `/brave-api/file-operation/download?path=${encodeURIComponent(filePath)}`
 }
