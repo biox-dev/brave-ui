@@ -367,7 +367,7 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
 
                         {!analysisNodeId && <Form.Item
                             noStyle
-                            initialValue={1}
+                            initialValue={4}
                             name={`cache_type`}
                         >
                             <Select
