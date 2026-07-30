@@ -59,6 +59,12 @@ const columns: ColumnsType<ContainerInstanceItem> = [
     key: "status",
     width: 140,
     render: (value: string) => value || "-",
+  },{
+    title: "Created At",
+    dataIndex: "created_at",
+    key: "created_at",
+    width: 210,
+    render: (value: string) => formatTime(value),
   },
   {
     title: "Owner",
@@ -66,19 +72,25 @@ const columns: ColumnsType<ContainerInstanceItem> = [
     width: 220,
     render: (_: unknown, record) => `${record.owner_type || "-"} / ${record.owner_id || "-"}`,
   },
-  {
-    title: "Template ID",
-    dataIndex: "template_id",
-    key: "template_id",
-    width: 170,
-    render: (value: string) => value || "-",
-  },
+ 
   {
     title: "Runtime ID",
     dataIndex: "runtime_id",
     key: "runtime_id",
     width: 220,
     ellipsis: true,
+    render: (value: string) => value || "-",
+  },  {
+    title: "ID",
+    dataIndex: "id",
+    key: "id",
+    width: 220,
+    ellipsis: true,
+  },{
+    title: "Template ID",
+    dataIndex: "template_id",
+    key: "template_id",
+    width: 170,
     render: (value: string) => value || "-",
   },
   {
@@ -95,13 +107,7 @@ const columns: ColumnsType<ContainerInstanceItem> = [
     width: 100,
     render: (value: number) => (Number.isFinite(value) ? value : "-"),
   },
-  {
-    title: "Created At",
-    dataIndex: "created_at",
-    key: "created_at",
-    width: 210,
-    render: (value: string) => formatTime(value),
-  },
+  
 ];
 
 const ContainerInstancePage = ({
