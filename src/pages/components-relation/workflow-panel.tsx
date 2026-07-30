@@ -509,28 +509,7 @@ const Pipeline: FC<any> = ({ }) => {
                                 }}
                                 style={{ color: "#1890ff" }} />
 
-                            {/* {component?.component_type != "pipeline" && <>
-
-                                    <Popconfirm title="Whether to remove?" onConfirm={() => {
-                                        operatePipeline.deletePipelineRelation(component.relation_id)
-                                    }}>
-                                        <Tooltip title={`Remove ${component?.component_type}`}>
-                                            <DeleteOutlined style={{ color: "red" }} />
-                                        </Tooltip>
-                                    </Popconfirm>
-                                </>} */}
-
-
-                            {/* {
-                                    component?.component_type == "software" && <>
-
-                                        <Popconfirm title="Whether to remove Tools?" onConfirm={() => {
-                                            operatePipeline.deletePipelineRelation(component.relation_id)
-                                        }}>
-                                            <Button size="small" color="red" variant="solid" >Remove Tools</Button>
-                                        </Popconfirm>
-                                    </>
-                                } */}
+                                
 
                             {renderViewButton(view, setView, "datasetFilePage", "Input File")}
                             {renderViewButton(view, setView, "sampleProjectPage", "Input Sample")}
@@ -560,160 +539,27 @@ const Pipeline: FC<any> = ({ }) => {
                         }}>Close</Button>
                     </>} */}
                             {renderViewButton(view, setView, "PublishToolsV2", "Publish")}
-                            {/* {renderViewButton(view, setView, "publishToolsComponents", "Publish")} */}
-
-
-                            {/* <Button size="small" color="cyan" variant="outlined" onClick={() => {
-                        openModal("publishModal", { ...component, relation_type: relation_type })
-                    }}>Publish</Button> */}
-
-                            {/* <Button size="small" color="cyan" variant="solid" onClick={() => {
-                        openModal("preview-relation-example", { ...component, relation_type: relation_type })
-                    }}>Example</Button> */}
-                            {/* 
-                    <Button size="small" color="cyan" variant="outlined" onClick={() => {
-                        operatePipeline.openModal("projectForm", { project_id: project_id })
-                    }}>Edit Project</Button> */}
-
-                            {/* <Button size="small" color="cyan" variant="outlined" onClick={() => {
-                        operatePipeline.openModal("modalG", pipeline)
-                    }}>Dependencies</Button> */}
-
-                            {/* <Button size="small" color="cyan" variant="outlined" onClick={() => {
-                                openModals("metadataModal", { ...component, operatePipeline: operatePipeline })
-                            }}>Metadata</Button> */}
-
-                            {/* <Button size="small" color="cyan" variant="solid" onClick={() => {
-                        openModal("createORUpdateCompnentRelation", {
-                            // data: component, structure: {
-                            //     component_type: component?.component_type,
-                            // }
-                            data: { relation_id: component.relation_id },
-                            pipelineStructure: {
-                                relation_type: relation_type,
-                            }
-                        })
-
-
-                    }}>Edit {component?.relation_type}</Button> */}
-
-
-                            {/* {(leftPanel != "createOrUpdateRelation") ? <Button size="small" color="cyan" variant="solid" onClick={() => {
-                        setLeftPanel("createOrUpdateRelation")
-                        setParams({
-                            structure: {
-                                relation_type: relation_type,
-                            }
-                        })
-                    }}>Edit Tools</Button> : <>
-                        <Button size="small" color="blue" variant="solid" icon={<CloseOutlined />} onClick={() => {
-                            setLeftPanel("analysisTools")
-                        }}>Close</Button>
-                    </>} */}
-
-
-
-                            {/* <Button size="small" color="cyan" variant="solid" onClick={() => {
-                        // openModal("createOrUpdatePipelineComponent", {
-                        //     data: { component_id: component?.component_id }, structure: {
-                        //         component_type: "script",
-                        //     }
-                        //     // data: { relation_id: component.relation_id },
-                        //     // pipelineStructure: {
-                        //     //     relation_type: "tools",
-                        //     // }
-                        // })
-                        setLeftPanel("createOrUpdateComponent")
-                        setParams({
-                            structure: {
-                                component_type: "script",
-                            }
-                        })
-                    }}>Edit Script</Button> */}
-
-
-
-                            {/* {component?.databases && <>
-                                <Button size="small" color="cyan" variant="outlined" onClick={() => {
-                                    operatePipeline.openModal("modalE", component.databases)
-                                }}>Database</Button>
-                            </>} */}
-                            {/* <Button size="small" color="cyan" variant="solid" onClick={() => {
-                                    operatePipeline.openModal("modalB", {
-                                        component_id: component?.component_id,
-                                    })
-                                }}>Component Code</Button> */}
-
-
-                            {/* <Button size="small" color="cyan" variant="solid" onClick={() => {
-                                    setLeftPanel("component-structure")
-                                }}>Structure</Button> */}
-
-
-                            {/* {component_type == "pipeline" && <>
-                                    <Dropdown menu={{
-                                        onClick: (val: any) => {
-                                            const key = val.key
-                                            switch (key) {
-                                                case "new-tool":
-                                                    operatePipeline.openModal("modalC", {
-                                                        data: undefined, structure: {
-                                                            component_type: "software",
-                                                            relation_type: "pipeline_software",
-                                                            parent_component_id: pipeline
-                                                                .component_id,
-                                                            pipeline_id: pipeline.component_id
-                                                        }
-                                                    })
-                                                    break;
-                                                case "add-tool":
-                                                    operatePipeline.openModal("modalA", {
-                                                        data: undefined, pipelineStructure: {
-                                                            relation_type: "pipeline_software",
-                                                            parent_component_id: pipeline.component_id,
-                                                            pipeline_id: pipeline.component_id
-
-                                                        }
-                                                    })
-                                                    break;
-                                                case "sort-tool":
-                                                    openModal("sortSoftware", { software: pipeline.software })
-
-                                            }
-
-                                        },
-                                        items: [
-                                            {
-                                                key: 'new-tool',
-                                                label: "New Tool"
-                                            },
-                                            {
-                                                label: 'Add Tool',
-                                                key: 'add-tool',
-                                            }, {
-                                                label: 'Sort Tool',
-                                                key: 'sort-tool',
-                                            }
-                                            // , {
-                                            //     label: ,
-                                            //     key: 'remove-tool',
-                                            //     disabled: component?.component_type != "software"
-                                            // },
-
-                                        ]
-                                    }}>
-                                        <Button size="small" color="cyan" variant="solid">
-                                            <Space>
-                                                Tools
-                                                <DownOutlined />
-                                            </Space>
-                                        </Button>
-                                    </Dropdown>
-                                </>} */}
-
+                                
+                            <Popconfirm
+                                title="Delete this workflow?"
+                                description="This workflow cannot be deleted if there are associated analysis records."
+                                onConfirm={async () => {
+                                    try {
+                                        await http.post(`/workflow/delete/${encodeURIComponent(component.id)}`);
+                                        message.success("Workflow deleted successfully");
+                                        // loadData();
+                                    } catch {
+                                        message.error("Failed to delete workflow");
+                                    }
+                                }}
+                                okText="Delete"
+                                okButtonProps={{ danger: true }}
+                            >
+                                <Button size="small" color="red" variant="outlined" icon={<DeleteOutlined />}>Delete</Button>
+                            </Popconfirm>
+                            
                             <Button size="small" color="cyan" variant="outlined" icon={<RedoOutlined />} onClick={loadData}></Button>
 
-                            {/* <Button icon={<ArrowLeftOutlined />} size="small" color="primary" variant="outlined" onClick={() => navigate("/c/tools")}>Back</Button> */}
                         </Space>
                         {/* <Flex gap="small" wrap>
                                

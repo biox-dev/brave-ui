@@ -38,7 +38,7 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
         setScript(resp.data)
         setLoading(false)
     }
-    const loadData =()=>{
+    const loadData = () => {
         if (script?.id) {
             loadScript(script?.id)
         }
@@ -237,17 +237,17 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
 
                                 {/* <Button size="small" color="primary" variant="solid" onClick={() => navigateView("toolsCard")}>Back</Button> */}
 
-                                <Popconfirm title="Are you sure to delete this component?" onConfirm={async (e: any) => {
-                                    await axios.delete(`/delete-component/${script.component_id}`)
-                                    message.success("Component deleted!")
-                                    setPanel("deleted")
-                                    // reload()
-                                    loadTable()
-                                }}>
-                                    <DeleteOutlined style={{ color: "red" }} onClick={(e) => {
-                                        e.stopPropagation()
-
-                                    }} />
+                                <Popconfirm
+                                    title="Are you sure to delete this component?"
+                                    description="Cannot delete if analysis nodes exist or this script is referenced in a workflow."
+                                    onConfirm={async () => {
+                                        await http.post(`/script/delete/${encodeURIComponent(script.id)}`);
+                                        message.success("Component deleted!");
+                                        clear();
+                                        loadTable()
+                                    }}
+                                >
+                                    <Button size="small" color="red" variant="outlined" icon={<DeleteOutlined />}>Delete</Button>
 
                                 </Popconfirm>
 

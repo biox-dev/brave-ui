@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Button, Card, Flex, Space, Table, Tag, Typography } from "antd";
+import { Alert, Button, Card, Flex, Popconfirm, Space, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { FileTextOutlined, ReloadOutlined } from "@ant-design/icons";
+import { DeleteOutlined, FileTextOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useAnalysisPageQuery } from "@/hooks/usePaginationV2";
 import type { AnalysisItem } from "@/api/analysis";
 import { useComponentStore } from "@/store-zustand/components";
@@ -163,16 +163,29 @@ const AnalysisPage = ({
 			title: "Action",
 			key: "action",
 			fixed: "right",
-			width: 120,
+			width: 160,
 			render: (_: unknown, record) => (
-				<Button
-					type="link"
-					onClick={() => {
-						setAnalysisId(record.id);
-					}}
-				>
-					View
-				</Button>
+				<Space size={0}>
+					<Button
+						type="link"
+						onClick={() => {
+							setAnalysisId(record.id);
+						}}
+					>
+						View
+					</Button>
+					<Popconfirm
+						title="Delete this analysis?"
+						description="This will also delete all associated nodes, edges, container instances, and workspace directories."
+						onConfirm={() => handleDelete(record.id)}
+						okText="Delete"
+						okButtonProps={{ danger: true }}
+					>
+						<Button type="link" danger icon={<DeleteOutlined />}>
+							Delete
+						</Button>
+					</Popconfirm>
+				</Space>
 			),
 		},
 	];
@@ -273,6 +286,19 @@ const AnalysisPage = ({
 	}, [register, unregister, instance]);
 
 	const [publishing, setPublishing] = useState(false);
+
+	const handleDelete = async (id: string) => {
+		try {
+			await http.post(`/analysis/delete/${encodeURIComponent(id)}`);
+			message.success("Analysis deleted successfully");
+			if (analysisId === id) {
+				setAnalysisId("");
+			}
+			refetch();
+		} catch {
+			message.error("Failed to delete analysis");
+		}
+	};
 
 	const handlePublishToDoc = async () => {
 		if (!relation_id) {

@@ -67,6 +67,10 @@ export const deleteAnalysisNodeApi = (analysisNodeId: string) => {
 	return http.post<{ message: string }>(`/analysis/node/delete/${encodeURIComponent(analysisNodeId)}`);
 };
 
+export const deleteAnalysisApi = (analysisId: string) => {
+	return http.post<{ message: string }>(`/analysis/delete/${encodeURIComponent(analysisId)}`);
+};
+
 export interface AnalysisItem {
 	id: string;
 	project_id: string;
