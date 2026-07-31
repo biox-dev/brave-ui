@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, App, Button, Card, Flex, Popconfirm, Space, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { DeleteOutlined, ReloadOutlined, FileTextOutlined } from "@ant-design/icons";
+import { DeleteOutlined, ReloadOutlined, FileTextOutlined, PlayCircleOutlined } from "@ant-design/icons";
 import { useAnalysisNodePageQuery } from "@/hooks/usePaginationV2";
 import type { AnalysisNodeItem } from "@/api/analysis";
 import { deleteAnalysisNodeApi } from "@/api/analysis";
@@ -193,6 +193,24 @@ const AnalysisNodePage = ({
 	};
 
 	const [publishing, setPublishing] = useState(false);
+	const [runningAll, setRunningAll] = useState(false);
+
+	const handleRunAllNodes = async () => {
+		if (!script_id) {
+			message.warning("No script_id available");
+			return;
+		}
+		setRunningAll(true);
+		try {
+			await http.post(`/script/${script_id}/run-analysis-nodes`);
+			message.success("Batch run started successfully");
+			refetch();
+		} catch {
+			message.error("Failed to start batch run");
+		} finally {
+			setRunningAll(false);
+		}
+	};
 
 	const handlePublishToDoc = async () => {
 		if (!script_id) {
@@ -290,6 +308,15 @@ const AnalysisNodePage = ({
 			extra={
 				<Space>
 					<Text type="secondary">Total: {total}</Text>
+
+					<Button
+						icon={<PlayCircleOutlined />}
+						onClick={handleRunAllNodes}
+						loading={runningAll}
+						disabled={!script_id}
+					>
+						Run All
+					</Button>
 					<Button
 						icon={<FileTextOutlined />}
 						onClick={handlePublishToDoc}
