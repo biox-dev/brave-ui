@@ -195,6 +195,10 @@ const AnalysisNodePage = ({
 	const [publishing, setPublishing] = useState(false);
 	const [runningAll, setRunningAll] = useState(false);
 
+	const activeNodeCount = useMemo(() => {
+		return data.filter((n) => n.status === "running" || n.status === "submitted").length;
+	}, [data]);
+
 	const handleRunAllNodes = async () => {
 		if (!script_id) {
 			message.warning("No script_id available");
@@ -313,9 +317,10 @@ const AnalysisNodePage = ({
 						icon={<PlayCircleOutlined />}
 						onClick={handleRunAllNodes}
 						loading={runningAll}
-						disabled={!script_id}
+						disabled={!script_id || runningAll}
+						title={activeNodeCount > 0 ? `${activeNodeCount} node(s) already running` : undefined}
 					>
-						Run All
+						Run All{activeNodeCount > 0 ? ` (${activeNodeCount} running)` : ""}
 					</Button>
 					<Button
 						icon={<FileTextOutlined />}
