@@ -34,6 +34,7 @@ import { useUI } from '@/core/ui-system/useUI';
 import { logoutApi } from '@/api/auth';
 import { getSettingApi } from '@/api/setting';
 import { getPathname } from '@/utils/utils';
+import ContainerQueueMonitor from '@/components/container-manager/container-monitor';
 
 const { Content, Sider } = Layout;
 
@@ -971,6 +972,7 @@ const App: React.FC = () => {
                         onClick={reconnect} >
                         {status === "open" ? "connected" : status === "connecting" ? "connecting" : "connection fail"}
                     </Button>
+                    <ContainerQueueMonitor />
                     <BookOutlined style={{ cursor: "pointer" }} onClick={() => {
                         window.open(`https://pybrave.github.io/brave-doc`, "_blank")
                     }} />
