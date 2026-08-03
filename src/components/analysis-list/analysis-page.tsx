@@ -93,6 +93,12 @@ const AnalysisPage = ({
 
 	const columns: ColumnsType<AnalysisItem> = [
 		{
+			title: "Job Status",
+			dataIndex: "job_status",
+			key: "job_status",
+			width: 130,
+			render: (value: string) => <Tag color={statusColor(value)}>{value || "-"}</Tag>,
+		},{
 			title: "Analysis Name",
 			dataIndex: "analysis_name",
 			key: "analysis_name",
@@ -102,12 +108,32 @@ const AnalysisPage = ({
 			render: (value: string) => value || "-",
 		},
 		{
-			title: "Analysis ID",
-			dataIndex: "id",
-			key: "id",
-			width: 220,
-			ellipsis: true,
-			render: (value: string) => value || "-",
+			title: "Updated At",
+			dataIndex: "updated_at",
+			key: "updated_at",
+			width: 210,
+			render: (value: string) => (value ? new Date(value).toLocaleString() : "-"),
+		},{
+			title: "Report",
+			dataIndex: "is_report",
+			key: "is_report",
+			width: 100,
+			render: (value: boolean, record) => (
+				<Button
+					type="link"
+					size="small"
+					style={{ padding: 0 }}
+					onClick={() => handleToggleReport(record.id)}
+				>
+					<Tag color={value ? "blue" : "default"}>{value ? "yes" : "no"}</Tag>
+				</Button>
+			),
+		},{
+			title: "Cache Type",
+			dataIndex: "cache_type",
+			key: "cache_type",
+			width: 280,
+			render: (value: number) => cacheTypeLabel(value),
 		},
 		{
 			title: "Workflow ID",
@@ -117,34 +143,17 @@ const AnalysisPage = ({
 			ellipsis: true,
 			render: (value: string) => value || "-",
 		},
-		{
-			title: "Job Status",
-			dataIndex: "job_status",
-			key: "job_status",
-			width: 130,
-			render: (value: string) => <Tag color={statusColor(value)}>{value || "-"}</Tag>,
+		
+	{
+			title: "Analysis ID",
+			dataIndex: "id",
+			key: "id",
+			width: 220,
+			ellipsis: true,
+			render: (value: string) => value || "-",
 		},
-		{
-			title: "Server Status",
-			dataIndex: "server_status",
-			key: "server_status",
-			width: 130,
-			render: (value: string) => <Tag color={statusColor(value)}>{value || "-"}</Tag>,
-		},
-		{
-			title: "Report",
-			dataIndex: "is_report",
-			key: "is_report",
-			width: 100,
-			render: (value: boolean) => <Tag color={value ? "blue" : "default"}>{value ? "yes" : "no"}</Tag>,
-		},
-		{
-			title: "Cache Type",
-			dataIndex: "cache_type",
-			key: "cache_type",
-			width: 280,
-			render: (value: number) => cacheTypeLabel(value),
-		},
+		
+		
 		{
 			title: "Created At",
 			dataIndex: "created_at",
@@ -152,13 +161,7 @@ const AnalysisPage = ({
 			width: 210,
 			render: (value: string) => (value ? new Date(value).toLocaleString() : "-"),
 		},
-		{
-			title: "Updated At",
-			dataIndex: "updated_at",
-			key: "updated_at",
-			width: 210,
-			render: (value: string) => (value ? new Date(value).toLocaleString() : "-"),
-		},
+		
 		{
 			title: "Action",
 			key: "action",
@@ -297,6 +300,16 @@ const AnalysisPage = ({
 			refetch();
 		} catch {
 			message.error("Failed to delete analysis");
+		}
+	};
+
+	const handleToggleReport = async (id: string) => {
+		try {
+			await http.post(`/analysis/toggle-report/${encodeURIComponent(id)}`);
+			message.success("Report toggled");
+			refetch();
+		} catch {
+			message.error("Failed to toggle report");
 		}
 	};
 

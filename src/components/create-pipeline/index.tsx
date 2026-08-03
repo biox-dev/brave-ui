@@ -263,7 +263,7 @@ const ScriptContent: FC<any> = ({ data, form }) => {
         <Form.Item name={"script_type"} label="Script Type" rules={[{ required: true, message: 'Please select script type!' }]}>
             <Select options={
                 [{ label: "python", value: "python" },
-                { label: "nextflow", value: "nextflow" },
+                { label: "jupyter", value: "jupyter" },
                 { label: "shell", value: "shell" },
                  { label: "qmd", value: "qmd" },
                 { label: "R", value: "r" }]}></Select>
