@@ -673,19 +673,26 @@ const AnalysisResultDisplay: FC<any> = ({ analsyisResult, prefix = "" }) => {
                                                                     return
                                                                 }
                                                                 try {
-                                                                    const data = await invoke.datasetProjectPage.openDrawerAsync({}, {
+                                                                    const dataset = await invoke.datasetProjectPage.openDrawerAsync({}, {
                                                                         width: 600,
-                                                                        title: "Select File Type"
+                                                                        title: "Select Dataset"
                                                                     })
+                                                                    const result = await invoke.selectFileRole.openDrawerAsync(
+                                                                        { defaultFileName: fileName },
+                                                                        { width: 450, title: "Add File to Dataset" }
+                                                                    )
                                                                     const params = {
-                                                                        dataset_id: data.id,
+                                                                        dataset_id: dataset.id,
                                                                         path: filePath,
                                                                         source: "analysis",
+                                                                        role: result.role,
+                                                                        file_name: result.file_name || undefined,
+                                                                        is_copy: result.is_copy,
                                                                     }
                                                                     await addFileToDatasetApi(params)
                                                                     message.success("File added to analysis results")
                                                                 } catch (error) {
-                                                                    console.log("File type selection cancelled or failed", error)
+                                                                    console.log("Dataset selection cancelled or failed", error)
                                                                 }
                                                             }}
                                                         >

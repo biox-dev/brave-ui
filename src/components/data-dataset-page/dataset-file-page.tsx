@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Button, Card, Flex, Space, Table, Tooltip, Typography } from "antd";
+import { Alert, Button, Card, Flex, Popconfirm, Space, Table, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { ReloadOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { useDatasetFilePageQuery } from "@/hooks/usePaginationV2";
 import type { DatasetFileItem } from "@/api/data";
+import { deleteFileApi } from "@/api/data";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 
@@ -205,19 +206,80 @@ const DatasetFilePage = ({
   };
 
   const selectColumns = useMemo<ColumnsType<DatasetFileItem>>(() => {
+    const actionColumn: ColumnsType<DatasetFileItem>[number] = {
+      title: "Actions",
+      key: "actions",
+      width: 240,
+      fixed: "right",
+      render: (_: unknown, record) => (
+        <Space size="small">
+          <Button
+            size="small"
+            color="cyan"
+            variant="solid"
+            onClick={async () => {
+              try {
+                await invoke.editFilePage.openDrawerAsync(
+                  { file: record },
+                  { width: 480, title: `Edit File: ${record.file_name || record.file_id}` }
+                );
+                refetch();
+              } catch {
+                // user cancelled
+              }
+            }}
+          >
+            Edit
+          </Button>
+          <Button
+            size="small"
+            onClick={async () => {
+              try {
+                await invoke.editDatasetFileRole.openDrawerAsync(
+                  { file: record },
+                  { width: 400, title: `Edit Role: ${record.file_name || record.file_id}` }
+                );
+                refetch();
+              } catch {
+                // user cancelled
+              }
+            }}
+          >
+            Role
+          </Button>
+          <Popconfirm
+            title="Delete this file?"
+            description="This will remove the file and its dataset associations."
+            onConfirm={async () => {
+              await deleteFileApi({ id: record.id });
+              message.success("File deleted successfully");
+              refetch();
+            }}
+          >
+            <Button size="small" danger>
+              Delete
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    };
+
+    const sheetColumn: ColumnsType<DatasetFileItem>[number] = {
+      title: "Sheet",
+      key: "sheet",
+      width: 80,
+      fixed: "right",
+      render: (_: unknown, record) => (
+        <Button size="small" disabled={!isSpreadsheetFile(record)} onClick={() => handleOpenSheet(record)}>
+          Open
+        </Button>
+      ),
+    };
+
     const baseColumns: ColumnsType<DatasetFileItem> = [
       ...columns,
-      {
-        title: "Sheet",
-        key: "sheet",
-        width: 120,
-        fixed: "right",
-        render: (_: unknown, record) => (
-          <Button size="small" disabled={!isSpreadsheetFile(record)} onClick={() => handleOpenSheet(record)}>
-            Open
-          </Button>
-        ),
-      },
+      sheetColumn,
+      actionColumn,
     ];
 
     if (!selectable) {

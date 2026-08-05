@@ -99,11 +99,25 @@ export interface AddFileToDatasetRequest {
 	dataset_id: string;
 	path: string;
 	role?: string;
+	file_name?: string;
+	is_copy?: boolean;
 }
 
 export interface AddFileToDatasetResponse {
 	file: Record<string, unknown>;
 	dataset_file: Record<string, unknown>;
+}
+
+export interface UpdateFileRequest {
+	id: string;
+	file_name?: string;
+	description?: string;
+	format?: string;
+	storage?: string;
+}
+
+export interface DeleteFileRequest {
+	id: string;
 }
 
 export const listFileByProjectGroupApi = (projectId: string) => {
@@ -126,4 +140,22 @@ export const pageSampleByProjectApi = (payload: PageRequest<SamplePageQuery>) =>
 
 export const addFileToDatasetApi = (payload: AddFileToDatasetRequest) => {
 	return http.post<AddFileToDatasetResponse>("/data/dataset-file/add-file", payload);
+};
+
+export const updateFileApi = (payload: UpdateFileRequest) => {
+	return http.post<{ message: string }>("/data/file/update", payload);
+};
+
+export const deleteFileApi = (payload: DeleteFileRequest) => {
+	return http.post<{ message: string }>("/data/file/delete", payload);
+};
+
+export interface UpdateDatasetFileRequest {
+	dataset_id: string;
+	file_id: string;
+	role: string;
+}
+
+export const updateDatasetFileApi = (payload: UpdateDatasetFileRequest) => {
+	return http.post<{ message: string }>("/data/dataset-file/update", payload);
 };

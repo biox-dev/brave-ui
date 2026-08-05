@@ -15,6 +15,7 @@ const analysisNodeViewLoaders = {
     nodeError: () => import("./components/node-error"),
     nodeResolvedIO: () => import("./components/node-resolved-io"),
     nodeLogs: () => import("./components/node-logs"),
+    selectFileRole: () => import("./components/select-file-role"),
 };
 // ;
 declare module "@/core/component-registry/registry-types" {
