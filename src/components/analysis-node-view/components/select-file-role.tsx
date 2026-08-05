@@ -24,7 +24,7 @@ const SelectFileRole = ({
 }: SelectFileRoleProps) => {
   const [selectedRole, setSelectedRole] = useState<string>("DEFAULT");
   const [fileName, setFileName] = useState<string>(defaultFileName || "");
-  const [isCopy, setIsCopy] = useState<boolean>(false);
+  const [isCopy, setIsCopy] = useState<boolean>(true);
 
   const handleConfirm = () => {
     if (onOk) {
