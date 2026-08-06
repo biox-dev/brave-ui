@@ -247,6 +247,25 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
                                                     <Button size="small" color={item?.installed ?"red":"blue"} variant="solid" icon={<DownloadOutlined />} >{item?.installed ?"ReInstall":"Install"}</Button>
                                                 </Popconfirm>}
 
+                                                {onOk && normalizedStoreType === "script" && <Popconfirm
+                                                    okButtonProps={{ color: "cyan", variant: "solid" }}
+                                                    okText="Install as New Script"
+                                                    title={`Install ${item.name} as a new script?`}
+                                                    onConfirm={async () => {
+                                                        await http.post(
+                                                            `/workflow/install-script/${item.id}?create=true`,
+                                                            {},
+                                                            {
+                                                                timeout: 60000,
+                                                            }
+                                                        )
+                                                        message.success(`Installed as new script successfully!`)
+                                                        onOk && onOk()
+                                                    }}
+                                                >
+                                                    <Button size="small" color="cyan" variant="outlined" icon={<DownloadOutlined />}>Install as New Script</Button>
+                                                </Popconfirm>}
+
                                                 {/* {onCancel && <Button size="small" color="blue" variant="solid" onClick={() => {
                                                     onCancel && onCancel()
                                                 }}>Close</Button>} */}
