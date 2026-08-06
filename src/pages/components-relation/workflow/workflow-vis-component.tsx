@@ -6,6 +6,7 @@ import { ReloadOutlined } from '@ant-design/icons'
 import { colors } from "@/utils/utils"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
 import { useComponentStore } from "@/store-zustand/components"
+import { http } from "@/api/client/http"
 type Prop = {
     relation_id: string
 }
@@ -59,7 +60,7 @@ const WorkflowVisComponent: FC<Prop> = ({ relation_id }) => {
     const message = useGlobalMessage()
     const loadData = async () => {
         setLoading(true)
-        const resp = await axios.get(`/tools/get-workflow-vis/${relation_id}`)
+        const resp = await http.get(`/tools/get-workflow-vis/${relation_id}`)
         // setData(resp.data)
         if (resp.data?.nodes) {
             const nodes = getInitialNodesV2(resp.data.nodes)
