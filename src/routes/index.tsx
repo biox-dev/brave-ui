@@ -86,6 +86,7 @@ const ToolsDetail = lazy(() => import("../pages/components-relation/workflow-pan
 
 const ComponentsV3 = lazy(() => import("../pages/components-relation/script-panel"));
 const Login = lazy(() => import("@/pages/users/login"));
+const Register = lazy(() => import("@/pages/users/register"));
 const Explore = lazy(() => import("@/pages/explore"))
 const DatasetProjectPage = lazy(() => import("@/components/data-dataset-page/dataset-project-page"))
 const DatasetFilePage = lazy(() => import("@/components/data-dataset-page/dataset-file-page"))
@@ -357,6 +358,9 @@ if (appType == "index") {
             path: "/login",
             element: <Login />
         }, {
+            path: "/register",
+            element: <Register />
+        }, {
             path: "/office",
             element: <OnlyOffice />
         },
@@ -544,6 +548,10 @@ if (appType == "index") {
         {
             path: "/login",
             element: <Login />
+        },
+        {
+            path: "/register",
+            element: <Register />
         },
         {
             path: "/",

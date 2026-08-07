@@ -21,6 +21,30 @@
     "light": "浅色",
     "dark": "深色",
     "emailPlaceholder": "请输入邮箱",
-    "passwordPlaceholder": "请输入密码"
+    "passwordPlaceholder": "请输入密码",
+    "registerLink": "没有账号？立即注册"
+  },
+  "register": {
+    "title": "创建账号",
+    "subtitle": "加入生物信息分析平台",
+    "brand": "BRAVE UI",
+    "usernameLabel": "用户名",
+    "emailLabel": "邮箱",
+    "passwordLabel": "密码",
+    "confirmPasswordLabel": "确认密码",
+    "usernameRequired": "请输入用户名",
+    "emailRequired": "请输入邮箱",
+    "emailInvalid": "请输入有效邮箱",
+    "passwordRequired": "请输入密码",
+    "passwordMinLength": "密码长度不能少于6位",
+    "confirmPasswordRequired": "请再次输入密码",
+    "passwordMismatch": "两次输入的密码不一致",
+    "submit": "注册",
+    "loginLink": "已有账号？立即登录",
+    "successMessage": "注册成功！正在跳转到登录页...",
+    "usernamePlaceholder": "请输入用户名",
+    "emailPlaceholder": "请输入邮箱",
+    "passwordPlaceholder": "请输入密码",
+    "confirmPasswordPlaceholder": "请再次输入密码"
   }
 }

@@ -33,6 +33,26 @@ export const loginApi = (payload: LoginRequest) => {
 	});
 };
 
+export interface RegisterRequest {
+	username: string;
+	email: string;
+	password: string;
+}
+
+export interface RegisterResponse {
+	success: boolean;
+	message: string;
+	user: LoginUser;
+}
+
+export const registerApi = (payload: RegisterRequest) => {
+	return http.post<RegisterResponse>("/auth/register", payload, {
+		headers: {
+			accept: "application/json",
+		},
+	});
+};
+
 export const logoutApi = () => {
 	return http.post("/auth/logout", "", {
 		headers: {

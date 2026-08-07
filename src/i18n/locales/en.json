@@ -21,6 +21,30 @@
         "light": "Light",
         "dark": "Dark",
         "emailPlaceholder": "Enter your email",
-        "passwordPlaceholder": "Enter your password"
+        "passwordPlaceholder": "Enter your password",
+        "registerLink": "No account? Register now"
+    },
+    "register": {
+        "title": "Create Account",
+        "subtitle": "Join the Bioinformatics Analysis Platform",
+        "brand": "BRAVE UI",
+        "usernameLabel": "Username",
+        "emailLabel": "Email",
+        "passwordLabel": "Password",
+        "confirmPasswordLabel": "Confirm Password",
+        "usernameRequired": "Please input your username",
+        "emailRequired": "Please input your email",
+        "emailInvalid": "Please enter a valid email",
+        "passwordRequired": "Please input your password",
+        "passwordMinLength": "Password must be at least 6 characters",
+        "confirmPasswordRequired": "Please confirm your password",
+        "passwordMismatch": "Passwords do not match",
+        "submit": "Register",
+        "loginLink": "Already have an account? Sign In",
+        "successMessage": "Registration successful! Redirecting to login...",
+        "usernamePlaceholder": "Enter your username",
+        "emailPlaceholder": "Enter your email",
+        "passwordPlaceholder": "Enter your password",
+        "confirmPasswordPlaceholder": "Re-enter your password"
     }
 }

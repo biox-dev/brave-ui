@@ -178,6 +178,12 @@ const Login: FC = () => {
 										]}
 									/>
 								</div>
+
+								<div style={{ textAlign: "center", paddingTop: 4 }}>
+									<Button type="link" onClick={() => navigate("/register")}>
+										{t("login.registerLink")}
+									</Button>
+								</div>
 							</Space>
 
 						</Card>
