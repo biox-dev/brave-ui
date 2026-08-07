@@ -1,17 +1,15 @@
 import { Button, Col, Input, Row, Space } from "antd"
-import { FC, useEffect, useMemo, useState } from "react"
-import axios from "axios"
+import { FC, useState } from "react"
+import { http } from "@/api/client/http"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
 import { invoke } from "@/core/ui-system/invokeV2";
-import { useComponentStore } from "@/store-zustand/components";
 import StoreSidebar from "./components/store-sidebar";
 import StoreContent from "./components/store-content";
 const InstallComponents: FC<any> = ({ relation_type, onOk,onCancel }) => {
 
     const message = useGlobalMessage()
-    const [address, setAddress] = useState("local")
+    const [address] = useState("local")
     const [downloadParams, setDownloadParams] = useState<any>()
-    const [cmd, setCmd] = useState<any>("")
     const [selectedStoreId, setSelectedStoreId] = useState<string>()
     const [sidebarRefreshToken, setSidebarRefreshToken] = useState(0)
     // const [contentRefreshToken, setContentRefreshToken] = useState(0)
@@ -72,15 +70,24 @@ const InstallComponents: FC<any> = ({ relation_type, onOk,onCancel }) => {
                     message.error("Please input store url!")
                     return
                 }
-                // /download-store
-                const resp = await axios.post(`/clone-store`, downloadParams)
-                // setCmd(`${resp.data?.cmd}`)
+                try {
+                    const payload = {
+                        ...downloadParams,
+                        store_type: relation_type,
+                    }
+                    const resp = await http.post(`/store/download`, payload)
 
-                if (resp.data?.store_id) {
-                    message.success("create store!")
-                    setSelectedStoreId(resp.data.store_id)
-                    setSidebarRefreshToken((value) => value + 1)
-                    // setContentRefreshToken((value) => value + 1)
+                    if (resp.data?.store_id) {
+                        if (resp.data?.already_exists) {
+                            message.success("store already exists!")
+                        } else {
+                            message.success("create store!")
+                        }
+                        setSelectedStoreId(resp.data.store_id)
+                        setSidebarRefreshToken((value) => value + 1)
+                    }
+                } catch (err: any) {
+                    message.error(err?.response?.data?.message || "download store failed")
                 }
             }}>Download</Button>
         </Space.Compact>
@@ -138,8 +145,6 @@ const InstallComponents: FC<any> = ({ relation_type, onOk,onCancel }) => {
 
         
         </Spin> */}
-
-        {/* {cmd && <pre>{cmd}</pre>} */}
 
     </>
 

@@ -1,11 +1,8 @@
-import { Button, Col, Input, Row, Space } from "antd"
-import { FC, useEffect, useMemo, useRef, useState } from "react"
-import axios from "axios"
+import { Button, Input, Space } from "antd"
+import { FC, useRef, useState } from "react"
+import { http } from "@/api/client/http"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
 import { invoke } from "@/core/ui-system/invokeV2";
-import { useComponentStore } from "@/store-zustand/components";
-import StoreSidebar from "./components/store-sidebar";
-import StoreContent from "./components/store-content";
 import StorePages from "./components/store-pages";
 const InstallComponents: FC<any> = ({ storeType, onOk, onCancel }) => {
 
@@ -75,22 +72,23 @@ const InstallComponents: FC<any> = ({ storeType, onOk, onCancel }) => {
                     message.error("Please input store url!")
                     return
                 }
-                // /download-store
-                const resp = await axios.post(`/clone-store`, downloadParams)
-                // setCmd(`${resp.data?.cmd}`)
-
-                if (resp.data?.store_id) {
-                    pageRef.current?.reload();
-                    if (resp.data?.already_exists) {
-                        message.success("store already exists!")
-                    }else{
-                        message.success("create store!")
+                try {
+                    const payload = {
+                        ...downloadParams,
+                        store_type: storeType,
                     }
+                    const resp = await http.post(`/store/download`, payload)
 
-                    
-                    // setSelectedStoreId(resp.data.store_id)
-                    // setSidebarRefreshToken((value) => value + 1)
-                    // setContentRefreshToken((value) => value + 1)
+                    if (resp.data?.store_id) {
+                        pageRef.current?.reload();
+                        if (resp.data?.already_exists) {
+                            message.success("store already exists!")
+                        } else {
+                            message.success("create store!")
+                        }
+                    }
+                } catch (err: any) {
+                    message.error(err?.response?.data?.message || "download store failed")
                 }
             }}>Download</Button>
         </Space.Compact>

@@ -8,6 +8,7 @@ import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useSelector } from "react-redux";
 import { useComponentStore } from "@/store-zustand/components";
 import { useNavigate } from "react-router";
+import { http } from "@/api/client/http";
 
 interface StoreContentProps {
     storeId?: string;
@@ -141,15 +142,17 @@ const StoreContent: FC<StoreContentProps> = ({
                     )}
                     {storeId && store?.store?.status === "done" && (
                         <Popconfirm
-                            title={`Git Pull ${store?.store?.url} ?`}
+                            title={`ReDownload ${store?.store?.url} ?`}
                             onConfirm={async () => {
-                                await axios.post(`/git-pull/${store?.store?.store_id}`);
-                                message.success("Git pull success!");
+								await http.post(`/store/redownload`, {
+									id: store?.store?.id || storeId,
+								});
+								message.success("ReDownload success!");
                                 loadData(storeId);
                             }}
                         >
                             <Button color="cyan" variant="solid" size="small">
-                                Git Pull
+                                ReDownload
                             </Button>
                         </Popconfirm>
                     )}
@@ -157,7 +160,9 @@ const StoreContent: FC<StoreContentProps> = ({
                         <Popconfirm
                             title={`Delete Store ${store?.name || storeId} ?`}
                             onConfirm={async () => {
-                                await axios.post(`/delete-store/${storeId}`);
+								await http.post(`/store/delete`, {
+									id: store?.store?.id || storeId,
+								});
                                 message.success("Delete success!");
                                 setStore(undefined);
                                 setComponents([]);

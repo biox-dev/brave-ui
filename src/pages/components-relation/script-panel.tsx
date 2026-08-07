@@ -1,4 +1,4 @@
-import { Button, Card, Col, Empty, Modal, Popconfirm, Row, Segmented, Skeleton, Space, Spin, Table, Tag, Tooltip } from "antd"
+import { Button, Card, Col, Empty, Modal, Popconfirm, Row, Segmented, Skeleton, Space, Spin, Table } from "antd"
 import { FC, use, useEffect, useRef, useState } from "react"
 import ComponentsPage from "../../components/workflow-page/component/page"
 import { useParams } from "react-router"
@@ -15,6 +15,7 @@ import ScriptPage from "@/components/workflow-page/script-page"
 import { invoke } from "@/core/ui-system/invokeV2"
 import { renderViewButton } from "@/utils/render-view-btn"
 import { http } from "@/api/client/http"
+import StoreVersionActions from "./components/store-version-actions"
 
 const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
     const { modal, openModal, closeModal } = useModal();
@@ -182,7 +183,7 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
                             size="small"
                             title={<Space>
                                 {script?.component_name || ''}
-                                {script?.component_id && <>
+                                {/* {script?.component_id && <>
 
                                     <Popconfirm title="Copy component ?" onConfirm={async (e: any) => {
                                         e.stopPropagation()
@@ -199,24 +200,15 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
                                     </Popconfirm>
 
 
-                                </>}
-
-                                {script?.store_origin && <Tag color="blue">{script?.store_origin}</Tag>}
+                                </>} */}
 
                                 {script && <>
-                                    {!script?.store_version ? <>
-                                        <Tag color="red"> {script?.version} (unpublished)</Tag>
-                                    </> : <Tooltip title={script?.store_url}>
-                                        {script?.store_version === script?.version ?
-                                            <Tag style={{ cursor: "pointer" }} onClick={() => {
-                                                window.open(script?.store_url, "_blank")
-                                            }}> {script.version}</Tag> :
-                                            <Tag color="red" style={{ cursor: "pointer" }} onClick={() => {
-                                                window.open(script?.store_url, "_blank")
-                                            }}>store/current: {script?.store_version}/{script?.version}</Tag>
-                                        }
+                                    <StoreVersionActions
+                                        entity="script"
+                                        item={script}
+                                        onReload={loadData}
+                                    />
 
-                                    </Tooltip>}
                                     {/* 
                                     <Popconfirm title="Reinstall?" onConfirm={async () => {
                                         // /reinstall-relation/{relation_id}

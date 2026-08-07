@@ -41,6 +41,7 @@ import ViewResolver from "@/core/ui-renderer/ViewResolver"
 import { invoke } from "@/core/ui-system/invokeV2"
 import WorkflowPage from "@/components/workflow-page/workflow-page"
 import { http } from "@/api/client/http"
+import StoreVersionActions from "./components/store-version-actions"
 
 const Pipeline: FC<any> = ({ }) => {
 
@@ -405,99 +406,26 @@ const Pipeline: FC<any> = ({ }) => {
                             // overflowY: "auto"
                         }
                     }}
-                    title={<Space>
+                    title={<Space >
                         <Tooltip title={component?.category}>
                             {component?.name}
                         </Tooltip>
-                        {component?.store_origin && <Tag color="blue">{component?.store_origin}</Tag>}
-
-                        {component && <>
-                            {!component?.store_version ? <>
-                                <Tag color="red"> {component?.version} (unpublished)</Tag>
-                            </> : <>
-
-                                <Tooltip title={component?.store_url}>
-                                    {component?.store_version === component?.version ?
-                                        <Tag style={{ cursor: "pointer" }} onClick={() => {
-                                            window.open(component?.store_url, "_blank")
-                                        }}> {component.version}</Tag> :
-                                        <Tag color="red" style={{ cursor: "pointer" }} onClick={() => {
-                                            window.open(component?.store_url, "_blank")
-                                        }}>store/current: {component?.store_version}/{component?.version}</Tag>
-                                    }
-
-                                </Tooltip>
-
-                                <Popconfirm title="Reinstall?" onConfirm={async () => {
-                                    // /reinstall-relation/{relation_id}
-                                    await axios.post(`/reinstall-relation/${component.relation_id}`)
-                                    messageApi.success("ReInstalled successfully!")
-                                    loadData()
-
-                                }}>
-                                    <Button variant="solid" size="small" style={{ cursor: "pointer" }}>ReInstall</Button>
-
-                                </Popconfirm>
-                            </>}
-
-
-                        </>}
-
-
-
-                        {component?.store_url &&
-                            <Space>
-                                {/* <Tooltip title={<>
-                            {component.store_update_info && <>Last Update: {component.store_update_info} <br />
-                            </>}
-                        </>}>
-                            <Tag style={{ cursor: "pointer" }} onClick={() => {
-                                invoke.storeContent.open({
-                                    storeId: component.store_id,
-                                }, {
-                                    title: `Store Content - ${component.store_name}`,
-                                    footer: null,
-                                    width: "60%",
-                                })
-                            }}>{component.store_name} </Tag>
-                        </Tooltip> */}
-
-
-
-
-                                <Popconfirm title={`Git pull ${component?.store_url} ?`} onConfirm={async () => {
-                                    // /reinstall-relation/{relation_id}
-                                    await axios.post(`/git-pull/${component?.store_id}`);
-                                    message.success("Git pull submitted!");
-                                    loadData()
-
-                                }}>
-                                    <Button variant="solid" size="small" style={{ cursor: "pointer" }}>Check Update</Button>
-
-                                </Popconfirm>
-
-                                {component?.store_status != "done" &&
-                                    <Button size="small"
-                                        variant="solid"
-                                        icon={<Spin size="small" />}
-                                        color="red"
-                                        style={{ cursor: "pointer" }}
-                                        onClick={async () => {
-                                            await axios.post(`/git-stop/${component?.store_id}`);
-                                            message.success("Stop success!");
-                                            loadData()
-                                        }}
-                                    >
-                                        Stop ({component?.store_status})
-                                    </Button>
-
-                                }
-                            </Space>
-                        }
+                    
+                        {component && (
+                            <StoreVersionActions
+                                entity="workflow"
+                                item={component}
+                                onReload={loadData}
+                                showStop={Boolean(component?.store_url)}
+                            />
+                        )}
 
                     </Space>}
-                    extra={<Flex justify={"space-between"} align={"center"} gap="small">
+                    extra={<Flex justify={"space-between"} align={"center"} gap="small" >
                         <Space wrap>
+
+                          
+
                             <QuestionCircleOutlined
                                 onClick={() => {
                                     // setSize([14, 6])

@@ -175,22 +175,26 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
                                         )}
                                         {item?.status === "done" && (
                                             <Popconfirm
-                                                title={`Git Pull ${item?.url} ?`}
+                                                title={`ReDownload ${item?.url} ?`}
                                                 onConfirm={async () => {
-                                                    await axios.post(`/git-pull/${item?.store_id}`)
-                                                    message.success("Git pull success!")
+												await http.post(`/store/redownload`, {
+													id: item?.id,
+												})
+												message.success("ReDownload success!")
                                                     refetch()
                                                 }}
                                             >
                                                 <Button color="cyan" variant="solid" size="small">
-                                                    Git Pull
+                                                    ReDownload
                                                 </Button>
                                             </Popconfirm>
                                         )}
                                         <Popconfirm
                                             title={`Delete Store ${item?.name} ?`}
                                             onConfirm={async () => {
-                                                await axios.post(`/delete-store/${item?.store_id}`)
+												await http.post(`/store/delete`, {
+													id: item?.id,
+												})
                                                 message.success("Delete success!")
                                                 refetch()
                                             }}
