@@ -162,6 +162,18 @@ export const pageContainerImageApi = (payload: PageRequest<ContainerImagePageQue
     return http.post<PageResponse<ContainerImageItem>>("/container/image/list-by-page", payload);
 };
 
+export const createContainerImageApi = (payload: Partial<ContainerImageItem>) => {
+    return http.post<ContainerImageItem>("/container/image/create", payload);
+};
+
+export const updateContainerImageApi = (payload: Partial<ContainerImageItem> & { id: string }) => {
+    return http.post<{ message: string }>("/container/image/update", payload);
+};
+
+export const deleteContainerImageApi = (payload: { id: string }) => {
+    return http.post<{ message: string }>("/container/image/delete", payload);
+};
+
 export const pageContainerTemplateApi = (payload: PageRequest<ContainerTemplatePageQuery>) => {
     return http.post<PageResponse<ContainerTemplateItem>>("/container/template/list-by-page", payload);
 };

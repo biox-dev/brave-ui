@@ -1,9 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
-import { Button, Card, Flex, Space, Table, Typography } from "antd";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Button, Card, Flex, Popconfirm, Space, Table, Typography, App } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { ReloadOutlined } from "@ant-design/icons";
+import { PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useContainerImagePageQuery } from "@/hooks/usePaginationV2";
 import type { ContainerImageItem } from "@/api/container";
+import { deleteContainerImageApi } from "@/api/container";
+import { invoke } from "@/core/ui-system/invokeV2";
+import { useGlobalMessage } from "@/hooks/useGlobalMessage";
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (typeof error === "object" && error !== null) {
+    const maybeResponse = (error as { response?: { data?: { message?: string; error?: string } } }).response;
+    const msg = maybeResponse?.data?.message || maybeResponse?.data?.error;
+    if (msg) {
+      return msg;
+    }
+  }
+  return fallback;
+};
 
 const { Text } = Typography;
 
@@ -113,7 +127,9 @@ const ContainerImagePage = ({
   close,
 }: ContainerImagePageProps) => {
   const [selectedId, setSelectedID] = useState<string>();
+  const [deletingId, setDeletingId] = useState<string>();
   const selectable = Boolean(onOk || onCancel);
+  const messageApi =  useGlobalMessage();
 
   const {
     data,
@@ -152,30 +168,97 @@ const ContainerImagePage = ({
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 
+  const handleCreate = useCallback(async () => {
+    try {
+      await invoke.containerImageForm.openAsync(
+        {},
+        { title: "Create Container Image", width: 600, footer: false }
+      );
+      refetch();
+    } catch {
+      // User cancelled
+    }
+  }, [refetch]);
+
+  const handleEdit = useCallback(async (record: ContainerImageItem) => {
+    try {
+      await invoke.containerImageForm.openAsync(
+        { item: record },
+        { title: "Edit Container Image", width: 600, footer: false }
+      );
+      refetch();
+    } catch {
+      // User cancelled
+    }
+  }, [refetch]);
+
+  const handleDelete = useCallback(async (record: ContainerImageItem) => {
+    setDeletingId(record.id);
+    try {
+      await deleteContainerImageApi({ id: record.id });
+      messageApi.success("Container image deleted successfully");
+      refetch();
+    } catch (error) {
+      messageApi.error(getErrorMessage(error, "Failed to delete container image"));
+    } finally {
+      setDeletingId(undefined);
+    }
+  }, [messageApi, refetch]);
+
   const selectColumns = useMemo<ColumnsType<ContainerImageItem>>(() => {
-    if (!selectable) {
-      return columns;
+    if (selectable) {
+      return [
+        ...columns,
+        {
+          title: "Action",
+          key: "action",
+          width: 120,
+          fixed: "right" as const,
+          render: (_: unknown, record) => (
+            <Button
+              type={record.id === selectedId ? "primary" : "default"}
+              size="small"
+              onClick={() => setSelectedID(record.id)}
+            >
+              {record.id === selectedId ? "Selected" : "Select"}
+            </Button>
+          ),
+        },
+      ];
     }
 
+    // Standalone mode: show Edit + Delete actions
     return [
       ...columns,
       {
-        title: "Action",
-        key: "action",
-        width: 120,
-        fixed: "right",
+        title: "Actions",
+        key: "actions",
+        width: 160,
+        fixed: "right" as const,
         render: (_: unknown, record) => (
-          <Button
-            type={record.id === selectedId ? "primary" : "default"}
-            size="small"
-            onClick={() => setSelectedID(record.id)}
-          >
-            {record.id === selectedId ? "Selected" : "Select"}
-          </Button>
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              onClick={() => handleEdit(record)}
+            >
+              Edit
+            </Button>
+            <Popconfirm
+              title="Delete this image?"
+              description="This action cannot be undone."
+              onConfirm={() => handleDelete(record)}
+              okButtonProps={{ loading: deletingId === record.id }}
+            >
+              <Button type="link" size="small" danger>
+                Delete
+              </Button>
+            </Popconfirm>
+          </Space>
         ),
       },
     ];
-  }, [selectable, selectedId]);
+  }, [selectable, selectedId, deletingId]);
 
   const handleConfirm = () => {
     if (!selectedItem || !onOk) {
@@ -201,6 +284,11 @@ const ContainerImagePage = ({
       extra={
         <Space>
           <Text type="secondary">Total: {total}</Text>
+          {!selectable && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+              Create
+            </Button>
+          )}
           <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
             Refresh
           </Button>

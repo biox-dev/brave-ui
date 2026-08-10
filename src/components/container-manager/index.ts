@@ -4,6 +4,7 @@ import type { InferViewRegistryFromLoaders } from "@/core/component-registry/reg
 const viewLoaders = {
 
   containerImagePage: () => import("./container-image-page"),
+  containerImageForm: () => import("./container-image-form"),
   containerTemplatePage: () => import("./container-template-page"),
   appSessionPage: () => import("./app-session-page"),
   containerInstancePage: () => import("./container-instance-page"),
