@@ -178,6 +178,18 @@ export const pageContainerTemplateApi = (payload: PageRequest<ContainerTemplateP
     return http.post<PageResponse<ContainerTemplateItem>>("/container/template/list-by-page", payload);
 };
 
+export const createContainerTemplateApi = (payload: Partial<ContainerTemplateItem>) => {
+    return http.post<ContainerTemplateItem>("/container/template/create", payload);
+};
+
+export const updateContainerTemplateApi = (payload: Partial<ContainerTemplateItem> & { id: string }) => {
+    return http.post<{ message: string }>("/container/template/update", payload);
+};
+
+export const deleteContainerTemplateApi = (payload: { id: string }) => {
+    return http.post<{ message: string }>("/container/template/delete", payload);
+};
+
 export const pageAppSessionApi = (payload: PageRequest<AppSessionPageQuery>) => {
     const { page, page_size, ...query } = payload;
     return http.post<PageResponse<AppSessionItem>>("/container/app-session/list-by-page", {

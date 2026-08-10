@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
-import { Button, Card, Flex, Space, Table, Typography, message } from "antd";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Button, Card, Flex, Popconfirm, Space, Table, Typography, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { ReloadOutlined } from "@ant-design/icons";
+import { PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { useContainerTemplatePageQuery } from "@/hooks/usePaginationV2";
-import { createAppSessionApi, type ContainerTemplateItem } from "@/api/container";
+import { createAppSessionApi, deleteContainerTemplateApi, type ContainerTemplateItem } from "@/api/container";
+import { invoke } from "@/core/ui-system/invokeV2";
 
 const { Text } = Typography;
 
@@ -135,6 +136,7 @@ const ContainerTemplatePage = ({
 }: ContainerTemplatePageProps) => {
   const [selectedId, setSelectedID] = useState<string>();
   const [creatingTemplateID, setCreatingTemplateID] = useState<string>();
+  const [deletingId, setDeletingId] = useState<string>();
   const [messageApi, contextHolder] = message.useMessage();
   const projectID = useSelector((state: any) => String(state?.user?.project || ""));
   const selectable = Boolean(onOk || onCancel);
@@ -175,6 +177,43 @@ const ContainerTemplatePage = ({
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 
+  const handleCreate = useCallback(async () => {
+    try {
+      await invoke.containerTemplateForm.openAsync(
+        {},
+        { title: "Create Container Template", width: 600, footer: false }
+      );
+      refetch();
+    } catch {
+      // User cancelled
+    }
+  }, [refetch]);
+
+  const handleEdit = useCallback(async (record: ContainerTemplateItem) => {
+    try {
+      await invoke.containerTemplateForm.openAsync(
+        { item: record },
+        { title: "Edit Container Template", width: 600, footer: false }
+      );
+      refetch();
+    } catch {
+      // User cancelled
+    }
+  }, [refetch]);
+
+  const handleDelete = useCallback(async (record: ContainerTemplateItem) => {
+    setDeletingId(record.id);
+    try {
+      await deleteContainerTemplateApi({ id: record.id });
+      messageApi.success("Container template deleted successfully");
+      refetch();
+    } catch (error) {
+      messageApi.error(getErrorMessage(error, "Failed to delete container template"));
+    } finally {
+      setDeletingId(undefined);
+    }
+  }, [messageApi, refetch]);
+
   const handleCreateAppSession = async (item: ContainerTemplateItem) => {
     if (!projectID) {
       messageApi.warning("No active project selected");
@@ -197,12 +236,42 @@ const ContainerTemplatePage = ({
   };
 
   const selectColumns = useMemo<ColumnsType<ContainerTemplateItem>>(() => {
-    const actionColumns: ColumnsType<ContainerTemplateItem> = [
+    const crudColumns: ColumnsType<ContainerTemplateItem> = [
+      {
+        title: "Actions",
+        key: "crud_actions",
+        width: 160,
+        fixed: "right" as const,
+        render: (_: unknown, record) => (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              onClick={() => handleEdit(record)}
+            >
+              Edit
+            </Button>
+            <Popconfirm
+              title="Delete this template?"
+              description="This action cannot be undone."
+              onConfirm={() => handleDelete(record)}
+              okButtonProps={{ loading: deletingId === record.id }}
+            >
+              <Button type="link" size="small" danger>
+                Delete
+              </Button>
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ];
+
+    const appSessionColumn: ColumnsType<ContainerTemplateItem> = [
       {
         title: "App Session",
         key: "app_session_action",
         width: 170,
-        fixed: "right",
+        fixed: "right" as const,
         render: (_: unknown, record) => (
           <Button
             type="link"
@@ -217,17 +286,18 @@ const ContainerTemplatePage = ({
     ];
 
     if (!selectable) {
-      return [...columns, ...actionColumns];
+      return [...columns, ...crudColumns, ...appSessionColumn];
     }
 
     return [
       ...columns,
-      ...actionColumns,
+      ...crudColumns,
+      ...appSessionColumn,
       {
         title: "Select",
         key: "select_action",
         width: 120,
-        fixed: "right",
+        fixed: "right" as const,
         render: (_: unknown, record) => (
           <Button
             type={record.id === selectedId ? "primary" : "default"}
@@ -239,7 +309,7 @@ const ContainerTemplatePage = ({
         ),
       },
     ];
-  }, [selectable, selectedId, creatingTemplateID, projectID]);
+  }, [selectable, selectedId, creatingTemplateID, deletingId, projectID]);
 
   const handleConfirm = () => {
     if (!selectedItem || !onOk) {
@@ -265,6 +335,11 @@ const ContainerTemplatePage = ({
       extra={
         <Space>
           <Text type="secondary">Total: {total}</Text>
+          {!selectable && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+              Create
+            </Button>
+          )}
           <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
             Refresh
           </Button>
@@ -278,7 +353,7 @@ const ContainerTemplatePage = ({
         dataSource={data}
         loading={isLoading || isFetching}
         size="small"
-        scroll={{ x: 1400 }}
+        scroll={{ x: 1500 }}
         locale={{ emptyText: error ? "Failed to load container templates" : "No container templates" }}
         rowSelection={
           selectable
