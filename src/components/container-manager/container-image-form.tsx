@@ -144,13 +144,13 @@ const ContainerImageForm = ({
             <Form.Item name="digest" label="Digest">
                 <Input placeholder="Image digest hash" />
             </Form.Item>
-            <Form.Item
+            {/* <Form.Item
                 name="tag"
                 label="Tag"
                 rules={[{ required: true, message: "Please enter the image tag" }]}
             >
                 <Input placeholder="e.g. 4.4" />
-            </Form.Item>
+            </Form.Item> */}
 
 
             <Form.Item name="description" label="Description">

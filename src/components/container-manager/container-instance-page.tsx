@@ -59,7 +59,22 @@ const columns: ColumnsType<ContainerInstanceItem> = [
     key: "status",
     width: 140,
     render: (value: string) => value || "-",
-  },{
+  },
+  {
+    title: "Monitoring",
+    dataIndex: "in_monitoring_registry",
+    key: "in_monitoring_registry",
+    width: 130,
+    render: (value?: boolean) => (value ? "Yes" : "No"),
+  },
+  {
+    title: "RefCount",
+    dataIndex: "ref_count",
+    key: "ref_count",
+    width: 100,
+    render: (value?: number) => (Number.isFinite(value) && (value ?? 0) > 0 ? value : "-"),
+  },
+  {
     title: "Created At",
     dataIndex: "created_at",
     key: "created_at",

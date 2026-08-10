@@ -62,6 +62,8 @@ export interface ContainerInstanceItem {
     runtime_id: string;
     name: string;
     status: string;
+    in_monitoring_registry?: boolean;
+    ref_count?: number;
     ip_address: string;
     exit_code: number;
     started_at: string;
