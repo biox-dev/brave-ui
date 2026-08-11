@@ -23,7 +23,7 @@ const ContainerQueueMonitor: React.FC = () => {
     const fetchStatus = useCallback(async () => {
         setLoading(true);
         try {
-            const resp = await http.get('/container/create-queue/status');
+            const resp = await http.get('/container/queue/status');
             setStatus(resp.data);
             setError(false);
         } catch {
