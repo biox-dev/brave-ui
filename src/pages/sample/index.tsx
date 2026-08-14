@@ -9,6 +9,7 @@ import { bindSampleToAnalysisResultApi } from "@/api/analysis-result"
 import { updateSampleMetadataListApi } from "@/api/sample-metadata"
 import { EditMetadataTableModal } from "@/components/edit-table"
 import { EditOutlined, FileAddOutlined } from "@ant-design/icons"
+import { useGlobalMessage } from "@/hooks/useGlobalMessage"
 export const getSamples: any = (project: any) => axios.get(`/list-by-project?project=${project}`)
 const Sample: FC<any> = ({ operatePipeline, rowSelection }) => {
     const [sampleData, setSampleData] = useState([])
@@ -366,7 +367,8 @@ const Sample: FC<any> = ({ operatePipeline, rowSelection }) => {
 
 export const BindSample: FC<any> = ({ visible, onClose, operatePipeline, params }) => {
     const [selectedRowKey, setSelectedRowKey] = useState<any>()
-    const { messageApi } = useOutletContext<any>()
+    // const {  } = useOutletContext<any>()
+    const messageApi = useGlobalMessage()
     const submit = async () => {
         if (!selectedRowKey) {
             messageApi.error("Please select a sample")
