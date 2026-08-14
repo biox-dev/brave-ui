@@ -1,8 +1,8 @@
 import { ActionDispatcher } from "./dispatcher";
-import { useUIStore } from "@/store-zustand/ui";
-import { useFormStore } from "@/store-zustand/form";
-import { useRouterStore } from "@/store-zustand/router";
-import { useComponentStore } from "@/store-zustand/components";
+import { useUIStore } from "@/event-bus/stores/ui";
+import { useFormStore } from "@/event-bus/stores/form";
+import { useRouterStore } from "@/event-bus/stores/router";
+import { useComponentStore } from "@/event-bus/stores/components";
 
 
 // 定义各 Action payload 类型

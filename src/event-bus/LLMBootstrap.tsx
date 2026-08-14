@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import { sseClient } from "@/sse";
-import { useRouterStore } from "@/store-zustand/router";
-import { useUIStore } from "@/store-zustand/ui";
+import { useRouterStore } from "@/event-bus/stores/router";
+import { useUIStore } from "@/event-bus/stores/ui";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useGlobalNotification } from "@/hooks/useGlobalNotification";
 import { registerLLMActions } from "./registerHandlers";

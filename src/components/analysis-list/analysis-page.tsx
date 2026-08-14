@@ -4,7 +4,7 @@ import type { ColumnsType } from "antd/es/table";
 import { DeleteOutlined, FileTextOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useAnalysisPageQuery } from "@/hooks/usePaginationV2";
 import type { AnalysisItem } from "@/api/analysis";
-import { useComponentStore } from "@/store-zustand/components";
+import { useComponentStore } from "@/event-bus/stores/components";
 import { useStoreRender } from "@/context/render/RenderProvider";
 import AnalysisNodePanel from "../analysis-node-view/analysis-node-panel";
 import { http } from "@/api/client/http";

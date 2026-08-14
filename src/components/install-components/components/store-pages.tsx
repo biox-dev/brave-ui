@@ -8,7 +8,7 @@ import { DownloadOutlined, RedoOutlined } from '@ant-design/icons'
 import { Spin } from "antd/lib"
 import axios from "axios"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
-import { useComponentStore } from "@/store-zustand/components"
+import { useComponentStore } from "@/event-bus/stores/components"
 import { http } from "@/api/client/http"
 
 type StoreType = "workflow" | "script"

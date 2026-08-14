@@ -165,7 +165,7 @@ import { softwareTemplete, scriptTemplete, fileTemplete, INPUTS } from './temple
 import ContainerPage from "@/pages/container"
 import { useSelector } from "react-redux"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
-import { ActionDispatcher } from "@/llmv2/dispatcher"
+import { ActionDispatcher } from "@/event-bus/dispatcher"
 import { invoke } from "@/core/ui-system/invokeV2"
 import { http } from "@/api/client/http"
 const SoftwareContent: FC<any> = ({ data, form }) => {

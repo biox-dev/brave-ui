@@ -5,7 +5,7 @@ import { FC, useEffect, useMemo, useState } from "react"
 import { ReloadOutlined } from '@ant-design/icons'
 import { colors } from "@/utils/utils"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
-import { useComponentStore } from "@/store-zustand/components"
+import { useComponentStore } from "@/event-bus/stores/components"
 import { http } from "@/api/client/http"
 type Prop = {
     relation_id: string

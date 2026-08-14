@@ -4,7 +4,7 @@ import { RedoOutlined } from '@ant-design/icons'
 import { useStoreRender } from "@/context/render/RenderProvider";
 import AnalysisNodeDetails from "./analysis-node-details";
 import ViewResolver from "@/core/ui-renderer/ViewResolver";
-import { useComponentStore } from "@/store-zustand/components";
+import { useComponentStore } from "@/event-bus/stores/components";
 import { getVisualizationNodeTreeV1Api } from "@/api/analysisv1";
 
 type NodeResultAsset = {

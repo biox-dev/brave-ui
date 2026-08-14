@@ -13,7 +13,7 @@ import { findAnalysisById, runAnalysisApi, runAnalysisNodeApi, stopAnalysisApi, 
 import ViewResolver from "@/core/ui-renderer/ViewResolver";
 import { useUI } from "@/core/ui-system/useUI";
 import { invoke } from "@/core/ui-system/invokeV2";
-import { useComponentStore } from "@/store-zustand/components";
+import { useComponentStore } from "@/event-bus/stores/components";
 
 type JsonValue = string | number | boolean | null | undefined | JsonValue[] | { [key: string]: JsonValue };
 

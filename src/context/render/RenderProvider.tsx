@@ -1,7 +1,7 @@
 import axios from "axios"
 import { createContext, FC, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { useSideViewContext } from "../side/SideViewContext"
-import { useComponentStore } from "@/store-zustand/components"
+import { useComponentStore } from "@/event-bus/stores/components"
 import { getScriptFormApi, getWorkflowFormApi } from "@/api/workflow"
 import { useSelector } from "react-redux"
 import { editNodeParamsApi, editParamsV2Api } from "@/api/analysis"

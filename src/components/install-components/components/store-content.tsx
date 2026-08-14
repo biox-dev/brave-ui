@@ -6,7 +6,7 @@ import { colors } from "@/utils/utils";
 import axios from "axios";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useSelector } from "react-redux";
-import { useComponentStore } from "@/store-zustand/components";
+import { useComponentStore } from "@/event-bus/stores/components";
 import { useNavigate } from "react-router";
 import { http } from "@/api/client/http";
 

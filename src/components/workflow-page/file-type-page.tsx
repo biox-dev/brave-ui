@@ -1,4 +1,4 @@
-import { ActionDispatcher } from "@/llmv2/dispatcher";
+import { ActionDispatcher } from "@/event-bus/dispatcher";
 import ComponentsPage from "./component/page"
 import { Button, Empty } from "antd";
 import { useStoreRender } from "@/context/render/RenderProvider";

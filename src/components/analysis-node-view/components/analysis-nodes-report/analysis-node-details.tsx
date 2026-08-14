@@ -10,7 +10,7 @@ import { http } from "@/api/client/http";
 import { useSelector } from "react-redux";
 import { useStoreRender } from "@/context/render/RenderProvider";
 import { useSideViewContext } from "@/context/side/SideViewContext";
-import { useComponentStore } from "@/store-zustand/components";
+import { useComponentStore } from "@/event-bus/stores/components";
 
 type NodeResultAsset = {
     images?: any[];

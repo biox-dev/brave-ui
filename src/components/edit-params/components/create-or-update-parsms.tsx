@@ -16,7 +16,7 @@ import BioDatabaseForm from "@/components/bio-database-form";
 import BioDatabases from "@/components/bio-databases";
 import { useSelector } from "react-redux";
 import { useStoreRender } from "@/context/render/RenderProvider";
-import { ActionDispatcher } from "@/llmv2/dispatcher";
+import { ActionDispatcher } from "@/event-bus/dispatcher";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { http } from "@/api/client/http";

@@ -1,4 +1,4 @@
-import { ActionDispatcher } from "@/llmv2/dispatcher";
+import { ActionDispatcher } from "@/event-bus/dispatcher";
 import ScriptPageView from "./script-page";
 import { Empty } from "antd";
 import { useStoreRender } from "@/context/render/RenderProvider";

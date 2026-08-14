@@ -7,7 +7,7 @@ import type { AnalysisNodeItem } from "@/api/analysis";
 import { deleteAnalysisNodeApi } from "@/api/analysis";
 import { useStoreRender } from "@/context/render/RenderProvider";
 import AnalysisNodeDetails from "./analysis-nodes-report/analysis-node-details";
-import { useComponentStore } from "@/store-zustand/components";
+import { useComponentStore } from "@/event-bus/stores/components";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { http } from "@/api/client/http";
 

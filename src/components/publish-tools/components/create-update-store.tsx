@@ -1,5 +1,5 @@
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
-import { ActionDispatcher } from "@/llmv2/dispatcher";
+import { ActionDispatcher } from "@/event-bus/dispatcher";
 import { Button, Form, Input, Space } from "antd";
 import TextArea from "antd/es/input/TextArea";
 import axios from "axios";

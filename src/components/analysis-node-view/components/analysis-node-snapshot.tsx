@@ -2,7 +2,7 @@ import { Button, Card, Col, Empty, Popconfirm, Progress, Row, Space, Spin, Switc
 import axios from "axios";
 import { FC, useEffect, useMemo, useState } from "react";
 import { ExportOutlined, LoadingOutlined, RedoOutlined } from "@ant-design/icons";
-import { useComponentStore } from "@/store-zustand/components";
+import { useComponentStore } from "@/event-bus/stores/components";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useSelector } from "react-redux";
 import { stopAnalysisApi } from "@/api/analysisv1";

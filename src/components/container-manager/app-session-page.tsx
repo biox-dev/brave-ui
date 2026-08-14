@@ -14,7 +14,7 @@ import {
 } from "@/api/container";
 import { useSelector } from "react-redux";
 import { invoke } from "@/core/ui-system/invokeV2";
-import { useComponentStore } from "@/store-zustand/components";
+import { useComponentStore } from "@/event-bus/stores/components";
 
 const { Text } = Typography;
 

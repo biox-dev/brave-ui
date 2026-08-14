@@ -1,4 +1,4 @@
-import { useComponentStore } from '@/store-zustand/components';
+import { useComponentStore } from '@/event-bus/stores/components';
 import axios from 'axios';
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router';

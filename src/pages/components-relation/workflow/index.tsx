@@ -5,7 +5,7 @@ import { AppstoreOutlined, CloseOutlined, DeleteColumnOutlined, DeleteOutlined, 
 import { renderViewButton } from "@/utils/render-view-btn"
 import ViewResolver from "@/core/ui-renderer/ViewResolver"
 import { invoke } from "@/core/ui-system/invokeV2"
-import { ActionDispatcher } from "@/llmv2/dispatcher"
+import { ActionDispatcher } from "@/event-bus/dispatcher"
 
 const WorkflowComponent: FC<any> = ({ component }) => {
     const defaultView = "workflow-vis"

@@ -7,7 +7,7 @@ import { useModal } from "@/hooks/useModal"
 import { useStickyTop } from "@/hooks/useStickyTop"
 import axios from "axios"
 import { ContainerOpt, InspectPanel } from "../../../pages/container"
-import { useComponentStore } from "@/store-zustand/components"
+import { useComponentStore } from "@/event-bus/stores/components"
 
 const ContainerApp: FC<any> = ({ keys = [] }) => {
     const [data, setData] = useState<any>()

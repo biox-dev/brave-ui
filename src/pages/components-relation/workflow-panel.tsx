@@ -33,7 +33,7 @@ import PipelineComponent from './pipeline'
 import ComponentsDetailsRender from "../../core/ui-renderer/ComponentsDetailsRender"
 import { AppstoreOutlined, ArrowLeftOutlined, CloseOutlined, DeleteColumnOutlined, DeleteOutlined, DownOutlined, PlusOutlined, QuestionCircleOutlined, RedoOutlined } from '@ant-design/icons'
 import { AI } from '@/components/chat'
-import { useComponentStore } from "@/store-zustand/components"
+import { useComponentStore } from "@/event-bus/stores/components"
 import { useStoreRender } from "@/context/render/RenderProvider"
 import { renderCloseViewButton, renderViewButton } from "@/utils/render-view-btn"
 import { useSideViewContext } from "@/context/side/SideViewContext"

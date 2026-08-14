@@ -3,7 +3,7 @@ import { pagePipelineComponents } from "@/api/pipeline";
 import { Button, Card, Flex, Input, Pagination, Popconfirm, Space, Table } from "antd";
 import { DeleteOutlined, RedoOutlined } from '@ant-design/icons'
 import { usePagination } from "@/hooks/usePagination";
-import { useComponentStore } from "@/store-zustand/components";
+import { useComponentStore } from "@/event-bus/stores/components";
 import axios from "axios";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { invoke } from "@/core/ui-system/invokeV2";

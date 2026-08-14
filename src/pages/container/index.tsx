@@ -337,7 +337,7 @@ export const InspectPanel: FC<any> = ({ visible, params, onClose, callback }) =>
 import { containerData } from './container'
 // import { useSSEContext } from "@/context/sse/useSSEContext.bak"
 import { fa, tr } from "@faker-js/faker"
-import { useComponentStore } from "@/store-zustand/components"
+import { useComponentStore } from "@/event-bus/stores/components"
 const InstallContainerModal: FC<any> = ({ visible, params, onClose, callback }) => {
     // const [namespace, setNamespace] = useState<any>()
     const [messageApi, contextHolder] = message.useMessage();
