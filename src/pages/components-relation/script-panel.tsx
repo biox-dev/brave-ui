@@ -1,7 +1,7 @@
 import { Button, Card, Col, Empty, Modal, Popconfirm, Row, Segmented, Skeleton, Space, Spin, Table } from "antd"
 import { FC, use, useCallback, useEffect, useRef, useState } from "react"
 import ComponentsPage from "../../components/workflow-page/component/page"
-import { useParams } from "react-router"
+import { useNavigate, useParams } from "react-router"
 import ComponentsDetailsRender from "../../core/ui-renderer/ComponentsDetailsRender"
 import { CreateOrUpdatePipelineComponent } from "@/components/create-pipeline"
 import { useModal } from "@/hooks/useModal"
@@ -18,6 +18,8 @@ import { http } from "@/api/client/http"
 import StoreVersionActions from "./components/store-version-actions"
 
 const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
+    const { script_id } = useParams()
+    const navigate = useNavigate()
     const { modal, openModal, closeModal } = useModal();
     // const [segmentedOptions, setSegmentedOptions] = useState<any[]>([])
     // const { component_type } = useParams()
@@ -44,6 +46,13 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
             loadScript(script?.id)
         }
     }
+
+    useEffect(() => {
+        if (component_type !== "script" || !script_id) {
+            return
+        }
+        loadScript(decodeURIComponent(script_id))
+    }, [component_type, script_id, loadScript])
 
     useEffect(() => {
 
@@ -106,37 +115,41 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
             }
         ])
         setSideView("editParamsPanel")
-        setLeftPaneContent(
-            <Card
-                size="small"
-                className="layout-sharp-side-card"
-                styles={{ body: { padding: "0" } }}
-                extra={<Space>
-                    <Button size="small" color="cyan" variant="solid" onClick={async () => {
-                        await invoke.installComponentsV2.openAsync({
-                            storeType: "script",
-                        }, {
-                            width: "80%",
-                            title: `Install script`,
-                            footer: null,
-                        })
-                    }}>Intsall</Button>
-                    <Button size="small" color="cyan" variant="solid" onClick={async () => {
-                        await invoke.createOrUpdateComponent.openAsync({})
-                    }}>Create</Button>
-                </Space>}
-            >
-                <ScriptPage onOk={(script) => {
-                    loadScript(script?.id)
-                }}></ScriptPage>
-            </Card>
-        )
+        // setLeftPaneContent(
+        //     <Card
+        //         size="small"
+        //         className="layout-sharp-side-card"
+        //         styles={{ body: { padding: "0" } }}
+        //         extra={<Space>
+        //             <Button size="small" color="cyan" variant="solid" onClick={async () => {
+        //                 await invoke.installComponentsV2.openAsync({
+        //                     storeType: "script",
+        //                 }, {
+        //                     width: "80%",
+        //                     title: `Install script`,
+        //                     footer: null,
+        //                 })
+        //             }}>Intsall</Button>
+        //             <Button size="small" color="cyan" variant="solid" onClick={async () => {
+        //                 await invoke.createOrUpdateComponent.openAsync({})
+        //             }}>Create</Button>
+        //         </Space>}
+        //     >
+        //         <ScriptPage onOk={(script) => {
+        //             if (!script?.id) {
+        //                 return
+        //             }
+
+        //             navigate(`/c/scripts/${encodeURIComponent(script.id)}`)
+        //         }}></ScriptPage>
+        //     </Card>
+        // )
         return () => {
             setSideOptions([])
             setSideView("llm-card")
             clearLeftPane()
         }
-    }, [loadScript])
+    }, [navigate, loadScript])
     const message = useGlobalMessage()
     // useEffect(() => {
     //     if (!component?.component_id && panel != "structure") {

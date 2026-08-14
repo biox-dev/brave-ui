@@ -178,6 +178,9 @@ if (appType == "index") {
             path: "/c/scripts",
             element: <ComponentsV3 component_type={"script"} />
         }, {
+            path: "/c/scripts/:script_id",
+            element: <ComponentsV3 component_type={"script"} />
+        }, {
             path: "/c/file",
             element: <ComponentsV3 component_type={"file"} />
         },

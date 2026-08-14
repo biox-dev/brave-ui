@@ -56,20 +56,29 @@ export const layoutMenuTree: LayoutMenuItem[] = [
       en_US: 'Dashboard',
     },
   },
+  // {
+  //   key: '/c/scripts',
+  //   icon: 'code',
+  //   label: {
+  //     zh_CN: '脚本',
+  //     en_US: 'Scripts',
+  //   },
+  // },
+  // {
+  //   key: '/c/tools',
+  //   icon: 'tools',
+  //   label: {
+  //     zh_CN: '工具',
+  //     en_US: 'Tools',
+  //   },
+  // }, 
+  
   {
-    key: '/c/scripts',
-    icon: 'code',
+    key: '/analysis-report',
+    icon: 'report',
     label: {
-      zh_CN: '脚本',
-      en_US: 'Scripts',
-    },
-  },
-  {
-    key: '/c/tools',
-    icon: 'tools',
-    label: {
-      zh_CN: '工具',
-      en_US: 'Tools',
+      zh_CN: '分析报告',
+      en_US: 'Report',
     },
   },
   {
@@ -88,14 +97,7 @@ export const layoutMenuTree: LayoutMenuItem[] = [
       en_US: 'App Session',
     },
   },
-  {
-    key: '/analysis-report',
-    icon: 'report',
-    label: {
-      zh_CN: '分析报告',
-      en_US: 'Report',
-    },
-  },
+
   {
     key: '/container',
     icon: 'container',

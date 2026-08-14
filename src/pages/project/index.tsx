@@ -10,11 +10,12 @@ import { deleteProjectReportApi, getProjectReportDetailApi, listProjectReportApi
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { setUserItem } from "@/store/userSlice";
 import { getPathname } from "@/utils/utils";
+import Files from "../files";
 const Project: FC<any> = () => {
     const [view, setView] = useState<any>("analysisDocView")
     const { project, activeProjectReportId } = useSelector((state: any) => state.user);
     const dispatch = useDispatch()
-    const { setSideView, setSideOptions } = useSideViewContext();
+    const { setSideView, setSideOptions ,setLeftPaneContent,clearLeftPane} = useSideViewContext();
     const [loading, setLoading] = useState(false)
     const message = useGlobalMessage()
     const [reportList, setReportList] = useState<ProjectReportItem[]>([])
@@ -113,7 +114,24 @@ const Project: FC<any> = () => {
     }
 
 
-    useEffect(() => {
+    // useEffect(() => {
+    //     setSideOptions([
+    //         {
+    //             label: "LLM",
+    //             value: "llm-card"
+    //         }, {
+    //             label: "Container App",
+    //             value: "appSessionPage"
+    //         }
+    //     ])
+    //     // setSideView("analysis-tools")
+    //     return () => {
+    //         setSideOptions([])
+    //         setSideView("llm-card")
+    //     }
+    // }, [])
+
+       useEffect(() => {
         setSideOptions([
             {
                 label: "LLM",
@@ -121,12 +139,20 @@ const Project: FC<any> = () => {
             }, {
                 label: "Container App",
                 value: "appSessionPage"
+            },
+            {
+                label: "Parameters",
+                value: "editParamsPanel"
             }
         ])
-        // setSideView("analysis-tools")
+        setSideView("editParamsPanel")
+        setLeftPaneContent(
+            <Files ></Files>
+        )
         return () => {
             setSideOptions([])
             setSideView("llm-card")
+            clearLeftPane()
         }
     }, [])
 

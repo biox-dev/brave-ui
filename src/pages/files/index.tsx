@@ -44,25 +44,25 @@ const Files: FC<any> = () => {
         openModals: openModals
     }
 
-    const { setSideView, sideView, sideOptions, setSideOptions } = useSideViewContext();
+    // const { setSideView, sideView, sideOptions, setSideOptions } = useSideViewContext();
 
 
-    useEffect(() => {
-        setSideOptions([
-            {
-                label: "LLM",
-                value: "llm-card"
-            }, {
-                label: "Container App",
-                value: "containerAppProject"
-            }
-        ])
-        // setSideView("analysis-tools")
-        return () => {
-            setSideOptions([])
-            setSideView("llm-card")
-        }
-    }, [])
+    // useEffect(() => {
+    //     setSideOptions([
+    //         {
+    //             label: "LLM",
+    //             value: "llm-card"
+    //         }, {
+    //             label: "Container App",
+    //             value: "containerAppProject"
+    //         }
+    //     ])
+    //     // setSideView("analysis-tools")
+    //     return () => {
+    //         setSideOptions([])
+    //         setSideView("llm-card")
+    //     }
+    // }, [])
     return <div style={{ maxWidth: "1500px", margin: "1rem auto", padding: `${isSticky ? '0 16px 0 16px' : '0'}` }}>
 
         <Card size="small" >

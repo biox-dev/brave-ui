@@ -41,10 +41,26 @@
 .layout-sharp-sider {
   background: var(--sharp-panel-muted) !important;
   border-inline-end: 1px solid var(--sharp-divider) !important;
+  width: 56px !important;
+  min-width: 56px !important;
+  max-width: 56px !important;
+  flex: 0 0 56px !important;
+  display: flex;
+  flex-direction: column;
+}
+
+.layout-sharp.layout-sharp-light .layout-sharp-sider {
+  background: var(--sharp-panel-bg) !important;
+}
+
+.layout-sharp-sider .ant-layout-sider-children {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .layout-sharp-brand {
-  height: 44px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -54,7 +70,67 @@
 
 .layout-sharp-brand-text {
   color: var(--sharp-text) !important;
-  font-size: 11px;
+  font-size: 10px;
+}
+
+.layout-activitybar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.layout-activitybar-main,
+.layout-activitybar-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.layout-activitybar-main {
+  padding-top: 4px;
+}
+
+.layout-activitybar-bottom {
+  margin-top: auto;
+  padding-bottom: 6px;
+}
+
+.layout-activitybar-settings {
+  margin-top: auto;
+  padding-top: 6px;
+  padding-bottom: 8px;
+  border-top: 1px solid var(--sharp-divider);
+}
+
+.layout-activitybar-btn {
+  width: 100%;
+  height: 42px;
+  border: 0;
+  border-left: 2px solid transparent;
+  background: transparent;
+  color: var(--sharp-text-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.layout-activitybar-btn:hover {
+  color: var(--sharp-text);
+  background: color-mix(in srgb, var(--sharp-panel-muted) 65%, transparent);
+}
+
+.layout-activitybar-btn.is-active {
+  color: var(--sharp-text);
+  border-left-color: #1890ff;
+  background: color-mix(in srgb, var(--sharp-panel-bg) 78%, transparent);
+}
+
+.layout-activitybar-icon {
+  font-size: 18px;
+  line-height: 1;
 }
 
 .layout-sharp-menu {

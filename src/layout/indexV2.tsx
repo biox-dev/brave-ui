@@ -1,34 +1,60 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Card, Layout, Menu, Segmented, Typography, theme } from 'antd';
-import { Outlet, useLocation, useNavigate } from 'react-router';
+import { ApartmentOutlined, FileTextOutlined, SettingOutlined } from '@ant-design/icons';
+import { Card, Dropdown, Layout, Segmented, theme } from 'antd';
+import { Outlet, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { useI18n } from '@/hooks/useI18n';
 import ViewResolver from '@/core/ui-renderer/ViewResolver';
 import { useSideViewContext } from '@/context/side/SideViewContext';
 import ContainerQueueMonitor from '@/components/container-manager/container-monitor';
 import { setUserItem } from '@/store/userSlice';
-import { buildLayoutMenus, buildSelectedKeyMap, layoutMenuTree, resolveSelectedKey } from './layout-menu';
+import { buildLayoutMenus, type LayoutLocale } from './layout-menu';
 import AppHeader from './components/AppHeader';
+import ActivityBar from './components/ActivityBar';
 import SplitWorkspace from './components/SplitWorkspace.tsx';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
+type LeftPanelViewKey = 'scriptPageLeftPanel' | 'workflowPageLeftPanel';
+
+const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
+  key === 'scriptPageLeftPanel' || key === 'workflowPageLeftPanel';
 
 const App: React.FC = () => {
   const { locale } = useI18n();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const appTheme = useSelector((state: any) => state.user.theme);
+  const leftActivityKey = useSelector((state: any) => state.user.leftActivityKey);
   const leftPanelWidth = useSelector((state: any) => state.user.leftPanelWidth);
   const rightPanelWidth = useSelector((state: any) => state.user.rightPanelWidth);
-  const navigate = useNavigate();
-  const location = useLocation();
-  const isDark = appTheme === 'dark';
+  const layoutTheme: 'light' | 'dark' = appTheme === 'dark' ? 'dark' : 'light';
+  const isDark = layoutTheme === 'dark';
   const {
     token: { colorBgContainer },
   } = theme.useToken();
-  const { sideView, setSideView, sideOptions, leftPane, leftPaneMode } = useSideViewContext();
+  const { sideView, setSideView, sideOptions } = useSideViewContext();
+  const [leftSideView, setLeftSideView] = useState<LeftPanelViewKey>(
+    isLeftPanelViewKey(leftActivityKey) ? leftActivityKey : 'scriptPageLeftPanel',
+  );
   const [leftWidthDraft, setLeftWidthDraft] = useState<number>(leftPanelWidth);
   const [rightWidthDraft, setRightWidthDraft] = useState<number>(rightPanelWidth);
+
+  const leftActivityItems = useMemo(
+    () => [
+      {
+        key: 'scriptPageLeftPanel',
+        label: locale === 'en_US' ? 'Script Page' : '脚本页',
+        icon: <FileTextOutlined />,
+      },
+      {
+        key: 'workflowPageLeftPanel',
+        label: locale === 'en_US' ? 'Workflow Page' : '流程页',
+        icon: <ApartmentOutlined />,
+      },
+    ],
+    [locale],
+  );
 
   useEffect(() => {
     setLeftWidthDraft(leftPanelWidth);
@@ -38,17 +64,23 @@ const App: React.FC = () => {
     setRightWidthDraft(rightPanelWidth);
   }, [rightPanelWidth]);
 
-  const menuItems = useMemo(
-    () => buildLayoutMenus(locale === 'en_US' ? 'en_US' : 'zh_CN'),
-    [locale],
-  );
-  const selectedKeyMap = useMemo(() => buildSelectedKeyMap(layoutMenuTree), []);
-  const selectedKey = useMemo(
-    () => resolveSelectedKey(location.pathname, selectedKeyMap),
-    [location.pathname, selectedKeyMap],
-  );
+  useEffect(() => {
+    if (!leftActivityKey) {
+      return;
+    }
+    const hasMatchedItem = leftActivityItems.some((item) => item.key === leftActivityKey);
+    if (hasMatchedItem) {
+      setLeftSideView(leftActivityKey);
+      return;
+    }
+
+    const fallbackView: LeftPanelViewKey = 'scriptPageLeftPanel';
+    setLeftSideView(fallbackView);
+    dispatch(setUserItem({ leftActivityKey: fallbackView }));
+  }, [dispatch, leftActivityItems, leftActivityKey]);
 
   const currentYear = new Date().getFullYear();
+  const layoutLocale: LayoutLocale = locale === 'en_US' ? 'en_US' : 'zh_CN';
   const segmentedOptions = useMemo(
     () =>
       sideOptions && sideOptions.length > 0
@@ -56,30 +88,52 @@ const App: React.FC = () => {
         : [{ label: locale === 'en_US' ? 'Assistant' : '助手', value: 'llm-card' }],
     [sideOptions, locale],
   );
+  const settingsMenuItems = useMemo(() => buildLayoutMenus(layoutLocale), [layoutLocale]);
 
   return (
     <Layout className={`layout-sharp ${isDark ? 'layout-sharp-dark' : 'layout-sharp-light'}`}>
-      <Sider
-        trigger={null}
-        collapsible
-        collapsed
-        theme={isDark ? 'dark' : 'light'}
-        className="layout-sharp-sider"
-      >
-        <div className="layout-sharp-brand">
-          <Typography.Text strong className="layout-sharp-brand-text">BRAVE</Typography.Text>
-        </div>
-        <Menu
-          className="layout-sharp-menu"
-          theme={isDark ? 'dark' : 'light'}
-          mode="inline"
-          selectedKeys={[selectedKey]}
-          items={menuItems}
-          onClick={({ key }) => navigate(key)}
-        />
-      </Sider>
+      <AppHeader backgroundColor={colorBgContainer} />
       <Layout className="layout-sharp-main">
-        <AppHeader backgroundColor={colorBgContainer} />
+        <Sider
+          width={56}
+          collapsedWidth={56}
+          theme={layoutTheme}
+          className="layout-sharp-sider"
+        >
+          <ActivityBar
+            items={leftActivityItems}
+            activeKey={leftSideView}
+            onChange={(key) => {
+              if (!isLeftPanelViewKey(key)) {
+                return;
+              }
+              setLeftSideView(key);
+              dispatch(setUserItem({ leftActivityKey: key }));
+            }}
+          />
+          <div className="layout-activitybar-settings">
+            <Dropdown
+              trigger={['click']}
+              placement="topLeft"
+              menu={{
+                items: settingsMenuItems,
+                onClick: ({ key }) => navigate(String(key)),
+              }}
+            >
+              <button
+                type="button"
+                className="layout-activitybar-btn"
+                title={locale === 'en_US' ? 'Settings' : '设置'}
+                aria-label={locale === 'en_US' ? 'Settings' : '设置'}
+              >
+                <span className="layout-activitybar-icon">
+                  <SettingOutlined />
+                </span>
+              </button>
+            </Dropdown>
+          </div>
+        </Sider>
+        <Layout className="layout-sharp-main">
         <Content className="layout-sharp-content">
           <div
             className="layout-sharp-content-inner"
@@ -94,21 +148,7 @@ const App: React.FC = () => {
               onRightWidthChange={setRightWidthDraft}
               onLeftWidthCommit={(width) => dispatch(setUserItem({ leftPanelWidth: width }))}
               onRightWidthCommit={(width) => dispatch(setUserItem({ rightPanelWidth: width }))}
-              left={
-                leftPaneMode === 'content' && leftPane ? (
-                  leftPane
-                ) : (
-                  <Card
-                    size="small"
-                    className="layout-sharp-side-card"
-                    styles={{ body: { padding: 8 } }}
-                  >
-                    <div className="layout-sharp-side-card-placeholder">
-                      {locale === 'en_US' ? 'Right Panel Reserved' : '右侧面板预留'}
-                    </div>
-                  </Card>
-                )
-              }
+              left={<ViewResolver view={leftSideView} view_mode="card" />}
               main={<Outlet />}
               right={
 
@@ -148,6 +188,7 @@ const App: React.FC = () => {
             <ContainerQueueMonitor />
           </div>
         </Footer>
+        </Layout>
       </Layout>
     </Layout>
   );

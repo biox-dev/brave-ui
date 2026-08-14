@@ -91,9 +91,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({ backgroundColor }) => {
         <>
             {messageContextHolder}
             <Header className="layout-sharp-header" style={{ background: backgroundColor }}>
-
                 <div className="layout-sharp-header-left">
-                    {/* <Typography.Text strong>BRAVE</Typography.Text> */}
+                    <Typography.Text strong className="layout-sharp-brand-text">BRAVE</Typography.Text>
                 </div>
                 <div className="layout-sharp-header-right">
                     {projectObj?.project_name ? (

@@ -17,6 +17,7 @@ const activeProjectReportId = localStorage.getItem('activeProjectReportId')
 const activeLLMSessionId = localStorage.getItem('activeLLMSessionId')
 const leftPanelWidth = Number(localStorage.getItem('leftPanelWidth'))
 const rightPanelWidth = Number(localStorage.getItem('rightPanelWidth'))
+const leftActivityKey = localStorage.getItem('leftActivityKey')
 
 export const loadActiveProject = createAsyncThunk(
     'user/loadActiveProject',
@@ -59,6 +60,7 @@ interface UserState {
     activeLLMSessionId:string | null;
     leftPanelWidth:number;
     rightPanelWidth:number;
+    leftActivityKey:string;
     userInfo: LoginUserInfo | null;
     componentLayout:"simple"|"complex",
     network:"UNKNOW" | "CONNECT" | "NOT_CONNECT"
@@ -85,6 +87,7 @@ const contextSlice = createSlice({
         activeLLMSessionId:activeLLMSessionId?activeLLMSessionId:null,
         leftPanelWidth:Number.isFinite(leftPanelWidth)?leftPanelWidth:320,
         rightPanelWidth:Number.isFinite(rightPanelWidth)?rightPanelWidth:360,
+        leftActivityKey:leftActivityKey?leftActivityKey:'scriptPageLeftPanel',
         userInfo: userInfo ? JSON.parse(userInfo) : null,
         componentLayout:"simple",
         network:"UNKNOW",
@@ -155,6 +158,9 @@ const contextSlice = createSlice({
             }
             if (action.payload.rightPanelWidth !== undefined) {
                 localStorage.setItem('rightPanelWidth', String(action.payload.rightPanelWidth))
+            }
+            if (action.payload.leftActivityKey !== undefined) {
+                localStorage.setItem('leftActivityKey', action.payload.leftActivityKey)
             }
             if (action.payload.userInfo !== undefined) {
                 if (action.payload.userInfo) {

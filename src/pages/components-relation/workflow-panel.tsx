@@ -55,7 +55,7 @@ const Pipeline: FC<any> = ({ }) => {
 
 
     console.log("Pipeline")
-    // const { relation_id: relation_id_ } = useParams()
+    const { relation_id } = useParams()
     // const [relation_id, setRelationId] = useState<any>(relation_id_ ? relation_id_ : workflow?.relation_id)
     const relation_type = "tools"
     // const [leftPanel, setLeftPanel] = useState<any>("analysisTools")
@@ -204,14 +204,20 @@ const Pipeline: FC<any> = ({ }) => {
         // }
         return pipeline
     }
-    const loadData = async () => {
-        if (workflow?.id) {
-            setLoading(true)
-            const pipeline = await getData(workflow?.id)
-            setComponent(pipeline)
+    const loadData = async (workflowId?: any) => {
+        const targetWorkflowId = workflowId ?? workflow?.relation_id ?? workflow?.id
+        if (!targetWorkflowId) {
+            return
         }
 
-
+        setLoading(true)
+        try {
+            const pipeline = await getData(targetWorkflowId)
+            setComponent(pipeline)
+            setWorkflow(pipeline)
+        } finally {
+            setLoading(false)
+        }
     }
     const loadDataRef = useRef(loadData);
     useEffect(() => {
@@ -267,8 +273,12 @@ const Pipeline: FC<any> = ({ }) => {
     // };
 
     useEffect(() => {
-        loadData()
-    }, [workflow])
+        const targetWorkflowId = relation_id ? decodeURIComponent(relation_id) : (workflow?.relation_id ?? workflow?.id)
+        if (!targetWorkflowId) {
+            return
+        }
+        loadData(targetWorkflowId)
+    }, [relation_id, workflow?.relation_id, workflow?.id])
 
     useEffect(() => {
 
@@ -289,36 +299,44 @@ const Pipeline: FC<any> = ({ }) => {
             }
         ])
         setSideView("editParamsPanel")
-        setLeftPaneContent(
-            <Card
-                size="small"
-                className="layout-sharp-side-card"
-                styles={{ body: { padding: "0" } }}
-                extra={<Space>
-                    <Button size="small" color="cyan" variant="solid" onClick={async () => {
-                        await invoke.installComponentsV2.openAsync({
-                            storeType: "workflow",
-                        }, {
-                            width: "80%",
-                            title: `Install ${relation_type}`,
-                            footer: null,
-                        })
-                        loadDataRef.current()
-                    }}>Intsall</Button>
-                    <Button size="small" color="cyan" variant="solid" onClick={() => {
-                        invoke.createOrUpdateRelation.openAsync({})
-                    }}>Create</Button>
-                </Space>}
-            >
-                <WorkflowPage onOk={setWorkflow}></WorkflowPage>
-            </Card>
-        )
+        // setLeftPaneContent(
+        //     <Card
+        //         size="small"
+        //         className="layout-sharp-side-card"
+        //         styles={{ body: { padding: "0" } }}
+        //         extra={<Space>
+        //             <Button size="small" color="cyan" variant="solid" onClick={async () => {
+        //                 await invoke.installComponentsV2.openAsync({
+        //                     storeType: "workflow",
+        //                 }, {
+        //                     width: "80%",
+        //                     title: `Install ${relation_type}`,
+        //                     footer: null,
+        //                 })
+        //                 loadDataRef.current()
+        //             }}>Intsall</Button>
+        //             <Button size="small" color="cyan" variant="solid" onClick={() => {
+        //                 invoke.createOrUpdateRelation.openAsync({})
+        //             }}>Create</Button>
+        //         </Space>}
+        //     >
+        //         <WorkflowPage onOk={(relation) => {
+        //             if (!relation?.relation_id) {
+        //                 return
+        //             }
+
+        //             setWorkflow(relation)
+        //             navigate(`/c/tools/${encodeURIComponent(String(relation.relation_id))}`)
+        //         }}></WorkflowPage>
+        //     </Card>
+        // )
+        
         return () => {
             setSideOptions([])
             setSideView("llm-card")
             clearLeftPane()
         }
-    }, [])
+    }, [navigate, setWorkflow])
 
     useEffect(() => {
         if (component) {
@@ -517,7 +535,7 @@ const Pipeline: FC<any> = ({ }) => {
                             ref={leftRef}
                             store_id={component?.store_id}
                             relation_id={component?.relation_id}
-                            workflow_id={workflow?.id}
+                            workflow_id={component?.id ?? workflow?.id}
                             // workflow={component}
                             callback={loadData}
                             component_id={component?.component_id}
