@@ -15,6 +15,7 @@ export type ComponentStore = {
     forms: Record<string, FormInstance>;
     charts: Record<string, ChartInstance>;
     analysis: Record<string, Set<any>>; 
+    "app-session": Record<string, any>;
     graph: Record<string, any>; 
     store: Record<string, any>;
     container: Record<string, any>;
@@ -32,6 +33,7 @@ export const useComponentStore = create<ComponentStore>((set, get) => ({
     forms: {},
     charts: {},
     analysis: {},
+    "app-session": {},
     graph: {},
     store:{},
     container: {},

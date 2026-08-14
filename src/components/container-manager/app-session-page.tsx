@@ -14,6 +14,7 @@ import {
 } from "@/api/container";
 import { useSelector } from "react-redux";
 import { invoke } from "@/core/ui-system/invokeV2";
+import { useComponentStore } from "@/store-zustand/components";
 
 const { Text } = Typography;
 
@@ -193,6 +194,7 @@ const AppSessionPage = ({
   onCancel,
   close,
 }: AppSessionPageProps) => {
+  const { register, unregister } = useComponentStore();
   const [selectedId, setSelectedID] = useState<string>();
   const [pendingAction, setPendingAction] = useState<string>("");
   const [creatingFromAnalysisNode, setCreatingFromAnalysisNode] = useState(false);
@@ -249,6 +251,28 @@ const AppSessionPage = ({
   ]);
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
+
+  const realtimeInstance = useMemo(
+    () => ({
+      analysisSubmitted: (_args: any) => {
+        refetch();
+      },
+      analysisStarted: (_args: any) => {
+        refetch();
+      },
+      analysisDone: (_args: any) => {
+        refetch();
+      },
+    }),
+    [refetch]
+  );
+
+  useEffect(() => {
+    register("app-session", "*", realtimeInstance);
+    return () => {
+      unregister("app-session", "*", realtimeInstance);
+    };
+  }, [register, unregister, realtimeInstance]);
 
   const runAction = async (action: "start" | "stop" | "delete", item: AppSessionItem) => {
     const actionKey = `${action}-${item.id}`;
