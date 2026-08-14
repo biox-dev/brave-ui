@@ -63,33 +63,35 @@ const AnalysisReport: FC<any> = () => {
     const [analysis, setAnalysis] = useState<any>()
     const location = useLocation()
     const queryParams = new URLSearchParams(location.search);
-    const key = queryParams.get("key");
-    const projectParam = queryParams.get("project");
-    const dispatch = useDispatch()
+    // "/analysis-report/:analysisId
+    const { analysisId } = useParams<{ analysisId: string }>();
+    // const analysisId = queryParams.get("analysisId");
+    // const projectParam = queryParams.get("project");
+    // const dispatch = useDispatch()
     const { modal, openModal, closeModal } = useModal();
     const [componentType, setComponentType] = useState<any>()
     const [rightPanel, setRightPanel] = useState<any>("toc");
 
     const { setAnalysisId} = useStoreRender()
     useEffect(() => {
-        if (key) {
-            setAnalysisId(key)
+        if (analysisId) {
+            setAnalysisId(analysisId)
         }
-    }, [key])
+    }, [analysisId])
 
     // const [queryProject, setQueryProject] = useState<any>()
-    const [analysisKey, setAnalysisKey] = useState<any>(key)
+    const [analysisKey, setAnalysisKey] = useState<any>(analysisId)
 
-    const loadProject = async () => {
-        const resp = await axios.get(`/project/find-by-project-id/${project}`)
-        // setQueryProject(resp.data)
-        dispatch(setUserItem({ projectObj: resp.data }))
-    }
-    useEffect(() => {
-        if (projectParam && projectParam != project) {
-            dispatch(setUserItem({ project: projectParam }))
-        }
-    }, [projectParam])
+    // const loadProject = async () => {
+    //     const resp = await axios.get(`/project/find-by-project-id/${project}`)
+    //     // setQueryProject(resp.data)
+    //     dispatch(setUserItem({ projectObj: resp.data }))
+    // }
+    // useEffect(() => {
+    //     if (projectParam && projectParam != project) {
+    //         dispatch(setUserItem({ project: projectParam }))
+    //     }
+    // }, [projectParam])
 
     const resultRef = useRef<any>(null)
     const navigate = useNavigate()
@@ -275,11 +277,11 @@ const AnalysisReport: FC<any> = () => {
                             openModal("projectForm", { project_id: project })
                         }}>Edit</Button>
 
-                        <Button size="small" color="cyan" variant="solid" onClick={() => {
+                        {/* <Button size="small" color="cyan" variant="solid" onClick={() => {
                             loadProject()
                             // setProjectObj(resp.data)
                             // dispatch(setUserItem({ projectObj: resp.data }))
-                        }}>Refresh</Button>
+                        }}>Refresh</Button> */}
                     </Flex>
 
                 }>

@@ -123,7 +123,7 @@ const App: React.FC = () => {
           />
           <div className="layout-activitybar-settings">
             <Dropdown
-              trigger={['click']}
+              trigger={['hover']}
               placement="topLeft"
               menu={{
                 items: settingsMenuItems,

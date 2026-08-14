@@ -159,7 +159,7 @@ if (appType == "index") {
             element: <ContainerPage />
         },
         {
-            path: "/analysis-report",
+            path: "/analysis-report/:analysisId",
             element: <AnalysisReport />
         }, {
             path: "/analysis-report-old",

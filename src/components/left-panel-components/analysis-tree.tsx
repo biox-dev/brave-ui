@@ -11,6 +11,7 @@ import Markdown from "@/components/markdown"
 import { useStickyTop } from "@/hooks/useStickyTop"
 import { AI } from "@/components/chat"
 import { useStoreRender } from "@/context/render/RenderProvider"
+import { http } from "@/api/client/http"
 
 const ResultParse = lazy(() => import("@/components/result-parse"))
 // import AnalysisResultPanel from '@/components/analysis-result-view/panel'
@@ -92,7 +93,7 @@ const AnalysisTree: FC<any> = () => {
 
         setLoading(true)
         // ?analysis_method=${analysisMethod}&project=${project}
-        let resp: any = await axios.post(`/list-analysis-tree`, {
+        let resp: any = await http.post(`/list-analysis-tree`, {
             // analysisMethod: analysisMethod,
             is_report: true,
             project: project
@@ -111,7 +112,7 @@ const AnalysisTree: FC<any> = () => {
                     // setComponentType(resp.data[0]?.children[0]?.relation_type)
                     // updateQueryParam("project", project);
                     // updateQueryParam("key", resp.data[0]?.children[0]?.key);
-                    navigate(`/analysis-report?project=${project}&key=${resp.data[0]?.children[0]?.key}`)
+                    navigate(`/analysis-report/${resp.data[0]?.children[0]?.key}`)
 
                 }
             } else {
@@ -171,7 +172,7 @@ const AnalysisTree: FC<any> = () => {
                         // updateQueryParam("project", project);
                         // updateQueryParam("key", val.node.key);
                         
-                        navigate(`/analysis-report?project=${project}&key=${val.node.key}`)
+                        navigate(`/analysis-report/${val.node.key}`)
                     } else if (val.node?.type == "relation") {
                         console.log(val.node)
                         // loadComponents(val.node.key)
