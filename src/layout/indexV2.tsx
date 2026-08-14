@@ -5,6 +5,7 @@ import { useSelector } from 'react-redux';
 import { useI18n } from '@/hooks/useI18n';
 import ViewResolver from '@/core/ui-renderer/ViewResolver';
 import { useSideViewContext } from '@/context/side/SideViewContext';
+import ContainerQueueMonitor from '@/components/container-manager/container-monitor';
 import { buildLayoutMenus, buildSelectedKeyMap, layoutMenuTree, resolveSelectedKey } from './layout-menu';
 import AppHeader from './components/AppHeader';
 import './indexV2.css';
@@ -96,14 +97,19 @@ const App: React.FC = () => {
           </div>
         </Content>
         <Footer className="layout-sharp-footer">
-          <span>Brave ©{currentYear}</span>
-          <a className="layout-sharp-footer-link" href="https://github.com/gobravedev/gobrave" target="_blank" rel="noreferrer">
-            Source Code
-          </a>
-          <span className="layout-sharp-footer-separator">|</span>
-          <a className="layout-sharp-footer-link" href="https://gobravedev.github.io/gobrave-doc/" target="_blank" rel="noreferrer">
-            Project Docs
-          </a>
+          <div className="layout-sharp-footer-left">
+            <span>Brave ©{currentYear}</span>
+            <a className="layout-sharp-footer-link" href="https://github.com/gobravedev/gobrave" target="_blank" rel="noreferrer">
+              Source Code
+            </a>
+            <span className="layout-sharp-footer-separator">|</span>
+            <a className="layout-sharp-footer-link" href="https://gobravedev.github.io/gobrave-doc/" target="_blank" rel="noreferrer">
+              Project Docs
+            </a>
+          </div>
+          <div className="layout-sharp-footer-right">
+            <ContainerQueueMonitor />
+          </div>
         </Footer>
       </Layout>
     </Layout>

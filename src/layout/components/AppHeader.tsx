@@ -9,7 +9,6 @@ import { invoke } from '@/core/ui-system/invokeV2';
 import { activateProjectApi, type ProjectItem } from '@/api/project';
 import { clearUserSession, loadActiveProject } from '@/store/userSlice';
 import { logoutApi } from '@/api/auth';
-import ContainerQueueMonitor from '@/components/container-manager/container-monitor';
 
 type AppHeaderProps = {
     backgroundColor: string;
@@ -97,7 +96,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({ backgroundColor }) => {
                     {/* <Typography.Text strong>BRAVE</Typography.Text> */}
                 </div>
                 <div className="layout-sharp-header-right">
-                    <ContainerQueueMonitor />
                     {projectObj?.project_name ? (
                         <Tag color="blue" className="layout-sharp-clickable" onClick={handleProjectSwitch}>
                             {projectObj.project_name}

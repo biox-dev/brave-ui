@@ -113,13 +113,19 @@
   height: 40px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
+  justify-content: space-between;
   padding: 0 14px !important;
   border-top: 1px solid var(--sharp-divider);
   color: var(--sharp-text-soft);
   background: var(--sharp-panel-bg) !important;
   font-size: 12px;
+}
+
+.layout-sharp-footer-left,
+.layout-sharp-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .layout-sharp-footer-link {
