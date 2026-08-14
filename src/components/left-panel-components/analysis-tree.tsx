@@ -103,26 +103,26 @@ const AnalysisTree: FC<any> = () => {
         setData(resp.data)
         // debugger
         // debugger
-        if (first) {
-            if (!key && resp.data.length > 0) {
-                if (resp.data[0]?.children && resp.data[0]?.children.length > 0) {
-                    // setAnalysis(resp.data[0]?.children[0])
-                    setAnalysisKey(resp.data[0]?.children[0]?.key)
-                    console.log(resp.data[0]?.children[0])
-                    // setComponentType(resp.data[0]?.children[0]?.relation_type)
-                    // updateQueryParam("project", project);
-                    // updateQueryParam("key", resp.data[0]?.children[0]?.key);
-                    navigate(`/analysis-report/${resp.data[0]?.children[0]?.key}`)
+        // if (first) {
+        //     if (!key && resp.data.length > 0) {
+        //         if (resp.data[0]?.children && resp.data[0]?.children.length > 0) {
+        //             // setAnalysis(resp.data[0]?.children[0])
+        //             setAnalysisKey(resp.data[0]?.children[0]?.key)
+        //             console.log(resp.data[0]?.children[0])
+        //             // setComponentType(resp.data[0]?.children[0]?.relation_type)
+        //             // updateQueryParam("project", project);
+        //             // updateQueryParam("key", resp.data[0]?.children[0]?.key);
+        //             navigate(`/analysis-report/${resp.data[0]?.children[0]?.key}`)
 
-                }
-            } else {
-                // debugger
-                const componentType = data
-                    .flatMap((item: any) => item.children || [])
-                    .find((child: any) => child.key === key)?.component_type;
-                // setComponentType(componentType)
-            }
-        }
+        //         }
+        //     } else {
+        //         // debugger
+        //         const componentType = data
+        //             .flatMap((item: any) => item.children || [])
+        //             .find((child: any) => child.key === key)?.component_type;
+        //         // setComponentType(componentType)
+        //     }
+        // }
 
 
 
