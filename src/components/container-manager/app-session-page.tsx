@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Card, Empty, Flex, Pagination, Popconfirm, Space, Switch, Table, Tag, Tooltip, Typography, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { ReloadOutlined } from "@ant-design/icons";
+import { PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useAppSessionPageQuery } from "@/hooks/usePaginationV2";
 import {
+  createAppSessionApi,
   createAppSessionByAnalysisNodeApi,
   deleteAppSessionApi,
   startAppSessionApi,
   stopAppSessionApi,
   type AppSessionItem,
+  type ContainerTemplateItem,
 } from "@/api/container";
 import { useSelector } from "react-redux";
+import { invoke } from "@/core/ui-system/invokeV2";
 
 const { Text } = Typography;
 
@@ -89,6 +92,22 @@ const formatCompactTime = (value?: string) => {
     return "-";
   }
   return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+};
+
+const getDefaultAppSessionName = (item: ContainerTemplateItem) => {
+  const base = (item.name || "app-session").trim().replace(/\s+/g, "-").toLowerCase();
+  return `${base}-${Date.now()}`;
+};
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (typeof error === "object" && error !== null) {
+    const maybeResponse = (error as { response?: { data?: { message?: string; error?: string } } }).response;
+    const msg = maybeResponse?.data?.message || maybeResponse?.data?.error;
+    if (msg) {
+      return msg;
+    }
+  }
+  return fallback;
 };
 
 const columns: ColumnsType<AppSessionItem> = [
@@ -379,15 +398,57 @@ const AppSessionPage = ({
     }
   };
 
+  const handleCreateAppSession = async (item: ContainerTemplateItem) => {
+    const normalizedProjectID = normalizeText(resolvedProjectID);
+    if (!normalizedProjectID) {
+      messageApi.warning("No active project selected");
+      return;
+    }
+
+    try {
+      await createAppSessionApi({
+        container_template_id: String(item.id),
+        project_id: normalizedProjectID,
+        name: getDefaultAppSessionName(item),
+      });
+      messageApi.success("App session created");
+      await refetch();
+    } catch (error) {
+      messageApi.error(getErrorMessage(error, "Failed to create app session"));
+    }
+  };
+
+  const handleOpenTemplatePage = async () => {
+    try {
+      const selectedTemplate = await invoke.containerTemplatePage.openAsync(
+        {},
+        {
+          title: "Container Template List",
+          width: 1200,
+          footer: false,
+        }
+      );
+
+      if (selectedTemplate) {
+        await handleCreateAppSession(selectedTemplate as ContainerTemplateItem);
+      }
+    } catch {
+      // User cancelled
+    }
+  };
+
   return (
     <Card
       size="small"
       title={title || "App Session List"}
       extra={
         <Space>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenTemplatePage}>
+            Create
+          </Button>
           {normalizeText(analysis_node_id) && (
             <Button
-              type="primary"
+              type="default"
               onClick={handleCreateByAnalysisNode}
               loading={creatingFromAnalysisNode}
             >

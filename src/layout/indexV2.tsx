@@ -324,14 +324,14 @@ const App: React.FC = () => {
                 en_US: "Scripts"
             }
         },
-{
+        {
             key: "/c/tools",
             icon: "tools",
             label: {
                 zh_CN: "工具",
                 en_US: "Tools"
             }
-        }, 
+        },
 
 
         // {
@@ -350,6 +350,13 @@ const App: React.FC = () => {
                 zh_CN: "文件",
                 en_US: "Files"
             }
+        }, {
+            key: `/app-session`,
+            icon: "container",
+            label: {
+                zh_CN: "应用会话",
+                en_US: "App Session"
+            },
         },
         {
             key: `/analysis-report`,
@@ -368,14 +375,7 @@ const App: React.FC = () => {
             },
             children: [
 
-                {
-                    key: `/app-session`,
-                    icon: "container",
-                    label: {
-                        zh_CN: "应用会话",
-                        en_US: "App Session"
-                    },
-                },
+
                 {
                     key: `/container-instance`,
                     icon: "container",
@@ -384,14 +384,14 @@ const App: React.FC = () => {
                         en_US: "Container Instance"
                     },
                 },
-                {
-                    key: `/container-event`,
-                    icon: "container",
-                    label: {
-                        zh_CN: "容器事件",
-                        en_US: "Container Event"
-                    },
-                },
+                // {
+                //     key: `/container-event`,
+                //     icon: "container",
+                //     label: {
+                //         zh_CN: "容器事件",
+                //         en_US: "Container Event"
+                //     },
+                // },
                 {
                     key: `/outbox-event`,
                     icon: "container",
