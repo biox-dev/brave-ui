@@ -1,5 +1,5 @@
 import { Button, Card, Col, Empty, Modal, Popconfirm, Row, Segmented, Skeleton, Space, Spin, Table } from "antd"
-import { FC, use, useEffect, useRef, useState } from "react"
+import { FC, use, useCallback, useEffect, useRef, useState } from "react"
 import ComponentsPage from "../../components/workflow-page/component/page"
 import { useParams } from "react-router"
 import ComponentsDetailsRender from "../../core/ui-renderer/ComponentsDetailsRender"
@@ -26,19 +26,19 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
     const loadTable = () => {
         tabeRef.current?.reload()
     }
-    const { setSideView, setSideOptions } = useSideViewContext();
+    const { setSideView, setSideOptions, setLeftPaneContent, clearLeftPane } = useSideViewContext();
     const { script, setScript, clear } = useStoreRender()
 
     let [segmentedOptions, setSegmentedOptions] = useState<any[]>([])
     const [panel, setPanel] = useState<any>("analysisNodePage")
     const [loading, setLoading] = useState(false)
 
-    const loadScript = async (scriptId: any) => {
+    const loadScript = useCallback(async (scriptId: any) => {
         setLoading(true)
         const resp = await http.get(`/script/${scriptId}/get-script`)
         setScript(resp.data)
         setLoading(false)
-    }
+    }, [])
     const loadData = () => {
         if (script?.id) {
             loadScript(script?.id)
@@ -106,11 +106,37 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
             }
         ])
         setSideView("editParamsPanel")
+        setLeftPaneContent(
+            <Card
+                size="small"
+                className="layout-sharp-side-card"
+                styles={{ body: { padding: "0" } }}
+                extra={<Space>
+                    <Button size="small" color="cyan" variant="solid" onClick={async () => {
+                        await invoke.installComponentsV2.openAsync({
+                            storeType: "script",
+                        }, {
+                            width: "80%",
+                            title: `Install script`,
+                            footer: null,
+                        })
+                    }}>Intsall</Button>
+                    <Button size="small" color="cyan" variant="solid" onClick={async () => {
+                        await invoke.createOrUpdateComponent.openAsync({})
+                    }}>Create</Button>
+                </Space>}
+            >
+                <ScriptPage onOk={(script) => {
+                    loadScript(script?.id)
+                }}></ScriptPage>
+            </Card>
+        )
         return () => {
             setSideOptions([])
             setSideView("llm-card")
+            clearLeftPane()
         }
-    }, [])
+    }, [loadScript])
     const message = useGlobalMessage()
     // useEffect(() => {
     //     if (!component?.component_id && panel != "structure") {
@@ -125,54 +151,7 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
 
     return <div >
         <Row gutter={[16, 16]}>
-            <Col lg={6} sm={6} xs={24}>
-                <Card
-                    styles={{
-                        body: {
-                            padding: "0"
-                        }
-                    }}
-                    extra={<Space>
-                        <Button size="small" color="cyan" variant="solid" onClick={async () => {
-                            // openModal("installComponents", { relation_type: "tools" })
-                            await invoke.installComponentsV2.openAsync({
-                                storeType: "script",
-                            }, {
-                                width: "80%",
-                                title: `Install script`,
-                                footer: null,
-                            })
-                            // loadData()
-                        }}>Intsall</Button>
-                        <Button size="small" color="cyan" variant="solid" onClick={async () => {
-                            // openModal("createOrUpdatePipelineComponent", {
-                            //     data: undefined,
-                            //     structure: {
-                            //         component_type: component_type,
-                            //     }
-                            // })
-                            // setPanel("createOrUpdateComponent")
-                            // setScript(null)
-                            await invoke.createOrUpdateComponent.openAsync({})
-
-                        }}>
-                            Create
-                        </Button>
-                    </Space>}
-                    size="small"
-                >
-                    {/* <ComponentsPage
-                        ref={tabeRef}
-                        component_type={component_type}
-                        setComponent={setScript} ></ComponentsPage> */}
-                    <ScriptPage onOk={(script) => {
-
-                        loadScript(script?.id)
-                    }}></ScriptPage>
-                </Card>
-
-            </Col>
-            <Col lg={18} sm={18} xs={24}>
+            <Col span={24}>
                 {/* {JSON.stringify(component)} */}
                 <Spin spinning={loading}>
 

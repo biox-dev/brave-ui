@@ -1,6 +1,8 @@
 // SideViewContext.tsx
-import React, { createContext, FC, useContext, useState } from 'react';
+import React, { createContext, FC, useCallback, useContext, useState } from 'react';
 import { useLocation } from 'react-router';
+
+export type LeftPaneMode = 'placeholder' | 'content';
 
 const SideViewContext = createContext<any>(null);
 
@@ -8,7 +10,9 @@ export const SideViewProvider:FC<any> = ({ children }) => {
   const location = useLocation();
 
   const [viewMap, setViewMap] = useState<Record<string, string | null>>({});
-  const [sideOptions, setSideOptions] = useState<any>([])
+  const [sideOptions, setSideOptions] = useState<any>([]);
+  const [leftPane, setLeftPane] = useState<React.ReactNode>(null);
+  const [leftPaneMode, setLeftPaneMode] = useState<LeftPaneMode>('placeholder');
 
   const setSideView = (view: string | null) => {
     setViewMap(prev => ({
@@ -19,8 +23,21 @@ export const SideViewProvider:FC<any> = ({ children }) => {
 
   const sideView = viewMap[location.pathname] ?? "llm-card";  // 默认
 
+  const setLeftPaneContent = useCallback((content: React.ReactNode) => {
+    setLeftPane(content);
+    setLeftPaneMode('content');
+  }, []);
+
+  const clearLeftPane = useCallback(() => {
+    setLeftPane(null);
+    setLeftPaneMode('placeholder');
+  }, []);
+
   return (
-    <SideViewContext.Provider value={{ viewMap, setSideView, sideView, sideOptions, setSideOptions }}>
+    <SideViewContext.Provider value={{
+      viewMap, setSideView, sideView, sideOptions, setSideOptions,
+      leftPane, leftPaneMode, setLeftPaneContent, clearLeftPane,
+    }}>
       {children}
     </SideViewContext.Provider>
   );

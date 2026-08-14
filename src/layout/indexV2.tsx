@@ -26,7 +26,7 @@ const App: React.FC = () => {
   const {
     token: { colorBgContainer },
   } = theme.useToken();
-  const { sideView, setSideView, sideOptions } = useSideViewContext();
+  const { sideView, setSideView, sideOptions, leftPane, leftPaneMode } = useSideViewContext();
   const [leftWidthDraft, setLeftWidthDraft] = useState<number>(leftPanelWidth);
   const [rightWidthDraft, setRightWidthDraft] = useState<number>(rightPanelWidth);
 
@@ -95,15 +95,19 @@ const App: React.FC = () => {
               onLeftWidthCommit={(width) => dispatch(setUserItem({ leftPanelWidth: width }))}
               onRightWidthCommit={(width) => dispatch(setUserItem({ rightPanelWidth: width }))}
               left={
-                <Card
-                  size="small"
-                  className="layout-sharp-side-card"
-                  styles={{ body: { padding: 8 } }}
-                >
-                  <div className="layout-sharp-side-card-placeholder">
-                    {locale === 'en_US' ? 'Right Panel Reserved' : '右侧面板预留'}
-                  </div>
-                </Card>
+                leftPaneMode === 'content' && leftPane ? (
+                  leftPane
+                ) : (
+                  <Card
+                    size="small"
+                    className="layout-sharp-side-card"
+                    styles={{ body: { padding: 8 } }}
+                  >
+                    <div className="layout-sharp-side-card-placeholder">
+                      {locale === 'en_US' ? 'Right Panel Reserved' : '右侧面板预留'}
+                    </div>
+                  </Card>
+                )
               }
               main={<Outlet />}
               right={

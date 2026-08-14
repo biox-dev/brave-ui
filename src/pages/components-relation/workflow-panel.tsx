@@ -51,7 +51,7 @@ const Pipeline: FC<any> = ({ }) => {
     // debugger
     const { openAnalysis, analysisId, setAnalysisId, clear, toolsPanelView, setRelation, setToolsPanelView, closeAnalysis, workflow, setWorkflow } = useStoreRender()
 
-    const { setSideView, sideView, sideOptions, setSideOptions } = useSideViewContext();
+    const { setSideView, sideView, sideOptions, setSideOptions, setLeftPaneContent, clearLeftPane } = useSideViewContext();
 
 
     console.log("Pipeline")
@@ -213,6 +213,10 @@ const Pipeline: FC<any> = ({ }) => {
 
 
     }
+    const loadDataRef = useRef(loadData);
+    useEffect(() => {
+        loadDataRef.current = loadData;
+    }, [loadData]);
     const { register, unregister } = useComponentStore();
     const id = "tools-details"
     useEffect(() => {
@@ -285,9 +289,34 @@ const Pipeline: FC<any> = ({ }) => {
             }
         ])
         setSideView("editParamsPanel")
+        setLeftPaneContent(
+            <Card
+                size="small"
+                className="layout-sharp-side-card"
+                styles={{ body: { padding: "0" } }}
+                extra={<Space>
+                    <Button size="small" color="cyan" variant="solid" onClick={async () => {
+                        await invoke.installComponentsV2.openAsync({
+                            storeType: "workflow",
+                        }, {
+                            width: "80%",
+                            title: `Install ${relation_type}`,
+                            footer: null,
+                        })
+                        loadDataRef.current()
+                    }}>Intsall</Button>
+                    <Button size="small" color="cyan" variant="solid" onClick={() => {
+                        invoke.createOrUpdateRelation.openAsync({})
+                    }}>Create</Button>
+                </Space>}
+            >
+                <WorkflowPage onOk={setWorkflow}></WorkflowPage>
+            </Card>
+        )
         return () => {
             setSideOptions([])
             setSideView("llm-card")
+            clearLeftPane()
         }
     }, [])
 
@@ -346,51 +375,7 @@ const Pipeline: FC<any> = ({ }) => {
 
     return <div >
         <Row gutter={[16, 16]}>
-            <Col lg={6} sm={6} xs={24}>
-                <Card
-                    styles={{
-                        body: {
-                            padding: "0"
-                        }
-                    }}
-                    extra={<Space>
-                        {/* <Button size="small" color="cyan" variant="solid" onClick={() => {
-                        
-                            setPanel("createOrUpdateComponent")
-                            setScript({})
-                        }}>
-                            Create
-                        </Button> */}
-
-                        <Button size="small" color="cyan" variant="solid" onClick={async () => {
-                            // openModal("installComponents", { relation_type: "tools" })
-                            await invoke.installComponentsV2.openAsync({
-                                storeType: "workflow",
-                            }, {
-                                width: "80%",
-                                title: `Install ${relation_type}`,
-                                footer: null,
-                            })
-                            loadData()
-                        }}>Intsall</Button>
-
-                        <Button size="small" color="cyan" variant="solid" onClick={() => {
-                            invoke.createOrUpdateRelation.openAsync({})
-                            // openModal("createORUpdateCompnentRelation", {
-                            //     data: undefined,
-                            // pipelineStructure: {
-                            //     relation_type: relation_type,
-                            // }
-                            // })
-                        }}>Create</Button>
-                    </Space>}
-                    size="small"
-                >
-
-                    <WorkflowPage onOk={setWorkflow}></WorkflowPage>
-                </Card>
-            </Col>
-            <Col lg={18} sm={18} xs={24}>
+            <Col span={24}>
                 <Card size="small"
                     style={{
                         flex: 1,
