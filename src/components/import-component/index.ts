@@ -44,7 +44,6 @@ const importComponentLoaders = {
     'llm-card': () => import('../../layout/components/llm-card'),
     editParamsPanelWithAnalysisId: () => import('@/components/edit-params/components/edit-params-panel-with-analysis-id'),
     markdown: () => import('../../layout/components/md'),
-    'analysis-tree': () => import('../../pages/analysis-report/analysis-tree'),
     'module-edit': () => import('../../components/module-edit'),
     scriptCodeEdit: () => import('@/components/module-edit/code'),
     'create-or-update-component-drawer': () => import('@/components/create-pipeline/create-or-update-component-drawer'),

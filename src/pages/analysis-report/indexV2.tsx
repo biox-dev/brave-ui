@@ -37,13 +37,13 @@ const AnalysisReport: FC<any> = () => {
                 label: "Parameters",
                 value: "editParamsPanel"
             },
-            {
-                label: "analysis-tree",
-                value: "analysis-tree"
-            }
+            // {
+            //     label: "analysis-tree",
+            //     value: "analysis-tree"
+            // }
         ])
         // setSideView("analysis-tools")
-        setSideView("analysis-tree");
+        setSideView("llm-card");
         return () => {
             setSideOptions([])
             setSideView("llm-card")

@@ -8,7 +8,7 @@ const ToolsCard = lazy(() => import("../pages/pipeline-components-card-v2/index-
 const ToolsDetail = lazy(() => import("../pages/components-relation/workflow-panel"));
 const ComponentsV3 = lazy(() => import("../pages/components-relation/script-panel"));
 const Md = lazy(() => import("./components/md"));
-const AnalysisTree = lazy(() => import("../pages/analysis-report/analysis-tree"));
+const AnalysisTree = lazy(() => import("../components/left-panel-components/analysis-tree"));
 const viewMapping: {
     key: string;
     label: string;

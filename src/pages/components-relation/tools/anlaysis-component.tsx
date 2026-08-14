@@ -7,7 +7,7 @@ import { Card, Col, Row, Segmented } from 'antd';
 import ViewResolver from '@/core/ui-renderer/ViewResolver';
 
 const AnalysisToolsComp = ({ operatePipeline, analysisId,component,panelView }: any) => {
-    const { project } = useOutletContext<any>()
+    // const { project } = useOutletContext<any>()
     const [rightPanel, setRightPanel] = useState<any>("editParamsPanel")
     // const { analysisId, toolsPanelView, setRelation } = useStoreRender()
 
@@ -22,7 +22,7 @@ const AnalysisToolsComp = ({ operatePipeline, analysisId,component,panelView }: 
                     analysis_id={analysisId}
                     relation_id={component?.relation_id}
                     operatePipeline={operatePipeline}
-                    project={project}
+                    // project={project}
                     component={component}
                     view={panelView}
                 />

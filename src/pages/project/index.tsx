@@ -9,8 +9,7 @@ import { invoke } from "@/core/ui-system/invokeV2";
 import { deleteProjectReportApi, getProjectReportDetailApi, listProjectReportApi, type ProjectReportDetailItem, type ProjectReportItem } from "@/api/project";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { setUserItem } from "@/store/userSlice";
-import { getPathname } from "@/utils/utils";
-import Files from "../files";
+
 const Project: FC<any> = () => {
     const [view, setView] = useState<any>("analysisDocView")
     const { project, activeProjectReportId } = useSelector((state: any) => state.user);
@@ -146,9 +145,7 @@ const Project: FC<any> = () => {
             }
         ])
         setSideView("editParamsPanel")
-        setLeftPaneContent(
-            <Files ></Files>
-        )
+      
         return () => {
             setSideOptions([])
             setSideView("llm-card")

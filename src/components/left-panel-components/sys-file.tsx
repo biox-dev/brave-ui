@@ -56,77 +56,14 @@ const joinPath = (basePath: string, name: string) => {
     return `${basePath.replace(/\/+$/, "")}/${name}`
 }
 
-const SysFileBrowser1: FC<any> = ({ output_dir: dir }) => {
-    const [currentPath, setCurrentPath] = useState<string>(dir);
-    const [files, setFiles] = useState<FileItem[]>([]);
-
-    const loadFiles = async (path: string = "") => {
-        const res = await axios.get(`/file-operation/list-dir`, {
-            params: { path: path },
-        });
-        setFiles(res.data);
-        setCurrentPath(path);
-    };
-
-    const handleNavigate = (name: string) => {
-        loadFiles(`${currentPath}/${name}`);
-    };
-
-    const handleBack = () => {
-        const parts = currentPath.split("/").filter(Boolean);
-        parts.pop();
-        loadFiles("/" + parts.join("/"));
-    };
-
-    const handleDownload = (name: string) => {
-        const url = `/brave-api/file-operation/download?path=${encodeURIComponent(currentPath + "/" + name)}`;
-        window.open(url, "_blank");
-    };
-
-    useEffect(() => {
-        loadFiles(dir);
-    }, []);
-
-    return (
-
-        <Card title="文件列表" extra={
-            <Flex justify="space-between" align="center" gap={"small"}>
-                <Button size="small" color="cyan" variant="solid" onClick={() => loadFiles(dir)}>
-                    reset
-                </Button>
-                <Button size="small" color="cyan" variant="solid" onClick={() => loadFiles(currentPath)}>
-                    refresh
-                </Button>
-            </Flex>
-        }>
-            <div>
-                <h2>Browsing: /{currentPath}</h2>
-                {currentPath && <button onClick={handleBack}>⬅ Back</button>}
-                <ul>
-                    {files.map((file) => (
-                        <li key={file.name}>
-                            {file.is_dir ? (
-                                <button onClick={() => handleNavigate(file.name)}>📁 {file.name}</button>
-                            ) : (
-                                <span>
-                                    📄 {file.name} ({(file.size! / 1024).toFixed(1)} KB)
-                                    <button onClick={() => handleDownload(file.name)}>⬇ Download</button>
-                                </span>
-                            )}
-                        </li>
-                    ))}
-                </ul>
-            </div>
-        </Card>
-    );
-}
 
 
 
 
 
+// path="/" type="data"
 
-const SysFileBrowser: FC<any> = ({ type, path, onSelectFile, onClose }) => {
+const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose }) => {
     const [files, setFiles] = useState<FileItem[]>([])
     const [currentPath, setCurrentPath] = useState(path)
     const [keyword, setKeyword] = useState("")

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ApartmentOutlined, FileTextOutlined, SettingOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, FileTextOutlined, SettingOutlined, FileSearchOutlined, FolderOpenOutlined } from '@ant-design/icons';
 import { Card, Dropdown, Layout, Segmented, theme } from 'antd';
 import { Outlet, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
@@ -15,10 +15,10 @@ import SplitWorkspace from './components/SplitWorkspace.tsx';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
-type LeftPanelViewKey = 'scriptPageLeftPanel' | 'workflowPageLeftPanel';
+type LeftPanelViewKey = 'scriptPageLeftPanel' | 'workflowPageLeftPanel' | 'analysisTree' | 'sysFileBrowser';
 
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
-  key === 'scriptPageLeftPanel' || key === 'workflowPageLeftPanel';
+  key === 'scriptPageLeftPanel' || key === 'workflowPageLeftPanel' || key === 'analysisTree' || key === 'sysFileBrowser';
 
 const App: React.FC = () => {
   const { locale } = useI18n();
@@ -43,6 +43,10 @@ const App: React.FC = () => {
   const leftActivityItems = useMemo(
     () => [
       {
+        key: 'sysFileBrowser',
+        label: locale === 'en_US' ? 'System Files' : '系统文件',
+        icon: <FolderOpenOutlined />,
+      }, {
         key: 'scriptPageLeftPanel',
         label: locale === 'en_US' ? 'Script Page' : '脚本页',
         icon: <FileTextOutlined />,
@@ -52,6 +56,12 @@ const App: React.FC = () => {
         label: locale === 'en_US' ? 'Workflow Page' : '流程页',
         icon: <ApartmentOutlined />,
       },
+      {
+        key: 'analysisTree',
+        label: locale === 'en_US' ? 'Analysis Report' : '分析报告',
+        icon: <FileSearchOutlined />,
+      },
+     
     ],
     [locale],
   );
@@ -74,7 +84,7 @@ const App: React.FC = () => {
       return;
     }
 
-    const fallbackView: LeftPanelViewKey = 'scriptPageLeftPanel';
+    const fallbackView: LeftPanelViewKey = 'sysFileBrowser';
     setLeftSideView(fallbackView);
     dispatch(setUserItem({ leftActivityKey: fallbackView }));
   }, [dispatch, leftActivityItems, leftActivityKey]);
