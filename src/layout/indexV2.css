@@ -104,9 +104,64 @@
 .layout-sharp-content-inner {
   margin: 0;
   min-height: calc(100vh - 44px - 40px);
-  padding: 16px;
+  padding: 0;
   border-left: 1px solid transparent;
   background: var(--sharp-panel-bg);
+}
+
+.layout-sharp-workspace {
+  display: flex;
+  align-items: stretch;
+  height: calc(100vh - 44px - 40px);
+  min-height: calc(100vh - 44px - 40px);
+}
+
+.layout-sharp-main-pane {
+  flex: 1;
+  min-width: 0;
+  padding: 16px;
+  overflow: auto;
+}
+
+.layout-sharp-left-pane,
+.layout-sharp-right-pane {
+  flex: 0 0 auto;
+  background: var(--sharp-panel-bg);
+}
+
+.layout-sharp-left-pane {
+  min-width: 240px;
+  max-width: 560px;
+}
+
+.layout-sharp-right-pane {
+  min-width: 280px;
+  max-width: 640px;
+}
+
+.layout-sharp-pane-divider {
+  width: 8px;
+  cursor: col-resize;
+  position: relative;
+  flex: 0 0 8px;
+  background: transparent;
+}
+
+.layout-sharp-pane-divider::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--sharp-divider);
+}
+
+.layout-sharp-pane-divider:hover::before,
+.layout-sharp-pane-divider.is-resizing::before {
+  width: 2px;
+  background: var(--sharp-divider-strong);
 }
 
 .layout-sharp-footer {
@@ -146,7 +201,11 @@
 }
 
 .layout-sharp-side-card {
-  height: calc(100vh - 44px - 40px - 32px);
+  height: 100%;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  border-bottom: 0;
 }
 
 .layout-sharp-side-card .ant-card-body {
@@ -158,9 +217,57 @@
   overflow: auto;
 }
 
+.layout-sharp-side-card-placeholder {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sharp-text-soft);
+  background: var(--sharp-panel-muted);
+  border: 1px dashed var(--sharp-divider);
+}
+
+body.layout-sharp-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
 @media (max-width: 991px) {
+  .layout-sharp-content-inner {
+    padding: 16px;
+  }
+
+  .layout-sharp-workspace {
+    display: block;
+    height: auto;
+    min-height: auto;
+  }
+
+  .layout-sharp-main-pane {
+    padding: 0;
+    margin-bottom: 16px;
+  }
+
+  .layout-sharp-pane-divider {
+    display: none;
+  }
+
+  .layout-sharp-right-pane {
+    width: auto !important;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .layout-sharp-left-pane {
+    width: auto !important;
+    min-width: 0;
+    max-width: none;
+    margin-bottom: 16px;
+  }
+
   .layout-sharp-side-card {
     height: auto;
+    border-left: 0;
   }
 
   .layout-sharp-side-card .ant-card-body,

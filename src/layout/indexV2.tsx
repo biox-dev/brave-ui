@@ -1,20 +1,25 @@
-import React, { useMemo } from 'react';
-import { Card, Col, Layout, Menu, Row, Segmented, Typography, theme } from 'antd';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Card, Layout, Menu, Segmented, Typography, theme } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useI18n } from '@/hooks/useI18n';
 import ViewResolver from '@/core/ui-renderer/ViewResolver';
 import { useSideViewContext } from '@/context/side/SideViewContext';
 import ContainerQueueMonitor from '@/components/container-manager/container-monitor';
+import { setUserItem } from '@/store/userSlice';
 import { buildLayoutMenus, buildSelectedKeyMap, layoutMenuTree, resolveSelectedKey } from './layout-menu';
 import AppHeader from './components/AppHeader';
+import SplitWorkspace from './components/SplitWorkspace.tsx';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
 
 const App: React.FC = () => {
   const { locale } = useI18n();
+  const dispatch = useDispatch();
   const appTheme = useSelector((state: any) => state.user.theme);
+  const leftPanelWidth = useSelector((state: any) => state.user.leftPanelWidth);
+  const rightPanelWidth = useSelector((state: any) => state.user.rightPanelWidth);
   const navigate = useNavigate();
   const location = useLocation();
   const isDark = appTheme === 'dark';
@@ -22,6 +27,16 @@ const App: React.FC = () => {
     token: { colorBgContainer },
   } = theme.useToken();
   const { sideView, setSideView, sideOptions } = useSideViewContext();
+  const [leftWidthDraft, setLeftWidthDraft] = useState<number>(leftPanelWidth);
+  const [rightWidthDraft, setRightWidthDraft] = useState<number>(rightPanelWidth);
+
+  useEffect(() => {
+    setLeftWidthDraft(leftPanelWidth);
+  }, [leftPanelWidth]);
+
+  useEffect(() => {
+    setRightWidthDraft(rightPanelWidth);
+  }, [rightPanelWidth]);
 
   const menuItems = useMemo(
     () => buildLayoutMenus(locale === 'en_US' ? 'en_US' : 'zh_CN'),
@@ -45,7 +60,7 @@ const App: React.FC = () => {
   return (
     <Layout className={`layout-sharp ${isDark ? 'layout-sharp-dark' : 'layout-sharp-light'}`}>
       <Sider
-        trigger={null} 
+        trigger={null}
         collapsible
         collapsed
         theme={isDark ? 'dark' : 'light'}
@@ -70,11 +85,29 @@ const App: React.FC = () => {
             className="layout-sharp-content-inner"
             style={{ background: colorBgContainer }}
           >
-            <Row gutter={[16, 16]}>
-              <Col xs={24} lg={18}>
-                <Outlet />
-              </Col>
-              <Col xs={24} lg={6}>
+            <SplitWorkspace
+              leftResizeLabel={locale === 'en_US' ? 'Resize left panel' : '调整左侧面板'}
+              rightResizeLabel={locale === 'en_US' ? 'Resize right panel' : '调整右侧面板'}
+              leftWidth={leftWidthDraft}
+              rightWidth={rightWidthDraft}
+              onLeftWidthChange={setLeftWidthDraft}
+              onRightWidthChange={setRightWidthDraft}
+              onLeftWidthCommit={(width) => dispatch(setUserItem({ leftPanelWidth: width }))}
+              onRightWidthCommit={(width) => dispatch(setUserItem({ rightPanelWidth: width }))}
+              left={
+                <Card
+                  size="small"
+                  className="layout-sharp-side-card"
+                  styles={{ body: { padding: 8 } }}
+                >
+                  <div className="layout-sharp-side-card-placeholder">
+                    {locale === 'en_US' ? 'Right Panel Reserved' : '右侧面板预留'}
+                  </div>
+                </Card>
+              }
+              main={<Outlet />}
+              right={
+
                 <Card
                   size="small"
                   className="layout-sharp-side-card"
@@ -92,8 +125,8 @@ const App: React.FC = () => {
                     <ViewResolver view={sideView} view_mode="card" />
                   </div>
                 </Card>
-              </Col>
-            </Row>
+              }
+            />
           </div>
         </Content>
         <Footer className="layout-sharp-footer">

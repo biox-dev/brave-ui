@@ -15,6 +15,8 @@ const scmOrigin = localStorage.getItem('scmOrigin')
 const userInfo = localStorage.getItem('userInfo')
 const activeProjectReportId = localStorage.getItem('activeProjectReportId')
 const activeLLMSessionId = localStorage.getItem('activeLLMSessionId')
+const leftPanelWidth = Number(localStorage.getItem('leftPanelWidth'))
+const rightPanelWidth = Number(localStorage.getItem('rightPanelWidth'))
 
 export const loadActiveProject = createAsyncThunk(
     'user/loadActiveProject',
@@ -55,6 +57,8 @@ interface UserState {
     scmOrigin:any;
     activeProjectReportId:string | null;
     activeLLMSessionId:string | null;
+    leftPanelWidth:number;
+    rightPanelWidth:number;
     userInfo: LoginUserInfo | null;
     componentLayout:"simple"|"complex",
     network:"UNKNOW" | "CONNECT" | "NOT_CONNECT"
@@ -79,6 +83,8 @@ const contextSlice = createSlice({
         storeRepos:storeRepos?storeRepos:"[]",
         activeProjectReportId:activeProjectReportId?activeProjectReportId:null,
         activeLLMSessionId:activeLLMSessionId?activeLLMSessionId:null,
+        leftPanelWidth:Number.isFinite(leftPanelWidth)?leftPanelWidth:320,
+        rightPanelWidth:Number.isFinite(rightPanelWidth)?rightPanelWidth:360,
         userInfo: userInfo ? JSON.parse(userInfo) : null,
         componentLayout:"simple",
         network:"UNKNOW",
@@ -143,6 +149,12 @@ const contextSlice = createSlice({
                 } else {
                     localStorage.removeItem('activeLLMSessionId')
                 }
+            }
+            if (action.payload.leftPanelWidth !== undefined) {
+                localStorage.setItem('leftPanelWidth', String(action.payload.leftPanelWidth))
+            }
+            if (action.payload.rightPanelWidth !== undefined) {
+                localStorage.setItem('rightPanelWidth', String(action.payload.rightPanelWidth))
             }
             if (action.payload.userInfo !== undefined) {
                 if (action.payload.userInfo) {
