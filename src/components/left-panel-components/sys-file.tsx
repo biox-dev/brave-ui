@@ -35,7 +35,7 @@
 
 
 import React, { FC, useEffect, useRef, useState } from "react";
-import { Breadcrumb, Button, Card, Input, List, Pagination, Popconfirm, Space, Tooltip, Typography, message } from "antd";
+import { Breadcrumb, Button, Input, List, Pagination, Popconfirm, Space, Tooltip, Typography, message } from "antd";
 const { Search } = Input
 const { Text } = Typography
 type FileItem = {
@@ -48,6 +48,7 @@ import { FolderOutlined, FileOutlined, DownloadOutlined, ReloadOutlined, UploadO
 import { useSelector } from "react-redux";
 import { openFileByPath } from "@/utils/file-open";
 import { http } from "@/api/client/http";
+import BorderlessCard from "@/components/common/borderless-card";
 
 const joinPath = (basePath: string, name: string) => {
     if (!basePath || basePath === "/") {
@@ -243,16 +244,15 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
     const pathSegments = currentPath.split("/").filter(Boolean)
 
     return (
-        <Card
+        <BorderlessCard
             loading={loading}
             title={<Tooltip title={dir}>
 
                 File browser
             </Tooltip>}
-            size="small"
             styles={{
                 body: {
-
+                    padding: 8,
                 }
             }}
             extra={
@@ -380,7 +380,7 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
                 onChange={(pageNum) => loadFiles(currentPath, keyword, pageNum)}
                 showSizeChanger={false}
             />
-        </Card>
+        </BorderlessCard>
     )
 }
 

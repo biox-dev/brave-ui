@@ -1,14 +1,13 @@
 import { invoke } from '@/core/ui-system/invokeV2';
-import { Button, Card, Space } from 'antd';
+import { Button, Space } from 'antd';
 import type { FC } from 'react';
 import { useNavigate } from 'react-router';
 import ScriptPage from '../workflow-page/script-page';
+import BorderlessCard from '@/components/common/borderless-card';
 const ScriptPageLeftPanel: FC<any> = () => {
     const navigate = useNavigate();
 
-    return <Card
-        size="small"
-        className="layout-sharp-side-card"
+    return <BorderlessCard
         styles={{ body: { padding: "0" } }}
         extra={<Space>
             <Button size="small" color="cyan" variant="solid" onClick={async () => {
@@ -31,7 +30,7 @@ const ScriptPageLeftPanel: FC<any> = () => {
             }
             navigate(`/c/scripts/${encodeURIComponent(script.id)}`);
         }}></ScriptPage>
-    </Card>
+    </BorderlessCard>
 }
 
 export default ScriptPageLeftPanel;

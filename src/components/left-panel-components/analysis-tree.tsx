@@ -12,6 +12,7 @@ import { useStickyTop } from "@/hooks/useStickyTop"
 import { AI } from "@/components/chat"
 import { useStoreRender } from "@/context/render/RenderProvider"
 import { http } from "@/api/client/http"
+import BorderlessCard from "@/components/common/borderless-card"
 
 const ResultParse = lazy(() => import("@/components/result-parse"))
 // import AnalysisResultPanel from '@/components/analysis-result-view/panel'
@@ -133,32 +134,30 @@ const AnalysisTree: FC<any> = () => {
     useEffect(() => {
         loadData()
     }, [])
-    return <div >
-
-        <Flex justify="end">
-
-
-            <Space>
-                <Tooltip title={`Download Project ${projectObj?.project_name}`}>
+    return <BorderlessCard
+        title={"Analysis Tree"}
+        extra={<Space>
+            <Tooltip title={`Download Project ${projectObj?.project_name}`}>
 
 
-                    <Button
-                        onClick={async () => {
-                            // /analysis/download-results/{analysis_id}
-                            const res = await axios.post(`/analysis/download-project/${project}`);
-                            const url = `${baseURL}${res.data.download_url}`
-                            console.log(res)
-                            window.open(url, "_blank")
-                            // const blob = new Blob([res.data], { type: 'application/zip' });
-                        }}
-                        size="small" color="blue" variant="solid" icon={<DownloadOutlined />} >Download</Button>
+                <Button
+                    onClick={async () => {
+                        // /analysis/download-results/{analysis_id}
+                        const res = await axios.post(`/analysis/download-project/${project}`);
+                        const url = `${baseURL}${res.data.download_url}`
+                        console.log(res)
+                        window.open(url, "_blank")
+                        // const blob = new Blob([res.data], { type: 'application/zip' });
+                    }}
+                    size="small" color="blue" variant="solid" icon={<DownloadOutlined />} >Download</Button>
 
-                </Tooltip>
-                <RedoOutlined style={{ cursor: "pointer" }} onClick={() => loadData()} />
-            </Space>
+            </Tooltip>
+            <RedoOutlined style={{ cursor: "pointer" }} onClick={() => loadData()} />
+        </Space>
+        }
+    >
 
-            {/* <Button size="small" color="cyan" variant="solid" onClick={loadData}>Refresh</Button> */}
-        </Flex>
+      
         <div style={{
             // height:"50vh",
             // overflow:"auto"
@@ -171,7 +170,7 @@ const AnalysisTree: FC<any> = () => {
                         // setComponentType(val.node.relation_type)
                         // updateQueryParam("project", project);
                         // updateQueryParam("key", val.node.key);
-                        
+
                         navigate(`/analysis-report/${val.node.key}`)
                     } else if (val.node?.type == "relation") {
                         console.log(val.node)
@@ -188,7 +187,7 @@ const AnalysisTree: FC<any> = () => {
         </div>
 
 
-    </div>
+    </BorderlessCard>
 }
 
 export default AnalysisTree

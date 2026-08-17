@@ -206,6 +206,8 @@ const ScriptPage = ({
 		});
 	};
 
+	
+
 	return (
 		<Card
 			size="small"

@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ApartmentOutlined, FileTextOutlined, SettingOutlined, FileSearchOutlined, FolderOpenOutlined } from '@ant-design/icons';
-import { Card, Dropdown, Layout, Segmented, theme } from 'antd';
+import { Dropdown, Layout, Segmented, theme } from 'antd';
 import { Outlet, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { useI18n } from '@/hooks/useI18n';
 import ViewResolver from '@/core/ui-renderer/ViewResolver';
+import BorderlessCard from '@/components/common/borderless-card';
 import { useSideViewContext } from '@/context/side/SideViewContext';
 import ContainerQueueMonitor from '@/components/container-manager/container-monitor';
 import { setUserItem } from '@/store/userSlice';
@@ -162,9 +163,8 @@ const App: React.FC = () => {
               main={<Outlet />}
               right={
 
-                <Card
+                <BorderlessCard
                   size="small"
-                  className="layout-sharp-side-card"
                   styles={{ body: { padding: 8 } }}
                   extra={
                     <Segmented
@@ -178,7 +178,7 @@ const App: React.FC = () => {
                   <div className="layout-sharp-side-card-body">
                     <ViewResolver view={sideView} view_mode="card" />
                   </div>
-                </Card>
+                </BorderlessCard>
               }
             />
           </div>

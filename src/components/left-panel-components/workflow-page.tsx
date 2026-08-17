@@ -1,13 +1,12 @@
 import { FC } from 'react';
-import { Card, Space, Button } from 'antd';
+import { Space, Button } from 'antd';
 import { invoke } from '@/core/ui-system/invokeV2';
 import { useNavigate } from 'react-router';
 import WorkflowPage from '../workflow-page/workflow-page';
+import BorderlessCard from '@/components/common/borderless-card';
 const WorkflowPageLeftPanel: FC<any> = () => {
     const navigate = useNavigate();
-    return <Card
-        size="small"
-        className="layout-sharp-side-card"
+    return <BorderlessCard
         styles={{ body: { padding: "0" } }}
         extra={<Space>
             <Button size="small" color="cyan" variant="solid" onClick={async () => {
@@ -31,7 +30,7 @@ const WorkflowPageLeftPanel: FC<any> = () => {
             }
             navigate(`/c/tools/${encodeURIComponent(String(relation.id))}`);
         }}></WorkflowPage>
-    </Card>
+    </BorderlessCard>
 }
 
 export default WorkflowPageLeftPanel;

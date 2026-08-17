@@ -1,6 +1,5 @@
 import { Button, Card, Col, Empty, Modal, Popconfirm, Row, Segmented, Skeleton, Space, Spin, Table } from "antd"
 import { FC, use, useCallback, useEffect, useRef, useState } from "react"
-import ComponentsPage from "../../components/workflow-page/component/page"
 import { useNavigate, useParams } from "react-router"
 import ComponentsDetailsRender from "../../core/ui-renderer/ComponentsDetailsRender"
 import { CreateOrUpdatePipelineComponent } from "@/components/create-pipeline"
