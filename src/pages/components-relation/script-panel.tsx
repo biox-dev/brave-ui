@@ -14,11 +14,14 @@ import { invoke } from "@/core/ui-system/invokeV2"
 import { renderViewButton } from "@/utils/render-view-btn"
 import { http } from "@/api/client/http"
 import StoreVersionActions from "./components/store-version-actions"
+import { useI18n } from "@/hooks/useI18n"
 
 const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
     const { script_id } = useParams()
     const navigate = useNavigate()
     const { modal, openModal, closeModal } = useModal();
+    const { locale } = useI18n();
+
     // const [segmentedOptions, setSegmentedOptions] = useState<any[]>([])
     // const { component_type } = useParams()
     const tabeRef = useRef<any>(null)
@@ -100,17 +103,18 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
     }, [component_type])
     useEffect(() => {
         setSideOptions([
-            {
-                label: "LLM",
-                value: "llm-card"
-            }, {
-                label: "Container App",
-                value: "appSessionPage"
-            },
-            {
-                label: "Parameters",
-                value: "editParamsPanel"
-            }
+            // {
+            //     label: "LLM",
+            //     value: "llm-card"
+            // }, {
+            //     label: "Container App",
+            //     value: "appSessionPage"
+            // },
+            // {
+            //     label: "Parameters",
+            //     value: "editParamsPanel"
+            // }
+            { label: locale === 'en_US' ? 'Parameters' : '参数', value: 'editParamsPanel' }
         ])
         setSideView("editParamsPanel")
         // setLeftPaneContent(
@@ -145,7 +149,7 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
         return () => {
             setSideOptions([])
             setSideView("llm-card")
-            clearLeftPane()
+            // clearLeftPane()
         }
     }, [navigate, loadScript])
     const message = useGlobalMessage()

@@ -123,7 +123,7 @@ export interface AppSessionPageQuery {
 
 export interface CreateAppSessionPayload {
     container_template_id: string;
-    project_id: string;
+    // project_id: string;
     name: string;
 }
 

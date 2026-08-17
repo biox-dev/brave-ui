@@ -203,8 +203,8 @@ const AppSessionPage = ({
   const selectable = Boolean(onOk || onCancel);
   const activeViewMode = normalizeViewMode(view_mode);
   const isCardMode = activeViewMode === "card";
-  const { containerURL, project: currentProjectID } = useSelector((state: any) => state.user);
-  const resolvedProjectID = normalizeText(projectIdProp) || normalizeText(currentProjectID);
+  const { containerURL} = useSelector((state: any) => state.user);
+  // const resolvedProjectID = normalizeText(projectIdProp) || normalizeText(currentProjectID);
 
   const {
     data,
@@ -231,7 +231,7 @@ const AppSessionPage = ({
   useEffect(() => {
     setQuery({
       id: normalizeText(id),
-      project_id: onlyCurrentProject ? resolvedProjectID : undefined,
+      // project_id: onlyCurrentProject ? resolvedProjectID : undefined,
       analysis_node_id: normalizeText(analysis_node_id),
       container_template_id: normalizeText(container_template_id),
       name: normalizeText(name),
@@ -241,7 +241,7 @@ const AppSessionPage = ({
   }, [
     id,
     onlyCurrentProject,
-    resolvedProjectID,
+    // resolvedProjectID,
     analysis_node_id,
     container_template_id,
     name,
@@ -423,16 +423,16 @@ const AppSessionPage = ({
   };
 
   const handleCreateAppSession = async (item: ContainerTemplateItem) => {
-    const normalizedProjectID = normalizeText(resolvedProjectID);
-    if (!normalizedProjectID) {
-      messageApi.warning("No active project selected");
-      return;
-    }
+    // const normalizedProjectID = normalizeText(resolvedProjectID);
+    // if (!normalizedProjectID) {
+    //   messageApi.warning("No active project selected");
+    //   return;
+    // }
 
     try {
       await createAppSessionApi({
         container_template_id: String(item.id),
-        project_id: normalizedProjectID,
+        // project_id: normalizedProjectID,
         name: getDefaultAppSessionName(item),
       });
       messageApi.success("App session created");
@@ -479,7 +479,7 @@ const AppSessionPage = ({
               Create from Analysis Node
             </Button>
           )}
-          <Space size={6}>
+          {/* <Space size={6}>
             <Text type="secondary">Only current project</Text>
             <Switch
               size="small"
@@ -490,7 +490,7 @@ const AppSessionPage = ({
               }}
               disabled={!resolvedProjectID}
             />
-          </Space>
+          </Space> */}
           <Text type="secondary">Total: {total}</Text>
           <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
             Refresh

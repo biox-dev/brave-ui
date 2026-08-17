@@ -15,6 +15,7 @@ import { useSideViewContext } from "@/context/side/SideViewContext"
 import AnalysisReportContent from "../components-relation/tools/analysis-report-content"
 import AnalysisToolsComp from "../components-relation/tools/anlaysis-component"
 import { useStoreRender } from "@/context/render/RenderProvider"
+import { useI18n } from "@/hooks/useI18n"
 
 const ResultParse = lazy(() => import("@/components/result-parse"))
 // import AnalysisResultPanel from '@/components/analysis-result-view/panel'
@@ -24,26 +25,29 @@ const AnalysisReport: FC<any> = () => {
     // const { project, projectObj } = useOutletContext<any>()
     // useSideView("analysis-tree")
     const { setSideView, setSideOptions } = useSideViewContext();
+    const { locale } = useI18n();
 
     useEffect(() => {
         setSideOptions([
-            {
-                label: "LLM",
-                value: "llm-card"
-            }, {
-                label: "Container App",
-                value: "appSessionPage"
-            }, {
-                label: "Parameters",
-                value: "editParamsPanel"
-            },
+            // {
+            //     label: "LLM",
+            //     value: "llm-card"
+            // }, {
+            //     label: "Container App",
+            //     value: "appSessionPage"
+            // }, {
+            //     label: "Parameters",
+            //     value: "editParamsPanel"
+            // },
             // {
             //     label: "analysis-tree",
             //     value: "analysis-tree"
             // }
+            { label: locale === 'en_US' ? 'Parameters' : '参数', value: 'editParamsPanel' }
+
         ])
         // setSideView("analysis-tools")
-        setSideView("llm-card");
+        setSideView("editParamsPanel");
         return () => {
             setSideOptions([])
             setSideView("llm-card")
@@ -72,7 +76,7 @@ const AnalysisReport: FC<any> = () => {
     const [componentType, setComponentType] = useState<any>()
     const [rightPanel, setRightPanel] = useState<any>("toc");
 
-    const { setAnalysisId} = useStoreRender()
+    const { setAnalysisId } = useStoreRender()
     useEffect(() => {
         if (analysisId) {
             setAnalysisId(analysisId)

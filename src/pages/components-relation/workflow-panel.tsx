@@ -42,6 +42,7 @@ import { invoke } from "@/core/ui-system/invokeV2"
 import WorkflowPage from "@/components/workflow-page/workflow-page"
 import { http } from "@/api/client/http"
 import StoreVersionActions from "./components/store-version-actions"
+import { useI18n } from "@/hooks/useI18n"
 
 const Pipeline: FC<any> = ({ }) => {
 
@@ -52,6 +53,7 @@ const Pipeline: FC<any> = ({ }) => {
     const { openAnalysis, analysisId, setAnalysisId, clear, toolsPanelView, setRelation, setToolsPanelView, closeAnalysis, workflow, setWorkflow } = useStoreRender()
 
     const { setSideView, sideView, sideOptions, setSideOptions, setLeftPaneContent, clearLeftPane } = useSideViewContext();
+    const { locale } = useI18n();
 
 
     console.log("Pipeline")
@@ -283,20 +285,21 @@ const Pipeline: FC<any> = ({ }) => {
     useEffect(() => {
 
         setSideOptions([
-            {
-                label: "LLM",
-                value: "llm-card"
-            }, {
-                label: "Container App",
-                value: "appSessionPage"
-            }, {
-                label: "Script",
-                value: "scriptPage"
-            },
-            {
-                label: "Parameters",
-                value: "editParamsPanel"
-            }
+            // {
+            //     label: "LLM",
+            //     value: "llm-card"
+            // }, {
+            //     label: "Container App",
+            //     value: "appSessionPage"
+            // }, {
+            //     label: "Script",
+            //     value: "scriptPage"
+            // },
+            // {
+            //     label: "Parameters",
+            //     value: "editParamsPanel"
+            // }
+            { label: locale === 'en_US' ? 'Parameters' : '参数', value: 'editParamsPanel' }
         ])
         setSideView("editParamsPanel")
         // setLeftPaneContent(
@@ -334,7 +337,7 @@ const Pipeline: FC<any> = ({ }) => {
         return () => {
             setSideOptions([])
             setSideView("llm-card")
-            clearLeftPane()
+            // clearLeftPane()
         }
     }, [navigate, setWorkflow])
 

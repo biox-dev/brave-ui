@@ -79,8 +79,8 @@ const contextSlice = createSlice({
         authorization:authorization,
         refreshToken:refreshToken,
         namespace:namespace?`${namespace}`:`default`,
-        project:"",
-        projectObj:{},
+        projectId:"",
+        project:{},
         githubToken:githubToken,
         storeRepos:storeRepos?storeRepos:"[]",
         activeProjectReportId:activeProjectReportId?activeProjectReportId:null,
@@ -175,8 +175,8 @@ const contextSlice = createSlice({
             state.authorization = null;
             state.refreshToken = null;
             state.userInfo = null;
-            state.project = "";
-            state.projectObj = {};
+            state.projectId = "";
+            state.project = {};
             state.activeLLMSessionId = null;
             localStorage.removeItem('Authorization');
             localStorage.removeItem('authorization');
@@ -188,8 +188,8 @@ const contextSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder.addCase(loadActiveProject.fulfilled, (state, action) => {
-            state.project = action.payload?.project_id || "";
-            state.projectObj = action.payload || {};
+            state.projectId = action.payload?.project_id || "";
+            state.project = action.payload || {};
         });
     }
 })

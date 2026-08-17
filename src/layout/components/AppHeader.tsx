@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Avatar, Dropdown, Layout, Tag, Typography, message } from 'antd';
+import { Avatar, Button, Dropdown, Layout, Tag, Typography, message } from 'antd';
 import type { MenuProps } from 'antd';
 import { SettingOutlined, UserOutlined } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
@@ -9,6 +9,7 @@ import { invoke } from '@/core/ui-system/invokeV2';
 import { activateProjectApi, type ProjectItem } from '@/api/project';
 import { clearUserSession, loadActiveProject } from '@/store/userSlice';
 import { logoutApi } from '@/api/auth';
+import { getPathname } from '@/utils/utils';
 
 type AppHeaderProps = {
     backgroundColor: string;
@@ -18,7 +19,7 @@ const { Header } = Layout;
 
 const AppHeader: React.FC<AppHeaderProps> = ({ backgroundColor }) => {
     const dispatch = useDispatch();
-    const projectObj = useSelector((state: any) => state.user.projectObj);
+    const project = useSelector((state: any) => state.user.project);
     const userInfo = useSelector((state: any) => state.user.userInfo);
     const [messageApi, messageContextHolder] = message.useMessage();
     const { status, reconnect } = useSSE();
@@ -95,9 +96,12 @@ const AppHeader: React.FC<AppHeaderProps> = ({ backgroundColor }) => {
                     <Typography.Text strong className="layout-sharp-brand-text">BRAVE</Typography.Text>
                 </div>
                 <div className="layout-sharp-header-right">
-                    {projectObj?.project_name ? (
+                    <Button size="small" onClick={() => {
+                        window.open(`${getPathname()}/docs/${project.project_id}/`, "_blank")
+                    }}>docs</Button>
+                    {project?.project_name ? (
                         <Tag color="blue" className="layout-sharp-clickable" onClick={handleProjectSwitch}>
-                            {projectObj.project_name}
+                            {project.project_name}
                         </Tag>
                     ) : null}
                     <Tag color={connectionColor} className="layout-sharp-clickable" onClick={reconnect}>

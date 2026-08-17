@@ -94,9 +94,16 @@ const App: React.FC = () => {
   const layoutLocale: LayoutLocale = locale === 'en_US' ? 'en_US' : 'zh_CN';
   const segmentedOptions = useMemo(
     () =>
-      sideOptions && sideOptions.length > 0
-        ? sideOptions
-        : [{ label: locale === 'en_US' ? 'Assistant' : '助手', value: 'llm-card' }],
+      // sideOptions && sideOptions.length > 0
+      //   ? sideOptions
+      //   : [{ label: locale === 'en_US' ? 'Assistant' : '助手', value: 'llm-card' },
+      //     { label: locale === 'en_US' ? 'App' : '应用', value: 'appSessionPage' },
+      //     ...sideOptions
+      //   ],
+      [{ label: locale === 'en_US' ? 'Assistant' : '助手', value: 'llm-card' },
+      { label: locale === 'en_US' ? 'App' : '应用', value: 'appSessionPage' },
+      ...sideOptions
+      ],
     [sideOptions, locale],
   );
   const settingsMenuItems = useMemo(() => buildLayoutMenus(layoutLocale), [layoutLocale]);
@@ -175,7 +182,7 @@ const App: React.FC = () => {
                       />
                     }
                   >
-                      <ViewResolver view={sideView} view_mode="card" />
+                    <ViewResolver view={sideView} view_mode="card" />
                   </BorderlessCard>
                 }
               />
