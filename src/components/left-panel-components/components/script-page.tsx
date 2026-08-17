@@ -228,7 +228,7 @@ const ScriptPage = ({
 
 
 	return (
-		<BorderlessCard
+		<Card
 			size="small"
 			title={title || "Script List"}
 			extra={
@@ -322,7 +322,7 @@ const ScriptPage = ({
 					</Button>
 				</Flex>
 			)} */}
-		</BorderlessCard>
+		</Card>
 	);
 };
 

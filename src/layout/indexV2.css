@@ -288,10 +288,10 @@
   height: calc(100% - 38px);
 }
 
-.layout-sharp-side-card-body {
+/* .layout-sharp-side-card-body {
   height: 100%;
   overflow: auto;
-}
+} */
 
 .layout-sharp-side-card-placeholder {
   height: 100%;
@@ -346,9 +346,9 @@ body.layout-sharp-resizing {
     border-left: 0;
   }
 
-  .layout-sharp-side-card .ant-card-body,
+  /* .layout-sharp-side-card .ant-card-body,
   .layout-sharp-side-card-body {
     height: auto;
     max-height: 50vh;
-  }
+  } */
 }

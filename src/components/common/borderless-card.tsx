@@ -16,7 +16,7 @@ const BorderlessCard: React.FC<BorderlessCardProps> = ({ className, styles, styl
       size={size ?? "small"}
       className={mergeClassNames("layout-sharp-side-card", className)}
       style={{
-        height: "100%",
+        // height: "100%",
         border: 0,
         borderRadius: 0,
         boxShadow: "none",
@@ -25,8 +25,10 @@ const BorderlessCard: React.FC<BorderlessCardProps> = ({ className, styles, styl
       styles={{
         ...styles,
         body: {
-          height: "100%",
+          // height: "100%",
           padding: 0,
+          overflow: "auto",
+        
           ...bodyStyles,
         },
       }}

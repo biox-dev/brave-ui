@@ -62,7 +62,7 @@ const App: React.FC = () => {
         label: locale === 'en_US' ? 'Analysis Report' : '分析报告',
         icon: <FileSearchOutlined />,
       },
-     
+
     ],
     [locale],
   );
@@ -145,59 +145,57 @@ const App: React.FC = () => {
           </div>
         </Sider>
         <Layout className="layout-sharp-main">
-        <Content className="layout-sharp-content">
-          <div
-            className="layout-sharp-content-inner"
-            style={{ background: colorBgContainer }}
-          >
-            <SplitWorkspace
-              leftResizeLabel={locale === 'en_US' ? 'Resize left panel' : '调整左侧面板'}
-              rightResizeLabel={locale === 'en_US' ? 'Resize right panel' : '调整右侧面板'}
-              leftWidth={leftWidthDraft}
-              rightWidth={rightWidthDraft}
-              onLeftWidthChange={setLeftWidthDraft}
-              onRightWidthChange={setRightWidthDraft}
-              onLeftWidthCommit={(width) => dispatch(setUserItem({ leftPanelWidth: width }))}
-              onRightWidthCommit={(width) => dispatch(setUserItem({ rightPanelWidth: width }))}
-              left={<ViewResolver view={leftSideView} view_mode="card" />}
-              main={<Outlet />}
-              right={
+          <Content className="layout-sharp-content">
+            <div
+              className="layout-sharp-content-inner"
+              style={{ background: colorBgContainer }}
+            >
+              <SplitWorkspace
+                leftResizeLabel={locale === 'en_US' ? 'Resize left panel' : '调整左侧面板'}
+                rightResizeLabel={locale === 'en_US' ? 'Resize right panel' : '调整右侧面板'}
+                leftWidth={leftWidthDraft}
+                rightWidth={rightWidthDraft}
+                onLeftWidthChange={setLeftWidthDraft}
+                onRightWidthChange={setRightWidthDraft}
+                onLeftWidthCommit={(width) => dispatch(setUserItem({ leftPanelWidth: width }))}
+                onRightWidthCommit={(width) => dispatch(setUserItem({ rightPanelWidth: width }))}
+                left={<ViewResolver view={leftSideView} view_mode="card" />}
+                main={<Outlet />}
+                right={
 
-                <BorderlessCard
-                  size="small"
-                  styles={{ body: { padding: 8 } }}
-                  extra={
-                    <Segmented
-                      size="small"
-                      value={sideView}
-                      options={segmentedOptions}
-                      onChange={(value) => setSideView(value as string)}
-                    />
-                  }
-                >
-                  <div className="layout-sharp-side-card-body">
-                    <ViewResolver view={sideView} view_mode="card" />
-                  </div>
-                </BorderlessCard>
-              }
-            />
-          </div>
-        </Content>
-        <Footer className="layout-sharp-footer">
-          <div className="layout-sharp-footer-left">
-            <span>Brave ©{currentYear}</span>
-            <a className="layout-sharp-footer-link" href="https://github.com/gobravedev/gobrave" target="_blank" rel="noreferrer">
-              Source Code
-            </a>
-            <span className="layout-sharp-footer-separator">|</span>
-            <a className="layout-sharp-footer-link" href="https://gobravedev.github.io/gobrave-doc/" target="_blank" rel="noreferrer">
-              Project Docs
-            </a>
-          </div>
-          <div className="layout-sharp-footer-right">
-            <ContainerQueueMonitor />
-          </div>
-        </Footer>
+                  <BorderlessCard
+                    size="small"
+                    styles={{ body: { padding: 8 } }}
+                    extra={
+                      <Segmented
+                        size="small"
+                        value={sideView}
+                        options={segmentedOptions}
+                        onChange={(value) => setSideView(value as string)}
+                      />
+                    }
+                  >
+                      <ViewResolver view={sideView} view_mode="card" />
+                  </BorderlessCard>
+                }
+              />
+            </div>
+          </Content>
+          <Footer className="layout-sharp-footer">
+            <div className="layout-sharp-footer-left">
+              <span>Brave ©{currentYear}</span>
+              <a className="layout-sharp-footer-link" href="https://github.com/gobravedev/gobrave" target="_blank" rel="noreferrer">
+                Source Code
+              </a>
+              <span className="layout-sharp-footer-separator">|</span>
+              <a className="layout-sharp-footer-link" href="https://gobravedev.github.io/gobrave-doc/" target="_blank" rel="noreferrer">
+                Project Docs
+              </a>
+            </div>
+            <div className="layout-sharp-footer-right">
+              <ContainerQueueMonitor />
+            </div>
+          </Footer>
         </Layout>
       </Layout>
     </Layout>
