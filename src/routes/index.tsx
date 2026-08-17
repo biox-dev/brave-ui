@@ -97,6 +97,7 @@ const AppSessionPage = lazy(() => import("@/components/container-manager/app-ses
 const ContainerInstancePage = lazy(() => import("@/components/container-manager/container-instance-page"))
 const ContainerEventPage = lazy(() => import("@/components/container-manager/container-event-page"))
 const OutboxEventPage = lazy(() => import("@/components/container-manager/outbox-event-page"))
+const FilePreviewRoute = lazy(() => import("@/components/file-preview/file-preview-route"))
 import axios from "axios";
 import { Skeleton } from "antd";
 import { useDispatch } from "react-redux";
@@ -211,6 +212,9 @@ if (appType == "index") {
         {
             path: "/tool-kit",
             element: <ToolKit />
+        }, {
+            path: "/preview/file",
+            element: <FilePreviewRoute />
         }, {
             path: "/files",
             element: <Files />
@@ -413,6 +417,9 @@ if (appType == "index") {
         {
             path: "/pipeline-card",
             element: <PipelineComponentsCard params={{ component_type: "pipeline" }} />
+        }, {
+            path: "/preview/file",
+            element: <FilePreviewRoute />
         },
 
         {

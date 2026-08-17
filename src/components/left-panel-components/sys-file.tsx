@@ -36,6 +36,7 @@
 
 import React, { FC, useEffect, useRef, useState } from "react";
 import { Breadcrumb, Button, Input, List, Pagination, Popconfirm, Space, Tooltip, Typography, message } from "antd";
+import { useNavigate } from "react-router";
 const { Search } = Input
 const { Text } = Typography
 type FileItem = {
@@ -43,10 +44,10 @@ type FileItem = {
     is_dir: boolean;
     size?: number;
     modified: number;
+    url?: string;
 };
-import { FolderOutlined, FileOutlined, DownloadOutlined, ReloadOutlined, UploadOutlined, FileAddOutlined, FolderAddOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons"
+import { FolderOutlined, FileOutlined, ReloadOutlined, UploadOutlined, FileAddOutlined, FolderAddOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons"
 import { useSelector } from "react-redux";
-import { openFileByPath } from "@/utils/file-open";
 import { http } from "@/api/client/http";
 import BorderlessCard from "@/components/common/borderless-card";
 
@@ -65,6 +66,7 @@ const joinPath = (basePath: string, name: string) => {
 // path="/" type="data"
 
 const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose }) => {
+    const navigate = useNavigate()
     const [files, setFiles] = useState<FileItem[]>([])
     const [currentPath, setCurrentPath] = useState(path)
     const [keyword, setKeyword] = useState("")
@@ -228,17 +230,12 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
         })
     }
 
-    const resolveFilePath = (fileName: string) => {
-        return joinPath(dir || currentPath, fileName)
-    }
-
     const handleOpenFile = (file: FileItem) => {
-        const filePath = resolveFilePath(file.name)
-        openFileByPath({
-            filePath,
-            title: file.name,
-            url: `/file/download?path=${encodeURIComponent(filePath)}&type=${encodeURIComponent(type)}`,
-        })
+        if (!file.url) {
+            messageApi.warning("File URL is missing")
+            return
+        }
+        navigate(`/preview/file?url=${encodeURIComponent(file.url)}`)
     }
 
     const pathSegments = currentPath.split("/").filter(Boolean)
@@ -325,15 +322,15 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
                                     <Button type="link" icon={<FileOutlined />} size="small" onClick={() => handleOpenFile(file)}>
                                        Open
                                     </Button>,
-                                    <Button
-                                        type="link"
-                                        size="small"
-                                        icon={<DownloadOutlined />}
-                                        href={`/file/download?path=${encodeURIComponent(resolveFilePath(file.name))}&type=${encodeURIComponent(type)}`}
-                                        target="_blank"
-                                    >
+                                    // <Button
+                                    //     type="link"
+                                    //     size="small"
+                                    //     icon={<DownloadOutlined />}
+                                    //     href={`/file/download?path=${encodeURIComponent(resolveFilePath(file.name))}&type=${encodeURIComponent(type)}`}
+                                    //     target="_blank"
+                                    // >
                                         
-                                    </Button>,
+                                    // </Button>,
                                     <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleRename(file)}>
                                     </Button>,
                                     // <Button type="link" size="small" onClick={() => handleSelectFile(file)}>
