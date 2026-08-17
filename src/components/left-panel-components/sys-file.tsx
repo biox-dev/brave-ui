@@ -34,9 +34,8 @@
 // export default FileBrowser
 
 
-import React, { FC, useEffect, useState } from "react";
-import axios from "axios";
-import { Breadcrumb, Button, Card, Flex, Input, List, Pagination, Space, Tooltip, Typography } from "antd";
+import React, { FC, useEffect, useRef, useState } from "react";
+import { Breadcrumb, Button, Card, Input, List, Pagination, Popconfirm, Space, Tooltip, Typography, message } from "antd";
 const { Search } = Input
 const { Text } = Typography
 type FileItem = {
@@ -45,9 +44,10 @@ type FileItem = {
     size?: number;
     modified: number;
 };
-import { FolderOutlined, FileOutlined, DownloadOutlined, ArrowLeftOutlined, ReloadOutlined } from "@ant-design/icons"
+import { FolderOutlined, FileOutlined, DownloadOutlined, ReloadOutlined, UploadOutlined, FileAddOutlined, FolderAddOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons"
 import { useSelector } from "react-redux";
 import { openFileByPath } from "@/utils/file-open";
+import { http } from "@/api/client/http";
 
 const joinPath = (basePath: string, name: string) => {
     if (!basePath || basePath === "/") {
@@ -70,7 +70,10 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
     const [page, setPage] = useState(1)
     const [total, setTotal] = useState(0)
     const [dir, setDir] = useState("")
-    const limit = 10
+    const [loading, setLoading] = useState(false)
+    const uploadInputRef = useRef<HTMLInputElement | null>(null)
+    const [messageApi, messageContextHolder] = message.useMessage()
+    const limit = 100
     const { project } = useSelector((state: any) => state.user);
 
     const loadFiles = async (
@@ -78,20 +81,27 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
         keywordVal: string = keyword,
         pageNum: number = page
     ) => {
-        const res = await axios.get(`/project/list-project-dir/${project}`, {
-            params: {
-                path: pathVal,
-                keyword: keywordVal,
-                type: type,
-                page: pageNum,
-                limit,
-            },
-        })
-        setFiles(res.data.items)
-        setTotal(res.data.total)
-        setDir(res.data.dir)
-        setCurrentPath(pathVal)
-        setPage(pageNum)
+        try {
+            setLoading(true)
+            const res = await http.get(`/file/list-project-dir`, {
+                params: {
+                    path: pathVal,
+                    keyword: keywordVal,
+                    type: type,
+                    page: pageNum,
+                    limit,
+                },
+            })
+            setFiles(res.data.items)
+            setTotal(res.data.total)
+            setDir(res.data.dir)
+            setCurrentPath(res.data.dir || pathVal)
+            setPage(pageNum)
+        } catch (e: any) {
+            messageApi.error(e?.response?.data?.message || "Failed to load files")
+        } finally {
+            setLoading(false)
+        }
     }
 
     useEffect(() => {
@@ -112,6 +122,102 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
         loadFiles(currentPath, val, 1)
     }
 
+    const handleCreateFolder = async () => {
+        const folderName = window.prompt("Folder name")
+        if (!folderName) {
+            return
+        }
+        const targetPath = joinPath(currentPath, folderName)
+        try {
+            await http.post("/file/create-dir", {
+                path: targetPath,
+                type,
+            })
+            messageApi.success("Folder created")
+            loadFiles(currentPath, keyword, 1)
+        } catch (e: any) {
+            messageApi.error(e?.response?.data?.message || "Failed to create folder")
+        }
+    }
+
+    const handleCreateFile = async () => {
+        const fileName = window.prompt("File name")
+        if (!fileName) {
+            return
+        }
+        try {
+            await http.post("/file/create-file", {
+                path: currentPath,
+                name: fileName,
+                content: "",
+                overwrite: false,
+                type,
+            })
+            messageApi.success("File created")
+            loadFiles(currentPath, keyword, 1)
+        } catch (e: any) {
+            messageApi.error(e?.response?.data?.message || "Failed to create file")
+        }
+    }
+
+    const handleDelete = async (file: FileItem) => {
+        try {
+            await http.post("/file/delete", {
+                path: joinPath(currentPath, file.name),
+                type,
+            })
+            messageApi.success("Deleted")
+            loadFiles(currentPath, keyword, 1)
+        } catch (e: any) {
+            messageApi.error(e?.response?.data?.message || "Failed to delete")
+        }
+    }
+
+    const handleRename = async (file: FileItem) => {
+        const nextName = window.prompt("New name", file.name)
+        if (!nextName || nextName === file.name) {
+            return
+        }
+        try {
+            await http.post("/file/move", {
+                source_path: joinPath(currentPath, file.name),
+                target_path: joinPath(currentPath, nextName),
+                overwrite: false,
+                type,
+            })
+            messageApi.success("Renamed")
+            loadFiles(currentPath, keyword, 1)
+        } catch (e: any) {
+            messageApi.error(e?.response?.data?.message || "Failed to rename")
+        }
+    }
+
+    const handleUploadClick = () => {
+        uploadInputRef.current?.click()
+    }
+
+    const handleUploadFile: React.ChangeEventHandler<HTMLInputElement> = async (event) => {
+        const file = event.target.files?.[0]
+        if (!file) {
+            return
+        }
+        const formData = new FormData()
+        formData.append("file", file)
+        formData.append("path", currentPath)
+        formData.append("type", type)
+        try {
+            await http.post("/file/upload", formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            })
+            messageApi.success("Uploaded")
+            loadFiles(currentPath, keyword, 1)
+        } catch (e: any) {
+            messageApi.error(e?.response?.data?.message || "Failed to upload")
+        } finally {
+            event.target.value = ""
+        }
+    }
+
     const handleSelectFile = (file: FileItem) => {
         const path = joinPath(currentPath, file.name)
         onSelectFile({
@@ -127,13 +233,18 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
 
     const handleOpenFile = (file: FileItem) => {
         const filePath = resolveFilePath(file.name)
-        openFileByPath({ filePath, title: file.name })
+        openFileByPath({
+            filePath,
+            title: file.name,
+            url: `/file/download?path=${encodeURIComponent(filePath)}&type=${encodeURIComponent(type)}`,
+        })
     }
 
     const pathSegments = currentPath.split("/").filter(Boolean)
 
     return (
         <Card
+            loading={loading}
             title={<Tooltip title={dir}>
 
                 File browser
@@ -147,15 +258,27 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
             extra={
                 <Space>
                     {onClose && <Button size="small" color="blue" variant="solid" onClick={onClose}>Close</Button>}
-                    <Button size="small" color={"cyan"} variant="solid" icon={<ReloadOutlined />} onClick={() => loadFiles(path)} >
-                        Reset
-                    </Button>
+                    <Button size="small" icon={<FolderAddOutlined />} onClick={handleCreateFolder}></Button>
+                    <Button size="small" icon={<FileAddOutlined />} onClick={handleCreateFile}></Button>
+                    <Button size="small" icon={<UploadOutlined />} onClick={handleUploadClick}></Button>
+                    <input
+                        ref={uploadInputRef}
+                        type="file"
+                        style={{ display: "none" }}
+                        onChange={handleUploadFile}
+                    />
+                    {currentPath !== "/" && (
+                        <Button size="small" onClick={handleBack}>Back</Button>
+                    )}
+                    {/* <Button size="small" color={"cyan"} variant="solid" icon={<ReloadOutlined />} onClick={() => loadFiles(path)} >
+                    </Button> */}
                     <Button size="small" color={"cyan"} variant="solid" icon={<ReloadOutlined />} onClick={() => loadFiles(currentPath)} >
-                        Refresh
+                        
                     </Button>
                 </Space>
             }
         >
+            {messageContextHolder}
             <Breadcrumb style={{ marginBottom: "1rem" }}>
                 <Breadcrumb.Item>
                     <a onClick={() => loadFiles("/")}>root</a>
@@ -177,6 +300,7 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
             <Search
                 placeholder="Search file name"
                 enterButton="Search"
+                allowClear
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 onSearch={handleSearch}
@@ -198,21 +322,34 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
                             file.is_dir
                                 ? [<Button size="small" onClick={() => handleNavigate(file.name)}>Enter</Button>]
                                 : [
-                                    <Button type="link" size="small" onClick={() => handleOpenFile(file)}>
+                                    <Button type="link" icon={<FileOutlined />} size="small" onClick={() => handleOpenFile(file)}>
                                        Open
                                     </Button>,
                                     <Button
                                         type="link"
                                         size="small"
                                         icon={<DownloadOutlined />}
-                                        href={`/brave-api/file-operation/download?path=${encodeURIComponent(resolveFilePath(file.name))}`}
+                                        href={`/file/download?path=${encodeURIComponent(resolveFilePath(file.name))}&type=${encodeURIComponent(type)}`}
                                         target="_blank"
                                     >
-                                        Download
+                                        
                                     </Button>,
-                                    <Button type="link" size="small" onClick={() => handleSelectFile(file)}>
-                                        Add To
+                                    <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleRename(file)}>
                                     </Button>,
+                                    // <Button type="link" size="small" onClick={() => handleSelectFile(file)}>
+                                    //     Add To
+                                    // </Button>,
+                                    <Popconfirm
+                                        title="Delete this file?"
+                                        description={file.name}
+                                        onConfirm={() => handleDelete(file)}
+                                        okText="Delete"
+                                        cancelText="Cancel"
+                                    >
+                                        <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                                            
+                                        </Button>
+                                    </Popconfirm>,
                                 ]
                         }
                     >
@@ -228,7 +365,7 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
                                 </Text>
                             }
                             description={
-                                !file.is_dir && <Text type="secondary">{(file.size! / 1024).toFixed(1)} KB</Text>
+                                !file.is_dir && <Text type="secondary">{((file.size || 0) / 1024).toFixed(1)} KB</Text>
                             }
                         />
                     </List.Item>

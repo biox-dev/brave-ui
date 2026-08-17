@@ -35,7 +35,7 @@ const App: React.FC = () => {
   } = theme.useToken();
   const { sideView, setSideView, sideOptions } = useSideViewContext();
   const [leftSideView, setLeftSideView] = useState<LeftPanelViewKey>(
-    isLeftPanelViewKey(leftActivityKey) ? leftActivityKey : 'scriptPageLeftPanel',
+    isLeftPanelViewKey(leftActivityKey) ? leftActivityKey : 'sysFileBrowser',
   );
   const [leftWidthDraft, setLeftWidthDraft] = useState<number>(leftPanelWidth);
   const [rightWidthDraft, setRightWidthDraft] = useState<number>(rightPanelWidth);

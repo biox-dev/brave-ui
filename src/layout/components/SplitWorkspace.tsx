@@ -44,6 +44,8 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const leftWidthRef = useRef(defaultLeftWidth);
   const rightWidthRef = useRef(defaultRightWidth);
+  const leftWidthPropRef = useRef<number | undefined>(leftWidth);
+  const rightWidthPropRef = useRef<number | undefined>(rightWidth);
   const [activeDivider, setActiveDivider] = useState<'left' | 'right' | null>(null);
   const [innerLeftWidth, setInnerLeftWidth] = useState(defaultLeftWidth);
   const [innerRightWidth, setInnerRightWidth] = useState(defaultRightWidth);
@@ -59,20 +61,34 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
   );
 
   const applyLeftWidth = (width: number) => {
+    if (leftWidthRef.current === width) {
+      return;
+    }
     leftWidthRef.current = width;
-    if (leftWidth === undefined) {
+    if (leftWidthPropRef.current === undefined) {
       setInnerLeftWidth(width);
     }
     onLeftWidthChange?.(width);
   };
 
   const applyRightWidth = (width: number) => {
+    if (rightWidthRef.current === width) {
+      return;
+    }
     rightWidthRef.current = width;
-    if (rightWidth === undefined) {
+    if (rightWidthPropRef.current === undefined) {
       setInnerRightWidth(width);
     }
     onRightWidthChange?.(width);
   };
+
+  useEffect(() => {
+    leftWidthPropRef.current = leftWidth;
+  }, [leftWidth]);
+
+  useEffect(() => {
+    rightWidthPropRef.current = rightWidth;
+  }, [rightWidth]);
 
   useEffect(() => {
     leftWidthRef.current = currentLeftWidth;

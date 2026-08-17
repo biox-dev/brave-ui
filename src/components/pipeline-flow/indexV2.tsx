@@ -18,6 +18,7 @@ import { CodeOutlined, EditOutlined } from '@ant-design/icons';
 import { memo } from 'react';
 import { useOutletContext } from 'react-router';
 import { invoke } from '@/core/ui-system/invokeV2';
+import { useGlobalMessage } from '@/hooks/useGlobalMessage';
 
 // const initialNodes = [
 //   {
@@ -110,7 +111,7 @@ export default function App({
   const { token } = theme.useToken();
   const isDark = token.colorBgBase === '#000';
 
-  const { messageApi } = useOutletContext<any>();
+  const messageApi = useGlobalMessage();
 
   // useEffect(() => {
   //   setNodes(nodes)

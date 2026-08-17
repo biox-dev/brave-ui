@@ -87,7 +87,7 @@ const contextSlice = createSlice({
         activeLLMSessionId:activeLLMSessionId?activeLLMSessionId:null,
         leftPanelWidth:Number.isFinite(leftPanelWidth)?leftPanelWidth:320,
         rightPanelWidth:Number.isFinite(rightPanelWidth)?rightPanelWidth:360,
-        leftActivityKey:leftActivityKey?leftActivityKey:'scriptPageLeftPanel',
+        leftActivityKey:leftActivityKey?leftActivityKey:'sysFileBrowser',
         userInfo: userInfo ? JSON.parse(userInfo) : null,
         componentLayout:"simple",
         network:"UNKNOW",
