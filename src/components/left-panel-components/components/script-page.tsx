@@ -4,6 +4,7 @@ import type { ColumnsType } from "antd/es/table";
 import { ReloadOutlined, SearchOutlined } from "@ant-design/icons";
 import { useScriptPageQuery } from "@/hooks/usePaginationV2";
 import type { ScriptItem } from "@/api/workflow";
+import BorderlessCard from "@/components/common/borderless-card";
 
 const { Text } = Typography;
 
@@ -15,6 +16,7 @@ export interface ScriptPageProps {
 	onOk?: (script: ScriptItem) => void;
 	onCancel?: () => void;
 	close?: () => void;
+	onAddScriptToNode?: (scriptId: string) => void;
 }
 
 const normalizeText = (value?: string) => {
@@ -44,6 +46,7 @@ const ScriptPage = ({
 	title,
 	onOk,
 	onCancel,
+	onAddScriptToNode,
 	close,
 }: ScriptPageProps) => {
 	const [selectedId, setSelectedID] = useState<string>();
@@ -102,7 +105,7 @@ const ScriptPage = ({
 			title: "Script Name",
 			dataIndex: "component_name",
 			key: "component_name",
-			width:300,
+			width: 300,
 			ellipsis: true,
 			render: (value: string) => value || "-",
 		},
@@ -161,19 +164,35 @@ const ScriptPage = ({
 			{
 				title: "Action",
 				key: "action",
-				width: 120,
+				width:120,
 				fixed: "right",
 				render: (_: unknown, record) => (
-					<Button
-						type={record.id === selectedId ? "primary" : "default"}
-						size="small"
-						onClick={() => {
-                            setSelectedID(record.id)
-                            onOk && onOk(record)
-                        }}
-					>
-						{record.id === selectedId ? "Selected" : "Select"}
-					</Button>
+					<Space>
+						<Button
+							type={record.id === selectedId ? "primary" : "default"}
+							size="small"
+							onClick={() => {
+								setSelectedID(record.id)
+								onOk && onOk(record)
+							}}
+						>
+							{record.id === selectedId ? "Selected" : "Select"}
+						</Button>
+						{
+							onAddScriptToNode && (
+								<Button
+									size="small"
+									onClick={() => {
+										onAddScriptToNode(record.component_id)
+									}}
+								>
+									Add to Node
+								</Button>
+							)
+
+						}
+					</Space>
+
 				),
 			},
 		];
@@ -206,10 +225,10 @@ const ScriptPage = ({
 		});
 	};
 
-	
+
 
 	return (
-		<Card
+		<BorderlessCard
 			size="small"
 			title={title || "Script List"}
 			extra={
@@ -303,7 +322,7 @@ const ScriptPage = ({
 					</Button>
 				</Flex>
 			)} */}
-		</Card>
+		</BorderlessCard>
 	);
 };
 

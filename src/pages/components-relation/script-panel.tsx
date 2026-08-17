@@ -10,7 +10,6 @@ import { ApartmentOutlined, CopyOutlined, DeleteOutlined, RedoOutlined } from "@
 import { useSideViewContext } from "@/context/side/SideViewContext"
 import { useStoreRender } from "@/context/render/RenderProvider"
 import ViewResolver from "@/core/ui-renderer/ViewResolver"
-import ScriptPage from "@/components/workflow-page/script-page"
 import { invoke } from "@/core/ui-system/invokeV2"
 import { renderViewButton } from "@/utils/render-view-btn"
 import { http } from "@/api/client/http"
