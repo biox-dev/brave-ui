@@ -221,6 +221,10 @@ export const deleteAppSessionApi = (payload: AppSessionIDPayload) => {
     return http.post<{ message: string }>("/container/app-session/delete", payload);
 };
 
+export const recreateAppSessionContainerApi = (payload: AppSessionIDPayload) => {
+    return http.post<{ message: string }>("/container/app-session/recreate-container", payload);
+};
+
 export const pageContainerInstanceApi = (payload: PageRequest<ContainerInstancePageQuery>) => {
     return http.post<PageResponse<ContainerInstanceItem>>("/container/instance/list-by-page", payload);
 };

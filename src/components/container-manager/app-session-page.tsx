@@ -7,6 +7,7 @@ import {
   createAppSessionApi,
   createAppSessionByAnalysisNodeApi,
   deleteAppSessionApi,
+  recreateAppSessionContainerApi,
   startAppSessionApi,
   stopAppSessionApi,
   type AppSessionItem,
@@ -274,7 +275,7 @@ const AppSessionPage = ({
     };
   }, [register, unregister, realtimeInstance]);
 
-  const runAction = async (action: "start" | "stop" | "delete", item: AppSessionItem) => {
+  const runAction = async (action: "start" | "stop" | "recreate" | "delete", item: AppSessionItem) => {
     const actionKey = `${action}-${item.id}`;
     setPendingAction(actionKey);
     try {
@@ -284,6 +285,9 @@ const AppSessionPage = ({
       } else if (action === "stop") {
         await stopAppSessionApi({ id: String(item.id) });
         messageApi.success("App session stopped");
+      } else if (action === "recreate") {
+        await recreateAppSessionContainerApi({ id: String(item.id) });
+        messageApi.success("App session container recreate request submitted");
       } else {
         await deleteAppSessionApi({ id: String(item.id) });
         messageApi.success("App session deleted");
@@ -300,6 +304,7 @@ const AppSessionPage = ({
     const itemStatus = record.status || "";
     const startKey = `start-${record.id}`;
     const stopKey = `stop-${record.id}`;
+    const recreateKey = `recreate-${record.id}`;
     const deleteKey = `delete-${record.id}`;
     const appUrl = buildAppUrl(containerURL, record);
 
@@ -335,6 +340,16 @@ const AppSessionPage = ({
           Stop
         </Button>
         <Popconfirm
+          title="Recreate this app session container?"
+          description="This will delete and create a new container for this app session."
+          onConfirm={() => runAction("recreate", record)}
+          okButtonProps={{ loading: pendingAction === recreateKey }}
+        >
+          <Button size="small" type="link" loading={pendingAction === recreateKey}>
+            Recreate
+          </Button>
+        </Popconfirm>
+        <Popconfirm
           title="Delete this app session?"
           onConfirm={() => runAction("delete", record)}
           okButtonProps={{ loading: pendingAction === deleteKey }}
@@ -352,7 +367,7 @@ const AppSessionPage = ({
       {
         title: "Operation",
         key: "operation",
-        width: 260,
+        width: 340,
         fixed: "right",
         render: (_: unknown, record) => renderOperationButtons(record),
       },
