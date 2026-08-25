@@ -197,7 +197,7 @@ const App: React.FC = () => {
             Source Code
           </a>
           <span className="layout-sharp-footer-separator">|</span>
-          <a className="layout-sharp-footer-link" href="https://gobravedev.github.io/gobrave-doc/" target="_blank" rel="noreferrer">
+          <a className="layout-sharp-footer-link" href="https://biox-dev.github.io/gobrave-doc/" target="_blank" rel="noreferrer">
             Project Docs
           </a>
         </div>
