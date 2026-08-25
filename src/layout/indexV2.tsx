@@ -188,23 +188,23 @@ const App: React.FC = () => {
               />
             </div>
           </Content>
-          <Footer className="layout-sharp-footer">
-            <div className="layout-sharp-footer-left">
-              <span>Brave ©{currentYear}</span>
-              <a className="layout-sharp-footer-link" href="https://github.com/gobravedev/gobrave" target="_blank" rel="noreferrer">
-                Source Code
-              </a>
-              <span className="layout-sharp-footer-separator">|</span>
-              <a className="layout-sharp-footer-link" href="https://gobravedev.github.io/gobrave-doc/" target="_blank" rel="noreferrer">
-                Project Docs
-              </a>
-            </div>
-            <div className="layout-sharp-footer-right">
-              <ContainerQueueMonitor />
-            </div>
-          </Footer>
         </Layout>
       </Layout>
+      <Footer className="layout-sharp-footer">
+        <div className="layout-sharp-footer-left">
+          <span>Brave ©{currentYear}</span>
+          <a className="layout-sharp-footer-link" href="https://github.com/gobravedev/gobrave" target="_blank" rel="noreferrer">
+            Source Code
+          </a>
+          <span className="layout-sharp-footer-separator">|</span>
+          <a className="layout-sharp-footer-link" href="https://gobravedev.github.io/gobrave-doc/" target="_blank" rel="noreferrer">
+            Project Docs
+          </a>
+        </div>
+        <div className="layout-sharp-footer-right">
+          <ContainerQueueMonitor />
+        </div>
+      </Footer>
     </Layout>
   );
 };

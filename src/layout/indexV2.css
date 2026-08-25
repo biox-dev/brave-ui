@@ -100,7 +100,6 @@
   margin-top: auto;
   padding-top: 6px;
   padding-bottom: 8px;
-  border-top: 1px solid var(--sharp-divider);
 }
 
 .layout-activitybar-btn {
@@ -179,7 +178,7 @@
 
 .layout-sharp-content-inner {
   margin: 0;
-  min-height: calc(100vh - 44px - 40px);
+  min-height: calc(100vh - 44px - 28px);
   padding: 0;
   border-left: 1px solid transparent;
   background: var(--sharp-panel-bg);
@@ -188,8 +187,8 @@
 .layout-sharp-workspace {
   display: flex;
   align-items: stretch;
-  height: calc(100vh - 44px - 40px);
-  min-height: calc(100vh - 44px - 40px);
+  height: calc(100vh - 44px - 28px);
+  min-height: calc(100vh - 44px - 28px);
 }
 
 .layout-sharp-main-pane {
@@ -241,7 +240,7 @@
 }
 
 .layout-sharp-footer {
-  height: 40px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
