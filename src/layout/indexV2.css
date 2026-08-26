@@ -145,6 +145,18 @@
   opacity: 1;
 }
 
+.project-report-panel .ant-list-item {
+  transition: background 0.15s ease;
+}
+
+.project-report-panel .ant-list-item:hover {
+  background: color-mix(in srgb, var(--sharp-panel-muted) 65%, transparent);
+}
+
+.project-report-panel .ant-list-item:hover .project-report-item-actions {
+  opacity: 1;
+}
+
 .project-report-panel .ant-empty {
   margin: 24px 0;
 }

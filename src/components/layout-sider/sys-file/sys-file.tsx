@@ -35,10 +35,9 @@
 
 
 import React, { FC, useEffect, useRef, useState } from "react";
-import { Breadcrumb, Button, Input, List, Pagination, Popconfirm, Space, Tooltip, Typography, message } from "antd";
+import { Breadcrumb, Button, Input, List, Pagination, Popconfirm, Tooltip, message } from "antd";
 import { useNavigate } from "react-router";
 const { Search } = Input
-const { Text } = Typography
 type FileItem = {
     name: string;
     is_dir: boolean;
@@ -46,10 +45,9 @@ type FileItem = {
     modified: number;
     url?: string;
 };
-import { FolderOutlined, FileOutlined, ReloadOutlined, UploadOutlined, FileAddOutlined, FolderAddOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons"
+import { FolderOutlined, FileOutlined, ReloadOutlined, UploadOutlined, FileAddOutlined, FolderAddOutlined, DeleteOutlined, EditOutlined, CloseOutlined, ArrowLeftOutlined } from "@ant-design/icons"
 import { useSelector } from "react-redux";
 import { http } from "@/api/client/http";
-import BorderlessCard from "@/components/common/borderless-card";
 
 const joinPath = (basePath: string, name: string) => {
     if (!basePath || basePath === "/") {
@@ -241,23 +239,26 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
     const pathSegments = currentPath.split("/").filter(Boolean)
 
     return (
-        <BorderlessCard
-            loading={loading}
-            title={<Tooltip title={dir}>
-
-                File browser
-            </Tooltip>}
-            styles={{
-                body: {
-                    padding: 8,
-                }
-            }}
-            extra={
-                <Space>
-                    {onClose && <Button size="small" color="blue" variant="solid" onClick={onClose}>Close</Button>}
-                    <Button size="small" icon={<FolderAddOutlined />} onClick={handleCreateFolder}></Button>
-                    <Button size="small" icon={<FileAddOutlined />} onClick={handleCreateFile}></Button>
-                    <Button size="small" icon={<UploadOutlined />} onClick={handleUploadClick}></Button>
+        <div className="project-report-panel">
+            <div className="project-report-panel-header">
+                <Tooltip title={dir}>
+                    <span className="project-report-panel-title">Files</span>
+                </Tooltip>
+                <div className="project-report-panel-actions">
+                    {onClose && (
+                        <Tooltip title="Close">
+                            <Button type="text" size="small" icon={<CloseOutlined />} onClick={onClose} />
+                        </Tooltip>
+                    )}
+                    <Tooltip title="New Folder">
+                        <Button type="text" size="small" icon={<FolderAddOutlined />} onClick={handleCreateFolder} />
+                    </Tooltip>
+                    <Tooltip title="New File">
+                        <Button type="text" size="small" icon={<FileAddOutlined />} onClick={handleCreateFile} />
+                    </Tooltip>
+                    <Tooltip title="Upload">
+                        <Button type="text" size="small" icon={<UploadOutlined />} onClick={handleUploadClick} />
+                    </Tooltip>
                     <input
                         ref={uploadInputRef}
                         type="file"
@@ -265,119 +266,137 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
                         onChange={handleUploadFile}
                     />
                     {currentPath !== "/" && (
-                        <Button size="small" onClick={handleBack}>Back</Button>
+                        <Tooltip title="Back">
+                            <Button type="text" size="small" icon={<ArrowLeftOutlined />} onClick={handleBack} />
+                        </Tooltip>
                     )}
-                    {/* <Button size="small" color={"cyan"} variant="solid" icon={<ReloadOutlined />} onClick={() => loadFiles(path)} >
-                    </Button> */}
-                    <Button size="small" color={"cyan"} variant="solid" icon={<ReloadOutlined />} onClick={() => loadFiles(currentPath)} >
-                        
-                    </Button>
-                </Space>
-            }
-        >
-            {messageContextHolder}
-            <Breadcrumb style={{ marginBottom: "1rem" }}>
-                <Breadcrumb.Item>
-                    <a onClick={() => loadFiles("/")}>root</a>
-                </Breadcrumb.Item>
-                {pathSegments.map((seg: any, index: any) => (
-                    <Breadcrumb.Item key={index}>
-                        <a
-                            onClick={() => {
-                                const subPath = "/" + pathSegments.slice(0, index + 1).join("/")
-                                loadFiles(subPath)
-                            }}
-                        >
-                            {seg}
-                        </a>
+                    <Tooltip title="Refresh">
+                        <Button
+                            type="text"
+                            size="small"
+                            icon={<ReloadOutlined />}
+                            onClick={() => loadFiles(currentPath)}
+                        />
+                    </Tooltip>
+                </div>
+            </div>
+
+            <div className="project-report-panel-body" style={{ padding: "4px 8px" }}>
+                {messageContextHolder}
+                <Breadcrumb style={{ marginBottom: 4 }}>
+                    <Breadcrumb.Item>
+                        <a onClick={() => loadFiles("/")}>root</a>
                     </Breadcrumb.Item>
-                ))}
-            </Breadcrumb>
+                    {pathSegments.map((seg: any, index: any) => (
+                        <Breadcrumb.Item key={index}>
+                            <a
+                                onClick={() => {
+                                    const subPath = "/" + pathSegments.slice(0, index + 1).join("/")
+                                    loadFiles(subPath)
+                                }}
+                            >
+                                {seg}
+                            </a>
+                        </Breadcrumb.Item>
+                    ))}
+                </Breadcrumb>
 
-            <Search
-                placeholder="Search file name"
-                enterButton="Search"
-                allowClear
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                onSearch={handleSearch}
-                style={{ marginBottom: 16 }}
-            />
+                <Search
+                    placeholder="Search file name"
+                    enterButton="Search"
+                    allowClear
+                    size="small"
+                    value={keyword}
+                    onChange={(e) => setKeyword(e.target.value)}
+                    onSearch={handleSearch}
+                    style={{ marginBottom: 4 }}
+                />
 
-            <List
-                size="small"
-                style={{
-                    height: "50vh",
-                    overflowY: "auto"
-                }}
-                bordered
-                dataSource={files}
-                locale={{ emptyText: "No files" }}
-                renderItem={(file) => (
-                    <List.Item
-                        actions={
-                            file.is_dir
-                                ? [<Button size="small" onClick={() => handleNavigate(file.name)}>Enter</Button>]
-                                : [
-                                    <Button type="link" icon={<FileOutlined />} size="small" onClick={() => handleOpenFile(file)}>
-                                       Open
-                                    </Button>,
-                                    // <Button
-                                    //     type="link"
-                                    //     size="small"
-                                    //     icon={<DownloadOutlined />}
-                                    //     href={`/file/download?path=${encodeURIComponent(resolveFilePath(file.name))}&type=${encodeURIComponent(type)}`}
-                                    //     target="_blank"
-                                    // >
-                                        
-                                    // </Button>,
-                                    <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleRename(file)}>
-                                    </Button>,
-                                    // <Button type="link" size="small" onClick={() => handleSelectFile(file)}>
-                                    //     Add To
-                                    // </Button>,
-                                    <Popconfirm
-                                        title="Delete this file?"
-                                        description={file.name}
-                                        onConfirm={() => handleDelete(file)}
-                                        okText="Delete"
-                                        cancelText="Cancel"
-                                    >
-                                        <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-                                            
-                                        </Button>
-                                    </Popconfirm>,
-                                ]
-                        }
-                    >
-                        <List.Item.Meta
-                            avatar={file.is_dir ? <FolderOutlined /> : <FileOutlined />}
-                            title={
-                                <Text
-                                    strong
+                <List
+                    size="small"
+                    loading={loading}
+                    dataSource={files}
+                    locale={{ emptyText: "No files" }}
+                    renderItem={(file) => (
+                        <List.Item style={{ padding: 0, borderBottom: "none" }}>
+                            <div className="project-report-item" style={{ width: "100%", padding: "5px 8px" }}>
+                                {file.is_dir ? (
+                                    <FolderOutlined className="project-report-item-icon" />
+                                ) : (
+                                    <FileOutlined className="project-report-item-icon" />
+                                )}
+                                <div
+                                    className="project-report-item-text"
                                     style={{ cursor: file.is_dir ? "pointer" : "default" }}
                                     onClick={() => file.is_dir && handleNavigate(file.name)}
                                 >
-                                    {file.name}
-                                </Text>
-                            }
-                            description={
-                                !file.is_dir && <Text type="secondary">{((file.size || 0) / 1024).toFixed(1)} KB</Text>
-                            }
-                        />
-                    </List.Item>
-                )}
-            />
+                                    <span className="project-report-item-title">{file.name}</span>
+                                    {!file.is_dir && (
+                                        <span className="project-report-item-meta">
+                                            {((file.size || 0) / 1024).toFixed(1)} KB
+                                        </span>
+                                    )}
+                                </div>
+                                <span
+                                    className="project-report-item-actions"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    {file.is_dir ? (
+                                        <Tooltip title="Enter">
+                                            <Button
+                                                type="text"
+                                                size="small"
+                                                icon={<ArrowLeftOutlined rotate={180} />}
+                                                onClick={() => handleNavigate(file.name)}
+                                            />
+                                        </Tooltip>
+                                    ) : (
+                                        <>
+                                            <Tooltip title="Open">
+                                                <Button
+                                                    type="text"
+                                                    size="small"
+                                                    icon={<FileOutlined />}
+                                                    onClick={() => handleOpenFile(file)}
+                                                />
+                                            </Tooltip>
+                                            <Tooltip title="Rename">
+                                                <Button
+                                                    type="text"
+                                                    size="small"
+                                                    icon={<EditOutlined />}
+                                                    onClick={() => handleRename(file)}
+                                                />
+                                            </Tooltip>
+                                            <Popconfirm
+                                                title="Delete this file?"
+                                                description={file.name}
+                                                onConfirm={() => handleDelete(file)}
+                                                okText="Delete"
+                                                cancelText="Cancel"
+                                            >
+                                                <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                                            </Popconfirm>
+                                        </>
+                                    )}
+                                </span>
+                            </div>
+                        </List.Item>
+                    )}
+                />
+            </div>
 
-            <Pagination
-                style={{ marginTop: "1rem", textAlign: "center" }}
-                current={page}
-                total={total}
-                pageSize={limit}
-                onChange={(pageNum) => loadFiles(currentPath, keyword, pageNum)}
-                showSizeChanger={false}
-            />
-        </BorderlessCard>
+            <div style={{ padding: "6px 10px", borderTop: "1px solid var(--sharp-divider)" }}>
+                <Pagination
+                    size="small"
+                    current={page}
+                    pageSize={limit}
+                    total={total}
+                    showTotal={(t) => `${t} files`}
+                    onChange={(pageNum) => loadFiles(currentPath, keyword, pageNum)}
+                />
+            </div>
+        </div>
     )
 }
 
