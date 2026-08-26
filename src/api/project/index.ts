@@ -37,6 +37,14 @@ export interface AddUserProjectRequest {
 	share_code: string;
 }
 
+export interface CreateProjectRequest {
+	project_name: string;
+	metadata_form?: string;
+	research?: string;
+	parameter?: string;
+	description?: string;
+}
+
 export interface UpdateProjectSharingRequest {
 	project_id: string;
 	enabled: boolean;
@@ -95,6 +103,7 @@ export interface UploadProjectReportImageResponse {
 
 export const addProjectApi = (data: any) => axios.post("/project/add-project", data)
 export const addUserProjectApi = (payload: AddUserProjectRequest) => http.post<{ message: string }>("/project/add-user-project", payload)
+export const createProjectApi = (payload: CreateProjectRequest) => http.post<ProjectItem>("/project/create-project", payload)
 export const updateProjectApi = (data: any) => axios.post("/project/update-project", data)
 export const findProjectByIdApi = (project_id: string) => axios.get(`/project/find-by-project-id/${project_id}`)
 export const listProjectApi = () => http.get<ProjectItem[]>("/project/list-project")

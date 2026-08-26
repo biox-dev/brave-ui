@@ -5,6 +5,7 @@ import type { InferViewRegistryFromLoaders } from "@/core/component-registry/reg
 const viewLoaders = {
     projectTable: () => import("./project-table"),
     addProjectModal: () => import("./add-project-modal"),
+    createProjectModal: () => import("./create-project-modal"),
 };
 // ;
 declare module "@/core/component-registry/registry-types" {

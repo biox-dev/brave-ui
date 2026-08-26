@@ -76,6 +76,19 @@ const ProjectTable: FC<ProjectTableProps> = ({ onOk, onCancel }) => {
         }
     };
 
+    const handleCreateProject = async () => {
+        try {
+            await invoke.createProjectModal.openAsync(undefined, {
+                title: "Create Project",
+                width: 520,
+                footer: null,
+            });
+            await loadProjectList();
+        } catch (error) {
+            // User canceled the create-project modal.
+        }
+    };
+
     const columns: ColumnsType<ProjectItem> = [
         {
             title: "Project Name",
@@ -168,7 +181,10 @@ const ProjectTable: FC<ProjectTableProps> = ({ onOk, onCancel }) => {
             />
 
             <Flex justify="space-between" gap="small">
-                <Button onClick={handleAddProject}>Add Project</Button>
+                <Flex gap="small">
+                    <Button onClick={handleCreateProject}>Create Project</Button>
+                    <Button onClick={handleAddProject}>Add Project</Button>
+                </Flex>
                 <Flex gap="small">
                     <Button onClick={() => onCancel && onCancel()}>Cancel</Button>
                     <Button
