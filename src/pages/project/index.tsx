@@ -14,7 +14,7 @@ const Project: FC<any> = () => {
     const [view, setView] = useState<any>("analysisDocView")
     const { project, activeProjectReportId } = useSelector((state: any) => state.user);
     const dispatch = useDispatch()
-    const { setSideView, setSideOptions ,setLeftPaneContent,clearLeftPane} = useSideViewContext();
+    const { setSideView, setSideOptions, setLeftPaneContent, clearLeftPane } = useSideViewContext();
     const [loading, setLoading] = useState(false)
     const message = useGlobalMessage()
     const [reportList, setReportList] = useState<ProjectReportItem[]>([])
@@ -130,28 +130,28 @@ const Project: FC<any> = () => {
     //     }
     // }, [])
 
-       useEffect(() => {
-        setSideOptions([
-            {
-                label: "LLM",
-                value: "llm-card"
-            }, {
-                label: "Container App",
-                value: "appSessionPage"
-            },
-            {
-                label: "Parameters",
-                value: "editParamsPanel"
-            }
-        ])
-        setSideView("editParamsPanel")
-      
-        return () => {
-            setSideOptions([])
-            setSideView("llm-card")
-            clearLeftPane()
-        }
-    }, [])
+    // useEffect(() => {
+    //     setSideOptions([
+    //         {
+    //             label: "LLM",
+    //             value: "llm-card"
+    //         }, {
+    //             label: "Container App",
+    //             value: "appSessionPage"
+    //         },
+    //         {
+    //             label: "Parameters",
+    //             value: "editParamsPanel"
+    //         }
+    //     ])
+    //     setSideView("editParamsPanel")
+
+    //     return () => {
+    //         setSideOptions([])
+    //         setSideView("llm-card")
+    //         clearLeftPane()
+    //     }
+    // }, [])
 
     useEffect(() => {
         loadProjectReports()
@@ -226,7 +226,7 @@ const Project: FC<any> = () => {
                     />
 
                     <ComponentsDetailsRender view={view}
-                      
+
                         project_id={project}
                         report={activeReport}
                         content={activeReport?.content}
