@@ -62,7 +62,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ backgroundColor }) => {
         try {
             const value = (await invoke.projectTable.openAsync(undefined, {
                 title: 'Switch Project',
-                width: 900,
+                width: 1000,
                 footer: null,
             })) as ProjectItem;
 

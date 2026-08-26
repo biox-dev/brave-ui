@@ -25,6 +25,26 @@ export interface ProjectItem {
 	research: string;
 	parameter: string;
 	description: string;
+	share_code?: string;
+	share_enabled?: boolean;
+}
+
+export interface DeleteUserProjectRequest {
+	project_id: string;
+}
+
+export interface AddUserProjectRequest {
+	share_code: string;
+}
+
+export interface UpdateProjectSharingRequest {
+	project_id: string;
+	enabled: boolean;
+}
+
+export interface UpdateProjectSharingResponse {
+	share_enabled: boolean;
+	share_code: string;
 }
 
 export interface ActivateProjectRequest {
@@ -74,6 +94,7 @@ export interface UploadProjectReportImageResponse {
 }
 
 export const addProjectApi = (data: any) => axios.post("/project/add-project", data)
+export const addUserProjectApi = (payload: AddUserProjectRequest) => http.post<{ message: string }>("/project/add-user-project", payload)
 export const updateProjectApi = (data: any) => axios.post("/project/update-project", data)
 export const findProjectByIdApi = (project_id: string) => axios.get(`/project/find-by-project-id/${project_id}`)
 export const listProjectApi = () => http.get<ProjectItem[]>("/project/list-project")
@@ -85,6 +106,8 @@ export const activateProjectApi = (payload: ActivateProjectRequest) => {
 	});
 }
 export const deleteProjectApi = (project_id: string) => axios.delete(`/project/delete-project/${project_id}`)
+export const deleteUserProjectApi = (payload: DeleteUserProjectRequest) => http.post<{ message: string }>("/project/delete-user-project", payload)
+export const updateProjectSharingApi = (payload: UpdateProjectSharingRequest) => http.post<UpdateProjectSharingResponse>("/project/update-project-sharing", payload)
 export const getActiveProjectApi = () => http.get<ActiveProject>("/project/active-project")
 export const addProjectReportApi = (payload: AddProjectReportRequest) => http.post<ProjectReportDetailItem>("/project/add-project-report", payload)
 export const updateProjectReportApi = (payload: UpdateProjectReportRequest) => http.post<{ message: string }>("/project/update-project-report", payload)
