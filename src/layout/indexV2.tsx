@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ApartmentOutlined, FileTextOutlined, SettingOutlined, FileSearchOutlined, FolderOpenOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, FileTextOutlined, SettingOutlined, FileSearchOutlined, FolderOpenOutlined, FileDoneOutlined } from '@ant-design/icons';
 import { Dropdown, Layout, Segmented, theme } from 'antd';
 import { Outlet, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
@@ -16,10 +16,10 @@ import SplitWorkspace from './components/SplitWorkspace.tsx';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
-type LeftPanelViewKey = 'scriptPageLeftPanel' | 'workflowPageLeftPanel' | 'analysisTree' | 'sysFileBrowser';
+type LeftPanelViewKey = 'scriptPageLeftPanel' | 'workflowPageLeftPanel' | 'analysisTree' | 'sysFileBrowser' | 'projectReport';
 
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
-  key === 'scriptPageLeftPanel' || key === 'workflowPageLeftPanel' || key === 'analysisTree' || key === 'sysFileBrowser';
+  key === 'scriptPageLeftPanel' || key === 'workflowPageLeftPanel' || key === 'analysisTree' || key === 'sysFileBrowser' || key === 'projectReport';
 
 const App: React.FC = () => {
   const { locale } = useI18n();
@@ -61,6 +61,11 @@ const App: React.FC = () => {
         key: 'analysisTree',
         label: locale === 'en_US' ? 'Analysis Report' : '分析报告',
         icon: <FileSearchOutlined />,
+      },
+      {
+        key: 'projectReport',
+        label: locale === 'en_US' ? 'Project Report' : '项目报告',
+        icon: <FileDoneOutlined />,
       },
 
     ],

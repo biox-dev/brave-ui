@@ -67,6 +67,7 @@ const PipelineComponentsCard = lazy(() => import('@/components/pipeline-componen
 const SoftwareAnalysisEditor = lazy(() => import('@/pages/software-analysis-editor'));
 const AnalysisReport = lazy(() => import('@/pages/analysis-report/indexV2'));
 const AnalysisReportOld = lazy(() => import('@/pages/analysis-report/index-old'));
+const ReportWriting = lazy(() => import('@/pages/report-writing'));
 
 const EntityPage = lazy(() => import('@/pages/entity'));
 const EntityRelation = lazy(() => import('@/pages/entity-relation'));
@@ -165,6 +166,9 @@ if (appType == "index") {
         }, {
             path: "/analysis-report-old",
             element: <AnalysisReportOld />
+        }, {
+            path: "/report-writing/:project-report-id",
+            element: <ReportWriting />
         },
         // {
         //     path: "/c/:component_type",

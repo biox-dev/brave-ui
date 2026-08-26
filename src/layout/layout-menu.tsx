@@ -48,14 +48,14 @@ const resolveMenuIcon = (iconName?: string) => {
 };
 
 export const layoutMenuTree: LayoutMenuItem[] = [
-  {
-    key: '/',
-    icon: 'dashboard',
-    label: {
-      zh_CN: '仪表盘',
-      en_US: 'Dashboard',
-    },
-  },
+  // {
+  //   key: '/',
+  //   icon: 'dashboard',
+  //   label: {
+  //     zh_CN: '报告撰写',
+  //     en_US: 'Report Writing',
+  //   },
+  // },
   // {
   //   key: '/c/scripts',
   //   icon: 'code',
