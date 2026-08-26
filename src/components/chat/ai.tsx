@@ -1134,14 +1134,14 @@ const App = forwardRef<any, any>(({ biz_id, biz_type }, ref) => {
     }, [activeLLMSessionId, dispatch, toConversationItem, setMessages]);
 
     const createSession = React.useCallback(async () => {
-        const projectId = await resolveProjectId();
-        if (!projectId) {
-            messageApi.error('No active project found.');
-            return null;
-        }
+        // const projectId = await resolveProjectId();
+        // if (!projectId) {
+        //     messageApi.error('No active project found.');
+        //     return null;
+        // }
 
         const payload = {
-            project_id: projectId,
+            // project_id: projectId,
             title: `${biz_type || 'Chat'} ${new Date().toLocaleString()}`,
             status: 'ACTIVE',
         };
