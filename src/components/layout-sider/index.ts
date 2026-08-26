@@ -5,10 +5,13 @@ const viewLoaders = {
     projectReport: () => import("./project-report/project-report-list"),
     analysisNodeList: () => import("./analysis-node-result/analysis-result-list"),
     analysisList: () => import("./analysis-result/analysis-list"),
+    workflowPage: () => import("./workflow-page/workflow-page-list"),
+    scriptPage: () => import("./script-page/script-page-list"),
+    sysFileBrowser: () => import("./sys-file/sys-file"),
 };
 
 declare module "@/core/component-registry/registry-types" {
-    interface ViewRegistry extends InferViewRegistryFromLoaders<typeof viewLoaders> {}
+    interface ViewRegistry extends InferViewRegistryFromLoaders<typeof viewLoaders> { }
 }
 
 registerLazyViews(viewLoaders);

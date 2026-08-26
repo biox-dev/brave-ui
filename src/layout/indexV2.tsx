@@ -16,10 +16,10 @@ import SplitWorkspace from './components/SplitWorkspace.tsx';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
-type LeftPanelViewKey = 'scriptPageLeftPanel' | 'workflowPageLeftPanel' | 'analysisList'| 'analysisNodeList' | 'sysFileBrowser' | 'projectReport';
+type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList'| 'analysisNodeList' | 'sysFileBrowser' | 'projectReport';
 
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
-  key === 'scriptPageLeftPanel' || key === 'workflowPageLeftPanel' || key === 'analysisList' || key === 'analysisNodeList' || key === 'sysFileBrowser' || key === 'projectReport';
+  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'sysFileBrowser' || key === 'projectReport';
 
 const App: React.FC = () => {
   const { locale } = useI18n();
@@ -48,12 +48,12 @@ const App: React.FC = () => {
         label: locale === 'en_US' ? 'System Files' : '系统文件',
         icon: <FolderOpenOutlined />,
       }, {
-        key: 'scriptPageLeftPanel',
+        key: 'scriptPage',
         label: locale === 'en_US' ? 'Script Page' : '脚本页',
         icon: <FileTextOutlined />,
       },
       {
-        key: 'workflowPageLeftPanel',
+        key: 'workflowPage',
         label: locale === 'en_US' ? 'Workflow Page' : '流程页',
         icon: <ApartmentOutlined />,
       },

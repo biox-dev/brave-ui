@@ -10,7 +10,7 @@ import OpenFile from "@/components/open-file";
 import { CreateOrUpdatePipelineComponent } from "@/components/create-pipeline";
 import Sample, { BindSample } from "../sample";
 import MetadataForm from "@/components/metadata-form";
-import SysFileBrowser from "@/components/left-panel-components/sys-file";
+import SysFileBrowser from "@/components/layout-sider/sys-file/sys-file";
 import { useSideViewContext } from "@/context/side/SideViewContext";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useSelector } from "react-redux";
