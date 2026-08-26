@@ -8,6 +8,7 @@
   --sharp-panel-muted: #f8fafc;
   --sharp-text: #1b1f27;
   --sharp-text-soft: #5d6678;
+  --project-report-selected-bg: #eaf1fb;
 }
 
 .layout-sharp.layout-sharp-dark {
@@ -18,6 +19,138 @@
   --sharp-panel-muted: #171d29;
   --sharp-text: #e7ebf4;
   --sharp-text-soft: #8f9ab1;
+  --project-report-selected-bg: #212a3a;
+}
+
+/* Project Report panel (VS Code-like sidebar) */
+.project-report-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--sharp-panel-bg);
+}
+
+.project-report-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  padding: 8px 6px 4px 14px;
+}
+
+.project-report-panel-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sharp-text-soft);
+  user-select: none;
+}
+
+.project-report-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.project-report-panel-actions .ant-btn,
+.project-report-item-actions .ant-btn {
+  color: var(--sharp-text-soft);
+}
+
+.project-report-panel-actions .ant-btn:hover,
+.project-report-item-actions .ant-btn:hover {
+  color: var(--sharp-text);
+  background: color-mix(in srgb, var(--sharp-panel-muted) 65%, transparent);
+}
+
+.project-report-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.project-report-panel .ant-table,
+.project-report-panel .ant-table-container,
+.project-report-panel .ant-table-content {
+  background: transparent;
+}
+
+.project-report-panel .ant-table-tbody > tr {
+  cursor: pointer;
+}
+
+.project-report-panel .ant-table-tbody > tr > td {
+  border-bottom: none;
+  padding: 5px 8px;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+
+.project-report-panel .ant-table-tbody > tr:hover > td {
+  background: color-mix(in srgb, var(--sharp-panel-muted) 65%, transparent) !important;
+}
+
+.project-report-panel .ant-table-tbody > tr.project-report-row-selected > td {
+  background: var(--project-report-selected-bg) !important;
+  box-shadow: inset 2px 0 0 0 #1890ff;
+}
+
+/* row item layout */
+.project-report-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+.project-report-item-icon {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  font-size: 14px;
+  color: var(--sharp-text-soft);
+}
+
+.project-report-item-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.project-report-item-title {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--sharp-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-report-item-meta {
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--sharp-text-soft);
+}
+
+.project-report-item-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.project-report-panel .ant-table-tbody > tr:hover .project-report-item-actions,
+.project-report-panel .ant-table-tbody > tr.project-report-row-selected .project-report-item-actions {
+  opacity: 1;
+}
+
+.project-report-panel .ant-empty {
+  margin: 24px 0;
+}
+
+.project-report-panel .ant-empty-description {
+  color: var(--sharp-text-soft);
 }
 
 .layout-sharp.layout-sharp-light {

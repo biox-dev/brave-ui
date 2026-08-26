@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ApartmentOutlined, FileTextOutlined, SettingOutlined, FileSearchOutlined, FolderOpenOutlined, FileDoneOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, FileTextOutlined, SettingOutlined, FileSearchOutlined, FolderOpenOutlined, FileDoneOutlined, NodeIndexOutlined, UnorderedListOutlined, BarChartOutlined } from '@ant-design/icons';
 import { Dropdown, Layout, Segmented, theme } from 'antd';
 import { Outlet, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
@@ -16,10 +16,10 @@ import SplitWorkspace from './components/SplitWorkspace.tsx';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
-type LeftPanelViewKey = 'scriptPageLeftPanel' | 'workflowPageLeftPanel' | 'analysisTree' | 'sysFileBrowser' | 'projectReport';
+type LeftPanelViewKey = 'scriptPageLeftPanel' | 'workflowPageLeftPanel' | 'analysisList'| 'analysisNodeList' | 'sysFileBrowser' | 'projectReport';
 
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
-  key === 'scriptPageLeftPanel' || key === 'workflowPageLeftPanel' || key === 'analysisTree' || key === 'sysFileBrowser' || key === 'projectReport';
+  key === 'scriptPageLeftPanel' || key === 'workflowPageLeftPanel' || key === 'analysisList' || key === 'analysisNodeList' || key === 'sysFileBrowser' || key === 'projectReport';
 
 const App: React.FC = () => {
   const { locale } = useI18n();
@@ -58,14 +58,18 @@ const App: React.FC = () => {
         icon: <ApartmentOutlined />,
       },
       {
-        key: 'analysisTree',
-        label: locale === 'en_US' ? 'Analysis Report' : '分析报告',
-        icon: <FileSearchOutlined />,
+        key: 'analysisNodeList',
+        label: locale === 'en_US' ? 'Analysis Node List' : '分析节点列表',
+        icon: <NodeIndexOutlined />,
+      },{
+        key: 'analysisList',
+        label: locale === 'en_US' ? 'Analysis List' : '分析列表',
+        icon: <UnorderedListOutlined />,
       },
       {
         key: 'projectReport',
         label: locale === 'en_US' ? 'Project Report' : '项目报告',
-        icon: <FileDoneOutlined />,
+        icon: <BarChartOutlined />,
       },
 
     ],

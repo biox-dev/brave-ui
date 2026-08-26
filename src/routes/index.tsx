@@ -68,6 +68,7 @@ const SoftwareAnalysisEditor = lazy(() => import('@/pages/software-analysis-edit
 const AnalysisReport = lazy(() => import('@/pages/analysis-report/indexV2'));
 const AnalysisReportOld = lazy(() => import('@/pages/analysis-report/index-old'));
 const ReportWriting = lazy(() => import('@/pages/report-writing'));
+const AnalysisNodeReport = lazy(() => import('@/components/analysis-node-view/components/analysis-nodes-report/analysis-node-report-route'));
 
 const EntityPage = lazy(() => import('@/pages/entity'));
 const EntityRelation = lazy(() => import('@/pages/entity-relation'));
@@ -163,6 +164,9 @@ if (appType == "index") {
         {
             path: "/analysis-report/:analysisId",
             element: <AnalysisReport />
+        }, {
+            path: "/analsyis-node-report/:analysisNodeId",
+            element: <AnalysisNodeReport />
         }, {
             path: "/analysis-report-old",
             element: <AnalysisReportOld />
