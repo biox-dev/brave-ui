@@ -16,6 +16,7 @@ import AnalysisReportContent from "../components-relation/tools/analysis-report-
 import AnalysisToolsComp from "../components-relation/tools/anlaysis-component"
 import { useStoreRender } from "@/context/render/RenderProvider"
 import { useI18n } from "@/hooks/useI18n"
+import { setLLMEnv } from "@/utils/llm-env"
 
 const ResultParse = lazy(() => import("@/components/result-parse"))
 // import AnalysisResultPanel from '@/components/analysis-result-view/panel'
@@ -24,35 +25,21 @@ const AnalysisReport: FC<any> = () => {
     // setSideView("analysis-tree")
     // const { project, projectObj } = useOutletContext<any>()
     // useSideView("analysis-tree")
-    const { setSideView, setSideOptions } = useSideViewContext();
-    const { locale } = useI18n();
+    // const { setSideView, setSideOptions } = useSideViewContext();
+    // const { locale } = useI18n();
 
-    useEffect(() => {
-        setSideOptions([
-            // {
-            //     label: "LLM",
-            //     value: "llm-card"
-            // }, {
-            //     label: "Container App",
-            //     value: "appSessionPage"
-            // }, {
-            //     label: "Parameters",
-            //     value: "editParamsPanel"
-            // },
-            // {
-            //     label: "analysis-tree",
-            //     value: "analysis-tree"
-            // }
-            { label: locale === 'en_US' ? 'Parameters' : '参数', value: 'editParamsPanel' }
+    // useEffect(() => {
+    //     setSideOptions([
+            
+    //         { label: locale === 'en_US' ? 'Parameters' : '参数', value: 'editParamsPanel' }
 
-        ])
-        // setSideView("analysis-tools")
-        setSideView("editParamsPanel");
-        return () => {
-            setSideOptions([])
-            setSideView("llm-card")
-        }
-    }, [])
+    //     ])
+    //     setSideView("editParamsPanel");
+    //     return () => {
+    //         setSideOptions([])
+    //         // setSideView("llm-card")
+    //     }
+    // }, [])
     // useEffect(() => {
     //     // debugger
     //     setSideView("analysis-tree");
@@ -81,6 +68,7 @@ const AnalysisReport: FC<any> = () => {
         if (analysisId) {
             setAnalysisId(analysisId)
         }
+        setLLMEnv(analysisId, "analysisId");
     }, [analysisId])
 
     // const [queryProject, setQueryProject] = useState<any>()
@@ -108,37 +96,7 @@ const AnalysisReport: FC<any> = () => {
     //         search: `?${searchParams.toString()}`
     //     });
     // };
-    const updateQueryParam = (paramName: string, newValue: string) => {
-        const { pathname, search, hash } = window.location;
-
-        // Parse current query string
-        const searchParams = new URLSearchParams(search || "");
-
-        // Update or add the parameter
-        searchParams.set(paramName, newValue);
-
-        // Determine if the app uses HashRouter
-        const isHashRouter = hash.startsWith("#/");
-
-        let newUrl = "";
-
-        if (isHashRouter) {
-            // Extract path and query part from the hash
-            const [hashPath, hashSearch = ""] = hash.replace(/^#/, "").split("?");
-
-            const hashParams = new URLSearchParams(hashSearch);
-            hashParams.set(paramName, newValue);
-
-            // Build new hash-based URL
-            newUrl = `#${hashPath}?${hashParams.toString()}`;
-        } else {
-            // Build new browser-based URL
-            newUrl = `${pathname}?${searchParams.toString()}`;
-        }
-
-        // Update browser URL without reloading the page
-        window.history.pushState({}, "", newUrl);
-    };
+ 
     // const [components,setComponents] = useState<any>()
     // const loadComponents = async (componentId:any) => {
     //     const resp = await axios.post("/find-pipeline", { component_id: componentId })
@@ -186,19 +144,6 @@ const AnalysisReport: FC<any> = () => {
     // }
 
 
-    const reloadResult = () => {
-        resultRef.current.reload()
-    }
-    // useEffect(() => {
-    //     if (panel == "note") {
-    //         loadProject()
-
-    //     }
-
-    // }, [panel])
-    // useEffect(() => {
-    //     loadData()
-    // }, [project])
     return <div >
 
         {/* <div style={{ marginBottom: "1rem" }}></div> */}

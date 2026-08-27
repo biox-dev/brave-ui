@@ -134,8 +134,9 @@ const EditParamsPanel: FC<any> = () => {
         {/* <Button onClick={()=>{
             form.resetFields()
             form.setFieldsValue(requestParam.requestParam)
-        
+        111
         }}>test</Button> */}
+        
         {params ? <>
             <Space wrap>
 

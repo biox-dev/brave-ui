@@ -52,7 +52,7 @@ const Pipeline: FC<any> = ({ }) => {
     // debugger
     const { openAnalysis, analysisId, setAnalysisId, clear, toolsPanelView, setRelation, setToolsPanelView, closeAnalysis, workflow, setWorkflow } = useStoreRender()
 
-    const { setSideView, sideView, sideOptions, setSideOptions, setLeftPaneContent, clearLeftPane } = useSideViewContext();
+    // const { setSideView, sideView, sideOptions, setSideOptions, setLeftPaneContent, clearLeftPane } = useSideViewContext();
     const { locale } = useI18n();
 
 
@@ -282,64 +282,64 @@ const Pipeline: FC<any> = ({ }) => {
         loadData(targetWorkflowId)
     }, [relation_id, workflow?.relation_id, workflow?.id])
 
-    useEffect(() => {
+    // useEffect(() => {
 
-        setSideOptions([
-            // {
-            //     label: "LLM",
-            //     value: "llm-card"
-            // }, {
-            //     label: "Container App",
-            //     value: "appSessionPage"
-            // }, {
-            //     label: "Script",
-            //     value: "scriptPage"
-            // },
-            // {
-            //     label: "Parameters",
-            //     value: "editParamsPanel"
-            // }
-            { label: locale === 'en_US' ? 'Parameters' : '参数', value: 'editParamsPanel' }
-        ])
-        setSideView("editParamsPanel")
-        // setLeftPaneContent(
-        //     <Card
-        //         size="small"
-        //         className="layout-sharp-side-card"
-        //         styles={{ body: { padding: "0" } }}
-        //         extra={<Space>
-        //             <Button size="small" color="cyan" variant="solid" onClick={async () => {
-        //                 await invoke.installComponentsV2.openAsync({
-        //                     storeType: "workflow",
-        //                 }, {
-        //                     width: "80%",
-        //                     title: `Install ${relation_type}`,
-        //                     footer: null,
-        //                 })
-        //                 loadDataRef.current()
-        //             }}>Intsall</Button>
-        //             <Button size="small" color="cyan" variant="solid" onClick={() => {
-        //                 invoke.createOrUpdateRelation.openAsync({})
-        //             }}>Create</Button>
-        //         </Space>}
-        //     >
-        //         <WorkflowPage onOk={(relation) => {
-        //             if (!relation?.relation_id) {
-        //                 return
-        //             }
+    //     setSideOptions([
+    //         // {
+    //         //     label: "LLM",
+    //         //     value: "llm-card"
+    //         // }, {
+    //         //     label: "Container App",
+    //         //     value: "appSessionPage"
+    //         // }, {
+    //         //     label: "Script",
+    //         //     value: "scriptPage"
+    //         // },
+    //         // {
+    //         //     label: "Parameters",
+    //         //     value: "editParamsPanel"
+    //         // }
+    //         { label: locale === 'en_US' ? 'Parameters' : '参数', value: 'editParamsPanel' }
+    //     ])
+    //     setSideView("editParamsPanel")
+    //     // setLeftPaneContent(
+    //     //     <Card
+    //     //         size="small"
+    //     //         className="layout-sharp-side-card"
+    //     //         styles={{ body: { padding: "0" } }}
+    //     //         extra={<Space>
+    //     //             <Button size="small" color="cyan" variant="solid" onClick={async () => {
+    //     //                 await invoke.installComponentsV2.openAsync({
+    //     //                     storeType: "workflow",
+    //     //                 }, {
+    //     //                     width: "80%",
+    //     //                     title: `Install ${relation_type}`,
+    //     //                     footer: null,
+    //     //                 })
+    //     //                 loadDataRef.current()
+    //     //             }}>Intsall</Button>
+    //     //             <Button size="small" color="cyan" variant="solid" onClick={() => {
+    //     //                 invoke.createOrUpdateRelation.openAsync({})
+    //     //             }}>Create</Button>
+    //     //         </Space>}
+    //     //     >
+    //     //         <WorkflowPage onOk={(relation) => {
+    //     //             if (!relation?.relation_id) {
+    //     //                 return
+    //     //             }
 
-        //             setWorkflow(relation)
-        //             navigate(`/c/tools/${encodeURIComponent(String(relation.relation_id))}`)
-        //         }}></WorkflowPage>
-        //     </Card>
-        // )
+    //     //             setWorkflow(relation)
+    //     //             navigate(`/c/tools/${encodeURIComponent(String(relation.relation_id))}`)
+    //     //         }}></WorkflowPage>
+    //     //     </Card>
+    //     // )
         
-        return () => {
-            setSideOptions([])
-            setSideView("llm-card")
-            // clearLeftPane()
-        }
-    }, [navigate, setWorkflow])
+    //     return () => {
+    //         setSideOptions([])
+    //         setSideView("llm-card")
+    //         // clearLeftPane()
+    //     }
+    // }, [navigate, setWorkflow])
 
     useEffect(() => {
         if (component) {

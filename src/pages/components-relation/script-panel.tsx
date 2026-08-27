@@ -29,7 +29,7 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
     const loadTable = () => {
         tabeRef.current?.reload()
     }
-    const { setSideView, setSideOptions, setLeftPaneContent, clearLeftPane } = useSideViewContext();
+    // const { setSideView, setSideOptions, setLeftPaneContent, clearLeftPane } = useSideViewContext();
     const { script, setScript, clear } = useStoreRender()
 
     let [segmentedOptions, setSegmentedOptions] = useState<any[]>([])
@@ -101,57 +101,57 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
             ])
         }
     }, [component_type])
-    useEffect(() => {
-        setSideOptions([
-            // {
-            //     label: "LLM",
-            //     value: "llm-card"
-            // }, {
-            //     label: "Container App",
-            //     value: "appSessionPage"
-            // },
-            // {
-            //     label: "Parameters",
-            //     value: "editParamsPanel"
-            // }
-            { label: locale === 'en_US' ? 'Parameters' : '参数', value: 'editParamsPanel' }
-        ])
-        setSideView("editParamsPanel")
-        // setLeftPaneContent(
-        //     <Card
-        //         size="small"
-        //         className="layout-sharp-side-card"
-        //         styles={{ body: { padding: "0" } }}
-        //         extra={<Space>
-        //             <Button size="small" color="cyan" variant="solid" onClick={async () => {
-        //                 await invoke.installComponentsV2.openAsync({
-        //                     storeType: "script",
-        //                 }, {
-        //                     width: "80%",
-        //                     title: `Install script`,
-        //                     footer: null,
-        //                 })
-        //             }}>Intsall</Button>
-        //             <Button size="small" color="cyan" variant="solid" onClick={async () => {
-        //                 await invoke.createOrUpdateComponent.openAsync({})
-        //             }}>Create</Button>
-        //         </Space>}
-        //     >
-        //         <ScriptPage onOk={(script) => {
-        //             if (!script?.id) {
-        //                 return
-        //             }
+    // useEffect(() => {
+    //     setSideOptions([
+    //         // {
+    //         //     label: "LLM",
+    //         //     value: "llm-card"
+    //         // }, {
+    //         //     label: "Container App",
+    //         //     value: "appSessionPage"
+    //         // },
+    //         // {
+    //         //     label: "Parameters",
+    //         //     value: "editParamsPanel"
+    //         // }
+    //         { label: locale === 'en_US' ? 'Parameters' : '参数', value: 'editParamsPanel' }
+    //     ])
+    //     setSideView("editParamsPanel")
+    //     // setLeftPaneContent(
+    //     //     <Card
+    //     //         size="small"
+    //     //         className="layout-sharp-side-card"
+    //     //         styles={{ body: { padding: "0" } }}
+    //     //         extra={<Space>
+    //     //             <Button size="small" color="cyan" variant="solid" onClick={async () => {
+    //     //                 await invoke.installComponentsV2.openAsync({
+    //     //                     storeType: "script",
+    //     //                 }, {
+    //     //                     width: "80%",
+    //     //                     title: `Install script`,
+    //     //                     footer: null,
+    //     //                 })
+    //     //             }}>Intsall</Button>
+    //     //             <Button size="small" color="cyan" variant="solid" onClick={async () => {
+    //     //                 await invoke.createOrUpdateComponent.openAsync({})
+    //     //             }}>Create</Button>
+    //     //         </Space>}
+    //     //     >
+    //     //         <ScriptPage onOk={(script) => {
+    //     //             if (!script?.id) {
+    //     //                 return
+    //     //             }
 
-        //             navigate(`/c/scripts/${encodeURIComponent(script.id)}`)
-        //         }}></ScriptPage>
-        //     </Card>
-        // )
-        return () => {
-            setSideOptions([])
-            setSideView("llm-card")
-            // clearLeftPane()
-        }
-    }, [navigate, loadScript])
+    //     //             navigate(`/c/scripts/${encodeURIComponent(script.id)}`)
+    //     //         }}></ScriptPage>
+    //     //     </Card>
+    //     // )
+    //     return () => {
+    //         setSideOptions([])
+    //         setSideView("llm-card")
+    //         // clearLeftPane()
+    //     }
+    // }, [navigate, loadScript])
     const message = useGlobalMessage()
     // useEffect(() => {
     //     if (!component?.component_id && panel != "structure") {

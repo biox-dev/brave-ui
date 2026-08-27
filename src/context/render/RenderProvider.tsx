@@ -3,8 +3,9 @@ import { createContext, FC, useContext, useEffect, useMemo, useRef, useState } f
 import { useSideViewContext } from "../side/SideViewContext"
 import { useComponentStore } from "@/event-bus/stores/components"
 import { getScriptFormApi, getWorkflowFormApi } from "@/api/workflow"
-import { useSelector } from "react-redux"
+import { useDispatch, useSelector } from "react-redux"
 import { editNodeParamsApi, editParamsV2Api } from "@/api/analysis"
+import { setUserItem } from "@/store/userSlice"
 
 export const RenderContext = createContext<any>(null)
 
@@ -36,8 +37,8 @@ export const RenderProvider: FC<any> = ({ children }) => {
     const [requestParam, setRequestParam] = useState<any>(null)
     const [formData, setFormData] = useState<any>(null)
     const [formStatus, setFormStatus] = useState<any>(null)
-    const { setSideView, sideView, sideOptions, setSideOptions } = useSideViewContext();
-    const { project: project_id } = useSelector((state: any) => state.user); // 'light' | 'dark'
+    // const { setSideView, sideView, sideOptions, setSideOptions } = useSideViewContext();
+    const { sideView } = useSelector((state: any) => state.user); // 'light' | 'dark'
 
     const updateFormStatus = (args: any) => {
         // debugger
@@ -174,6 +175,7 @@ export const RenderProvider: FC<any> = ({ children }) => {
                     ...data,
                     type: "nodeAnalysis",
                 })
+            
             } else if (analysisId) {
 
                 const data = await loadAnalysis(analysisId)
@@ -210,6 +212,7 @@ export const RenderProvider: FC<any> = ({ children }) => {
                     dataMap: { ...resp.data.analysis_result },
                     formJson: resp.data.formJson,
                 })
+             
 
             }
             setLoading(false)
@@ -256,6 +259,7 @@ export const RenderProvider: FC<any> = ({ children }) => {
             value={{
                 // componentParentIdsMap,
                 // setComponentParentIdsMap,
+              
                 resultTableList,
                 setResultTableList,
                 toolsPanelView,

@@ -57,10 +57,9 @@ const Components = lazy(() => import('@/pages/components-relation/components'));
 
 const PipelineComponentsCard = lazy(() => import('@/components/pipeline-components-card'));
 const SoftwareAnalysisEditor = lazy(() => import('@/pages/software-analysis-editor'));
-const AnalysisReport = lazy(() => import('@/pages/analysis-report/indexV2'));
-const AnalysisReportOld = lazy(() => import('@/pages/analysis-report/index-old'));
+const AnalysisReport = lazy(() => import('@/pages/analysis-report-route/analsyis-report'));
 const ReportWriting = lazy(() => import('@/pages/report-writing'));
-const AnalysisNodeReport = lazy(() => import('@/components/analysis-node-view/components/analysis-nodes-report/analysis-node-report-route'));
+const AnalysisNodeReport = lazy(() => import('@/pages/analysis-report-route/analysis-node-report'));
 
 const PsycMicroGraphHome = lazy(() => import("@/pages/psycmicrograph"))
 const Test = lazy(() => import("@/pages/test"))
@@ -149,10 +148,7 @@ if (appType == "index") {
         }, {
             path: "/analsyis-node-report/:analysisNodeId",
             element: <AnalysisNodeReport />
-        }, {
-            path: "/analysis-report-old",
-            element: <AnalysisReportOld />
-        }, {
+        },{
             path: "/report-writing/:project-report-id",
             element: <ReportWriting />
         },

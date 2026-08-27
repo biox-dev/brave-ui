@@ -8,16 +8,20 @@ import { renderViewButton } from "@/utils/render-view-btn";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { getProjectReportDetailApi, type ProjectReportDetailItem } from "@/api/project";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
+import { useStoreRender } from "@/context/render/RenderProvider";
+import { setLLMEnv } from "@/utils/llm-env";
 
 const ReportWriting: FC<any> = () => {
   const navigate = useNavigate();
   const message = useGlobalMessage();
   const { project } = useSelector((state: any) => state.user);
   const projectId = typeof project === "string" ? project : project?.project_id;
+  // const { setLLMEnv } = useStoreRender()
 
   const { "project-report-id": projectReportId } = useParams<{
     "project-report-id": string;
   }>();
+
 
   const [view, setView] = useState<any>("analysisDocView");
   const [loading, setLoading] = useState(false);
@@ -39,6 +43,7 @@ const ReportWriting: FC<any> = () => {
   };
 
   useEffect(() => {
+    setLLMEnv(projectReportId, "projectReport");
     loadReportDetail(projectReportId);
   }, [projectReportId]);
 

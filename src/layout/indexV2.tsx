@@ -6,7 +6,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useI18n } from '@/hooks/useI18n';
 import ViewResolver from '@/core/ui-renderer/ViewResolver';
 import BorderlessCard from '@/components/common/borderless-card';
-import { useSideViewContext } from '@/context/side/SideViewContext';
 import ContainerQueueMonitor from '@/components/container-manager/container-monitor';
 import { setUserItem } from '@/store/userSlice';
 import { buildLayoutMenus, type LayoutLocale } from './layout-menu';
@@ -34,7 +33,7 @@ const App: React.FC = () => {
   const {
     token: { colorBgContainer },
   } = theme.useToken();
-  const { sideView, setSideView, sideOptions } = useSideViewContext();
+  const sideView = useSelector((state: any) => state.user.sideView);
   const [leftSideView, setLeftSideView] = useState<LeftPanelViewKey>(
     isLeftPanelViewKey(leftActivityKey) ? leftActivityKey : 'sysFileBrowser',
   );
@@ -111,9 +110,10 @@ const App: React.FC = () => {
       //   ],
       [{ label: locale === 'en_US' ? 'Assistant' : '助手', value: 'llm-card' },
       { label: locale === 'en_US' ? 'App' : '应用', value: 'appSessionPage' },
-      ...sideOptions
+      { label: locale === 'en_US' ? 'Parameters' : '参数', value: 'editParamsPanel' },
+      // ...sideOptions
       ],
-    [sideOptions, locale],
+    [],
   );
   const settingsMenuItems = useMemo(() => buildLayoutMenus(layoutLocale), [layoutLocale]);
 
@@ -187,7 +187,7 @@ const App: React.FC = () => {
                         size="small"
                         value={sideView}
                         options={segmentedOptions}
-                        onChange={(value) => setSideView(value as string)}
+                        onChange={(value) => dispatch(setUserItem({ sideView: value as string }))}
                       />
                     }
                   >

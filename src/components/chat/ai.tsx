@@ -12,7 +12,6 @@ import { http } from '@/api/client/http';
 import { getActiveProjectApi } from '@/api/project';
 import { setUserItem } from '@/store/userSlice';
 import { invoke } from '@/core/ui-system/invokeV2';
-import { useStoreRender } from '@/context/render/RenderProvider';
 const { Text } = Typography;
 
 type LLMSessionRecord = {
@@ -797,7 +796,7 @@ const useLocale = () => {
 };
 
 const App = forwardRef<any, any>(({ biz_id, biz_type }, ref) => {
-    const { project, userInfo, activeLLMSessionId } = useSelector((state: any) => state.user)
+    const { project, userInfo, activeLLMSessionId, llmEnv } = useSelector((state: any) => state.user)
     const dispatch = useDispatch()
     const { token } = theme.useToken();
 
@@ -815,7 +814,6 @@ const App = forwardRef<any, any>(({ biz_id, biz_type }, ref) => {
     const sessionMapRef = React.useRef<Record<string, LLMSessionRecord>>({});
     const activeConversationKeyRef = React.useRef<string>('');
     const skipNextAutoLoadSessionKeyRef = React.useRef<string>('');
-    const { script, analysisNodeId } = useStoreRender()
 
     useEffect(() => {
         sessionMapRef.current = sessionMap;
@@ -1243,28 +1241,28 @@ const App = forwardRef<any, any>(({ biz_id, biz_type }, ref) => {
     useImperativeHandle(ref, () => ({
         loadHistoryMessage
     }))
-    const env = React.useMemo(() => {
-        if (analysisNodeId) {
-            return {
-                id: analysisNodeId,
-                type: "analsyisNode"
-            }
-        } else if (script) {
-            return {
-                id: script?.id,
-                type: "script"
-            }
-        }
-        return {}
-    }, [script,analysisNodeId])
+    // const env = React.useMemo(() => {
+    //     if (analysisNodeId) {
+            // return {
+            //     id: analysisNodeId,
+            //     type: "analsyisNode"
+            // }
+    //     } else if (script) {
+            // return {
+            //     id: script?.id,
+            //     type: "script"
+            // }
+    //     }
+    //     return {}
+    // }, [script,analysisNodeId])
 
     const EnvTag = React.useMemo(() => {
-        if (!env) return <></>
+        if (!llmEnv) return <></>
         // if (env?.type == "script") {
         //     return <Tag color='processing'>{`${env?.type}`}({env?.id})</Tag>
         // }
-        return  <Tag color='processing'>{`${env?.type}`}({env?.id})</Tag>
-    }, [env])
+        return  <Tag color='processing'>{`${llmEnv?.type}`}({llmEnv?.id})</Tag>
+    }, [llmEnv])
 
     return (
         <Flex
@@ -1409,7 +1407,7 @@ const App = forwardRef<any, any>(({ biz_id, biz_type }, ref) => {
                                 project_id: active.project_id || currentProjectId,
                                 session_id: active.id,
                                 is_save_prompt: true,
-                                env: env
+                                env: llmEnv
                                 // ...(script ? {
                                 //     env: {
                                 //         script_id: script?.id,

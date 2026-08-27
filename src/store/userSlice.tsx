@@ -18,6 +18,7 @@ const activeLLMSessionId = localStorage.getItem('activeLLMSessionId')
 const leftPanelWidth = Number(localStorage.getItem('leftPanelWidth'))
 const rightPanelWidth = Number(localStorage.getItem('rightPanelWidth'))
 const leftActivityKey = localStorage.getItem('leftActivityKey')
+const sideView = localStorage.getItem('sideView')
 
 export const loadActiveProject = createAsyncThunk(
     'user/loadActiveProject',
@@ -58,9 +59,11 @@ interface UserState {
     scmOrigin:any;
     activeProjectReportId:string | null;
     activeLLMSessionId:string | null;
+    llmEnv:any;
     leftPanelWidth:number;
     rightPanelWidth:number;
     leftActivityKey:string;
+    sideView:string;
     userInfo: LoginUserInfo | null;
     componentLayout:"simple"|"complex",
     network:"UNKNOW" | "CONNECT" | "NOT_CONNECT"
@@ -85,9 +88,11 @@ const contextSlice = createSlice({
         storeRepos:storeRepos?storeRepos:"[]",
         activeProjectReportId:activeProjectReportId?activeProjectReportId:null,
         activeLLMSessionId:activeLLMSessionId?activeLLMSessionId:null,
+        llmEnv:null,
         leftPanelWidth:Number.isFinite(leftPanelWidth)?leftPanelWidth:320,
         rightPanelWidth:Number.isFinite(rightPanelWidth)?rightPanelWidth:360,
         leftActivityKey:leftActivityKey?leftActivityKey:'sysFileBrowser',
+        sideView:sideView?sideView:'llm-card',
         userInfo: userInfo ? JSON.parse(userInfo) : null,
         componentLayout:"simple",
         network:"UNKNOW",
@@ -161,6 +166,13 @@ const contextSlice = createSlice({
             }
             if (action.payload.leftActivityKey !== undefined) {
                 localStorage.setItem('leftActivityKey', action.payload.leftActivityKey)
+            }
+            if (action.payload.sideView !== undefined) {
+                if (action.payload.sideView) {
+                    localStorage.setItem('sideView', action.payload.sideView)
+                } else {
+                    localStorage.removeItem('sideView')
+                }
             }
             if (action.payload.userInfo !== undefined) {
                 if (action.payload.userInfo) {
