@@ -149,4 +149,6 @@ export const uploadProjectReportImageApi = (file: File) => {
 		},
 	})
 }
-	
+
+export const publishProjectReportToDocApi = (reportId: string) => http.post<{ message: string }>(`/project-report/${encodeURIComponent(reportId)}/publish-to-doc`)
+

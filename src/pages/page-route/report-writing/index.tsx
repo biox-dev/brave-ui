@@ -1,12 +1,12 @@
 import { FC, useEffect, useState } from "react";
 import { Button, Card, Flex, Skeleton, Spin, Tag } from "antd";
-import { ArrowLeftOutlined, EditOutlined, ReloadOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, EditOutlined, ReloadOutlined, SendOutlined } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router";
 import { useSelector } from "react-redux";
 import ComponentsDetailsRender from "@/core/ui-renderer/ViewResolver";
 import { renderViewButton } from "@/utils/render-view-btn";
 import { invoke } from "@/core/ui-system/invokeV2";
-import { getProjectReportDetailApi, type ProjectReportDetailItem } from "@/api/project";
+import { getProjectReportDetailApi, publishProjectReportToDocApi, type ProjectReportDetailItem } from "@/api/project";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useStoreRender } from "@/context/render/RenderProvider";
 import { setLLMEnv } from "@/utils/llm-env";
@@ -25,6 +25,7 @@ const ReportWriting: FC<any> = () => {
 
   const [view, setView] = useState<any>("analysisDocView");
   const [loading, setLoading] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [activeReport, setActiveReport] = useState<ProjectReportDetailItem>();
 
   const loadReportDetail = async (id?: string) => {
@@ -46,6 +47,23 @@ const ReportWriting: FC<any> = () => {
     setLLMEnv(projectReportId, "projectReport");
     loadReportDetail(projectReportId);
   }, [projectReportId]);
+
+  const handlePublishToDoc = async () => {
+    if (!activeReport) {
+      message.warning("No report loaded");
+      return;
+    }
+
+    setPublishing(true);
+    try {
+      await publishProjectReportToDocApi(activeReport.id);
+      message.success("Report published to project doc");
+    } catch {
+      // Error is surfaced globally by the http client interceptor.
+    } finally {
+      setPublishing(false);
+    }
+  };
 
   const openUpdateReportModal = async () => {
     if (!activeReport) {
@@ -116,6 +134,18 @@ const ReportWriting: FC<any> = () => {
               onClick={openUpdateReportModal}
             >
               Edit Item
+            </Button>
+          )}
+          {activeReport && activeReport.content_source === "file" && (
+            <Button
+              size="small"
+              color="green"
+              variant="solid"
+              icon={<SendOutlined />}
+              loading={publishing}
+              onClick={handlePublishToDoc}
+            >
+              Publish to Doc
             </Button>
           )}
           <Button
