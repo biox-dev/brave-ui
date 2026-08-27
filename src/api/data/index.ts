@@ -66,7 +66,7 @@ export interface DatasetPageQuery {
 }
 
 export interface DatasetFilePageQuery {
-	project_id: string;
+	// project_id: string;
 	id?: string;
 	file_id?: string;
 	file_name?: string;
@@ -82,7 +82,7 @@ export interface DatasetFilePageQuery {
 }
 
 export interface SamplePageQuery {
-	project_id: string;
+	// project_id: string;
 	id?: string;
 	sample_id?: string;
 	sample_name?: string;

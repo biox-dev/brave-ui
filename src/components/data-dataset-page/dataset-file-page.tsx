@@ -134,16 +134,16 @@ const DatasetFilePage = ({
   onCancel,
   close,
 }: DatasetFilePageProps) => {
-  const { project, projectObj } = useSelector((state: any) => state.user);
+  const { project } = useSelector((state: any) => state.user);
   const message = useGlobalMessage();
   const [selectedId, setSelectedID] = useState<string>();
 
   const selectable = Boolean(onOk || onCancel);
 
-  const resolvedProjectId = useMemo(
-    () => normalizeText(project_id) || normalizeText(project) || normalizeText(projectObj?.project_id) || "",
-    [project_id, project, projectObj?.project_id]
-  );
+  // const resolvedProjectId = useMemo(
+  //   () => normalizeText(project_id) || normalizeText(project) || normalizeText(projectObj?.project_id) || "",
+  //   [project_id, project, projectObj?.project_id]
+  // );
 
   const {
     data,
@@ -159,10 +159,10 @@ const DatasetFilePage = ({
     refetch,
   } = useDatasetFilePageQuery(
     {
-      project_id: resolvedProjectId,
+      // project_id: resolvedProjectId,
     },
     {
-      enabled: Boolean(resolvedProjectId),
+      // enabled: Boolean(resolvedProjectId),
       initialPageSize: normalizePageSize(page_size),
       keepPreviousData: true,
       staleTime: 30_000,
@@ -172,7 +172,7 @@ const DatasetFilePage = ({
 
   useEffect(() => {
     setQuery({
-      project_id: resolvedProjectId,
+      // project_id: resolvedProjectId,
       file_id: normalizeText(file_id),
       file_name: normalizeText(file_name),
       path: normalizeText(path),
@@ -183,7 +183,7 @@ const DatasetFilePage = ({
       dataset_name: normalizeText(dataset_name),
       role: normalizeRoles(role),
     });
-  }, [resolvedProjectId, file_id, file_name, path, format, storage, description, dataset_id, dataset_name, role, setQuery]);
+  }, [ file_id, file_name, path, format, storage, description, dataset_id, dataset_name, role, setQuery]);
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 
@@ -323,9 +323,9 @@ const DatasetFilePage = ({
     }
   };
 
-  if (!resolvedProjectId) {
-    return <Alert type="warning" showIcon message="Project ID is required" description="No project_id found in props or store." />;
-  }
+  // if (!resolvedProjectId) {
+  //   return <Alert type="warning" showIcon message="Project ID is required" description="No project_id found in props or store." />;
+  // }
 
   return (
     <Card

@@ -108,15 +108,15 @@ const SampleProjectPage = ({
   onCancel,
   close,
 }: SampleProjectPageProps) => {
-  const { project, projectObj } = useSelector((state: any) => state.user);
+  // const { project, projectObj } = useSelector((state: any) => state.user);
   const [selectedId, setSelectedID] = useState<string>();
 
   const selectable = Boolean(onOk || onCancel);
 
-  const resolvedProjectId = useMemo(
-    () => normalizeText(project_id) || normalizeText(project) || normalizeText(projectObj?.project_id) || "",
-    [project_id, project, projectObj?.project_id]
-  );
+  // const resolvedProjectId = useMemo(
+  //   () => normalizeText(project_id) || normalizeText(project) || normalizeText(projectObj?.project_id) || "",
+  //   [project_id, project, projectObj?.project_id]
+  // );
 
   const {
     data,
@@ -132,10 +132,10 @@ const SampleProjectPage = ({
     refetch,
   } = useSampleProjectPageQuery(
     {
-      project_id: resolvedProjectId,
+      // project_id: resolvedProjectId,
     },
     {
-      enabled: Boolean(resolvedProjectId),
+      // enabled: Boolean(resolvedProjectId),
       initialPageSize: normalizePageSize(page_size),
       keepPreviousData: true,
       staleTime: 30_000,
@@ -145,7 +145,7 @@ const SampleProjectPage = ({
 
   useEffect(() => {
     setQuery({
-      project_id: resolvedProjectId,
+      // project_id: resolvedProjectId,
       sample_id: normalizeText(sample_id),
       sample_name: normalizeText(sample_name),
       subject_id: normalizeText(subject_id),
@@ -156,7 +156,7 @@ const SampleProjectPage = ({
       dataset_id: normalizeText(dataset_id),
       dataset_name: normalizeText(dataset_name),
     });
-  }, [resolvedProjectId, sample_id, sample_name, subject_id, group_name, phenotype, metadata, description, dataset_id, dataset_name, setQuery]);
+  }, [ sample_id, sample_name, subject_id, group_name, phenotype, metadata, description, dataset_id, dataset_name, setQuery]);
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 
@@ -202,9 +202,9 @@ const SampleProjectPage = ({
     }
   };
 
-  if (!resolvedProjectId) {
-    return <Alert type="warning" showIcon message="Project ID is required" description="No project_id found in props or store." />;
-  }
+  // if (!resolvedProjectId) {
+  //   return <Alert type="warning" showIcon message="Project ID is required" description="No project_id found in props or store." />;
+  // }
 
   return (
     <Card

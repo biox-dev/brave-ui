@@ -88,31 +88,34 @@ const Files: FC<any> = () => {
                             ></AnalysisResultPage> */}
                             <ViewResolver view="datasetFilePage"></ViewResolver>
                         </>
-                    }, {
-                        key: "data_file_browser",
-                        label: "Data File browser",
-                        children: <SysFileBrowser path="/" type="data" onSelectFile={async (file: any) => {
-                            console.log(file)
-                            try {
-                                const data = await invoke.datasetProjectPage.openDrawerAsync(file, {
-                                    width: 600,
-                                    title: "Select File Type"
-                                })
-                                // /analysis-result/add-to-file
-                                const params = {
-                                    dataset_id: data.id,
-                                    path: file.path,
-                                    source: "data",
-                                }
-                                console.log(params)
-                                await addFileToDatasetApi(params)
-                                message.success("File added to analysis results")
-                            } catch (error) {
-                                console.log("File type selection cancelled or failed", error)
-                            }
+                    },
+                    //  {
+                    //     key: "data_file_browser",
+                    //     label: "Data File browser",
+                    //     children: <SysFileBrowser path="/" type="data" onSelectFile={async (file: any) => {
+                    //         console.log(file)
+                    //         try {
+                    //             const data = await invoke.datasetProjectPage.openDrawerAsync(file, {
+                    //                 width: 600,
+                    //                 title: "Select File Type"
+                    //             })
+                    //             // /analysis-result/add-to-file
+                    //             const params = {
+                    //                 dataset_id: data.id,
+                    //                 path: file.path,
+                    //                 source: "data",
+                    //             }
+                    //             console.log(params)
+                    //             await addFileToDatasetApi(params)
+                    //             message.success("File added to analysis results")
+                    //         } catch (error) {
+                    //             console.log("File type selection cancelled or failed", error)
+                    //         }
 
-                        }} ></SysFileBrowser>
-                    },    {
+                    //     }} ></SysFileBrowser>
+                    // },   
+                    
+                     {
                         key: "sample-dataset",
                         label: "Sample",
                         children: <>
@@ -131,15 +134,18 @@ const Files: FC<any> = () => {
                             ></AnalysisResultPage> */}
                             <ViewResolver view="sampleProjectPage"></ViewResolver>
                         </>
-                    }, {
-                        key: "analysis_file_browser",
-                        label: "Analysis File browser",
-                        children: <SysFileBrowser path="/" type="analysis"></SysFileBrowser>
-                    }, {
-                        key: "sample",
-                        label: "Metadata",
-                        children: <Sample operatePipeline={operatePipeline}></Sample>
-                    }
+                    }, 
+                    
+                    // {
+                    //     key: "analysis_file_browser",
+                    //     label: "Analysis File browser",
+                    //     children: <SysFileBrowser path="/" type="analysis"></SysFileBrowser>
+                    // },
+                    //  {
+                    //     key: "sample",
+                    //     label: "Metadata",
+                    //     children: <Sample operatePipeline={operatePipeline}></Sample>
+                    // }
                 ]}
                 tabBarExtraContent={<>
                     <Button size="small" color="cyan" variant="solid" onClick={() => openModal("filesDrawer")} >Select File Type</Button>
