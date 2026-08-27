@@ -35,7 +35,7 @@ const importComponentLoaders = {
     inputFileComponent: () => import('@/components/result-list/input-file-component'),
     outputFileComponent: () => import('@/components/result-list/output-file-component'),
     analysisResultView: () => import('@/components/analysis-result-view/analysis-reuslt-view'),
-    analysisList: () => import('@/components/analysis-list'),
+    // analysisList: () => import('@/components/analysis-list'),
     analysisPage: () => import('@/components/analysis-list/analysis-page'),
     relationDefinitionDAG: () => import('../../pages/components-relation/components/relation-definition-dag'),
 
@@ -47,7 +47,7 @@ const importComponentLoaders = {
     'module-edit': () => import('../../components/module-edit'),
     scriptCodeEdit: () => import('@/components/module-edit/code'),
     'create-or-update-component-drawer': () => import('@/components/create-pipeline/create-or-update-component-drawer'),
-    scriptPage: () => import('../left-panel-components/script-page-side'),
+    // scriptPage: () => import('../left-panel-components/script-page-side'),
     fileTypePage: () => import('../workflow-page/file-type-page'),
     containerApp: () => import('../../components/interactive-tools/components/container-app'),
     containerAppProject: () => import('../../components/interactive-tools/components/container-app-project'),
