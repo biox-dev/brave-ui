@@ -75,12 +75,16 @@ export interface ProjectReportItem {
 
 export interface ProjectReportDetailItem extends ProjectReportItem {
 	content: string;
+	content_source?: string;
+	filename?: string;
 }
 
 export interface AddProjectReportRequest {
 	project_id: string;
 	title: string;
 	content?: string;
+	content_source?: string;
+	filename?: string;
 	sort_order?: number;
 }
 
@@ -89,6 +93,8 @@ export interface UpdateProjectReportRequest {
 	project_id: string;
 	title: string;
 	content?: string;
+	content_source?: string;
+	filename?: string;
 	sort_order?: number;
 }
 

@@ -1,6 +1,6 @@
 import { addProjectReportApi, updateProjectReportApi, type ProjectReportDetailItem } from "@/api/project";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
-import { Button, Form, Input, InputNumber, Space } from "antd";
+import { Button, Form, Input, InputNumber, Select, Space } from "antd";
 import { FC, useEffect, useMemo } from "react";
 
 type Mode = "create" | "update";
@@ -32,6 +32,8 @@ const ProjectReportItemForm: FC<ProjectReportItemFormProps> = ({
       form.setFieldsValue({
         title: report.title,
         sort_order: report.sort_order,
+        content_source: report.content_source || "file",
+        filename: report.filename || "output.md",
       });
       return;
     }
@@ -39,6 +41,8 @@ const ProjectReportItemForm: FC<ProjectReportItemFormProps> = ({
     form.setFieldsValue({
       title: "",
       sort_order: 0,
+      content_source: "file",
+      filename: "output.md",
     });
   }, [currentMode, form, report]);
 
@@ -56,6 +60,8 @@ const ProjectReportItemForm: FC<ProjectReportItemFormProps> = ({
         title: values.title,
         sort_order: values.sort_order ?? 0,
         content: "",
+        content_source: values.content_source,
+        filename: values.filename,
       });
       message.success("Created successfully");
       onOk?.(resp.data);
@@ -73,6 +79,8 @@ const ProjectReportItemForm: FC<ProjectReportItemFormProps> = ({
       title: values.title,
       sort_order: values.sort_order ?? 0,
       content: report.content || "",
+      content_source: values.content_source,
+      filename: values.filename,
     });
     message.success("Updated successfully");
     onOk?.(true);
@@ -83,6 +91,19 @@ const ProjectReportItemForm: FC<ProjectReportItemFormProps> = ({
       <Form form={form} layout="vertical">
         <Form.Item label="Title" name="title" rules={[{ required: true, message: "Please input title" }]}>
           <Input placeholder="Input report title" />
+        </Form.Item>
+
+        <Form.Item label="Content Source" name="content_source" rules={[{ required: true, message: "Please select content source" }]}>
+          <Select
+            options={[
+              { label: "File", value: "file" },
+              { label: "Database", value: "database" },
+            ]}
+          />
+        </Form.Item>
+
+        <Form.Item label="Filename" name="filename" rules={[{ required: true, message: "Please input filename" }]}>
+          <Input placeholder="output.md" />
         </Form.Item>
 
         <Form.Item label="Sort Order" name="sort_order" rules={[{ required: true, message: "Please input sort order" }]}>

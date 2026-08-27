@@ -100,7 +100,7 @@ const ReportWriting: FC<any> = () => {
             icon={<ArrowLeftOutlined />}
             onClick={() => navigate("/")}
           /> */}
-          <span>{activeReport?.title || "Report Writing"}</span>
+          <span>{activeReport?.title || "Report Writing"}</span> ({activeReport?.id})
         </Flex>
       }
       extra={
