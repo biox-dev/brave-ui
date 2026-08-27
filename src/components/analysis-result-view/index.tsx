@@ -13,8 +13,6 @@ import FormJsonComp from "../form-components";
 import ParamsView from "../params-view";
 import Project from "@/pages/project";
 import EditParams from '../edit-params'
-import { KGMLMapSVG } from "../databases/kegg";
-import { download } from "@antv/s2";
 import { useSelector } from "react-redux";
 import ModuleEdit from "../module-edit";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";

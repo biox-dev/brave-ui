@@ -3,7 +3,6 @@ import Markdown from "../../components/markdown"
 import { Alert, Button, Card, Col, Flex, List, message, Popconfirm, Row, Skeleton, Tabs, Tag } from "antd"
 
 
-import { EmbedLLM } from '../../components/embed-llm'
 // import Demo from "@/components/smart-table"
 import axios from "axios"
 const InteractiveTools: FC<any> = () => {

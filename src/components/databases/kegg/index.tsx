@@ -4,7 +4,7 @@ import { Card, Col, Drawer, Empty, Flex, Form, Input, Row, Select, Spin, Tag, To
 import { useForm } from "antd/es/form/Form";
 import { RedoOutlined } from '@ant-design/icons'
 import { useModal } from "@/hooks/useModal";
-import EntityViewPanel from "@/pages/entity";
+// import EntityViewPanel from "@/pages/entity";
 import { useOutletContext } from "react-router";
 import { useSelector } from "react-redux";
 interface Entry {
@@ -596,7 +596,7 @@ const EntityDrawer: FC<any> = ({ visible, setRecord, onChange, params, onClose, 
 
   return <>
     <Drawer open={visible} onClose={onClose} width={"80%"}>
-      {visible &&
+      {/* {visible &&
         <EntityViewPanel tabKey={"mesh-KEGG"}
           params={{
             category: ["KEGG"]
@@ -610,7 +610,7 @@ const EntityDrawer: FC<any> = ({ visible, setRecord, onChange, params, onClose, 
             }, type: "radio"
 
           }}></EntityViewPanel>
-      }
+      } */}
 
 
     </Drawer>

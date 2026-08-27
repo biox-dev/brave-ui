@@ -5,14 +5,13 @@ import { DownOutlined, LaptopOutlined, NotificationOutlined, UserOutlined } from
 
 
 
-const KGMLMap = lazy(() => import('@/components/databases/kegg'));
 
 export const viewMapping: {
     key: string;
     label: string;
     component: React.ComponentType<any>;
 }[] = [
-        { key: "kegg", label: "kegg", component: KGMLMap },
+        // { key: "kegg", label: "kegg", component:  },
 
     ];
 

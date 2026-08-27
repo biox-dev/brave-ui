@@ -16,8 +16,6 @@ import BioDatabaseForm from "../bio-database-form";
 import BioDatabases from "../bio-databases";
 import CreateOrUpdateParsms from "./components/create-or-update-parsms";
 import EditParamsPanel from "./components/edit-params";
-import vis from "node_modules/vis-network/declarations/index-legacy-bundle";
-const RenderFromJson = lazy(() => import("./components/render-form-json"));
 
 const EditParams: FC<any> = ({ visible, params, onClose, callback }) => {
     if (!visible) return null
