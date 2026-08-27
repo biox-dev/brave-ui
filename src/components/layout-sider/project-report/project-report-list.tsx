@@ -1,9 +1,10 @@
-import { deleteProjectReportApi, getProjectReportDetailApi, listProjectReportApi, type ProjectReportItem } from "@/api/project";
+import { deleteProjectReportApi, getProjectReportDetailApi, type ProjectReportItem } from "@/api/project";
+import { useProjectReportPageQuery } from "@/hooks/usePaginationV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { DeleteOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
-import { Button, Empty, Popconfirm, Table } from "antd";
+import { Button, Empty, Pagination, Popconfirm, Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { FC, useEffect, useMemo, useState } from "react";
+import { FC, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 import { invoke } from "@/core/ui-system/invokeV2";
@@ -15,9 +16,6 @@ const ProjectReportList: FC<any> = () => {
   const { project } = useSelector((state: any) => state.user);
   const projectId = typeof project === "string" ? project : project?.project_id;
 
-  const [loading, setLoading] = useState(false);
-  const [reportList, setReportList] = useState<ProjectReportItem[]>([]);
-
   // Derive the selected report id from the current route so the selection
   // survives a full page refresh.
   const selectedId = useMemo(() => {
@@ -25,16 +23,17 @@ const ProjectReportList: FC<any> = () => {
     return match ? decodeURIComponent(match[1]) : undefined;
   }, [location.pathname]);
 
-  const loadReports = async () => {
-    setLoading(true);
-    try {
-      const resp = await listProjectReportApi();
-      const rows = Array.isArray(resp.data) ? resp.data : [];
-      setReportList(rows);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    data,
+    total,
+    page,
+    pageSize,
+    setPage,
+    setPageSize,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useProjectReportPageQuery({}, { initialPageSize: 10 });
 
   const openCreate = async () => {
     if (!projectId) {
@@ -54,7 +53,7 @@ const ProjectReportList: FC<any> = () => {
           width: 560,
         }
       );
-      await loadReports();
+      await refetch();
       if (created?.id) {
         navigate(`/report-writing/${created.id}`);
       }
@@ -78,7 +77,7 @@ const ProjectReportList: FC<any> = () => {
           width: 560,
         }
       );
-      await loadReports();
+      await refetch();
     } catch {
       // User canceled the update modal.
     }
@@ -87,7 +86,7 @@ const ProjectReportList: FC<any> = () => {
   const handleDelete = async (report: ProjectReportItem) => {
     await deleteProjectReportApi({ id: report.id });
     message.success("Deleted successfully");
-    await loadReports();
+    await refetch();
   };
 
   const columns: ColumnsType<ProjectReportItem> = [
@@ -136,23 +135,18 @@ const ProjectReportList: FC<any> = () => {
     },
   ];
 
-  useEffect(() => {
-    loadReports();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
-
   return (
     <div className="project-report-panel">
       <div className="project-report-panel-header">
         <span className="project-report-panel-title">Project Reports</span>
         <div className="project-report-panel-actions">
           <Button type="text" size="small" icon={<PlusOutlined />} onClick={openCreate} />
-          <Button type="text" size="small" icon={<ReloadOutlined />} onClick={loadReports} />
+          <Button type="text" size="small" icon={<ReloadOutlined />} onClick={() => refetch()} />
         </div>
       </div>
 
       <div className="project-report-panel-body">
-        {reportList.length === 0 && !loading ? (
+        {data.length === 0 && !isLoading ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             description="No project report item"
@@ -162,8 +156,8 @@ const ProjectReportList: FC<any> = () => {
             rowKey="id"
             size="small"
             columns={columns}
-            dataSource={reportList}
-            loading={loading}
+            dataSource={data}
+            loading={isLoading || isFetching}
             pagination={false}
             showHeader={false}
             rowClassName={(record) =>
@@ -174,6 +168,24 @@ const ProjectReportList: FC<any> = () => {
             })}
           />
         )}
+      </div>
+
+      <div style={{ padding: "6px 10px", borderTop: "1px solid var(--sharp-divider)" }}>
+        <Pagination
+          size="small"
+          current={page}
+          pageSize={pageSize}
+          total={total}
+          showSizeChanger
+          showTotal={(t) => `${t} reports`}
+          onChange={(nextPage, nextSize) => {
+            if (nextSize !== pageSize) {
+              setPageSize(nextSize);
+            } else {
+              setPage(nextPage);
+            }
+          }}
+        />
       </div>
     </div>
   );

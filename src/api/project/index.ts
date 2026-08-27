@@ -1,5 +1,6 @@
 import axios from "axios";
 import { http } from "@/api/client/http";
+import type { PageResponse } from "@/api/data";
 
 export interface ActiveProject {
 	id: number;
@@ -95,6 +96,15 @@ export interface DeleteProjectReportRequest {
 	id: string;
 }
 
+export interface ProjectReportPageQuery {
+	// Reserved for future filters.
+}
+
+export interface ProjectReportPageRequest {
+	page?: number;
+	page_size?: number;
+}
+
 export interface UploadProjectReportImageResponse {
 	url: string;
 	name: string;
@@ -122,6 +132,7 @@ export const addProjectReportApi = (payload: AddProjectReportRequest) => http.po
 export const updateProjectReportApi = (payload: UpdateProjectReportRequest) => http.post<{ message: string }>("/project/update-project-report", payload)
 export const deleteProjectReportApi = (payload: DeleteProjectReportRequest) => http.post<{ message: string }>("/project/delete-project-report", payload)
 export const listProjectReportApi = () => http.get<ProjectReportItem[]>(`/project/list-project-report`)
+export const pageProjectReportApi = (payload: ProjectReportPageRequest) => http.post<PageResponse<ProjectReportItem>>("/project/list-project-report-page", payload)
 export const getProjectReportDetailApi = (id: string) => http.get<ProjectReportDetailItem>(`/project/project-report-detail?id=${encodeURIComponent(id)}`)
 export const uploadProjectReportImageApi = (file: File) => {
 	const formData = new FormData()

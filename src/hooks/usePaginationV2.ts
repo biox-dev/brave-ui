@@ -30,6 +30,11 @@ import {
 	type ScriptPageQuery,
 } from "@/api/workflow";
 import {
+	pageProjectReportApi,
+	type ProjectReportItem,
+	type ProjectReportPageQuery,
+} from "@/api/project";
+import {
 	pageAppSessionApi,
 	pageContainerEventApi,
 	pageContainerImageApi,
@@ -334,6 +339,22 @@ export const useWorkflowPageQuery = (
 				page_size,
 				query: queryPayload,
 			});
+			return response.data;
+		},
+		initialPageSize: 10,
+		...options,
+	});
+};
+
+export const useProjectReportPageQuery = (
+	query: ProjectReportPageQuery,
+	options?: Omit<UsePageQueryOptions<ProjectReportItem, ProjectReportPageQuery>, "queryKey" | "query" | "endpoint" | "queryFn">
+) => {
+	return usePageQuery<ProjectReportItem, ProjectReportPageQuery>({
+		queryKey: ["project-report-page"],
+		query,
+		queryFn: async (payload) => {
+			const response = await pageProjectReportApi(payload);
 			return response.data;
 		},
 		initialPageSize: 10,
