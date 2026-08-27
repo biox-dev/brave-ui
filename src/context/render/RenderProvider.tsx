@@ -164,7 +164,7 @@ export const RenderProvider: FC<any> = ({ children }) => {
     }
     const loadParams = async (force = false) => {
         console.log("sideView", sideView)
-
+       
         // debugger
         if (sideView == "editParamsPanel") {
             setLoading(true)

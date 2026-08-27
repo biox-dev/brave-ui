@@ -69,6 +69,10 @@ const AnalysisReport: FC<any> = () => {
             setAnalysisId(analysisId)
         }
         setLLMEnv(analysisId, "analysisId");
+        return () => {
+            // setLLMEnv(null, "analysisId");
+            setAnalysisId(null)
+        }
     }, [analysisId])
 
     // const [queryProject, setQueryProject] = useState<any>()

@@ -108,7 +108,7 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
                 V2: `/analysis/controllerV2`,
                 V3: `/analysis/controllerV3`,
             }
-            const controllerPath = script ? "/analysis/controller-script" : controllerPathMap[controllerVersion]
+            const controllerPath = analysisNodeId ? "/analysis/controller-script" : controllerPathMap[controllerVersion]
 
             const resp = await http.post(controllerPath, {
                 request_param: requestParams,
@@ -274,6 +274,7 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
     }
 
     return <Suspense fallback={<Skeleton active></Skeleton>}>
+
         {/* {JSON.stringify(formJson)} */}
         <Spin spinning={loading}>
             <Form size="small" form={form}

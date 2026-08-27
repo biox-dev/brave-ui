@@ -32,6 +32,11 @@ const AnalysisNodeReportRoute: FC = () => {
   useEffect(() => {
     setLLMEnv(analysisNodeId, "analysisNodeId");
     setAnalysisNodeId(analysisNodeId)
+    
+    return () => {
+      // setLLMEnv(null, "analysisNodeId");
+      setAnalysisNodeId(null)
+    }
 
   }, [analysisNodeId]);
 
