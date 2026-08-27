@@ -57,9 +57,9 @@ const Components = lazy(() => import('@/pages/components-relation/components'));
 
 const PipelineComponentsCard = lazy(() => import('@/components/pipeline-components-card'));
 const SoftwareAnalysisEditor = lazy(() => import('@/pages/software-analysis-editor'));
-const AnalysisReport = lazy(() => import('@/pages/analysis-report-route/analsyis-report'));
-const ReportWriting = lazy(() => import('@/pages/report-writing'));
-const AnalysisNodeReport = lazy(() => import('@/pages/analysis-report-route/analysis-node-report'));
+const AnalysisReport = lazy(() => import('@/pages/page-route/analsyis-report'));
+const ReportWriting = lazy(() => import('@/pages/page-route/report-writing'));
+const AnalysisNodeReport = lazy(() => import('@/pages/page-route/analysis-node-report'));
 
 const PsycMicroGraphHome = lazy(() => import("@/pages/psycmicrograph"))
 const Test = lazy(() => import("@/pages/test"))
