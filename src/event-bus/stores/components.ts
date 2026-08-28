@@ -16,6 +16,7 @@ export type ComponentStore = {
     charts: Record<string, ChartInstance>;
     analysis: Record<string, Set<any>>; 
     "app-session": Record<string, any>;
+    "ai-summary": Record<string, any>;
     graph: Record<string, any>; 
     store: Record<string, any>;
     container: Record<string, any>;
@@ -34,6 +35,7 @@ export const useComponentStore = create<ComponentStore>((set, get) => ({
     charts: {},
     analysis: {},
     "app-session": {},
+    "ai-summary": {},
     graph: {},
     store:{},
     container: {},

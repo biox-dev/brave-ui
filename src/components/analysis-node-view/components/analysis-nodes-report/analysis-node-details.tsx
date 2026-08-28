@@ -1,7 +1,7 @@
 import { Button, Card, Flex, Popconfirm, Skeleton, Space, Tag, Tooltip, Typography } from "antd";
 import axios from "axios";
 import { FC, useCallback, useEffect, useMemo, useState } from "react";
-import { CloseOutlined, EditOutlined, ExportOutlined, RedoOutlined, RobotOutlined } from "@ant-design/icons";
+import { CloseOutlined, EditOutlined, ExportOutlined, RedoOutlined } from "@ant-design/icons";
 import AISummaryPanel from "@/components/ai-summary/ai-summary-panel";
 import ViewResolver from "@/core/ui-renderer/ViewResolver";
 import { invoke } from "@/core/ui-system/invokeV2";
@@ -49,8 +49,6 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
     const message = useGlobalMessage();
     const [selectedSampleDetail, setSelectedSampleDetail] = useState<any>({});
     const { containerURL } = useSelector((state: any) => state.user);
-    const [creatingSummary, setCreatingSummary] = useState(false);
-    const [summaryRefreshKey, setSummaryRefreshKey] = useState(0);
 
     // const loadSampleDetail = useCallback(async (targetAnalysisNodeId?: string, force = false) => {
     //     if (!targetAnalysisNodeId || (sampleDetailMap[targetAnalysisNodeId] && !force)) {
@@ -106,26 +104,6 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
         loadSampleDetail(analysis_node_id);
     }, [analysis_node_id]);
 
-    const handleCreateAISummary = async () => {
-        if (!analysis_node_id) {
-            return;
-        }
-
-        setCreatingSummary(true);
-        try {
-            await http.post("/ai-summary/create", {
-                owner_id: String(analysis_node_id),
-                owner_type: "analysis_node",
-            });
-            message.success("AI summary created");
-            setSummaryRefreshKey((key) => key + 1);
-        } catch {
-            // 错误提示已由 http 响应拦截器统一处理。
-        } finally {
-            setCreatingSummary(false);
-        }
-    };
-
     useEffect(() => {
         if (analysis_node_id) {
             register("analysis", analysis_node_id, instance);
@@ -162,16 +140,6 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
             title={selectedSampleDetail?.node?.script_name || "Result Report"}
             extra={
                 <Space>
-                    <Button
-                        size="small"
-                        color="cyan"
-                        variant="solid"
-                        icon={<RobotOutlined />}
-                        loading={creatingSummary}
-                        onClick={handleCreateAISummary}
-                    >
-                        AI Summary
-                    </Button>
                     {selectedSampleDetail && (
                         <Space>
 
@@ -569,6 +537,10 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
                             </Space>
                         </Flex>
                     </Card>
+                      <AISummaryPanel
+                        ownerType="analysis_node"
+                        ownerId={analysis_node_id}
+                    />
                     {selectedSampleDetail.status == "running" || detailLoading ? (
                         <Skeleton active paragraph={{ rows: 6 }} />
                     ) : (
@@ -579,11 +551,7 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
                         ></ViewResolver>
                     )}
 
-                    <AISummaryPanel
-                        ownerType="analysis_node"
-                        ownerId={analysis_node_id}
-                        refreshKey={summaryRefreshKey}
-                    />
+                  
                 </Flex>
             )}
         </Card>

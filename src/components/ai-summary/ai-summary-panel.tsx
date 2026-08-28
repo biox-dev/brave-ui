@@ -1,22 +1,24 @@
 import {
   Button,
-  Card,
-  Empty,
+  Collapse,
   Flex,
   Popconfirm,
   Space,
   Spin,
   Tag,
+  Tooltip,
   Typography,
 } from "antd";
 import {
   DeleteOutlined,
   RedoOutlined,
   ReloadOutlined,
+  RobotOutlined,
 } from "@ant-design/icons";
 import { FC, useCallback, useEffect, useState } from "react";
 import { http } from "@/api/client/http";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
+import { useComponentStore } from "@/event-bus/stores/components";
 import Markdown from "@/components/markdown";
 
 /** AI 摘要生成状态。 */
@@ -30,6 +32,7 @@ export interface AISummaryItem {
   id: string;
   owner_id: string;
   owner_type: string;
+  title: string;
   content: string;
   status: AISummaryStatus;
   created_at: string;
@@ -75,7 +78,10 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
 }) => {
   const [items, setItems] = useState<AISummaryItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [activeKeys, setActiveKeys] = useState<string[]>([]);
   const message = useGlobalMessage();
+  const { register, unregister } = useComponentStore();
 
   const load = useCallback(async () => {
     if (ownerId === undefined || ownerId === null || ownerId === "") {
@@ -99,6 +105,38 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
     load();
   }, [load, refreshKey]);
 
+  useEffect(() => {
+    if (ownerId === undefined || ownerId === null || ownerId === "") {
+      return;
+    }
+    const id = String(ownerId);
+    const instance = { refresh: load };
+    register("ai-summary", id, instance);
+    return () => {
+      unregister("ai-summary", id, instance);
+    };
+  }, [ownerType, ownerId, load, register, unregister]);
+
+  const handleCreate = async () => {
+    if (ownerId === undefined || ownerId === null || ownerId === "") {
+      return;
+    }
+
+    setCreating(true);
+    try {
+      await http.post("/ai-summary/create", {
+        owner_id: String(ownerId),
+        owner_type: ownerType,
+      });
+      message.success("AI summary created");
+      await load();
+    } catch {
+      // ignore
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const handleRegenerate = async (id: string) => {
     try {
       await http.post("/ai-summary/regenerate", { id: String(id) });
@@ -120,52 +158,71 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
   };
 
   return (
-    <Card
-      size="small"
-      title="AI Summary"
-      extra={
-        <Button
-          size="small"
-          icon={<ReloadOutlined />}
-          loading={loading}
-          onClick={load}
-        >
-          Refresh
-        </Button>
-      }
-    >
+    <Flex vertical gap={4}>
+      <Flex justify="space-between" align="center" gap={8} wrap>
+        <Space size={8}>
+          <Typography.Text strong>AI Summary</Typography.Text>
+          {!loading && items.length === 0 && (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              No AI summary yet
+            </Typography.Text>
+          )}
+        </Space>
+        <Space size={4}>
+          <Button
+            size="small"
+            type="text"
+            icon={<RobotOutlined />}
+            loading={creating}
+            disabled={ownerId === undefined || ownerId === null || ownerId === ""}
+            onClick={handleCreate}
+          >
+            Create
+          </Button>
+          <Button
+            size="small"
+            type="text"
+            icon={<ReloadOutlined />}
+            loading={loading}
+            onClick={load}
+          >
+            Refresh
+          </Button>
+        </Space>
+      </Flex>
       <Spin spinning={loading}>
-        {items.length === 0 ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="No AI summary yet"
-          />
-        ) : (
-          <Flex vertical gap={12}>
-            {items.map((item) => {
+        {items.length === 0 ? null : (
+          <Collapse
+            activeKey={activeKeys}
+            onChange={(keys) =>
+              setActiveKeys(Array.isArray(keys) ? keys : [keys])
+            }
+            items={items.map((item) => {
               const generating =
                 item.status === "pending" || item.status === "generating";
 
-              return (
-                <Card
-                  key={item.id}
-                  size="small"
-                  title={
+              return {
+                key: item.id,
+                label: (
+                  <Flex justify="space-between" align="center" gap={8} wrap>
                     <Space size={8}>
-                      <Typography.Text code>#{item.id}</Typography.Text>
+                      {/* <Typography.Text code>#{item.id}</Typography.Text> */}
+                      {item.title && (
+                        <Tooltip title={item.id}>
+                          <Typography.Text strong>{item.title}</Typography.Text>
+                        </Tooltip>
+                      )}
                       <Tag color={STATUS_COLOR_MAP[item.status] ?? "default"}>
                         {item.status}
                       </Tag>
-                    </Space>
-                  }
-                  extra={
-                    <Space size={8}>
                       <Typography.Text
                         type="secondary"
                         style={{ fontSize: 12 }}
                       >
                         {formatTime(item.updated_at)}
                       </Typography.Text>
+                    </Space>
+                    <Space size={8} onClick={(e) => e.stopPropagation()}>
                       <Popconfirm
                         title="Regenerate this summary?"
                         onConfirm={() => handleRegenerate(item.id)}
@@ -178,35 +235,28 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
                         title="Delete this summary?"
                         onConfirm={() => handleDelete(item.id)}
                       >
-                        <Button
-                          size="small"
-                          danger
-                          icon={<DeleteOutlined />}
-                        >
+                        <Button size="small" danger icon={<DeleteOutlined />}>
                           Delete
                         </Button>
                       </Popconfirm>
                     </Space>
-                  }
-                >
-                  {generating ? (
-                    <Typography.Text type="secondary">
-                      Summary is being generated…
-                    </Typography.Text>
-                  ) : item.content ? (
-                    <Markdown data={item.content} prefix={prefix} />
-                  ) : (
-                    <Typography.Text type="secondary">
-                      No content
-                    </Typography.Text>
-                  )}
-                </Card>
-              );
+                  </Flex>
+                ),
+                children: generating ? (
+                  <Typography.Text type="secondary">
+                    Summary is being generated…
+                  </Typography.Text>
+                ) : item.content ? (
+                  <Markdown data={item.content} prefix={prefix} />
+                ) : (
+                  <Typography.Text type="secondary">No content</Typography.Text>
+                ),
+              };
             })}
-          </Flex>
+          />
         )}
       </Spin>
-    </Card>
+    </Flex>
   );
 };
 
