@@ -8,6 +8,7 @@ import {
   FileTextOutlined,
   FolderOpenOutlined,
   ReadOutlined,
+  RobotOutlined,
   ToolOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
@@ -40,6 +41,7 @@ const iconRegistry: Record<string, ReactNode> = {
   literature: <ReadOutlined />,
   container: <ContainerOutlined />,
   code: <CodeOutlined />,
+  agent: <RobotOutlined />,
 };
 
 const resolveMenuIcon = (iconName?: string) => {
@@ -136,6 +138,40 @@ export const layoutMenuTree: LayoutMenuItem[] = [
         label: {
           zh_CN: '容器模板',
           en_US: 'Container Template',
+        },
+      },
+    ],
+  },
+  {
+    key: '/agent',
+    icon: 'agent',
+    label: {
+      zh_CN: 'Agent 管理',
+      en_US: 'Agent',
+    },
+    children: [
+      {
+        key: '/agent-task',
+        icon: 'agent',
+        label: {
+          zh_CN: 'Agent 任务',
+          en_US: 'Agent Tasks',
+        },
+      },
+      {
+        key: '/agent-permission',
+        icon: 'agent',
+        label: {
+          zh_CN: 'Agent 权限',
+          en_US: 'Agent Permissions',
+        },
+      },
+      {
+        key: '/agent-event',
+        icon: 'agent',
+        label: {
+          zh_CN: 'Agent 事件',
+          en_US: 'Agent Events',
         },
       },
     ],

@@ -85,6 +85,9 @@ const ContainerInstancePage = lazy(() => import("@/components/container-manager/
 const ContainerEventPage = lazy(() => import("@/components/container-manager/container-event-page"))
 const OutboxEventPage = lazy(() => import("@/components/container-manager/outbox-event-page"))
 const FilePreviewRoute = lazy(() => import("@/components/file-preview/file-preview-route"))
+const AgentTaskPage = lazy(() => import("@/pages/agent/agent-task-page"))
+const AgentPermissionPage = lazy(() => import("@/pages/agent/agent-permission-page"))
+const AgentEventPage = lazy(() => import("@/pages/agent/agent-event-page"))
 import axios from "axios";
 import { Skeleton } from "antd";
 import { useDispatch } from "react-redux";
@@ -114,6 +117,15 @@ if (appType == "index") {
         }, {
             path: "outbox-event",
             element: <OutboxEventPage />
+        }, {
+            path: "agent-task",
+            element: <AgentTaskPage />
+        }, {
+            path: "agent-permission",
+            element: <AgentPermissionPage />
+        }, {
+            path: "agent-event",
+            element: <AgentEventPage />
         }, {
             path: "sample-project",
             element: <SampleProjectPage />

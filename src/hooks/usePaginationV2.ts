@@ -54,6 +54,17 @@ import {
 	type OutboxEventItem,
 	type OutboxEventPageQuery,
 } from "@/api/container";
+import {
+	pageAgentEventApi,
+	pageAgentPermissionApi,
+	pageAgentTaskApi,
+	type AgentEventItem,
+	type AgentEventPageQuery,
+	type AgentPermissionItem,
+	type AgentPermissionPageQuery,
+	type AgentTaskItem,
+	type AgentTaskPageQuery,
+} from "@/api/agent";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 20;
@@ -451,6 +462,54 @@ export const useOutboxEventPageQuery = (
 		query,
 		queryFn: async (payload) => {
 			const response = await pageOutboxEventApi(payload);
+			return response.data;
+		},
+		initialPageSize: 10,
+		...options,
+	});
+};
+
+export const useAgentTaskPageQuery = (
+	query: AgentTaskPageQuery,
+	options?: Omit<UsePageQueryOptions<AgentTaskItem, AgentTaskPageQuery>, "queryKey" | "query" | "endpoint" | "queryFn">
+) => {
+	return usePageQuery<AgentTaskItem, AgentTaskPageQuery>({
+		queryKey: ["agent-task-page"],
+		query,
+		queryFn: async (payload) => {
+			const response = await pageAgentTaskApi(payload);
+			return response.data;
+		},
+		initialPageSize: 10,
+		...options,
+	});
+};
+
+export const useAgentPermissionPageQuery = (
+	query: AgentPermissionPageQuery,
+	options?: Omit<UsePageQueryOptions<AgentPermissionItem, AgentPermissionPageQuery>, "queryKey" | "query" | "endpoint" | "queryFn">
+) => {
+	return usePageQuery<AgentPermissionItem, AgentPermissionPageQuery>({
+		queryKey: ["agent-permission-page"],
+		query,
+		queryFn: async (payload) => {
+			const response = await pageAgentPermissionApi(payload);
+			return response.data;
+		},
+		initialPageSize: 10,
+		...options,
+	});
+};
+
+export const useAgentEventPageQuery = (
+	query: AgentEventPageQuery,
+	options?: Omit<UsePageQueryOptions<AgentEventItem, AgentEventPageQuery>, "queryKey" | "query" | "endpoint" | "queryFn">
+) => {
+	return usePageQuery<AgentEventItem, AgentEventPageQuery>({
+		queryKey: ["agent-event-page"],
+		query,
+		queryFn: async (payload) => {
+			const response = await pageAgentEventApi(payload);
 			return response.data;
 		},
 		initialPageSize: 10,
