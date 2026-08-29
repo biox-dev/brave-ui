@@ -1,7 +1,9 @@
 import { FC, useEffect, useRef, useState } from "react";
-import { Badge, Button, Empty, Flex, Input, Select, Spin, Typography } from "antd";
+import { Badge, Button, Empty, Flex, Input, Popconfirm, Select, Space, Spin, Typography } from "antd";
 import {
+  CheckOutlined,
   ClearOutlined,
+  CloseOutlined,
   LoadingOutlined,
   RobotOutlined,
   SendOutlined,
@@ -9,14 +11,19 @@ import {
 } from "@ant-design/icons";
 import XMarkdown from "@ant-design/x-markdown";
 import {
+  AgentPermissionStatus,
   AgentTaskStatus,
+  approveAgentPermissionApi,
   chatAgentApi,
+  denyAgentPermissionApi,
+  getAgentPendingPermissionsApi,
   getAgentTaskApi,
   getAgentTaskEventsApi,
   getConversationApi,
   pageConversationApi,
   type AgentConversationItem,
   type AgentEventItem,
+  type AgentPermissionItem,
 } from "@/api/agent";
 import { getGlobalMessage } from "@/hooks/useGlobalMessage";
 import { sseClient } from "@/sse";
@@ -105,6 +112,10 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   const [conversations, setConversations] = useState<AgentConversationItem[]>([]);
   const [loadingConversations, setLoadingConversations] = useState(false);
 
+  // 当前选中会话活跃任务的待确认权限（可同时存在多个）。
+  const [pendingPermissions, setPendingPermissions] = useState<AgentPermissionItem[]>([]);
+  const [resolvingId, setResolvingId] = useState<string>();
+
   const listRef = useRef<HTMLDivElement>(null);
   // 当前选中的会话 ID（ref 镜像，供 WS 回调读取最新值）。
   const selectedConvIdRef = useRef<string | undefined>(initialConversationId);
@@ -138,6 +149,49 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       content: m.content,
     }));
 
+  // 拉取任务待确认的权限请求（仅保留 pending 状态）。
+  const loadPermissions = async (taskId: string) => {
+    if (!taskId) return;
+    try {
+      const res = await getAgentPendingPermissionsApi(taskId);
+      const items = res.data ?? [];
+      setPendingPermissions(items.filter((p) => p.status === AgentPermissionStatus.Pending));
+    } catch {
+      // API errors are shown globally by the http interceptor.
+    }
+  };
+
+  const handleApprove = async (perm: AgentPermissionItem) => {
+    setResolvingId(perm.id);
+    try {
+      await approveAgentPermissionApi(perm.id);
+      getGlobalMessage()?.success("Permission approved");
+      await loadPermissions(perm.task_id);
+    } catch {
+      // API errors are shown globally by the http interceptor.
+    } finally {
+      setResolvingId(undefined);
+    }
+  };
+
+  const handleDeny = async (perm: AgentPermissionItem) => {
+    setResolvingId(perm.id);
+    try {
+      await denyAgentPermissionApi(perm.id);
+      getGlobalMessage()?.success("Permission denied");
+      await loadPermissions(perm.task_id);
+    } catch {
+      // API errors are shown globally by the http interceptor.
+    } finally {
+      setResolvingId(undefined);
+    }
+  };
+
+  const renderOperation = (op: AgentPermissionItem["operation"]) => {
+    if (!op) return "-";
+    return op.path || op.command || op.content || "-";
+  };
+
   // 切换会话：加载对应消息；若存在活跃轮次则恢复实时流。
   const handleSwitchConversation = async (id: string) => {
     if (!id || id === conversationId) return;
@@ -154,6 +208,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
         setStreaming("");
         setSending(false);
         setWaiting(false);
+        setPendingPermissions([]);
         return;
       }
 
@@ -175,6 +230,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
             setStreaming("");
             setSending(false);
             setWaiting(false);
+            setPendingPermissions([]);
             return;
           }
           turn.waiting = st === AgentTaskStatus.WaitingPermission;
@@ -186,6 +242,9 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       setStreaming(turn.streaming);
       setSending(turn.sending);
       setWaiting(turn.waiting);
+
+      // 恢复该任务待确认的权限，保证刷新后切换到会话时按钮仍在。
+      loadPermissions(taskId);
     } catch {
       // 错误由全局拦截器提示。
     }
@@ -215,6 +274,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       setStreaming("");
       setSending(false);
       setWaiting(false);
+      setPendingPermissions([]);
     }
     activeTurnsRef.current.delete(turn.taskId);
     // 本轮结束后刷新会话列表（标题 / 顺序 / 消息数可能变化）。
@@ -243,6 +303,11 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     if (ev.type === "task.waiting") {
       turn.waiting = true;
       if (selected) setWaiting(true);
+      return;
+    }
+    if (ev.type === "permission.created" || ev.type === "permission.resolved") {
+      // 权限创建 / 解决后刷新待确认权限，保证按钮实时出现 / 消失。
+      if (selected) loadPermissions(ev.task_id);
       return;
     }
     if (ev.type && TERMINAL_EVENT_TYPES.has(ev.type)) {
@@ -293,6 +358,9 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       activeTurnsRef.current.set(task_id, turn);
       seenRef.current.clear();
 
+      // 本轮任务可能很快进入等待权限，提前拉取待确认权限。
+      loadPermissions(task_id);
+
       // 恢复可能在 HTTP 响应前就已推送的早期事件（与实时推送按 id+sequence 去重）。
       try {
         const evRes = await getAgentTaskEventsApi(task_id, 0);
@@ -316,6 +384,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     setStreaming("");
     setSending(false);
     setWaiting(false);
+    setPendingPermissions([]);
     setInput("");
   };
 
@@ -381,6 +450,72 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
           <Text type="secondary" style={{ fontSize: 12 }}>
             {waiting ? "Waiting for permission…" : "Agent is running…"}
           </Text>
+        </Flex>
+      )}
+
+      {/* 待确认权限：实时流中直接展示 Approve / Deny，可能同时有多个。 */}
+      {pendingPermissions.length > 0 && (
+        <Flex vertical gap="small" style={{ marginBottom: 8 }}>
+          <Text type="warning" style={{ fontSize: 12 }}>
+            Pending permissions ({pendingPermissions.length})
+          </Text>
+          {pendingPermissions.map((perm) => {
+            const pendingLoading = resolvingId === perm.id;
+            return (
+              <Flex
+                key={perm.id}
+                align="center"
+                justify="space-between"
+                gap="small"
+                style={{
+                  border: "1px solid #ffe58f",
+                  background: "#fffbe6",
+                  borderRadius: 6,
+                  padding: "8px 12px",
+                }}
+              >
+                <Flex vertical gap={2} style={{ minWidth: 0 }}>
+                  <Text strong style={{ fontSize: 13 }}>
+                    {perm.operation?.type || "Permission"}
+                  </Text>
+                  <Text
+                    type="secondary"
+                    style={{ fontSize: 12, wordBreak: "break-all" }}
+                  >
+                    {renderOperation(perm.operation)}
+                  </Text>
+                </Flex>
+                <Space size="small">
+                  <Popconfirm
+                    title="Approve this permission?"
+                    onConfirm={() => handleApprove(perm)}
+                  >
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<CheckOutlined />}
+                      loading={pendingLoading}
+                    >
+                      Approve
+                    </Button>
+                  </Popconfirm>
+                  <Popconfirm
+                    title="Deny this permission?"
+                    onConfirm={() => handleDeny(perm)}
+                  >
+                    <Button
+                      danger
+                      size="small"
+                      icon={<CloseOutlined />}
+                      loading={pendingLoading}
+                    >
+                      Deny
+                    </Button>
+                  </Popconfirm>
+                </Space>
+              </Flex>
+            );
+          })}
         </Flex>
       )}
 
