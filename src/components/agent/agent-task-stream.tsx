@@ -1,14 +1,36 @@
 import { FC, useEffect, useMemo, useRef, useState } from "react";
-import { Collapse, Empty, Flex, Spin, Tag, Timeline, Typography } from "antd";
+import {
+  Button,
+  Collapse,
+  Empty,
+  Flex,
+  Popconfirm,
+  Space,
+  Spin,
+  Tag,
+  Timeline,
+  Typography,
+} from "antd";
 import {
   CheckCircleOutlined,
+  CheckOutlined,
   CloseCircleOutlined,
+  CloseOutlined,
   LoadingOutlined,
   MinusCircleOutlined,
   RobotOutlined,
 } from "@ant-design/icons";
 import XMarkdown from "@ant-design/x-markdown";
-import { getAgentTaskEventsApi, type AgentEventItem } from "@/api/agent";
+import {
+  AgentPermissionStatus,
+  approveAgentPermissionApi,
+  denyAgentPermissionApi,
+  getAgentPendingPermissionsApi,
+  getAgentTaskEventsApi,
+  type AgentEventItem,
+  type AgentPermissionItem,
+} from "@/api/agent";
+import { getGlobalMessage } from "@/hooks/useGlobalMessage";
 import { sseClient } from "@/sse";
 
 const { Text } = Typography;
@@ -80,6 +102,10 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId }) => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
+  // 待确认权限列表（来自 getAgentPendingPermissionsApi，可同时存在多个）。
+  const [pendingPermissions, setPendingPermissions] = useState<AgentPermissionItem[]>([]);
+  const [resolvingId, setResolvingId] = useState<string>();
+
   // 用于去重：历史拉取与实时推送可能重叠，按事件 id + sequence 去重。
   const seenRef = useRef<Set<string>>(new Set());
 
@@ -108,6 +134,49 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId }) => {
     setEvents((prev) => [...prev, ev]);
   };
 
+  // 拉取当前任务待确认的权限请求（仅保留 pending 状态）。
+  const loadPermissions = async () => {
+    if (!taskId) return;
+    try {
+      const res = await getAgentPendingPermissionsApi(taskId);
+      const items = res.data ?? [];
+      setPendingPermissions(items.filter((p) => p.status === AgentPermissionStatus.Pending));
+    } catch {
+      // API errors are shown globally by the http interceptor.
+    }
+  };
+
+  const handleApprove = async (id: string) => {
+    setResolvingId(id);
+    try {
+      await approveAgentPermissionApi(id);
+      getGlobalMessage()?.success("Permission approved");
+      await loadPermissions();
+    } catch {
+      // API errors are shown globally by the http interceptor.
+    } finally {
+      setResolvingId(undefined);
+    }
+  };
+
+  const handleDeny = async (id: string) => {
+    setResolvingId(id);
+    try {
+      await denyAgentPermissionApi(id);
+      getGlobalMessage()?.success("Permission denied");
+      await loadPermissions();
+    } catch {
+      // API errors are shown globally by the http interceptor.
+    } finally {
+      setResolvingId(undefined);
+    }
+  };
+
+  const renderOperation = (op: AgentPermissionItem["operation"]) => {
+    if (!op) return "-";
+    return op.path || op.command || op.content || "-";
+  };
+
   // 1) 挂载时拉取历史事件。
   useEffect(() => {
     let cancelled = false;
@@ -131,6 +200,9 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId }) => {
         if (!cancelled) setLoading(false);
       });
 
+    // 同时拉取待确认权限，避免打开时漏掉当前正在等待的权限。
+    loadPermissions();
+
     return () => {
       cancelled = true;
     };
@@ -145,6 +217,13 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId }) => {
       if (msg.type !== "agent.event") return;
       if (!msg.event || msg.task_id !== taskId) return;
       applyEvent(msg.event);
+      // 权限创建 / 解决后，刷新待确认权限列表，保证按钮实时更新。
+      if (
+        msg.event.type === "permission.created" ||
+        msg.event.type === "permission.resolved"
+      ) {
+        loadPermissions();
+      }
     });
 
     return () => unsubscribe();
@@ -220,6 +299,72 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId }) => {
           {events.length > 0 ? `${events.length} events` : "No events yet"}
         </Text>
       </Flex>
+
+      {/* 待确认权限：实时流中直接展示 Approve / Deny，可能同时有多个。 */}
+      {pendingPermissions.length > 0 && (
+        <Flex vertical gap="small">
+          <Text type="warning" style={{ fontSize: 12 }}>
+            Pending permissions ({pendingPermissions.length})
+          </Text>
+          {pendingPermissions.map((perm) => {
+            const pendingLoading = resolvingId === perm.id;
+            return (
+              <Flex
+                key={perm.id}
+                align="center"
+                justify="space-between"
+                gap="small"
+                style={{
+                  border: "1px solid #ffe58f",
+                  background: "#fffbe6",
+                  borderRadius: 6,
+                  padding: "8px 12px",
+                }}
+              >
+                <Flex vertical gap={2} style={{ minWidth: 0 }}>
+                  <Text strong style={{ fontSize: 13 }}>
+                    {perm.operation?.type || "Permission"}
+                  </Text>
+                  <Text
+                    type="secondary"
+                    style={{ fontSize: 12, wordBreak: "break-all" }}
+                  >
+                    {renderOperation(perm.operation)}
+                  </Text>
+                </Flex>
+                <Space size="small">
+                  <Popconfirm
+                    title="Approve this permission?"
+                    onConfirm={() => handleApprove(perm.id)}
+                  >
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<CheckOutlined />}
+                      loading={pendingLoading}
+                    >
+                      Approve
+                    </Button>
+                  </Popconfirm>
+                  <Popconfirm
+                    title="Deny this permission?"
+                    onConfirm={() => handleDeny(perm.id)}
+                  >
+                    <Button
+                      danger
+                      size="small"
+                      icon={<CloseOutlined />}
+                      loading={pendingLoading}
+                    >
+                      Deny
+                    </Button>
+                  </Popconfirm>
+                </Space>
+              </Flex>
+            );
+          })}
+        </Flex>
+      )}
 
       {loading ? (
         <Flex justify="center" style={{ padding: 24 }}>

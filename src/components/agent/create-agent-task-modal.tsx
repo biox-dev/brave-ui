@@ -73,7 +73,8 @@ const CreateAgentTaskModal: FC<CreateAgentTaskModalProps> = ({ onOk, onCancel })
       form={form}
       layout="vertical"
       onFinish={handleFinish}
-      initialValues={{ provider: "mock", stream: false }}
+      initialValues={{ provider: "copilot", stream: true ,working_dir: "/home/admin/workspace/go-project/test",
+         env: [{ key: "MOCK_PERMISSION_DEMO", value: "true" }]}}
     >
       <Form.Item name="provider" label="Provider">
         <Select options={PROVIDER_OPTIONS} allowClear placeholder="Select provider" />
@@ -100,7 +101,7 @@ const CreateAgentTaskModal: FC<CreateAgentTaskModalProps> = ({ onOk, onCancel })
       </Form.Item>
 
 {/* MOCK_PERMISSION_DEMO:true */}
-      <Form.List name="env" initialValue={[{ key: "MOCK_PERMISSION_DEMO", value: "true" }]}>
+      <Form.List name="env" >
         {(fields, { add, remove }) => (
           <>
             {fields.map(({ key, name, ...restField }) => (
