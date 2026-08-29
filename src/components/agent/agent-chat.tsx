@@ -1,5 +1,5 @@
 import { FC, useEffect, useRef, useState } from "react";
-import { Badge, Button, Empty, Flex, Input, Popconfirm, Select, Space, Spin, Typography } from "antd";
+import { Badge, Button, Empty, Flex, Input, Popconfirm, Select, Space, Spin, Tag, Typography } from "antd";
 import {
   CheckOutlined,
   ClearOutlined,
@@ -16,12 +16,14 @@ import {
   approveAgentPermissionApi,
   chatAgentApi,
   denyAgentPermissionApi,
+  describeAgentEnvApi,
   getAgentPendingPermissionsApi,
   getAgentTaskApi,
   getAgentTaskEventsApi,
   getConversationApi,
   pageConversationApi,
   type AgentConversationItem,
+  type AgentEnvInfo,
   type AgentEventItem,
   type AgentPermissionItem,
 } from "@/api/agent";
@@ -104,6 +106,8 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   const [conversationId, setConversationId] = useState<string | undefined>(initialConversationId);
   // 业务上下文：由页面通过 setLLMEnv(id, type) 设置，发送时一并传给后端解析系统提示词与工作目录。
   const llmEnv = useSelector((state: any) => state.user.llmEnv);
+  // 解析后的人类可读上下文（类型 + 名称 + 工作目录），用于顶部展示当前对话环境。
+  const [envInfo, setEnvInfo] = useState<AgentEnvInfo | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   // 当前选中会话是否有一轮进行中（running / waiting_permission）。
@@ -130,6 +134,21 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, streaming, waiting]);
+
+  // 当前业务上下文变化时，向后端解析人类可读的名称（如节点名/报告标题）用于展示。
+  useEffect(() => {
+    let cancelled = false;
+    describeAgentEnvApi(llmEnv ?? null)
+      .then((res) => {
+        if (!cancelled) setEnvInfo(res.data ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setEnvInfo(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [llmEnv]);
 
   // 加载会话列表（挂载时 + 轮次结束时刷新）。
   const loadConversations = async () => {
@@ -396,9 +415,16 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     <Flex vertical style={{ height: "100%", minHeight: 480 }}>
       {/* 头部 */}
       <Flex align="center" justify="space-between" style={{ marginBottom: 8 }}>
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {conversationId ? `Conversation: ${conversationId}` : "New conversation"}
-        </Text>
+        <Flex align="center" gap={8} style={{ minWidth: 0 }}>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {conversationId ? `Conversation: ${conversationId}` : "New conversation"}
+          </Text>
+          {envInfo?.label && (
+            <Tag color="processing" style={{ marginInlineEnd: 0 }}>
+              {envInfo.label}
+            </Tag>
+          )}
+        </Flex>
         <Flex gap="small">
           <Button size="small" icon={<ClearOutlined />} onClick={handleClear}>
             New Chat

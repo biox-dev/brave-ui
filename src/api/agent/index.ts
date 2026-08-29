@@ -194,3 +194,15 @@ export interface AgentChatResponse {
 export const chatAgentApi = (payload: AgentChatRequest) => {
   return http.post<AgentChatResponse>("/agent/chat", payload);
 };
+
+// 业务上下文描述（对应后端 RuntimeContextInfo）。
+export interface AgentEnvInfo {
+  type?: string;
+  label?: string;
+  working_dir?: string;
+}
+
+// 解析当前对话的业务上下文，返回人类可读的名称与工作目录。
+export const describeAgentEnvApi = (env?: { id?: string; type?: string } | null) => {
+  return http.post<AgentEnvInfo>("/agent/env/describe", { env: env ?? null });
+};
