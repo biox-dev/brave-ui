@@ -251,7 +251,7 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId }) => {
       events.filter((e) => {
         if (e.type === "stream") {
           const payload = (e.payload ?? {}) as StreamEventPayload;
-          return payload.type !== "text" && payload.type !== "reasoning" && payload.type !== "done";
+          return payload.type !== "text" && payload.type !== "done";
         }
         return true;
       }),
