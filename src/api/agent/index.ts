@@ -140,3 +140,24 @@ export const getAgentPendingPermissionsApi = (taskId: string) => {
 export const cancelAgentTaskApi = (id: string) => {
   return http.post<{ ok: boolean; id: string }>("/agent/task/cancel", { id });
 };
+
+// 多轮对话请求（对应后端 handler.chatRequest）。
+export interface AgentChatRequest {
+  conversation_id?: string;
+  message: string;
+  provider?: string;
+  model?: string;
+  system_prompt?: string;
+  working_dir?: string;
+}
+
+// 多轮对话响应（对应后端 /agent/chat 返回值）。
+export interface AgentChatResponse {
+  task_id: string;
+  conversation_id: string;
+}
+
+// 发送一条消息：新建或续接会话，返回本轮任务 ID 与会话 ID。
+export const chatAgentApi = (payload: AgentChatRequest) => {
+  return http.post<AgentChatResponse>("/agent/chat", payload);
+};

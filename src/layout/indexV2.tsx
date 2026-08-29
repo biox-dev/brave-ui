@@ -108,7 +108,7 @@ const App: React.FC = () => {
       //     { label: locale === 'en_US' ? 'App' : '应用', value: 'appSessionPage' },
       //     ...sideOptions
       //   ],
-      [{ label: locale === 'en_US' ? 'Assistant' : '助手', value: 'llm-card' },
+      [{ label: locale === 'en_US' ? 'Assistant' : '助手', value: 'agentChat' },
       { label: locale === 'en_US' ? 'App' : '应用', value: 'appSessionPage' },
       { label: locale === 'en_US' ? 'Parameters' : '参数', value: 'editParamsPanel' },
       // ...sideOptions
