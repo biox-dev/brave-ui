@@ -1,5 +1,5 @@
 import { FC, useEffect, useRef, useState } from "react";
-import { Button, Empty, Flex, Input, Spin, Typography } from "antd";
+import { Badge, Button, Empty, Flex, Input, Select, Spin, Typography } from "antd";
 import {
   ClearOutlined,
   LoadingOutlined,
@@ -9,8 +9,13 @@ import {
 } from "@ant-design/icons";
 import XMarkdown from "@ant-design/x-markdown";
 import {
+  AgentTaskStatus,
   chatAgentApi,
+  getAgentTaskApi,
   getAgentTaskEventsApi,
+  getConversationApi,
+  pageConversationApi,
+  type AgentConversationItem,
   type AgentEventItem,
 } from "@/api/agent";
 import { getGlobalMessage } from "@/hooks/useGlobalMessage";
@@ -47,6 +52,26 @@ interface ChatMessage {
   error?: boolean;
 }
 
+// 生成会话在切换下拉中的显示标签：优先取首条用户消息，过长则截断。
+function conversationLabel(c: AgentConversationItem): string {
+  const first = c.messages?.find((m) => m.role === "user");
+  const title = first?.content?.trim();
+  if (title) {
+    return title.length > 30 ? `${title.slice(0, 30)}…` : title;
+  }
+  return c.id;
+}
+
+// 活跃轮次（running / waiting_permission）的中间态，按 taskID 索引，
+// 跨会话切换与浏览器刷新保留，以便恢复实时流。
+interface ActiveTurn {
+  taskId: string;
+  convId: string;
+  streaming: string; // 累积的 assistant 文本增量
+  waiting: boolean; // 是否处于等待权限状态
+  sending: boolean; // 是否有一轮进行中
+}
+
 interface AgentChatProps {
   /** 初始会话 ID；传入则续接已有历史。 */
   conversationId?: string;
@@ -71,68 +96,166 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   const [conversationId, setConversationId] = useState<string | undefined>(initialConversationId);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  // 当前选中会话是否有一轮进行中（running / waiting_permission）。
   const [sending, setSending] = useState(false);
-  // 当前正在流式输出的 assistant 文本（未固化到 messages）。
+  const [waiting, setWaiting] = useState(false);
+  // 当前选中会话正在流式输出的 assistant 文本（未固化到 messages）。
   const [streaming, setStreaming] = useState("");
+  // 当前用户的会话列表（用于切换）。
+  const [conversations, setConversations] = useState<AgentConversationItem[]>([]);
+  const [loadingConversations, setLoadingConversations] = useState(false);
 
   const listRef = useRef<HTMLDivElement>(null);
-  const currentTaskIdRef = useRef<string | null>(null);
-  const streamingRef = useRef("");
+  // 当前选中的会话 ID（ref 镜像，供 WS 回调读取最新值）。
+  const selectedConvIdRef = useRef<string | undefined>(initialConversationId);
+  // 活跃轮次表：taskID → 该轮次中间态，跨会话切换与浏览器刷新保留。
+  const activeTurnsRef = useRef<Map<string, ActiveTurn>>(new Map());
   const seenRef = useRef<Set<string>>(new Set());
 
   // 自动滚动到底部。
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, streaming]);
+  }, [messages, streaming, waiting]);
 
-  const finalizeTurn = (type: string) => {
-    const taskId = currentTaskIdRef.current;
-    if (!taskId) return;
-    currentTaskIdRef.current = null;
-
-    const content = streamingRef.current;
-    streamingRef.current = "";
-    setStreaming("");
-
-    if (content.trim() || type === "task.failed") {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `assistant-${taskId}`,
-          role: "assistant",
-          content: type === "task.failed" ? content || "(agent error)" : content,
-          error: type === "task.failed",
-        },
-      ]);
+  // 加载会话列表（挂载时 + 轮次结束时刷新）。
+  const loadConversations = async () => {
+    setLoadingConversations(true);
+    try {
+      const res = await pageConversationApi({ page: 1, page_size: 100 });
+      setConversations(res.data?.data ?? []);
+    } catch {
+      // 错误由全局拦截器提示。
+    } finally {
+      setLoadingConversations(false);
     }
-    setSending(false);
   };
 
+  // 把后端消息映射为本地气泡。
+  const mapMessages = (conv: AgentConversationItem): ChatMessage[] =>
+    conv.messages.map((m, i) => ({
+      id: `${conv.id}-${i}`,
+      role: m.role === "user" ? "user" : "assistant",
+      content: m.content,
+    }));
+
+  // 切换会话：加载对应消息；若存在活跃轮次则恢复实时流。
+  const handleSwitchConversation = async (id: string) => {
+    if (!id || id === conversationId) return;
+    try {
+      const res = await getConversationApi(id);
+      const conv = res.data;
+
+      selectedConvIdRef.current = conv.id;
+      setConversationId(conv.id);
+      setMessages(mapMessages(conv));
+
+      const taskId = conv.current_task_id;
+      if (!taskId) {
+        setStreaming("");
+        setSending(false);
+        setWaiting(false);
+        return;
+      }
+
+      // 已有活跃轮次：复用或新建。
+      let turn = activeTurnsRef.current.get(taskId);
+      if (!turn) {
+        turn = { taskId, convId: conv.id, streaming: "", waiting: false, sending: true };
+        activeTurnsRef.current.set(taskId, turn);
+        try {
+          const t = await getAgentTaskApi(taskId);
+          const st = t.data.status;
+          if (
+            st === AgentTaskStatus.Completed ||
+            st === AgentTaskStatus.Failed ||
+            st === AgentTaskStatus.Canceled
+          ) {
+            // 任务已终态：清掉活跃轮次，不再恢复。
+            activeTurnsRef.current.delete(taskId);
+            setStreaming("");
+            setSending(false);
+            setWaiting(false);
+            return;
+          }
+          turn.waiting = st === AgentTaskStatus.WaitingPermission;
+        } catch {
+          // 查询任务失败时按 running 处理，避免丢失实时流。
+        }
+      }
+
+      setStreaming(turn.streaming);
+      setSending(turn.sending);
+      setWaiting(turn.waiting);
+    } catch {
+      // 错误由全局拦截器提示。
+    }
+  };
+
+  useEffect(() => {
+    loadConversations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 轮次结束：把 assistant 回复固化到消息列表（若为选中会话），并清理活跃轮次。
+  const finalizeTurn = (turn: ActiveTurn, type: string) => {
+    const selected = turn.convId === selectedConvIdRef.current;
+    if (selected) {
+      const content = turn.streaming;
+      if (content.trim() || type === "task.failed") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `assistant-${turn.taskId}`,
+            role: "assistant",
+            content: type === "task.failed" ? content || "(agent error)" : content,
+            error: type === "task.failed",
+          },
+        ]);
+      }
+      setStreaming("");
+      setSending(false);
+      setWaiting(false);
+    }
+    activeTurnsRef.current.delete(turn.taskId);
+    // 本轮结束后刷新会话列表（标题 / 顺序 / 消息数可能变化）。
+    loadConversations();
+  };
+
+  // 统一处理一个任务事件（实时 WS 推送与历史恢复共用）。
   const applyEvent = (ev: AgentEventItem) => {
+    const turn = activeTurnsRef.current.get(ev.task_id);
+    if (!turn) return;
+
     const key = `${ev.id ?? ""}:${ev.sequence ?? ""}`;
     if (seenRef.current.has(key)) return;
     seenRef.current.add(key);
 
+    const selected = turn.convId === selectedConvIdRef.current;
+
     if (ev.type === "stream") {
       const payload = (ev.payload ?? {}) as StreamEventPayload;
       if (payload.type === "text" && payload.content) {
-        streamingRef.current += payload.content;
-        setStreaming(streamingRef.current);
+        turn.streaming += payload.content;
+        if (selected) setStreaming(turn.streaming);
       }
       return;
     }
+    if (ev.type === "task.waiting") {
+      turn.waiting = true;
+      if (selected) setWaiting(true);
+      return;
+    }
     if (ev.type && TERMINAL_EVENT_TYPES.has(ev.type)) {
-      finalizeTurn(ev.type);
+      finalizeTurn(turn, ev.type);
     }
   };
 
-  // 全局订阅 WS：按当前 task 过滤 agent.event。
+  // 全局订阅 WS：把 agent.event 路由到对应活跃轮次。
   useEffect(() => {
     const unsubscribe = sseClient.onMessage((raw: unknown) => {
       if (!raw || typeof raw !== "object") return;
       const msg = raw as AgentWSMessage;
       if (msg.type !== "agent.event" || !msg.event) return;
-      if (!currentTaskIdRef.current || msg.task_id !== currentTaskIdRef.current) return;
       applyEvent(msg.event);
     });
     return () => unsubscribe();
@@ -146,8 +269,8 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     setInput("");
     setMessages((prev) => [...prev, { id: `user-${Date.now()}`, role: "user", content: text }]);
     setSending(true);
+    setWaiting(false);
     setStreaming("");
-    streamingRef.current = "";
 
     try {
       const res = await chatAgentApi({
@@ -156,8 +279,18 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       });
       const { task_id, conversation_id } = res.data;
 
+      selectedConvIdRef.current = conversation_id;
       setConversationId(conversation_id);
-      currentTaskIdRef.current = task_id;
+
+      // 登记本轮活跃状态，供切换 / 刷新后恢复。
+      const turn: ActiveTurn = {
+        taskId: task_id,
+        convId: conversation_id,
+        streaming: "",
+        waiting: false,
+        sending: true,
+      };
+      activeTurnsRef.current.set(task_id, turn);
       seenRef.current.clear();
 
       // 恢复可能在 HTTP 响应前就已推送的早期事件（与实时推送按 id+sequence 去重）。
@@ -169,21 +302,20 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       }
     } catch {
       // API 错误由全局拦截器提示。
-      currentTaskIdRef.current = null;
-      streamingRef.current = "";
       setStreaming("");
       setSending(false);
+      setWaiting(false);
     }
   };
 
   const handleClear = () => {
-    if (sending) return;
-    currentTaskIdRef.current = null;
-    streamingRef.current = "";
+    selectedConvIdRef.current = undefined;
     seenRef.current.clear();
     setConversationId(undefined);
     setMessages([]);
     setStreaming("");
+    setSending(false);
+    setWaiting(false);
     setInput("");
   };
 
@@ -195,7 +327,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
           {conversationId ? `Conversation: ${conversationId}` : "New conversation"}
         </Text>
         <Flex gap="small">
-          <Button size="small" icon={<ClearOutlined />} onClick={handleClear} disabled={sending}>
+          <Button size="small" icon={<ClearOutlined />} onClick={handleClear}>
             New Chat
           </Button>
           {onCancel && (
@@ -205,6 +337,52 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
           )}
         </Flex>
       </Flex>
+
+      {/* 会话切换下拉 */}
+      <Select
+        value={conversationId}
+        placeholder="Select a conversation"
+        onChange={(id) => {
+          if (!id) {
+            handleClear();
+            return;
+          }
+          handleSwitchConversation(id);
+        }}
+        loading={loadingConversations}
+        allowClear
+        showSearch
+        optionFilterProp="label"
+        style={{ width: "100%", marginBottom: 8 }}
+        options={conversations.map((c) => ({
+          value: c.id,
+          label: (
+            <Flex align="center" gap={6} style={{ width: "100%" }}>
+              <span
+                style={{
+                  flex: 1,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {conversationLabel(c)}
+              </span>
+              {c.current_task_id && <Badge status="processing" />}
+            </Flex>
+          ),
+        }))}
+      />
+
+      {/* 运行中 / 等待权限状态提示 */}
+      {sending && (
+        <Flex align="center" gap={8} style={{ marginBottom: 8 }}>
+          <Spin size="small" indicator={<LoadingOutlined spin />} />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {waiting ? "Waiting for permission…" : "Agent is running…"}
+          </Text>
+        </Flex>
+      )}
 
       {/* 消息列表 */}
       <div
@@ -275,6 +453,10 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
                 >
                   {streaming ? (
                     <Text style={{ fontSize: 13 }}>{streaming}</Text>
+                  ) : waiting ? (
+                    <Text type="secondary" style={{ fontSize: 13 }}>
+                      Waiting for permission…
+                    </Text>
                   ) : (
                     <Spin size="small" indicator={<LoadingOutlined spin />} />
                   )}

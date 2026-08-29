@@ -141,6 +141,37 @@ export const cancelAgentTaskApi = (id: string) => {
   return http.post<{ ok: boolean; id: string }>("/agent/task/cancel", { id });
 };
 
+// 会话（对应后端 agent.Conversation）。
+export interface AgentConversationItem {
+  id: string;
+  user_id: string;
+  provider: string;
+  model?: string;
+  messages: { role: string; content: string }[];
+  current_task_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentConversationPageQuery {
+  // 暂无额外过滤字段
+}
+
+// 分页查询当前用户的会话。
+export const pageConversationApi = (payload: PageRequest<AgentConversationPageQuery>) => {
+  return http.post<PageResponse<AgentConversationItem>>("/agent/conversation/page", payload);
+};
+
+// 获取会话（含完整历史消息）。
+export const getConversationApi = (id: string) => {
+  return http.get<AgentConversationItem>("/agent/conversation/get", { params: { id } });
+};
+
+// 获取单个 Agent 任务。
+export const getAgentTaskApi = (id: string) => {
+  return http.get<AgentTaskItem>("/agent/task/get", { params: { id } });
+};
+
 // 多轮对话请求（对应后端 handler.chatRequest）。
 export interface AgentChatRequest {
   conversation_id?: string;
