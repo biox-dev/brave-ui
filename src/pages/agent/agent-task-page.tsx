@@ -10,6 +10,7 @@ import {
 } from "@/api/agent";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { getGlobalMessage } from "@/hooks/useGlobalMessage";
+import AgentTaskStream from "@/components/agent/agent-task-stream";
 
 const { Text } = Typography;
 
@@ -263,6 +264,10 @@ const AgentTaskPage = () => {
         size="small"
         scroll={{ x: 1600 }}
         locale={{ emptyText: error ? "Failed to load agent tasks" : "No agent tasks" }}
+        expandable={{
+          expandedRowRender: (record) => <AgentTaskStream taskId={record.id} />,
+          rowExpandable: () => true,
+        }}
         pagination={{
           current: page,
           pageSize,
