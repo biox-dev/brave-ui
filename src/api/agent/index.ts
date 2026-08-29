@@ -180,6 +180,8 @@ export interface AgentChatRequest {
   model?: string;
   system_prompt?: string;
   working_dir?: string;
+  /** 业务上下文 {id,type}，由业务页面通过 setLLMEnv 设置，后端据此解析系统提示词与工作目录。 */
+  env?: { id?: string; type?: string } | null;
 }
 
 // 多轮对话响应（对应后端 /agent/chat 返回值）。

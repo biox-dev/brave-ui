@@ -27,6 +27,7 @@ import {
 } from "@/api/agent";
 import { getGlobalMessage } from "@/hooks/useGlobalMessage";
 import { sseClient } from "@/sse";
+import { useSelector } from "react-redux";
 
 const { Text } = Typography;
 
@@ -101,6 +102,8 @@ interface AgentChatProps {
  */
 const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, onCancel }) => {
   const [conversationId, setConversationId] = useState<string | undefined>(initialConversationId);
+  // 业务上下文：由页面通过 setLLMEnv(id, type) 设置，发送时一并传给后端解析系统提示词与工作目录。
+  const llmEnv = useSelector((state: any) => state.user.llmEnv);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   // 当前选中会话是否有一轮进行中（running / waiting_permission）。
@@ -341,6 +344,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       const res = await chatAgentApi({
         conversation_id: conversationId,
         message: text,
+        env: llmEnv ?? undefined,
       });
       const { task_id, conversation_id } = res.data;
 

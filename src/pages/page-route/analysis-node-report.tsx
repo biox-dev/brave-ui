@@ -30,7 +30,7 @@ const AnalysisNodeReportRoute: FC = () => {
   // }, [])
   const { setAnalysisNodeId } = useStoreRender()
   useEffect(() => {
-    setLLMEnv(analysisNodeId, "analysisNodeId");
+    setLLMEnv(analysisNodeId, "analysisNode");
     setAnalysisNodeId(analysisNodeId)
     
     return () => {

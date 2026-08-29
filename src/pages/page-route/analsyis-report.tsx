@@ -68,7 +68,7 @@ const AnalysisReport: FC<any> = () => {
         if (analysisId) {
             setAnalysisId(analysisId)
         }
-        setLLMEnv(analysisId, "analysisId");
+        setLLMEnv(analysisId, "analysis");
         return () => {
             // setLLMEnv(null, "analysisId");
             setAnalysisId(null)
