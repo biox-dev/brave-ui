@@ -88,6 +88,7 @@ const FilePreviewRoute = lazy(() => import("@/components/file-preview/file-previ
 const AgentTaskPage = lazy(() => import("@/pages/agent/agent-task-page"))
 const AgentPermissionPage = lazy(() => import("@/pages/agent/agent-permission-page"))
 const AgentEventPage = lazy(() => import("@/pages/agent/agent-event-page"))
+const AgentSkillPage = lazy(() => import("@/pages/agent/agent-skill-page"))
 import axios from "axios";
 import { Skeleton } from "antd";
 import { useDispatch } from "react-redux";
@@ -126,6 +127,9 @@ if (appType == "index") {
         }, {
             path: "agent-event",
             element: <AgentEventPage />
+        }, {
+            path: "agent-skill",
+            element: <AgentSkillPage />
         }, {
             path: "sample-project",
             element: <SampleProjectPage />

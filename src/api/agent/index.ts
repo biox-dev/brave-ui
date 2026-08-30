@@ -70,6 +70,15 @@ export interface AgentEventItem {
   created_at: string;
 }
 
+// 技能（对应后端 skill.Manifest）。
+export interface AgentSkillItem {
+  name: string;
+  description?: string;
+  input_schema?: Record<string, unknown> | null;
+  version?: string;
+  instructions?: string;
+}
+
 // 创建任务请求（对应后端 agent.Request）。
 export interface AgentTaskCreateRequest {
   provider?: string;
@@ -205,4 +214,9 @@ export interface AgentEnvInfo {
 // 解析当前对话的业务上下文，返回人类可读的名称与工作目录。
 export const describeAgentEnvApi = (env?: { id?: string; type?: string } | null) => {
   return http.post<AgentEnvInfo>("/agent/env/describe", { env: env ?? null });
+};
+
+// 查看全部技能（内置 + 用户自定义）。
+export const listAgentSkillApi = () => {
+  return http.get<AgentSkillItem[]>("/agent/skill/list");
 };
