@@ -14,6 +14,7 @@ import {
   AgentPermissionStatus,
   AgentTaskStatus,
   approveAgentPermissionApi,
+  cancelAgentTaskApi,
   chatAgentApi,
   denyAgentPermissionApi,
   describeAgentEnvApi,
@@ -122,6 +123,9 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   // 当前选中会话活跃任务的待确认权限（可同时存在多个）。
   const [pendingPermissions, setPendingPermissions] = useState<AgentPermissionItem[]>([]);
   const [resolvingId, setResolvingId] = useState<string>();
+  // 当前进行中的任务 ID（用于 Cancel 按钮）。
+  const [currentTaskId, setCurrentTaskId] = useState<string>();
+  const [canceling, setCanceling] = useState(false);
 
   const listRef = useRef<HTMLDivElement>(null);
   // 当前选中的会话 ID（ref 镜像，供 WS 回调读取最新值）。
@@ -209,6 +213,20 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     }
   };
 
+  // 取消当前进行中的任务（终态事件会通过 WS 触发 finalizeTurn 清理状态）。
+  const handleCancelTask = async () => {
+    if (!currentTaskId) return;
+    setCanceling(true);
+    try {
+      await cancelAgentTaskApi(currentTaskId);
+      getGlobalMessage()?.success("Task canceled");
+    } catch {
+      // API errors are shown globally by the http interceptor.
+    } finally {
+      setCanceling(false);
+    }
+  };
+
   const renderOperation = (op: AgentPermissionItem["operation"]) => {
     if (!op) return "-";
     return op.path || op.command || op.content || "-";
@@ -227,6 +245,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
 
       const taskId = conv.current_task_id;
       if (!taskId) {
+        setCurrentTaskId(undefined);
         setStreaming("");
         setSending(false);
         setWaiting(false);
@@ -249,6 +268,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
           ) {
             // 任务已终态：清掉活跃轮次，不再恢复。
             activeTurnsRef.current.delete(taskId);
+            setCurrentTaskId(undefined);
             setStreaming("");
             setSending(false);
             setWaiting(false);
@@ -261,6 +281,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
         }
       }
 
+      setCurrentTaskId(taskId);
       setStreaming(turn.streaming);
       setSending(turn.sending);
       setWaiting(turn.waiting);
@@ -293,6 +314,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
           },
         ]);
       }
+      setCurrentTaskId(undefined);
       setStreaming("");
       setSending(false);
       setWaiting(false);
@@ -380,6 +402,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       };
       activeTurnsRef.current.set(task_id, turn);
       seenRef.current.clear();
+      setCurrentTaskId(task_id);
 
       // 本轮任务可能很快进入等待权限，提前拉取待确认权限。
       loadPermissions(task_id);
@@ -403,6 +426,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     selectedConvIdRef.current = undefined;
     seenRef.current.clear();
     setConversationId(undefined);
+    setCurrentTaskId(undefined);
     setMessages([]);
     setStreaming("");
     setSending(false);
@@ -480,6 +504,13 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
           <Text type="secondary" style={{ fontSize: 12 }}>
             {waiting ? "Waiting for permission…" : "Agent is running…"}
           </Text>
+          {currentTaskId && (
+            <Popconfirm title="Cancel this task?" onConfirm={handleCancelTask}>
+              <Button danger size="small" loading={canceling}>
+                Cancel
+              </Button>
+            </Popconfirm>
+          )}
         </Flex>
       )}
 
