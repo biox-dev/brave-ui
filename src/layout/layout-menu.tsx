@@ -12,6 +12,7 @@ import {
   ToolOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
+import project from '@/pages/project';
 
 export type LayoutLocale = 'zh_CN' | 'en_US';
 
@@ -180,7 +181,14 @@ export const layoutMenuTree: LayoutMenuItem[] = [
           zh_CN: 'Agent 技能',
           en_US: 'Agent Skills',
         },
-      },
+      }, {
+        key: '/agent-project-context',
+        icon: 'agent',
+        label: {
+          zh_CN: 'Agent 项目上下文',
+          en_US: 'Agent Project Context',
+        },
+      }, 
     ],
   },
   {

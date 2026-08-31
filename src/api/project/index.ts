@@ -152,3 +152,66 @@ export const uploadProjectReportImageApi = (file: File) => {
 
 export const publishProjectReportToDocApi = (reportId: string) => http.post<{ message: string }>(`/project-report/${encodeURIComponent(reportId)}/publish-to-doc`)
 
+// ---------- Literature (参考文献) ----------
+
+export interface ProjectLiteratureItem {
+	id: string;
+	owner_project_id?: string;
+	title: string;
+	source?: string;
+	filename?: string;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface ProjectLiteratureDetailItem extends ProjectLiteratureItem {
+	content: string;
+	content_source?: string;
+}
+
+export interface ProjectLiteraturePoolItem extends ProjectLiteratureItem {
+	bound?: boolean;
+}
+
+export interface AddLiteratureRequest {
+	title: string;
+	content?: string;
+	content_source?: string;
+	filename?: string;
+}
+
+export interface UpdateLiteratureRequest {
+	id: string;
+	title: string;
+	content?: string;
+	content_source?: string;
+	filename?: string;
+}
+
+export interface DeleteLiteratureRequest {
+	id: string;
+}
+
+export interface BindLiteratureRequest {
+	literature_id: string;
+}
+
+export interface UnbindLiteratureRequest {
+	literature_id: string;
+}
+
+export interface LiteraturePageRequest {
+	page?: number;
+	page_size?: number;
+}
+
+export const addLiteratureApi = (payload: AddLiteratureRequest) => http.post<ProjectLiteratureDetailItem>("/project/add-literature", payload)
+export const updateLiteratureApi = (payload: UpdateLiteratureRequest) => http.post<{ message: string }>("/project/update-literature", payload)
+export const deleteLiteratureApi = (payload: DeleteLiteratureRequest) => http.post<{ message: string }>("/project/delete-literature", payload)
+export const getLiteratureDetailApi = (id: string) => http.get<ProjectLiteratureDetailItem>(`/project/literature-detail?id=${encodeURIComponent(id)}`)
+export const listLiteratureApi = () => http.get<ProjectLiteratureItem[]>("/project/list-literature")
+export const pageLiteratureApi = (payload: LiteraturePageRequest) => http.post<PageResponse<ProjectLiteratureItem>>("/project/list-literature-page", payload)
+export const bindLiteratureApi = (payload: BindLiteratureRequest) => http.post<{ message: string }>("/project/bind-literature", payload)
+export const unbindLiteratureApi = (payload: UnbindLiteratureRequest) => http.post<{ message: string }>("/project/unbind-literature", payload)
+export const pageLiteraturePoolApi = (payload: LiteraturePageRequest) => http.post<PageResponse<ProjectLiteraturePoolItem>>("/project/list-literature-pool-page", payload)
+

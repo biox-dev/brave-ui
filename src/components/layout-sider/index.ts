@@ -3,6 +3,7 @@ import type { InferViewRegistryFromLoaders } from "@/core/component-registry/reg
 
 const viewLoaders = {
     projectReport: () => import("./project-report/project-report-list"),
+    projectLiterature: () => import("./literature/project-literature-list"),
     analysisNodeList: () => import("./analysis-node-result/analysis-result-list"),
     analysisList: () => import("./analysis-result/analysis-list"),
     workflowPage: () => import("./workflow-page/workflow-page-list"),

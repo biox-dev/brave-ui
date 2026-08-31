@@ -221,3 +221,13 @@ export const describeAgentEnvApi = (env?: { id?: string; type?: string } | null)
 export const listAgentSkillApi = () => {
   return http.get<AgentSkillItem[]>("/agent/skill/list");
 };
+
+// 当前用户的项目上下文（注入 Agent 系统提示词的背景文本块）。
+export interface AgentProjectContextResponse {
+  project_context: string;
+}
+
+// 查询当前用户激活项目下的项目上下文。
+export const getAgentProjectContextApi = () => {
+  return http.get<AgentProjectContextResponse>("/agent/project-context");
+};

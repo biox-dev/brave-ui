@@ -33,6 +33,11 @@ import {
 	pageProjectReportApi,
 	type ProjectReportItem,
 	type ProjectReportPageQuery,
+	pageLiteratureApi,
+	pageLiteraturePoolApi,
+	type ProjectLiteratureItem,
+	type ProjectLiteraturePoolItem,
+	type LiteraturePageRequest,
 } from "@/api/project";
 import {
 	pageAppSessionApi,
@@ -366,6 +371,38 @@ export const useProjectReportPageQuery = (
 		query,
 		queryFn: async (payload) => {
 			const response = await pageProjectReportApi(payload);
+			return response.data;
+		},
+		initialPageSize: 10,
+		...options,
+	});
+};
+
+export const useProjectLiteraturePageQuery = (
+	query: LiteraturePageRequest,
+	options?: Omit<UsePageQueryOptions<ProjectLiteratureItem, LiteraturePageRequest>, "queryKey" | "query" | "endpoint" | "queryFn">
+) => {
+	return usePageQuery<ProjectLiteratureItem, LiteraturePageRequest>({
+		queryKey: ["project-literature-page"],
+		query,
+		queryFn: async (payload) => {
+			const response = await pageLiteratureApi(payload);
+			return response.data;
+		},
+		initialPageSize: 10,
+		...options,
+	});
+};
+
+export const useLiteraturePoolPageQuery = (
+	query: LiteraturePageRequest,
+	options?: Omit<UsePageQueryOptions<ProjectLiteraturePoolItem, LiteraturePageRequest>, "queryKey" | "query" | "endpoint" | "queryFn">
+) => {
+	return usePageQuery<ProjectLiteraturePoolItem, LiteraturePageRequest>({
+		queryKey: ["project-literature-pool-page"],
+		query,
+		queryFn: async (payload) => {
+			const response = await pageLiteraturePoolApi(payload);
 			return response.data;
 		},
 		initialPageSize: 10,

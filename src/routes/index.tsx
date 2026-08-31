@@ -59,6 +59,7 @@ const PipelineComponentsCard = lazy(() => import('@/components/pipeline-componen
 const SoftwareAnalysisEditor = lazy(() => import('@/pages/software-analysis-editor'));
 const AnalysisReport = lazy(() => import('@/pages/page-route/analsyis-report'));
 const ReportWriting = lazy(() => import('@/pages/page-route/report-writing'));
+const LiteratureWriting = lazy(() => import('@/pages/page-route/literature-writing'));
 const AnalysisNodeReport = lazy(() => import('@/pages/page-route/analysis-node-report'));
 
 const PsycMicroGraphHome = lazy(() => import("@/pages/psycmicrograph"))
@@ -89,6 +90,7 @@ const AgentTaskPage = lazy(() => import("@/pages/agent/agent-task-page"))
 const AgentPermissionPage = lazy(() => import("@/pages/agent/agent-permission-page"))
 const AgentEventPage = lazy(() => import("@/pages/agent/agent-event-page"))
 const AgentSkillPage = lazy(() => import("@/pages/agent/agent-skill-page"))
+const AgentProjectContextPage = lazy(() => import("@/pages/agent/agent-project-context-page"))
 import axios from "axios";
 import { Skeleton } from "antd";
 import { useDispatch } from "react-redux";
@@ -131,6 +133,9 @@ if (appType == "index") {
             path: "agent-skill",
             element: <AgentSkillPage />
         }, {
+            path: "agent-project-context",
+            element: <AgentProjectContextPage />
+        }, {
             path: "sample-project",
             element: <SampleProjectPage />
         }, {
@@ -166,8 +171,9 @@ if (appType == "index") {
             element: <AnalysisNodeReport />
         },{
             path: "/report-writing/:project-report-id",
-            element: <ReportWriting />
-        },
+            element: <ReportWriting />        },{
+            path: "/literature-writing/:literature-id",
+            element: <LiteratureWriting />        },
         // {
         //     path: "/c/:component_type",
         //     element: <ToolsPage />
