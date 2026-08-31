@@ -68,6 +68,11 @@ interface ChatMessage {
   error?: boolean;
 }
 
+// 后端用字符串 "0" 表示“无当前任务”，需一并视为空。
+function isValidTaskId(id?: string): id is string {
+  return !!id && id !== "0";
+}
+
 // 生成会话在切换下拉中的显示标签：优先取首条用户消息，过长则截断。
 function conversationLabel(c: AgentConversationItem): string {
   const first = c.messages?.find((m) => m.role === "user");
@@ -254,7 +259,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       setMessages(mapMessages(conv));
 
       const taskId = conv.current_task_id;
-      if (!taskId) {
+      if (!isValidTaskId(taskId)) {
         setCurrentTaskId(undefined);
         setStreaming("");
         setSending(false);
@@ -545,7 +550,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
               >
                 {conversationLabel(c)}
               </span>
-              {c.current_task_id && <Badge status="processing" />}
+              {isValidTaskId(c.current_task_id) && <Badge status="processing" />}
             </Flex>
           ),
         }))}
