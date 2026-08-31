@@ -1,5 +1,5 @@
 import { FC, useEffect, useRef, useState } from "react";
-import { Badge, Button, Empty, Flex, Input, Popconfirm, Select, Space, Spin, Tag, Typography } from "antd";
+import { Badge, Button, Empty, Flex, Input, Popconfirm, Select, Space, Spin, Tag, Tooltip, Typography } from "antd";
 import {
   CheckOutlined,
   ClearOutlined,
@@ -31,6 +31,7 @@ import {
 import { getGlobalMessage } from "@/hooks/useGlobalMessage";
 import { sseClient } from "@/sse";
 import { useSelector } from "react-redux";
+import { Popover } from "antd/lib";
 
 const { Text } = Typography;
 
@@ -440,13 +441,25 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       {/* 头部 */}
       <Flex align="center" justify="space-between" style={{ marginBottom: 8 }}>
         <Flex align="center" gap={8} style={{ minWidth: 0 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          {/* <Text type="secondary" style={{ fontSize: 12 }}>
             {conversationId ? `Conversation: ${conversationId}` : "New conversation"}
-          </Text>
+          </Text> */}
           {envInfo?.label && (
-            <Tag color="processing" style={{ marginInlineEnd: 0 }}>
-              {envInfo.label}
-            </Tag>
+            <Popover placement="left" title={<div style={{ fontSize: 12 ,width: 300}}>
+            <div>{`Working dir: ${envInfo.working_dir || "(none)"}`}</div>
+            {envInfo.type && <div>{`Type: ${envInfo.type}`}</div>}
+            {conversationId && <div>{`Conversation ID: ${conversationId}`}</div>}
+            {currentTaskId && <div>{`Current task ID: ${currentTaskId}`}</div>}
+            <hr />
+            {envInfo.system_prompt && <div style={{  wordBreak: "break-word" }}>{`System prompt: ${envInfo.system_prompt}`}</div>}
+
+ 
+            </div>}>
+              <Tag color="processing" style={{ marginInlineEnd: 0, cursor: "pointer" }}>
+                {envInfo.label}
+              </Tag>
+              {/* {envInfo.type} */}
+            </Popover>
           )}
         </Flex>
         <Flex gap="small">

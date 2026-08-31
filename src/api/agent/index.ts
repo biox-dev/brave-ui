@@ -209,6 +209,7 @@ export interface AgentEnvInfo {
   type?: string;
   label?: string;
   working_dir?: string;
+  system_prompt?: string;
 }
 
 // 解析当前对话的业务上下文，返回人类可读的名称与工作目录。
