@@ -91,6 +91,7 @@ const AgentPermissionPage = lazy(() => import("@/pages/agent/agent-permission-pa
 const AgentEventPage = lazy(() => import("@/pages/agent/agent-event-page"))
 const AgentSkillPage = lazy(() => import("@/pages/agent/agent-skill-page"))
 const AgentProjectContextPage = lazy(() => import("@/pages/agent/agent-project-context-page"))
+const AgentMemoryPage = lazy(() => import("@/pages/agent/agent-memory-page"))
 import axios from "axios";
 import { Skeleton } from "antd";
 import { useDispatch } from "react-redux";
@@ -135,6 +136,9 @@ if (appType == "index") {
         }, {
             path: "agent-project-context",
             element: <AgentProjectContextPage />
+        }, {
+            path: "agent-memory",
+            element: <AgentMemoryPage />
         }, {
             path: "sample-project",
             element: <SampleProjectPage />

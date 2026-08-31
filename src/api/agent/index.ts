@@ -231,3 +231,60 @@ export interface AgentProjectContextResponse {
 export const getAgentProjectContextApi = () => {
   return http.get<AgentProjectContextResponse>("/agent/project-context");
 };
+
+// Agent 记忆类别（对应后端 agent.MemoryKind）。
+export const AgentMemoryKind = {
+  Fact: "fact",
+  Summary: "summary",
+  Note: "note",
+  Event: "event",
+} as const;
+
+// 记忆（对应后端 agent.Memory）。
+export interface AgentMemoryItem {
+  id: string;
+  user_id: string;
+  session_id?: string;
+  kind: string;
+  content: string;
+  importance: number;
+  metadata?: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+  last_accessed_at?: string | null;
+}
+
+export interface AgentMemoryPageQuery {
+  kinds?: string[];
+}
+
+// 创建 / 更新记忆请求体（ID 为空则新建）。
+export interface AgentMemorySaveRequest {
+  id?: string;
+  session_id?: string;
+  kind: string;
+  content: string;
+  importance?: number;
+  metadata?: Record<string, unknown> | null;
+}
+
+export const saveAgentMemoryApi = (payload: AgentMemorySaveRequest) => {
+  return http.post<AgentMemoryItem>("/agent/memory/save", payload);
+};
+
+export const getAgentMemoryApi = (id: string) => {
+  return http.get<AgentMemoryItem>("/agent/memory/get", { params: { id } });
+};
+
+export const deleteAgentMemoryApi = (id: string) => {
+  return http.post<{ ok: boolean; id: string }>("/agent/memory/delete", { id });
+};
+
+export const pageAgentMemoryApi = (payload: PageRequest<AgentMemoryPageQuery>) => {
+  return http.post<PageResponse<AgentMemoryItem>>("/agent/memory/page", payload);
+};
+
+// 检索与 query 相关的记忆（返回按相关度降序）。
+export const retrieveAgentMemoryApi = (query: string, limit?: number) => {
+  return http.post<AgentMemoryItem[]>("/agent/memory/retrieve", { query, limit });
+};

@@ -6,6 +6,7 @@ const viewLoaders = {
     taskEventsModal: () => import("./task-events-modal"),
     taskPermissionsModal: () => import("./task-permissions-modal"),
     agentChat: () => import("./agent-chat"),
+    agentMemoryEditModal: () => import("./agent-memory-edit-modal"),
 };
 
 declare module "@/core/component-registry/registry-types" {

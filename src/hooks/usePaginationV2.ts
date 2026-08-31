@@ -61,10 +61,13 @@ import {
 } from "@/api/container";
 import {
 	pageAgentEventApi,
+	pageAgentMemoryApi,
 	pageAgentPermissionApi,
 	pageAgentTaskApi,
 	type AgentEventItem,
 	type AgentEventPageQuery,
+	type AgentMemoryItem,
+	type AgentMemoryPageQuery,
 	type AgentPermissionItem,
 	type AgentPermissionPageQuery,
 	type AgentTaskItem,
@@ -547,6 +550,22 @@ export const useAgentEventPageQuery = (
 		query,
 		queryFn: async (payload) => {
 			const response = await pageAgentEventApi(payload);
+			return response.data;
+		},
+		initialPageSize: 10,
+		...options,
+	});
+};
+
+export const useAgentMemoryPageQuery = (
+	query: AgentMemoryPageQuery,
+	options?: Omit<UsePageQueryOptions<AgentMemoryItem, AgentMemoryPageQuery>, "queryKey" | "query" | "endpoint" | "queryFn">
+) => {
+	return usePageQuery<AgentMemoryItem, AgentMemoryPageQuery>({
+		queryKey: ["agent-memory-page"],
+		query,
+		queryFn: async (payload) => {
+			const response = await pageAgentMemoryApi(payload);
 			return response.data;
 		},
 		initialPageSize: 10,

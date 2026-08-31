@@ -188,6 +188,13 @@ export const layoutMenuTree: LayoutMenuItem[] = [
           zh_CN: 'Agent 项目上下文',
           en_US: 'Agent Project Context',
         },
+      }, {
+        key: '/agent-memory',
+        icon: 'agent',
+        label: {
+          zh_CN: 'Agent 记忆',
+          en_US: 'Agent Memory',
+        },
       }, 
     ],
   },
