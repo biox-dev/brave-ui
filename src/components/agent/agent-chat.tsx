@@ -22,16 +22,20 @@ import {
   getAgentTaskApi,
   getAgentTaskEventsApi,
   getConversationApi,
+  listAgentProfileApi,
   pageConversationApi,
   type AgentConversationItem,
   type AgentEnvInfo,
   type AgentEventItem,
   type AgentPermissionItem,
+  type AgentProfileItem,
 } from "@/api/agent";
 import { getGlobalMessage } from "@/hooks/useGlobalMessage";
 import { sseClient } from "@/sse";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Popover } from "antd/lib";
+import { updateUserProfileApi } from "@/api/auth";
+import { setUserItem } from "@/store/userSlice";
 
 const { Text } = Typography;
 
@@ -108,8 +112,13 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   const [conversationId, setConversationId] = useState<string | undefined>(initialConversationId);
   // 业务上下文：由页面通过 setLLMEnv(id, type) 设置，发送时一并传给后端解析系统提示词与工作目录。
   const llmEnv = useSelector((state: any) => state.user.llmEnv);
+  // 当前登录用户：Agent Profile 只能来自 userInfo（切换时同步更新 UserState）。
+  const userInfo = useSelector((state: any) => state.user.userInfo);
+  const dispatch = useDispatch();
   // 解析后的人类可读上下文（类型 + 名称 + 工作目录），用于顶部展示当前对话环境。
   const [envInfo, setEnvInfo] = useState<AgentEnvInfo | null>(null);
+  // 可选 AgentProfile 列表（为空表示使用默认 Profile）。
+  const [profiles, setProfiles] = useState<AgentProfileItem[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   // 当前选中会话是否有一轮进行中（running / waiting_permission）。
@@ -296,6 +305,10 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
 
   useEffect(() => {
     loadConversations();
+    // 加载可选 AgentProfile（供下拉选择，为空表示使用默认）。
+    listAgentProfileApi()
+      .then((res) => setProfiles(res.data ?? []))
+      .catch(() => setProfiles([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -371,6 +384,19 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     return () => unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 切换 Profile：先持久化到后端当前用户，再同步更新 Redux 中的 userInfo。
+  const handleProfileChange = async (value?: string) => {
+    const next = value ?? "";
+    try {
+      await updateUserProfileApi(next);
+    } catch {
+      return; // 错误由全局拦截器提示，不更新本地状态。
+    }
+    if (userInfo) {
+      dispatch(setUserItem({ userInfo: { ...userInfo, profile: next } }));
+    }
+  };
 
   const handleSend = async () => {
     const text = input.trim();
@@ -473,6 +499,21 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
           )}
         </Flex>
       </Flex>
+
+      {/* Profile 选择：为空表示使用默认 Profile */}
+      <Select
+        value={userInfo?.profile}
+        placeholder="Select agent profile (default)"
+        onChange={handleProfileChange}
+        allowClear
+        showSearch
+        optionFilterProp="label"
+        style={{ width: "100%", marginBottom: 8 }}
+        options={profiles.map((p) => ({
+          value: p.name,
+          label: `${p.display_name || p.name}${p.is_default ? " (default)" : ""}`,
+        }))}
+      />
 
       {/* 会话切换下拉 */}
       <Select

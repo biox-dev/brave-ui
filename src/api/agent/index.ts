@@ -84,6 +84,10 @@ export interface AgentTaskCreateRequest {
   provider?: string;
   model?: string;
   session_id?: string;
+  /** AgentProfile 名称（为空取默认）。 */
+  profile?: string;
+  /** 本次调用启用的技能名列表（为空使用默认全部技能）。 */
+  skills?: string[];
   system_prompt?: string;
   messages?: { role: string; content: string }[];
   working_dir?: string;
@@ -188,6 +192,8 @@ export interface AgentChatRequest {
   provider?: string;
   model?: string;
   system_prompt?: string;
+  /** AgentProfile 名称（为空取默认）。 */
+  profile?: string;
   working_dir?: string;
   /** 业务上下文 {id,type}，由业务页面通过 setLLMEnv 设置，后端据此解析系统提示词与工作目录。 */
   env?: { id?: string; type?: string } | null;
@@ -287,4 +293,54 @@ export const pageAgentMemoryApi = (payload: PageRequest<AgentMemoryPageQuery>) =
 // 检索与 query 相关的记忆（返回按相关度降序）。
 export const retrieveAgentMemoryApi = (query: string, limit?: number) => {
   return http.post<AgentMemoryItem[]>("/agent/memory/retrieve", { query, limit });
+};
+
+// ---- Agent Profile（对应后端 agent.Profile） ----
+
+// 上下文注入开关（对应后端 agent.ContextConfig）。
+export interface AgentProfileContext {
+  /** 是否注入长期记忆。 */
+  inject_memory: boolean;
+  /** 是否注入项目上下文（仅撰写文章 / 报告类任务需要）。 */
+  inject_project: boolean;
+}
+
+// AgentProfile（对应后端 agent.Profile）。
+export interface AgentProfileItem {
+  id: string;
+  name: string;
+  display_name?: string;
+  description?: string;
+  user_id?: string;
+  is_default?: boolean;
+  is_builtin?: boolean;
+  system_prompt?: string;
+  skills?: string[];
+  context?: AgentProfileContext;
+  created_at: string;
+  updated_at: string;
+}
+
+// 创建 / 更新 AgentProfile 请求体（ID 为空则新建）。
+export interface AgentProfileSaveRequest {
+  id?: string;
+  name: string;
+  display_name?: string;
+  description?: string;
+  system_prompt?: string;
+  skills?: string[];
+  context?: AgentProfileContext;
+  is_default?: boolean;
+}
+
+export const listAgentProfileApi = () => {
+  return http.get<AgentProfileItem[]>("/agent/profile/list");
+};
+
+export const saveAgentProfileApi = (payload: AgentProfileSaveRequest) => {
+  return http.post<AgentProfileItem>("/agent/profile/save", payload);
+};
+
+export const deleteAgentProfileApi = (id: string) => {
+  return http.post<{ ok: boolean; id: string }>("/agent/profile/delete", { id });
 };

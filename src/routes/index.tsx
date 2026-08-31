@@ -90,6 +90,7 @@ const AgentTaskPage = lazy(() => import("@/pages/agent/agent-task-page"))
 const AgentPermissionPage = lazy(() => import("@/pages/agent/agent-permission-page"))
 const AgentEventPage = lazy(() => import("@/pages/agent/agent-event-page"))
 const AgentSkillPage = lazy(() => import("@/pages/agent/agent-skill-page"))
+const AgentProfilePage = lazy(() => import("@/pages/agent/agent-profile-page"))
 const AgentProjectContextPage = lazy(() => import("@/pages/agent/agent-project-context-page"))
 const AgentMemoryPage = lazy(() => import("@/pages/agent/agent-memory-page"))
 import axios from "axios";
@@ -133,6 +134,9 @@ if (appType == "index") {
         }, {
             path: "agent-skill",
             element: <AgentSkillPage />
+        }, {
+            path: "agent-profile",
+            element: <AgentProfilePage />
         }, {
             path: "agent-project-context",
             element: <AgentProjectContextPage />

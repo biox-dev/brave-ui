@@ -37,6 +37,7 @@ export interface LoginUserInfo {
     username: string;
     email: string;
     avatar: string;
+    profile?: string;
     is_active: boolean;
     can_access_all_tenants: boolean;
     created_at: string;

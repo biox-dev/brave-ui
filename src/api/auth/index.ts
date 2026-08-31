@@ -10,6 +10,7 @@ export interface LoginUser {
 	username: string;
 	email: string;
 	avatar: string;
+	profile?: string;
 	is_active: boolean;
 	can_access_all_tenants: boolean;
 	created_at: string;
@@ -58,5 +59,12 @@ export const logoutApi = () => {
 		headers: {
 			accept: "application/json",
 		},
+	});
+};
+
+// 更新当前用户的 Agent Profile（后端仅允许修改自己的选择）。
+export const updateUserProfileApi = (profile: string) => {
+	return http.post<{ success: boolean; message: string; user: LoginUser }>("/auth/profile", {
+		profile,
 	});
 };
