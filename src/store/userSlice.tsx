@@ -92,7 +92,7 @@ const contextSlice = createSlice({
         leftPanelWidth:Number.isFinite(leftPanelWidth)?leftPanelWidth:320,
         rightPanelWidth:Number.isFinite(rightPanelWidth)?rightPanelWidth:360,
         leftActivityKey:leftActivityKey?leftActivityKey:'sysFileBrowser',
-        sideView:sideView?sideView:'llm-card',
+        sideView:sideView?sideView:'agentChat',
         userInfo: userInfo ? JSON.parse(userInfo) : null,
         componentLayout:"simple",
         network:"UNKNOW",

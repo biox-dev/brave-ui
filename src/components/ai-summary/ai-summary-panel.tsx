@@ -11,12 +11,14 @@ import {
 } from "antd";
 import {
   DeleteOutlined,
+  EyeOutlined,
   RedoOutlined,
   ReloadOutlined,
   RobotOutlined,
 } from "@ant-design/icons";
 import { FC, useCallback, useEffect, useState } from "react";
 import { http } from "@/api/client/http";
+import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useComponentStore } from "@/event-bus/stores/components";
 import Markdown from "@/components/markdown";
@@ -157,6 +159,13 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
     }
   };
 
+  const handleViewInput = () => {
+    invoke.aiSummaryInput.open(
+      { ownerType, ownerId },
+      { title: "AI Summary Input", width: 720, footer: null }
+    );
+  };
+
   return (
     <Flex vertical gap={4}>
       <Flex justify="space-between" align="center" gap={8} wrap>
@@ -178,6 +187,15 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
             onClick={handleCreate}
           >
             Create
+          </Button>
+          <Button
+            size="small"
+            type="text"
+            icon={<EyeOutlined />}
+            disabled={ownerId === undefined || ownerId === null || ownerId === ""}
+            onClick={handleViewInput}
+          >
+            Input
           </Button>
           <Button
             size="small"
