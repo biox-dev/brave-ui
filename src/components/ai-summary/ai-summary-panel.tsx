@@ -12,6 +12,7 @@ import {
 import {
   DeleteOutlined,
   EyeOutlined,
+  HistoryOutlined,
   RedoOutlined,
   ReloadOutlined,
   RobotOutlined,
@@ -34,6 +35,7 @@ export interface AISummaryItem {
   id: string;
   owner_id: string;
   owner_type: string;
+  task_id?: string;
   title: string;
   content: string;
   status: AISummaryStatus;
@@ -241,6 +243,17 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
                       </Typography.Text>
                     </Space>
                     <Space size={8} onClick={(e) => e.stopPropagation()}>
+                      {item.task_id && item.task_id != "0" && (
+                        <Button
+                          size="small"
+                          icon={<HistoryOutlined />}
+                          onClick={() =>
+                            invoke.aiSummaryTask.open({ taskId: item.task_id }, { width: 720, title: "AI Summary Task", footer: null })
+                          }
+                        >
+                          Task
+                        </Button>
+                      )}
                       <Popconfirm
                         title="Regenerate this summary?"
                         onConfirm={() => handleRegenerate(item.id)}
