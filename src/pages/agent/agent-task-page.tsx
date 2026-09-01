@@ -34,6 +34,7 @@ const formatTime = (value?: string | null) => (value ? new Date(value).toLocaleS
 interface ActionHandlers {
   onViewEvents: (id: string) => void;
   onViewPermissions: (id: string) => void;
+  onViewLLMRequest: (id: string) => void;
   onCancel: (id: string) => void;
   cancelingId?: string;
 }
@@ -41,6 +42,7 @@ interface ActionHandlers {
 const createColumns = ({
   onViewEvents,
   onViewPermissions,
+  onViewLLMRequest,
   onCancel,
   cancelingId,
 }: ActionHandlers): ColumnsType<AgentTaskItem> => [
@@ -111,7 +113,7 @@ const createColumns = ({
   {
     title: "Actions",
     key: "actions",
-    width: 240,
+    width: 320,
     fixed: "right",
     render: (_: unknown, record) => {
       const cancelable = ACTIVE_STATUSES.has(record.status);
@@ -122,6 +124,9 @@ const createColumns = ({
           </Button>
           <Button size="small" onClick={() => onViewPermissions(record.id)}>
             Permissions
+          </Button>
+          <Button size="small" onClick={() => onViewLLMRequest(record.id)}>
+            LLM Request
           </Button>
           <Popconfirm
             title="Cancel this task?"
@@ -208,6 +213,17 @@ const AgentTaskPage = () => {
     );
   };
 
+  const handleViewLLMRequest = async (taskId: string) => {
+    await invoke.taskLLMRequestModal.openAsync(
+      { taskId },
+      {
+        title: `LLM Request - ${taskId.slice(0, 8)}...`,
+        width: 900,
+        footer: null,
+      }
+    );
+  };
+
   const handleCancel = async (taskId: string) => {
     setCancelingId(taskId);
     try {
@@ -224,6 +240,7 @@ const AgentTaskPage = () => {
   const columns = createColumns({
     onViewEvents: handleViewEvents,
     onViewPermissions: handleViewPermissions,
+    onViewLLMRequest: handleViewLLMRequest,
     onCancel: handleCancel,
     cancelingId,
   });

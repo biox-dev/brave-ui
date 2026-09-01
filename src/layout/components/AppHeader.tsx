@@ -7,7 +7,7 @@ import axios from 'axios';
 import { useSSE } from '@/context/sse/useSSE';
 import { invoke } from '@/core/ui-system/invokeV2';
 import { activateProjectApi, type ProjectItem } from '@/api/project';
-import { clearUserSession, loadActiveProject } from '@/store/userSlice';
+import { clearUserSession, loadActiveProject, loadCurrentUser } from '@/store/userSlice';
 import { logoutApi } from '@/api/auth';
 import { getPathname } from '@/utils/utils';
 
@@ -26,6 +26,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ backgroundColor }) => {
 
     useEffect(() => {
         dispatch(loadActiveProject() as any);
+        dispatch(loadCurrentUser() as any);
     }, [dispatch]);
 
     const userDisplayName = userInfo?.username || userInfo?.email || '未登录';

@@ -185,6 +185,27 @@ export const getAgentTaskApi = (id: string) => {
   return http.get<AgentTaskItem>("/agent/task/get", { params: { id } });
 };
 
+// 任务实际发送给 LLM 的请求内容（对应后端应用 Profile 后的 agent.Request）。
+export interface AgentTaskLLMRequest {
+  provider?: string;
+  model?: string;
+  session_id?: string;
+  user_id?: string;
+  profile?: string;
+  skills?: string[];
+  system_prompt?: string;
+  messages?: { role: string; content: string }[];
+  working_dir?: string;
+  env?: Record<string, string>;
+  max_tokens?: number;
+  stream?: boolean;
+}
+
+// 获取任务实际发送给 LLM 的请求内容（应用 Profile 后的最终 Request）。
+export const getAgentTaskRequestApi = (id: string) => {
+  return http.get<AgentTaskLLMRequest>("/agent/task/request", { params: { id } });
+};
+
 // 多轮对话请求（对应后端 handler.chatRequest）。
 export interface AgentChatRequest {
   conversation_id?: string;

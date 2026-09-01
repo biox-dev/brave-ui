@@ -5,6 +5,7 @@ import {
   ClearOutlined,
   CloseOutlined,
   LoadingOutlined,
+  ReloadOutlined,
   RobotOutlined,
   SendOutlined,
   UserOutlined,
@@ -520,41 +521,49 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
         }))}
       />
 
-      {/* 会话切换下拉 */}
-      <Select
-        value={conversationId}
-        placeholder="Select a conversation"
-        onChange={(id) => {
-          if (!id) {
-            handleClear();
-            return;
-          }
-          handleSwitchConversation(id);
-        }}
-        loading={loadingConversations}
-        allowClear
-        showSearch
-        optionFilterProp="label"
-        style={{ width: "100%", marginBottom: 8 }}
-        options={conversations.map((c) => ({
-          value: c.id,
-          label: (
-            <Flex align="center" gap={6} style={{ width: "100%" }}>
-              <span
-                style={{
-                  flex: 1,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {conversationLabel(c)}
-              </span>
-              {isValidTaskId(c.current_task_id) && <Badge status="processing" />}
-            </Flex>
-          ),
-        }))}
-      />
+      {/* 会话切换下拉 + 刷新 */}
+      <Flex gap="small" style={{ marginBottom: 8 }}>
+        <Select
+          value={conversationId}
+          placeholder="Select a conversation"
+          onChange={(id) => {
+            if (!id) {
+              handleClear();
+              return;
+            }
+            handleSwitchConversation(id);
+          }}
+          loading={loadingConversations}
+          allowClear
+          showSearch
+          optionFilterProp="label"
+          style={{ flex: 1 }}
+          options={conversations.map((c) => ({
+            value: c.id,
+            label: (
+              <Flex align="center" gap={6} style={{ width: "100%" }}>
+                <span
+                  style={{
+                    flex: 1,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {conversationLabel(c)}
+                </span>
+                {isValidTaskId(c.current_task_id) && <Badge status="processing" />}
+              </Flex>
+            ),
+          }))}
+        />
+        <Button
+          size="small"
+          icon={<ReloadOutlined />}
+          onClick={loadConversations}
+          loading={loadingConversations}
+        />
+      </Flex>
 
       {/* 运行中 / 等待权限状态提示 */}
       {sending && (

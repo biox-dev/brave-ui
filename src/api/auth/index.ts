@@ -62,6 +62,15 @@ export const logoutApi = () => {
 	});
 };
 
+// 获取当前登录用户信息（后端 /auth/me）。
+export const getCurrentUserApi = () => {
+	return http.get<{ success: boolean; data: { user: LoginUser } }>("/auth/me", {
+		headers: {
+			accept: "application/json",
+		},
+	});
+};
+
 // 更新当前用户的 Agent Profile（后端仅允许修改自己的选择）。
 export const updateUserProfileApi = (profile: string) => {
 	return http.post<{ success: boolean; message: string; user: LoginUser }>("/auth/profile", {

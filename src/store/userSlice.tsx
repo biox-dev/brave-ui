@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { getActiveProjectApi } from '@/api/project'
+import { getCurrentUserApi } from '@/api/auth'
 import { getPathname } from "@/utils/utils";
 
 const locale = localStorage.getItem('locale')
@@ -12,7 +13,6 @@ const namespace = localStorage.getItem('namespace')
 const githubToken = localStorage.getItem('githubToken')
 const storeRepos = localStorage.getItem('storeRepos')
 const scmOrigin = localStorage.getItem('scmOrigin')
-const userInfo = localStorage.getItem('userInfo')
 const activeProjectReportId = localStorage.getItem('activeProjectReportId')
 const activeLLMSessionId = localStorage.getItem('activeLLMSessionId')
 const leftPanelWidth = Number(localStorage.getItem('leftPanelWidth'))
@@ -26,6 +26,18 @@ export const loadActiveProject = createAsyncThunk(
         try {
             const resp = await getActiveProjectApi()
             return resp.data
+        } catch (error) {
+            return rejectWithValue(null)
+        }
+    }
+)
+
+export const loadCurrentUser = createAsyncThunk(
+    'user/loadCurrentUser',
+    async (_, { rejectWithValue }) => {
+        try {
+            const resp = await getCurrentUserApi()
+            return resp.data.data.user
         } catch (error) {
             return rejectWithValue(null)
         }
@@ -94,7 +106,7 @@ const contextSlice = createSlice({
         rightPanelWidth:Number.isFinite(rightPanelWidth)?rightPanelWidth:360,
         leftActivityKey:leftActivityKey?leftActivityKey:'sysFileBrowser',
         sideView:sideView?sideView:'agentChat',
-        userInfo: userInfo ? JSON.parse(userInfo) : null,
+        userInfo: null as LoginUserInfo | null,
         componentLayout:"simple",
         network:"UNKNOW",
         scmOrigin:scmOrigin?scmOrigin:"github"
@@ -175,13 +187,7 @@ const contextSlice = createSlice({
                     localStorage.removeItem('sideView')
                 }
             }
-            if (action.payload.userInfo !== undefined) {
-                if (action.payload.userInfo) {
-                    localStorage.setItem('userInfo', JSON.stringify(action.payload.userInfo))
-                } else {
-                    localStorage.removeItem('userInfo')
-                }
-            }
+            // userInfo 不再持久化到 localStorage，刷新时由 loadCurrentUser 从后台获取
             // debugger
         },
         clearUserSession(state) {
@@ -194,7 +200,6 @@ const contextSlice = createSlice({
             localStorage.removeItem('Authorization');
             localStorage.removeItem('authorization');
             localStorage.removeItem('RefreshToken');
-            localStorage.removeItem('userInfo');
             localStorage.removeItem('activeProjectReportId');
             localStorage.removeItem('activeLLMSessionId');
         },
@@ -203,6 +208,9 @@ const contextSlice = createSlice({
         builder.addCase(loadActiveProject.fulfilled, (state, action) => {
             state.projectId = action.payload?.project_id || "";
             state.project = action.payload || {};
+        });
+        builder.addCase(loadCurrentUser.fulfilled, (state, action) => {
+            state.userInfo = action.payload || null;
         });
     }
 })
