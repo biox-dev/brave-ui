@@ -1,6 +1,8 @@
 import { useScriptPageQuery } from "@/hooks/usePaginationV2";
 import type { ScriptItem } from "@/api/workflow";
 import { invoke } from "@/core/ui-system/invokeV2";
+import { useI18n } from "@/hooks/useI18n";
+import { formatRelativeTime } from "@/utils/time";
 import { CodeOutlined, DownloadOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Empty, Pagination, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -10,6 +12,7 @@ import { useLocation, useNavigate } from "react-router";
 const ScriptPageList: FC<any> = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { locale } = useI18n();
 
   // Derive the selected script id from the current route so the selection
   // survives a full page refresh.
@@ -42,34 +45,39 @@ const ScriptPageList: FC<any> = () => {
     navigate(`/c/scripts/${encodeURIComponent(script.id)}`);
   };
 
-  const columns: ColumnsType<ScriptItem> = [
-    {
-      title: "Script Name",
-      dataIndex: "component_name",
-      key: "component_name",
-      render: (name: string, record) => (
-        <div className="project-report-item">
-          <CodeOutlined className="project-report-item-icon" />
-          <div className="project-report-item-text">
-            <span className="project-report-item-title">
-              {name || `Script-${record.id}`}
-            </span>
-            {record.updated_at && (
-              <span className="project-report-item-meta">{record.updated_at}</span>
-            )}
+  const columns = useMemo<ColumnsType<ScriptItem>>(
+    () => [
+      {
+        title: "Script Name",
+        dataIndex: "component_name",
+        key: "component_name",
+        render: (name: string, record) => (
+          <div className="project-report-item">
+            <CodeOutlined className="project-report-item-icon" />
+            <div className="project-report-item-text">
+              <span className="project-report-item-title">
+                {name || `Script-${record.id}`}
+              </span>
+              {record.updated_at && (
+                <span className="project-report-item-meta">
+                  {formatRelativeTime(record.updated_at, locale)}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      ),
-    },
-    {
-      title: "Script Type",
-      dataIndex: "script_type",
-      key: "script_type",
-      width: 110,
-      render: (value: string) =>
-        value ? <Tag color="blue">{value}</Tag> : "-",
-    },
-  ];
+        ),
+      },
+      {
+        title: "Script Type",
+        dataIndex: "script_type",
+        key: "script_type",
+        width: 110,
+        render: (value: string) =>
+          value ? <Tag color="blue">{value}</Tag> : "-",
+      },
+    ],
+    [locale]
+  );
 
   return (
     <div className="project-report-panel">

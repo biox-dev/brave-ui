@@ -1,6 +1,8 @@
 import { useWorkflowPageQuery } from "@/hooks/usePaginationV2";
 import type { WorkflowItem } from "@/api/workflow";
 import { invoke } from "@/core/ui-system/invokeV2";
+import { useI18n } from "@/hooks/useI18n";
+import { formatRelativeTime } from "@/utils/time";
 import { ApartmentOutlined, PlusOutlined, ReloadOutlined, DownloadOutlined } from "@ant-design/icons";
 import { Button, Empty, Pagination, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -10,6 +12,7 @@ import { useLocation, useNavigate } from "react-router";
 const WorkflowPageList: FC<any> = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { locale } = useI18n();
 
   // Derive the selected workflow id from the current route so the selection
   // survives a full page refresh.
@@ -42,34 +45,39 @@ const WorkflowPageList: FC<any> = () => {
     navigate(`/c/tools/${encodeURIComponent(String(workflow.id))}`);
   };
 
-  const columns: ColumnsType<WorkflowItem> = [
-    {
-      title: "Workflow Name",
-      dataIndex: "name",
-      key: "name",
-      render: (name: string, record) => (
-        <div className="project-report-item">
-          <ApartmentOutlined className="project-report-item-icon" />
-          <div className="project-report-item-text">
-            <span className="project-report-item-title">
-              {name || `Workflow-${record.id}`}
-            </span>
-            {record.updated_at && (
-              <span className="project-report-item-meta">{record.updated_at}</span>
-            )}
+  const columns = useMemo<ColumnsType<WorkflowItem>>(
+    () => [
+      {
+        title: "Workflow Name",
+        dataIndex: "name",
+        key: "name",
+        render: (name: string, record) => (
+          <div className="project-report-item">
+            <ApartmentOutlined className="project-report-item-icon" />
+            <div className="project-report-item-text">
+              <span className="project-report-item-title">
+                {name || `Workflow-${record.id}`}
+              </span>
+              {record.updated_at && (
+                <span className="project-report-item-meta">
+                  {formatRelativeTime(record.updated_at, locale)}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      ),
-    },
-    {
-      title: "Relation Type",
-      dataIndex: "relation_type",
-      key: "relation_type",
-      width: 110,
-      render: (value: string) =>
-        value ? <Tag color="blue">{value}</Tag> : "-",
-    },
-  ];
+        ),
+      },
+      {
+        title: "Relation Type",
+        dataIndex: "relation_type",
+        key: "relation_type",
+        width: 110,
+        render: (value: string) =>
+          value ? <Tag color="blue">{value}</Tag> : "-",
+      },
+    ],
+    [locale]
+  );
 
   return (
     <div className="project-report-panel">

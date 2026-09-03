@@ -114,9 +114,9 @@ const ContainerImageForm = ({
             >
                 <Input placeholder="e.g. rocker/rstudio" />
             </Form.Item>
-            <Form.Item name="library_version" label="Library Version">
+            {/* <Form.Item name="library_version" label="Library Version">
                 <Input placeholder="e.g. R 4.4 / Python 3.11" />
-            </Form.Item>
+            </Form.Item> */}
             <Form.Item
                 name="full_name"
                 label="Full Name"
@@ -127,7 +127,7 @@ const ContainerImageForm = ({
 
 
 
-            <Form.Item
+            {/* <Form.Item
                 initialValue={"registry.cn-hangzhou.aliyuncs.com"}
                 name="registry"
                 label="Registry"
@@ -138,12 +138,12 @@ const ContainerImageForm = ({
 
             <Form.Item name="namespace" label="Namespace" initialValue="wybioinfo">
                 <Input placeholder="e.g. rocker" />
-            </Form.Item>
+            </Form.Item> */}
 
 
-            <Form.Item name="digest" label="Digest">
+            {/* <Form.Item name="digest" label="Digest">
                 <Input placeholder="Image digest hash" />
-            </Form.Item>
+            </Form.Item> */}
             {/* <Form.Item
                 name="tag"
                 label="Tag"
@@ -157,13 +157,13 @@ const ContainerImageForm = ({
                 <Input.TextArea rows={3} placeholder="Image description" />
             </Form.Item>
 
-            <Form.Item name="size" label="Size (bytes)">
+            {/* <Form.Item name="size" label="Size (bytes)">
                 <InputNumber
                     style={{ width: "100%" }}
                     placeholder="Image size in bytes"
                     min={0}
                 />
-            </Form.Item>
+            </Form.Item> */}
 
             {/* <Form.Item name="status" label="Status">
                 <Select

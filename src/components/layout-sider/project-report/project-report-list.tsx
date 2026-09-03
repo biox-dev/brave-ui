@@ -1,6 +1,8 @@
 import { deleteProjectReportApi, getProjectReportDetailApi, type ProjectReportItem } from "@/api/project";
 import { useProjectReportPageQuery } from "@/hooks/usePaginationV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
+import { useI18n } from "@/hooks/useI18n";
+import { formatRelativeTime } from "@/utils/time";
 import { DeleteOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Empty, Pagination, Popconfirm, Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -13,6 +15,7 @@ const ProjectReportList: FC<any> = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const message = useGlobalMessage();
+  const { locale } = useI18n();
   const { project } = useSelector((state: any) => state.user);
   const projectId = typeof project === "string" ? project : project?.project_id;
 
@@ -89,30 +92,33 @@ const ProjectReportList: FC<any> = () => {
     await refetch();
   };
 
-  const columns: ColumnsType<ProjectReportItem> = [
-    {
-      title: "Title",
-      dataIndex: "title",
-      key: "title",
-      render: (title: string, record) => (
-        <div className="project-report-item">
-          <FileTextOutlined className="project-report-item-icon" />
-          <div className="project-report-item-text">
-            <span className="project-report-item-title">
-              {title || `Untitled-${record.id}`}
-            </span>
-            {record.updated_at && (
-              <span className="project-report-item-meta">{record.updated_at}</span>
-            )}
+  const columns = useMemo<ColumnsType<ProjectReportItem>>(
+    () => [
+      {
+        title: "Title",
+        dataIndex: "title",
+        key: "title",
+        render: (title: string, record) => (
+          <div className="project-report-item">
+            <FileTextOutlined className="project-report-item-icon" />
+            <div className="project-report-item-text">
+              <span className="project-report-item-title">
+                {title || `Untitled-${record.id}`}
+              </span>
+              {record.updated_at && (
+                <span className="project-report-item-meta">
+                  {formatRelativeTime(record.updated_at, locale)}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      ),
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      width: 56,
-      align: "right",
+        ),
+      },
+      {
+        title: "Actions",
+        key: "actions",
+        width: 56,
+        align: "right",
       render: (_, record) => (
         <span
           className="project-report-item-actions"
@@ -133,7 +139,9 @@ const ProjectReportList: FC<any> = () => {
         </span>
       ),
     },
-  ];
+  ],
+    [locale]
+  );
 
   return (
     <div className="project-report-panel">

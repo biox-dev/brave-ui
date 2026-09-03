@@ -7,6 +7,8 @@ import type { ContainerImageItem } from "@/api/container";
 import { deleteContainerImageApi } from "@/api/container";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
+import { useI18n } from "@/hooks/useI18n";
+import { formatRelativeTime } from "@/utils/time";
 
 const getErrorMessage = (error: unknown, fallback: string) => {
   if (typeof error === "object" && error !== null) {
@@ -57,60 +59,6 @@ const normalizePageSize = (value?: number | string) => {
   return 10;
 };
 
-const columns: ColumnsType<ContainerImageItem> = [
-  {
-    title: "Name",
-    dataIndex: "name",
-    key: "name",
-    width: 220,
-    ellipsis: true,
-  },
-  {
-    title: "Tag",
-    dataIndex: "tag",
-    key: "tag",
-    width: 120,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Registry",
-    dataIndex: "registry",
-    key: "registry",
-    width: 180,
-    ellipsis: true,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Namespace",
-    dataIndex: "namespace",
-    key: "namespace",
-    width: 150,
-    ellipsis: true,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Full Name",
-    dataIndex: "full_name",
-    key: "full_name",
-    ellipsis: true,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Description",
-    dataIndex: "description",
-    key: "description",
-    ellipsis: true,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Created At",
-    dataIndex: "created_at",
-    key: "created_at",
-    width: 210,
-    render: (value: string) => (value ? new Date(value).toLocaleString() : "-"),
-  },
-];
-
 const ContainerImagePage = ({
   id,
   name,
@@ -126,10 +74,50 @@ const ContainerImagePage = ({
   onCancel,
   close,
 }: ContainerImagePageProps) => {
+  const { locale } = useI18n();
   const [selectedId, setSelectedID] = useState<string>();
   const [deletingId, setDeletingId] = useState<string>();
+  
   const selectable = Boolean(onOk || onCancel);
   const messageApi =  useGlobalMessage();
+
+  const columns = useMemo<ColumnsType<ContainerImageItem>>(() => [
+    {
+      title: "Name",
+      dataIndex: "name",
+      key: "name",
+      width: 220,
+      ellipsis: true,
+    },
+    {
+      title: "Full Name",
+      dataIndex: "full_name",
+      key: "full_name",
+      ellipsis: true,
+      render: (value: string) => value || "-",
+    },
+    {
+      title: "Description",
+      dataIndex: "description",
+      key: "description",
+      ellipsis: true,
+      render: (value: string) => value || "-",
+    },
+    {
+      title: "Pull Policy",
+      dataIndex: "pull_policy",
+      key: "pull_policy",
+      ellipsis: true,
+      render: (value: string) => value || "-",
+    },
+    {
+      title: "Created At",
+      dataIndex: "created_at",
+      key: "created_at",
+      width: 210,
+      render: (value: string) => formatRelativeTime(value, locale),
+    },
+  ], [locale]);
 
   const {
     data,

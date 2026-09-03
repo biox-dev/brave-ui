@@ -6,6 +6,8 @@ import {
 } from "@/api/project";
 import { useProjectLiteraturePageQuery } from "@/hooks/usePaginationV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
+import { useI18n } from "@/hooks/useI18n";
+import { formatRelativeTime } from "@/utils/time";
 import {
   BookOutlined,
   DeleteOutlined,
@@ -25,6 +27,7 @@ const ProjectLiteratureList: FC<any> = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const message = useGlobalMessage();
+  const { locale } = useI18n();
   const { project } = useSelector((state: any) => state.user);
   const projectId = typeof project === "string" ? project : project?.project_id;
 
@@ -114,30 +117,33 @@ const ProjectLiteratureList: FC<any> = () => {
     await refetch();
   };
 
-  const columns: ColumnsType<ProjectLiteratureItem> = [
-    {
-      title: "Title",
-      dataIndex: "title",
-      key: "title",
-      render: (title: string, record) => (
-        <div className="project-report-item">
-          <BookOutlined className="project-report-item-icon" />
-          <div className="project-report-item-text">
-            <span className="project-report-item-title">
-              {title || `Untitled-${record.id}`}
-            </span>
-            {record.updated_at && (
-              <span className="project-report-item-meta">{record.updated_at}</span>
-            )}
+  const columns = useMemo<ColumnsType<ProjectLiteratureItem>>(
+    () => [
+      {
+        title: "Title",
+        dataIndex: "title",
+        key: "title",
+        render: (title: string, record) => (
+          <div className="project-report-item">
+            <BookOutlined className="project-report-item-icon" />
+            <div className="project-report-item-text">
+              <span className="project-report-item-title">
+                {title || `Untitled-${record.id}`}
+              </span>
+              {record.updated_at && (
+                <span className="project-report-item-meta">
+                  {formatRelativeTime(record.updated_at, locale)}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      ),
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      width: 112,
-      align: "right",
+        ),
+      },
+      {
+        title: "Actions",
+        key: "actions",
+        width: 112,
+        align: "right",
       render: (_, record) => (
         <span
           className="project-report-item-actions"
@@ -164,7 +170,9 @@ const ProjectLiteratureList: FC<any> = () => {
         </span>
       ),
     },
-  ];
+  ],
+    [locale]
+  );
 
   return (
     <div className="project-report-panel">

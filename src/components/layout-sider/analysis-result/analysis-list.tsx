@@ -1,6 +1,8 @@
 import { deleteAnalysisApi, type AnalysisItem } from "@/api/analysis";
 import { useAnalysisPageQuery } from "@/hooks/usePaginationV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
+import { useI18n } from "@/hooks/useI18n";
+import { formatRelativeTime } from "@/utils/time";
 import { DeleteOutlined, FileSearchOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Empty, Pagination, Popconfirm, Table, Tag } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -32,6 +34,7 @@ const AnalysisList: FC<any> = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const message = useGlobalMessage();
+  const { locale } = useI18n();
 
   // Derive the selected analysis id from the current route so the selection
   // survives a full page refresh.
@@ -63,38 +66,41 @@ const AnalysisList: FC<any> = () => {
     refetch();
   };
 
-  const columns: ColumnsType<AnalysisItem> = [
-    {
-      title: "Analysis Name",
-      dataIndex: "analysis_name",
-      key: "analysis_name",
-      render: (name: string, record) => (
-        <div className="project-report-item">
-          <FileSearchOutlined className="project-report-item-icon" />
-          <div className="project-report-item-text">
-            <span className="project-report-item-title">
-              {name || `Analysis-${record.id}`}
-            </span>
-            {record.updated_at && (
-              <span className="project-report-item-meta">{record.updated_at}</span>
-            )}
+  const columns = useMemo<ColumnsType<AnalysisItem>>(
+    () => [
+      {
+        title: "Analysis Name",
+        dataIndex: "analysis_name",
+        key: "analysis_name",
+        render: (name: string, record) => (
+          <div className="project-report-item">
+            <FileSearchOutlined className="project-report-item-icon" />
+            <div className="project-report-item-text">
+              <span className="project-report-item-title">
+                {name || `Analysis-${record.id}`}
+              </span>
+              {record.updated_at && (
+                <span className="project-report-item-meta">
+                  {formatRelativeTime(record.updated_at, locale)}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      ),
-    },
-    {
-      title: "Status",
-      dataIndex: "job_status",
-      key: "job_status",
-      width: 96,
-      render: (status: string) =>
-        status ? <Tag color={statusColor(status)}>{status}</Tag> : "-",
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      width: 56,
-      align: "right",
+        ),
+      },
+      {
+        title: "Status",
+        dataIndex: "job_status",
+        key: "job_status",
+        width: 96,
+        render: (status: string) =>
+          status ? <Tag color={statusColor(status)}>{status}</Tag> : "-",
+      },
+      {
+        title: "Actions",
+        key: "actions",
+        width: 56,
+        align: "right",
       render: (_, record) => (
         <span
           className="project-report-item-actions"
@@ -109,7 +115,9 @@ const AnalysisList: FC<any> = () => {
         </span>
       ),
     },
-  ];
+  ],
+    [locale]
+  );
 
   return (
     <div className="project-report-panel">
