@@ -11,6 +11,7 @@ import {
 } from "antd";
 import {
   DeleteOutlined,
+  EditOutlined,
   EyeOutlined,
   HistoryOutlined,
   RedoOutlined,
@@ -161,6 +162,18 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
     }
   };
 
+  const handleUpdate = async (item: AISummaryItem) => {
+    try {
+      await invoke.aiSummaryUpdate.openAsync(
+        { id: item.id, title: item.title, content: item.content },
+        { title: "Update AI Summary", width: 520, footer: null }
+      );
+      await load();
+    } catch {
+      // 用户取消或提交失败，无需额外处理。
+    }
+  };
+
   const handleViewInput = () => {
     invoke.aiSummaryInput.open(
       { ownerType, ownerId },
@@ -254,6 +267,13 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
                           Task
                         </Button>
                       )}
+                      <Button
+                        size="small"
+                        icon={<EditOutlined />}
+                        onClick={() => handleUpdate(item)}
+                      >
+                        Update
+                      </Button>
                       <Popconfirm
                         title="Regenerate this summary?"
                         onConfirm={() => handleRegenerate(item.id)}

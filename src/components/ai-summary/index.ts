@@ -4,6 +4,7 @@ import type { InferViewRegistryFromLoaders } from "@/core/component-registry/reg
 const viewLoaders = {
   aiSummaryInput: () => import("./ai-summary-input-modal"),
   aiSummaryTask: () => import("./ai-summary-task-modal"),
+  aiSummaryUpdate: () => import("./ai-summary-update-modal"),
 };
 
 declare module "@/core/component-registry/registry-types" {
