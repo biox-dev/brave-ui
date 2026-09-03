@@ -175,7 +175,7 @@ const ContainerTemplateForm = ({
                 <Input placeholder="e.g. RStudio Server" />
             </Form.Item>
 
-            <Form.Item
+            {/* <Form.Item
                 name="type"
                 label="Type"
                 rules={[{ required: true, message: "Please select the template type" }]}
@@ -187,7 +187,7 @@ const ContainerTemplateForm = ({
                         { label: "Service", value: "service" },
                     ]}
                 />
-            </Form.Item>
+            </Form.Item> */}
 
             <Form.Item
                 name="image_id"
@@ -202,6 +202,10 @@ const ContainerTemplateForm = ({
                 />
             </Form.Item>
 
+            <Form.Item name="app_type" label="App Type">
+                <Input placeholder="e.g. rstudio, jupyter, vscode" />
+            </Form.Item>
+            
             <Form.Item name="image_name" hidden>
                 <Input />
             </Form.Item>
@@ -218,9 +222,6 @@ const ContainerTemplateForm = ({
                 <Input placeholder="e.g. /home/rstudio" />
             </Form.Item>
 
-            <Form.Item name="app_type" label="App Type">
-                <Input placeholder="e.g. rstudio, jupyter, vscode" />
-            </Form.Item>
 
             <Form.Item name="port" label="Port">
                 <InputNumber

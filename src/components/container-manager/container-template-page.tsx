@@ -5,6 +5,8 @@ import { PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useContainerTemplatePageQuery } from "@/hooks/usePaginationV2";
 import { deleteContainerTemplateApi, type ContainerTemplateItem } from "@/api/container";
 import { invoke } from "@/core/ui-system/invokeV2";
+import { useI18n } from "@/hooks/useI18n";
+import { formatRelativeTime } from "@/utils/time";
 
 const { Text } = Typography;
 
@@ -54,7 +56,7 @@ const getErrorMessage = (error: unknown, fallback: string) => {
   return fallback;
 };
 
-const columns: ColumnsType<ContainerTemplateItem> = [
+const createColumns = (locale: string): ColumnsType<ContainerTemplateItem> => [
   {
     title: "Name",
     dataIndex: "name",
@@ -110,7 +112,7 @@ const columns: ColumnsType<ContainerTemplateItem> = [
     dataIndex: "created_at",
     key: "created_at",
     width: 210,
-    render: (value: string) => (value ? new Date(value).toLocaleString() : "-"),
+    render: (value: string) => (value ? formatRelativeTime(value, locale) : "-"),
   },
 ];
 
@@ -131,7 +133,13 @@ const ContainerTemplatePage = ({
   const [selectedId, setSelectedID] = useState<string>();
   const [deletingId, setDeletingId] = useState<string>();
   const [messageApi, contextHolder] = message.useMessage();
+  const { locale } = useI18n();
   const selectable = Boolean(onOk || onCancel);
+
+  const columns = useMemo<ColumnsType<ContainerTemplateItem>>(
+    () => createColumns(locale),
+    [locale]
+  );
 
   const {
     data,
@@ -260,7 +268,7 @@ const ContainerTemplatePage = ({
         ),
       },
     ];
-  }, [selectable, selectedId, deletingId]);
+  }, [selectable, selectedId, deletingId, columns]);
 
   const handleConfirm = () => {
     if (!selectedItem || !onOk) {

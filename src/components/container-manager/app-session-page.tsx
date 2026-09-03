@@ -16,6 +16,8 @@ import {
 import { useSelector } from "react-redux";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useComponentStore } from "@/event-bus/stores/components";
+import { useI18n } from "@/hooks/useI18n";
+import { formatRelativeTime } from "@/utils/time";
 
 const { Text } = Typography;
 
@@ -60,8 +62,6 @@ const normalizeViewMode = (value?: string) => {
   return value?.toLowerCase() === "card" ? "card" : "table";
 };
 
-const formatTime = (value?: string) => (value ? new Date(value).toLocaleString() : "-");
-
 const buildAppUrl = (containerURL: string, appSession?: AppSessionItem) => {
   if (!appSession || !appSession.id) {
     return "";
@@ -85,17 +85,6 @@ const getStatusColor = (status?: string) => {
   return "processing";
 };
 
-const formatCompactTime = (value?: string) => {
-  if (!value) {
-    return "-";
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "-";
-  }
-  return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-};
-
 const getDefaultAppSessionName = (item: ContainerTemplateItem) => {
   const base = (item.name || "app-session").trim().replace(/\s+/g, "-").toLowerCase();
   return `${base}-${Date.now()}`;
@@ -111,73 +100,6 @@ const getErrorMessage = (error: unknown, fallback: string) => {
   }
   return fallback;
 };
-
-const columns: ColumnsType<AppSessionItem> = [
-  {
-    title: "Name",
-    dataIndex: "name",
-    key: "name",
-    width: 220,
-    ellipsis: true,
-  },
-  {
-    title: "Status",
-    dataIndex: "status",
-    key: "status",
-    width: 140,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Project ID",
-    dataIndex: "project_id",
-    key: "project_id",
-    width: 160,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Node Name",
-    dataIndex: "node_name",
-    key: "node_name",
-    width: 180,
-    ellipsis: true,
-    render: (value?: string) => value?.trim() || "-",
-  },
-  {
-    title: "Template ID",
-    dataIndex: "container_template_id",
-    key: "container_template_id",
-    width: 180,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Workspace",
-    dataIndex: "workspace_path",
-    key: "workspace_path",
-    ellipsis: true,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Started At",
-    dataIndex: "started_at",
-    key: "started_at",
-    width: 200,
-    render: (value: string) => formatTime(value),
-  },
-  {
-    title: "Stopped At",
-    dataIndex: "stopped_at",
-    key: "stopped_at",
-    width: 200,
-    render: (value: string) => formatTime(value),
-  },
-  {
-    title: "Created At",
-    dataIndex: "created_at",
-    key: "created_at",
-    width: 210,
-    render: (value: string) => formatTime(value),
-  },
-];
 
 const AppSessionPage = ({
   id,
@@ -196,6 +118,7 @@ const AppSessionPage = ({
   close,
 }: AppSessionPageProps) => {
   const { register, unregister } = useComponentStore();
+  const { locale } = useI18n();
   const [selectedId, setSelectedID] = useState<string>();
   const [pendingAction, setPendingAction] = useState<string>("");
   const [creatingFromAnalysisNode, setCreatingFromAnalysisNode] = useState(false);
@@ -204,7 +127,7 @@ const AppSessionPage = ({
   const selectable = Boolean(onOk || onCancel);
   const activeViewMode = normalizeViewMode(view_mode);
   const isCardMode = activeViewMode === "card";
-  const { containerURL} = useSelector((state: any) => state.user);
+  const { containerURL } = useSelector((state: any) => state.user);
   // const resolvedProjectID = normalizeText(projectIdProp) || normalizeText(currentProjectID);
 
   const {
@@ -362,6 +285,76 @@ const AppSessionPage = ({
     );
   };
 
+  const columns = useMemo<ColumnsType<AppSessionItem>>(
+    () => [
+      {
+        title: "Name",
+        dataIndex: "name",
+        key: "name",
+        width: 220,
+        ellipsis: true,
+      },
+      {
+        title: "Status",
+        dataIndex: "status",
+        key: "status",
+        width: 140,
+        render: (value: string) => value || "-",
+      },
+      {
+        title: "Project ID",
+        dataIndex: "project_id",
+        key: "project_id",
+        width: 160,
+        render: (value: string) => value || "-",
+      },
+      {
+        title: "Node Name",
+        dataIndex: "node_name",
+        key: "node_name",
+        width: 180,
+        ellipsis: true,
+        render: (value?: string) => value?.trim() || "-",
+      },
+      {
+        title: "Template ID",
+        dataIndex: "container_template_id",
+        key: "container_template_id",
+        width: 180,
+        render: (value: string) => value || "-",
+      },
+      {
+        title: "Workspace",
+        dataIndex: "workspace_path",
+        key: "workspace_path",
+        ellipsis: true,
+        render: (value: string) => value || "-",
+      },
+      {
+        title: "Started At",
+        dataIndex: "started_at",
+        key: "started_at",
+        width: 200,
+        render: (value: string) => formatRelativeTime(value, locale),
+      },
+      {
+        title: "Stopped At",
+        dataIndex: "stopped_at",
+        key: "stopped_at",
+        width: 200,
+        render: (value: string) => formatRelativeTime(value, locale),
+      },
+      {
+        title: "Created At",
+        dataIndex: "created_at",
+        key: "created_at",
+        width: 210,
+        render: (value: string) => formatRelativeTime(value, locale),
+      },
+    ],
+    [locale]
+  );
+
   const selectColumns = useMemo<ColumnsType<AppSessionItem>>(() => {
     const actionColumns: ColumnsType<AppSessionItem> = [
       {
@@ -396,7 +389,7 @@ const AppSessionPage = ({
         ),
       },
     ];
-  }, [selectable, selectedId, renderOperationButtons]);
+  }, [selectable, selectedId, renderOperationButtons, columns]);
 
   const handleConfirm = () => {
     if (!selectedItem || !onOk) {
@@ -530,19 +523,20 @@ const AppSessionPage = ({
                 >
                   <Flex vertical gap={6}>
                     <Flex justify="space-between" align="flex-start" gap={8}>
-                      <Space direction="vertical" size={2} style={{ minWidth: 0, flex: 1 }}>
+                      {/* <Space size={2} style={{ minWidth: 0, flex: 1 }}> */}
+                      <Tooltip title={record.id}>
+
                         <Text strong ellipsis={{ tooltip: record.name || "-" }}>
                           {record.name || "-"}
                         </Text>
-                        <Space size={6} wrap>
-                          <Tag color={getStatusColor(record.status)} style={{ marginInlineEnd: 0 }}>
-                            {record.status || "unknown"}
-                          </Tag>
-                          <Text type="secondary">ID: {record.id || "-"}</Text>
-                        </Space>
-                      </Space>
+                      </Tooltip>
 
-                      {selectable && (
+                      <Tag color={getStatusColor(record.status)} style={{ marginInlineEnd: 0 }}>
+                        {record.status || "unknown"}
+                      </Tag>
+                      {/* </Space> */}
+
+                      {/* {selectable && (
                         <Button
                           type={record.id === selectedId ? "primary" : "default"}
                           size="small"
@@ -550,26 +544,32 @@ const AppSessionPage = ({
                         >
                           {record.id === selectedId ? "Selected" : "Select"}
                         </Button>
-                      )}
+                      )} */}
                     </Flex>
 
                     <Space direction="vertical" size={1} style={{ width: "100%" }}>
-                      <Text type="secondary" ellipsis={{ tooltip: record.project_id || "-" }}>
+                      {/* <Text type="secondary" ellipsis={{ tooltip: record.project_id || "-" }}>
                         Project: {record.project_id || "-"}
-                      </Text>
+                      </Text> */}
                       {normalizeText(record.node_name) && (
                         <Text type="secondary" ellipsis={{ tooltip: record.node_name || "-" }}>
                           Node: {record.node_name}
                         </Text>
                       )}
-                      <Text type="secondary" ellipsis={{ tooltip: record.container_template_id || "-" }}>
-                        Template: {record.container_template_id || "-"}
-                      </Text>
-                      <Text type="secondary" ellipsis={{ tooltip: record.workspace_path || "-" }}>
+                      <Tooltip title={record.container_instance_id || "-"}>
+                        <Text type="secondary" ellipsis={{ tooltip: record.container_instance_name || "-" }}>
+                          Container Instance: {record.container_instance_name || "-"}
+                        </Text>
+                      </Tooltip>
+                      {/* <Text type="secondary" ellipsis={{ tooltip: record.workspace_path || "-" }}>
                         Workspace: {record.workspace_path || "-"}
+                      </Text> */}
+                      <Text type="secondary">
+                        Started: {formatRelativeTime(record.started_at, locale)}
                       </Text>
-                      <Text type="secondary">Started: {formatCompactTime(record.started_at)}</Text>
-                      <Text type="secondary">Created: {formatCompactTime(record.created_at)}</Text>
+                      <Text type="secondary">
+                        Created: {formatRelativeTime(record.created_at, locale)}
+                      </Text>
                     </Space>
 
                     <Flex align="center" justify="space-between" wrap gap={4}>

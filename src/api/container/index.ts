@@ -42,6 +42,8 @@ export interface AppSessionItem {
     analysis_node_id: string;
     node_name: string;
     container_template_id: string;
+    container_instance_id: string;
+    container_instance_name: string;
     name: string;
     app_type: string;
     status: string;
