@@ -16,6 +16,14 @@ export interface ContainerImageItem {
     updated_at: string;
 }
 
+export interface ContainerMount {
+    source: string;
+    target: string;
+    mode: string;
+    type: string;
+    owner: string;
+}
+
 export interface ContainerTemplateItem {
     id: string;
     name: string;
@@ -27,7 +35,7 @@ export interface ContainerTemplateItem {
     memory: number;
     work_dir: string;
     env: Record<string, unknown> | null;
-    mounts: Record<string, unknown> | null;
+    mounts: ContainerMount[] | null;
     volumes: Record<string, unknown> | null;
     labels: Record<string, unknown> | null;
     change_uid: boolean;
@@ -56,7 +64,7 @@ export interface ContainerTemplateExportItem {
     port: number;
     app_type: string;
     env: Record<string, unknown> | null;
-    mounts: Record<string, unknown> | null;
+    mounts: ContainerMount[] | null;
     volumes: Record<string, unknown> | null;
     scheduling_constraint: Record<string, unknown> | null;
     labels: Record<string, unknown> | null;

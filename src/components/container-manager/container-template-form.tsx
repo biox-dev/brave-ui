@@ -95,7 +95,7 @@ const ContainerTemplateForm = ({
             }
             // Keep mounts as-is (already an array of objects)
             if (key === "mounts" && Array.isArray(val)) {
-                const filtered = (val as { source: string; target: string; mode: string }[]).filter(
+                const filtered = (val as { source: string; target: string; mode: string; type: string; owner: string }[]).filter(
                     (m) => m.source || m.target
                 );
                 if (filtered.length > 0) {
@@ -288,6 +288,23 @@ const ContainerTemplateForm = ({
                         <>
                             {fields.map(({ key, name, ...rest }) => (
                                 <Space key={key} style={{ display: "flex", marginBottom: 8, flexWrap: "wrap" }} align="baseline">
+                                    <Form.Item {...rest} name={[name, "type"]} initialValue="file">
+                                        <Select style={{ width: 90 }}
+                                            options={[
+                                                { label: "file", value: "file" },
+                                                { label: "dir", value: "dir" },
+                                            ]}
+                                        />
+                                    </Form.Item>
+                                    <Form.Item {...rest} name={[name, "owner"]} initialValue="app_session">
+                                        <Select style={{ width: 140 }}
+                                            options={[
+                                                { label: "dag_node", value: "dag_node" },
+                                                { label: "app_session", value: "app_session" },
+                                                { label: "service", value: "service" },
+                                            ]}
+                                        />
+                                    </Form.Item>
                                     <Form.Item {...rest} name={[name, "source"]} rules={[{ required: true, message: "Source required" }]}>
                                         <Input placeholder="Source (e.g. $R_PROFILE)" style={{ width: 180 }} />
                                     </Form.Item>
@@ -305,7 +322,7 @@ const ContainerTemplateForm = ({
                                     <DeleteOutlined onClick={() => remove(name)} style={{ color: "#ff4d4f", cursor: "pointer" }} />
                                 </Space>
                             ))}
-                            <Button type="dashed" onClick={() => add({ source: "", target: "", mode: "rw" })} block icon={<PlusOutlined />}>
+                            <Button type="dashed" onClick={() => add({ type: "file", owner: "app_session", source: "", target: "", mode: "rw" })} block icon={<PlusOutlined />}>
                                 Add Mount
                             </Button>
                         </>
