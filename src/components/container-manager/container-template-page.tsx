@@ -65,9 +65,9 @@ const createColumns = (locale: string): ColumnsType<ContainerTemplateItem> => [
     ellipsis: true,
   },
   {
-    title: "Type",
-    dataIndex: "type",
-    key: "type",
+    title: "App Type",
+    dataIndex: "app_type",
+    key: "app_type",
     width: 120,
     render: (value: string) => value || "-",
   },
