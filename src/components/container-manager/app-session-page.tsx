@@ -524,12 +524,9 @@ const AppSessionPage = ({
                   <Flex vertical gap={6}>
                     <Flex justify="space-between" align="flex-start" gap={8}>
                       {/* <Space size={2} style={{ minWidth: 0, flex: 1 }}> */}
-                      <Tooltip title={record.id}>
-
-                        <Text strong ellipsis={{ tooltip: record.name || "-" }}>
-                          {record.name || "-"}
-                        </Text>
-                      </Tooltip>
+                      <Text strong ellipsis={{ tooltip: record.id || "-" }}>
+                        {record.name || "-"}
+                      </Text>
 
                       <Tag color={getStatusColor(record.status)} style={{ marginInlineEnd: 0 }}>
                         {record.status || "unknown"}
