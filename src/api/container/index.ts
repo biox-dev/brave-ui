@@ -35,6 +35,37 @@ export interface ContainerTemplateItem {
     updated_at: string;
 }
 
+export interface ContainerImageExportItem {
+    id: string;
+    name: string;
+    full_name: string;
+    description: string;
+    size: number;
+    pull_policy: string;
+}
+
+export interface ContainerTemplateExportItem {
+    id: string;
+    name: string;
+    description: string;
+    image: ContainerImageExportItem;
+    command: string;
+    cpu: number;
+    memory: number;
+    work_dir: string;
+    port: number;
+    app_type: string;
+    env: Record<string, unknown> | null;
+    mounts: Record<string, unknown> | null;
+    volumes: Record<string, unknown> | null;
+    scheduling_constraint: Record<string, unknown> | null;
+    labels: Record<string, unknown> | null;
+    change_uid: boolean;
+    r_library_path: string;
+    python_library_path: string;
+    conda_library_path: string;
+}
+
 export interface AppSessionItem {
     id: string;
     user_id: string;
@@ -192,6 +223,14 @@ export const updateContainerTemplateApi = (payload: Partial<ContainerTemplateIte
 
 export const deleteContainerTemplateApi = (payload: { id: string }) => {
     return http.post<{ message: string }>("/container/template/delete", payload);
+};
+
+export const exportContainerTemplateApi = (payload: { id: string }) => {
+    return http.post<ContainerTemplateExportItem>("/container/template/export", payload);
+};
+
+export const importContainerTemplateApi = (payload: ContainerTemplateExportItem) => {
+    return http.post<ContainerTemplateExportItem>("/container/template/import", payload);
 };
 
 export const pageAppSessionApi = (payload: PageRequest<AppSessionPageQuery>) => {

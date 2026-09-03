@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Card, Flex, Popconfirm, Space, Table, Typography, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import { ImportOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useContainerTemplatePageQuery } from "@/hooks/usePaginationV2";
-import { deleteContainerTemplateApi, type ContainerTemplateItem } from "@/api/container";
+import { deleteContainerTemplateApi, exportContainerTemplateApi, type ContainerTemplateItem } from "@/api/container";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useI18n } from "@/hooks/useI18n";
 import { formatRelativeTime } from "@/utils/time";
@@ -214,6 +214,31 @@ const ContainerTemplatePage = ({
     }
   }, [messageApi, refetch]);
 
+  const handleExport = useCallback(async (record: ContainerTemplateItem) => {
+    try {
+      const resp = await exportContainerTemplateApi({ id: record.id });
+      const json = JSON.stringify(resp.data, null, 2);
+      invoke.containerTemplateExportDialog.open(
+        { json, name: record.name },
+        { title: `Export: ${record.name}`, width: 720, footer: false }
+      );
+    } catch (error) {
+      messageApi.error(getErrorMessage(error, "Failed to export container template"));
+    }
+  }, [messageApi]);
+
+  const handleImport = useCallback(async () => {
+    try {
+      await invoke.containerTemplateImportDialog.openAsync(
+        {},
+        { title: "Import Container Template", width: 600, footer: false }
+      );
+      refetch();
+    } catch {
+      // User cancelled
+    }
+  }, [refetch]);
+
   const selectColumns = useMemo<ColumnsType<ContainerTemplateItem>>(() => {
     const crudColumns: ColumnsType<ContainerTemplateItem> = [
       {
@@ -229,6 +254,13 @@ const ContainerTemplatePage = ({
               onClick={() => handleEdit(record)}
             >
               Edit
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              onClick={() => handleExport(record)}
+            >
+              Export
             </Button>
             <Popconfirm
               title="Delete this template?"
@@ -268,7 +300,7 @@ const ContainerTemplatePage = ({
         ),
       },
     ];
-  }, [selectable, selectedId, deletingId, columns]);
+  }, [selectable, selectedId, deletingId, columns, handleExport]);
 
   const handleConfirm = () => {
     if (!selectedItem || !onOk) {
@@ -294,11 +326,17 @@ const ContainerTemplatePage = ({
       extra={
         <Space>
           <Text type="secondary">Total: {total}</Text>
-          {!selectable && (
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-              Create
-            </Button>
-          )}
+          {/* {!selectable && (
+            <>
+             
+            </>
+          )} */}
+           <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+                Create
+              </Button>
+              <Button icon={<ImportOutlined />} onClick={handleImport}>
+                Import
+              </Button>
           <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
             Refresh
           </Button>
