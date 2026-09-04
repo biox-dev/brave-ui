@@ -160,10 +160,18 @@ export interface AgentConversationItem {
   user_id: string;
   provider: string;
   model?: string;
-  messages: { role: string; content: string }[];
+  messages: AgentConversationMessageItem[];
   current_task_id?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface AgentConversationMessageItem {
+  role: string;
+  content: string;
+  kind?: string;
+  task_id?: string;
+  data?: unknown;
 }
 
 export interface AgentConversationPageQuery {

@@ -1,5 +1,5 @@
 import { FC, useEffect, useRef, useState } from "react";
-import { Badge, Button, Empty, Flex, Input, Popconfirm, Select, Space, Spin, Tag, Tooltip, Typography } from "antd";
+import { Badge, Button, Empty, Flex, Input, Popconfirm, Select, Space, Spin, Tag, Typography } from "antd";
 import {
   CheckOutlined,
   ClearOutlined,
@@ -9,8 +9,8 @@ import {
   RobotOutlined,
   SendOutlined,
   UserOutlined,
+  WarningOutlined,
 } from "@ant-design/icons";
-import XMarkdown from "@ant-design/x-markdown";
 import {
   AgentPermissionStatus,
   AgentTaskStatus,
@@ -37,6 +37,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { Popover } from "antd/lib";
 import { updateUserProfileApi } from "@/api/auth";
 import { setUserItem } from "@/store/userSlice";
+import AgentTaskStream from "./agent-task-stream";
+import { renderAssistantMessage } from "./agent-message-render";
 
 const { Text } = Typography;
 
@@ -49,15 +51,6 @@ interface AgentWSMessage {
   event?: AgentEventItem;
 }
 
-/**
- * Agent 流式事件 payload（对应 agent.StreamEvent），仅在 type === "stream" 时出现。
- */
-interface StreamEventPayload {
-  type?: string;
-  content?: string;
-  [key: string]: unknown;
-}
-
 // 任务终态事件类型。
 const TERMINAL_EVENT_TYPES = new Set(["task.completed", "task.failed", "task.canceled"]);
 
@@ -66,6 +59,9 @@ interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  kind?: string;
+  taskId?: string;
+  data?: unknown;
   error?: boolean;
 }
 
@@ -89,7 +85,6 @@ function conversationLabel(c: AgentConversationItem): string {
 interface ActiveTurn {
   taskId: string;
   convId: string;
-  streaming: string; // 累积的 assistant 文本增量
   waiting: boolean; // 是否处于等待权限状态
   sending: boolean; // 是否有一轮进行中
 }
@@ -106,13 +101,12 @@ interface AgentChatProps {
  *
  * 职责：
  *   - 发送消息：调用 POST /agent/chat，拿到 task_id + conversation_id；
- *   - 通过全局 WS（HybridRealtimeClient）订阅当前 task 的 agent.event，
- *     把 stream 事件里的 text 增量聚合成 assistant 回复；
- *   - 任务到达终态（completed / failed / canceled）时，把回复固化到消息列表，
- *     以便发起下一轮。
+ *   - 通过全局 WS（HybridRealtimeClient）跟踪任务状态变化（waiting/terminal）；
+ *   - 进行中的任务用 AgentTaskStream 渲染完整过程（reasoning/tool/message 流式）；
+ *   - 任务终态后刷新会话，展示后端投影后的 assistant_final/reasoning/tool_* 历史。
  *
  * 历史恢复：发送后先按 task_id 增量拉取事件（GetTaskEvents），
- * 避免错过 WS 推送早于 HTTP 响应的早期文本；实时与历史按 id + sequence 去重。
+ * 避免错过 WS 推送早于 HTTP 响应的早期状态事件；实时与历史按 id + sequence 去重。
  */
 const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, onCancel }) => {
   const [conversationId, setConversationId] = useState<string | undefined>(initialConversationId);
@@ -130,8 +124,6 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   // 当前选中会话是否有一轮进行中（running / waiting_permission）。
   const [sending, setSending] = useState(false);
   const [waiting, setWaiting] = useState(false);
-  // 当前选中会话正在流式输出的 assistant 文本（未固化到 messages）。
-  const [streaming, setStreaming] = useState("");
   // 当前用户的会话列表（用于切换）。
   const [conversations, setConversations] = useState<AgentConversationItem[]>([]);
   const [loadingConversations, setLoadingConversations] = useState(false);
@@ -153,7 +145,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   // 自动滚动到底部。
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, streaming, waiting]);
+  }, [messages, waiting, currentTaskId]);
 
   // 当前业务上下文变化时，向后端解析人类可读的名称（如节点名/报告标题）用于展示。
   useEffect(() => {
@@ -186,10 +178,22 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   // 把后端消息映射为本地气泡。
   const mapMessages = (conv: AgentConversationItem): ChatMessage[] =>
     conv.messages.map((m, i) => ({
-      id: `${conv.id}-${i}`,
+      id: `${conv.id}-${m.task_id ?? "0"}-${m.kind ?? "assistant"}-${i}`,
       role: m.role === "user" ? "user" : "assistant",
       content: m.content,
+      kind: m.kind,
+      taskId: m.task_id,
+      data: m.data,
     }));
+
+  const renderAssistantHistory = (m: ChatMessage) => {
+    return renderAssistantMessage({
+      kind: m.kind,
+      content: m.content,
+      data: m.data,
+      error: m.error,
+    });
+  };
 
   // 拉取任务待确认的权限请求（仅保留 pending 状态）。
   const loadPermissions = async (taskId: string) => {
@@ -262,7 +266,6 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       const taskId = conv.current_task_id;
       if (!isValidTaskId(taskId)) {
         setCurrentTaskId(undefined);
-        setStreaming("");
         setSending(false);
         setWaiting(false);
         setPendingPermissions([]);
@@ -272,7 +275,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       // 已有活跃轮次：复用或新建。
       let turn = activeTurnsRef.current.get(taskId);
       if (!turn) {
-        turn = { taskId, convId: conv.id, streaming: "", waiting: false, sending: true };
+        turn = { taskId, convId: conv.id, waiting: false, sending: true };
         activeTurnsRef.current.set(taskId, turn);
         try {
           const t = await getAgentTaskApi(taskId);
@@ -285,7 +288,6 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
             // 任务已终态：清掉活跃轮次，不再恢复。
             activeTurnsRef.current.delete(taskId);
             setCurrentTaskId(undefined);
-            setStreaming("");
             setSending(false);
             setWaiting(false);
             setPendingPermissions([]);
@@ -298,7 +300,6 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       }
 
       setCurrentTaskId(taskId);
-      setStreaming(turn.streaming);
       setSending(turn.sending);
       setWaiting(turn.waiting);
 
@@ -318,24 +319,23 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!initialConversationId) return;
+    handleSwitchConversation(initialConversationId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialConversationId]);
+
   // 轮次结束：把 assistant 回复固化到消息列表（若为选中会话），并清理活跃轮次。
-  const finalizeTurn = (turn: ActiveTurn, type: string) => {
+  const finalizeTurn = async (turn: ActiveTurn, _type: string) => {
     const selected = turn.convId === selectedConvIdRef.current;
     if (selected) {
-      const content = turn.streaming;
-      if (content.trim() || type === "task.failed") {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `assistant-${turn.taskId}`,
-            role: "assistant",
-            content: type === "task.failed" ? content || "(agent error)" : content,
-            error: type === "task.failed",
-          },
-        ]);
+      try {
+        const res = await getConversationApi(turn.convId);
+        setMessages(mapMessages(res.data));
+      } catch {
+        // API errors are shown globally by the http interceptor.
       }
       setCurrentTaskId(undefined);
-      setStreaming("");
       setSending(false);
       setWaiting(false);
       setPendingPermissions([]);
@@ -356,11 +356,12 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
 
     const selected = turn.convId === selectedConvIdRef.current;
 
-    if (ev.type === "stream") {
-      const payload = (ev.payload ?? {}) as StreamEventPayload;
-      if (payload.type === "text" && payload.content) {
-        turn.streaming += payload.content;
-        if (selected) setStreaming(turn.streaming);
+    if (ev.type === "stream") return;
+    if (ev.type === "task.started") {
+      turn.waiting = false;
+      if (selected) {
+        setWaiting(false);
+        setSending(true);
       }
       return;
     }
@@ -375,7 +376,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       return;
     }
     if (ev.type && TERMINAL_EVENT_TYPES.has(ev.type)) {
-      finalizeTurn(turn, ev.type);
+      void finalizeTurn(turn, ev.type);
     }
   };
 
@@ -409,10 +410,12 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     if (!text || sending) return;
 
     setInput("");
-    setMessages((prev) => [...prev, { id: `user-${Date.now()}`, role: "user", content: text }]);
+    setMessages((prev) => [
+      ...prev,
+      { id: `user-${Date.now()}`, role: "user", kind: "user", content: text },
+    ]);
     setSending(true);
     setWaiting(false);
-    setStreaming("");
 
     try {
       const res = await chatAgentApi({
@@ -429,7 +432,6 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       const turn: ActiveTurn = {
         taskId: task_id,
         convId: conversation_id,
-        streaming: "",
         waiting: false,
         sending: true,
       };
@@ -449,7 +451,6 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       }
     } catch {
       // API 错误由全局拦截器提示。
-      setStreaming("");
       setSending(false);
       setWaiting(false);
     }
@@ -461,7 +462,6 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     setConversationId(undefined);
     setCurrentTaskId(undefined);
     setMessages([]);
-    setStreaming("");
     setSending(false);
     setWaiting(false);
     setPendingPermissions([]);
@@ -582,12 +582,119 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
         </Flex>
       )}
 
-      {/* 待确认权限：实时流中直接展示 Approve / Deny，可能同时有多个。 */}
-      {pendingPermissions.length > 0 && (
-        <Flex vertical gap="small" style={{ marginBottom: 8 }}>
-          <Text type="warning" style={{ fontSize: 12 }}>
-            Pending permissions ({pendingPermissions.length})
-          </Text>
+
+      {/* 消息区域：历史消息气泡始终展示；存在进行中的任务（currentTaskId）时，
+          最后一条 assistant 回复位置替换为该任务的实时事件流（AgentTaskStream），
+          否则展示流式输出气泡。 */}
+      <div
+        ref={listRef}
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          border: "1px solid #f0f0f0",
+          borderRadius: 8,
+          padding: 12,
+          background: "#fafafa",
+        }}
+      >
+        {messages.length === 0 && !currentTaskId ? (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="Start a conversation with the agent"
+            style={{ marginTop: 48 }}
+          />
+        ) : (
+          <Flex vertical gap="small">
+            {messages.map((m) => (
+              <Flex
+                key={m.id}
+                justify={m.role === "user" ? "flex-end" : "flex-start"}
+                align="flex-start"
+                gap={8}
+              >
+                {m.role === "assistant" && (
+                  <RobotOutlined style={{ color: "#1677ff", marginTop: 4 }} />
+                )}
+                <div
+                  style={
+                    m.role === "user"
+                      ? {
+                          maxWidth: "78%",
+                          padding: "8px 12px",
+                          borderRadius: 8,
+                          background: "#1677ff",
+                          color: "#fff",
+                          border: "none",
+                          whiteSpace: "pre-wrap",
+                          wordBreak: "break-word",
+                        }
+                      : undefined
+                  }
+                >
+                  {m.role === "assistant" ? (
+                    renderAssistantHistory(m)
+                  ) : (
+                    m.content
+                  )}
+                </div>
+                {m.role === "user" && <UserOutlined style={{ color: "#1677ff", marginTop: 4 }} />}
+              </Flex>
+            ))}
+
+            {/* 进行中的任务展示完整实时事件流（reasoning/tool/message）。 */}
+            {currentTaskId ? (
+              <AgentTaskStream taskId={currentTaskId} />
+            ) : (
+              sending && (
+                <Flex align="flex-start" gap={8}>
+                  <RobotOutlined style={{ color: "#1677ff", marginTop: 4 }} />
+                  <div
+                    style={{
+                      maxWidth: "78%",
+                      padding: "8px 12px",
+                      borderRadius: 8,
+                      background: "#ffffff",
+                      border: "1px solid #f0f0f0",
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {waiting ? (
+                      <Text type="secondary" style={{ fontSize: 13 }}>
+                        Waiting for permission…
+                      </Text>
+                    ) : (
+                      <Spin size="small" indicator={<LoadingOutlined spin />} />
+                    )}
+                  </div>
+                </Flex>
+              )
+            )}
+          </Flex>
+        )}
+      </div>
+
+      {/* 待确认权限：固定在输入区上方，便于快速 Approve / Deny。
+          存在进行中的任务时，权限由 AgentTaskStream 统一展示，避免重复。 */}
+      {!currentTaskId && pendingPermissions.length > 0 && (
+        <Flex
+          vertical
+          gap={8}
+          style={{
+            marginTop: 12,
+            padding: "8px 12px",
+            border: "1px solid #ffd666",
+            borderRadius: 8,
+            background: "#fffbe6",
+          }}
+        >
+          
+          <Flex align="center" gap={6}>
+            <WarningOutlined style={{ color: "#faad14", fontSize: 13 }} />
+            <Text type="warning" style={{ fontSize: 12 }}>
+              Pending permissions ({pendingPermissions.length})
+            </Text>
+          </Flex>
           {pendingPermissions.map((perm) => {
             const pendingLoading = resolvingId === perm.id;
             return (
@@ -595,15 +702,15 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
                 key={perm.id}
                 align="center"
                 justify="space-between"
-                gap="small"
+                gap={8}
                 style={{
+                  background: "#ffffff",
                   border: "1px solid #ffe58f",
-                  background: "#fffbe6",
                   borderRadius: 6,
-                  padding: "8px 12px",
+                  padding: "6px 10px",
                 }}
               >
-                <Flex vertical gap={2} style={{ minWidth: 0 }}>
+                <Flex vertical gap={2} style={{ minWidth: 0, flex: 1 }}>
                   <Text strong style={{ fontSize: 13 }}>
                     {perm.operation?.type || "Permission"}
                   </Text>
@@ -614,7 +721,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
                     {renderOperation(perm.operation)}
                   </Text>
                 </Flex>
-                <Space size="small">
+                <Space size={4}>
                   <Popconfirm
                     title="Approve this permission?"
                     onConfirm={() => handleApprove(perm)}
@@ -647,89 +754,6 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
           })}
         </Flex>
       )}
-
-      {/* 消息列表 */}
-      <div
-        ref={listRef}
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          border: "1px solid #f0f0f0",
-          borderRadius: 8,
-          padding: 12,
-          background: "#fafafa",
-        }}
-      >
-        {messages.length === 0 && !streaming ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="Start a conversation with the agent"
-            style={{ marginTop: 48 }}
-          />
-        ) : (
-          <Flex vertical gap="small">
-            {messages.map((m) => (
-              <Flex
-                key={m.id}
-                justify={m.role === "user" ? "flex-end" : "flex-start"}
-                align="flex-start"
-                gap={8}
-              >
-                {m.role === "assistant" && (
-                  <RobotOutlined style={{ color: "#1677ff", marginTop: 4 }} />
-                )}
-                <div
-                  style={{
-                    maxWidth: "78%",
-                    padding: "8px 12px",
-                    borderRadius: 8,
-                    background: m.role === "user" ? "#1677ff" : "#ffffff",
-                    color: m.role === "user" ? "#fff" : m.error ? "#ff4d4f" : "inherit",
-                    border: m.role === "user" ? "none" : "1px solid #f0f0f0",
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                  }}
-                >
-                  {m.role === "assistant" && !m.error ? (
-                    <XMarkdown>{m.content}</XMarkdown>
-                  ) : (
-                    m.content
-                  )}
-                </div>
-                {m.role === "user" && <UserOutlined style={{ color: "#1677ff", marginTop: 4 }} />}
-              </Flex>
-            ))}
-
-            {/* 流式输出中的 assistant 气泡 */}
-            {(sending || streaming) && (
-              <Flex align="flex-start" gap={8}>
-                <RobotOutlined style={{ color: "#1677ff", marginTop: 4 }} />
-                <div
-                  style={{
-                    maxWidth: "78%",
-                    padding: "8px 12px",
-                    borderRadius: 8,
-                    background: "#ffffff",
-                    border: "1px solid #f0f0f0",
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                  }}
-                >
-                  {streaming ? (
-                    <Text style={{ fontSize: 13 }}>{streaming}</Text>
-                  ) : waiting ? (
-                    <Text type="secondary" style={{ fontSize: 13 }}>
-                      Waiting for permission…
-                    </Text>
-                  ) : (
-                    <Spin size="small" indicator={<LoadingOutlined spin />} />
-                  )}
-                </div>
-              </Flex>
-            )}
-          </Flex>
-        )}
-      </div>
 
       {/* 输入区 */}
       <Flex gap="small" style={{ marginTop: 8 }}>
