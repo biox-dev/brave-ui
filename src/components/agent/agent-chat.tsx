@@ -477,15 +477,15 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
             {conversationId ? `Conversation: ${conversationId}` : "New conversation"}
           </Text> */}
           {envInfo?.label && (
-            <Popover placement="left" title={<div style={{ fontSize: 12 ,width: 300}}>
-            <div>{`Working dir: ${envInfo.working_dir || "(none)"}`}</div>
-            {envInfo.type && <div>{`Type: ${envInfo.type}`}</div>}
-            {conversationId && <div>{`Conversation ID: ${conversationId}`}</div>}
-            {currentTaskId && <div>{`Current task ID: ${currentTaskId}`}</div>}
-            <hr />
-            {envInfo.system_prompt && <div style={{  wordBreak: "break-word" }}>{`System prompt: ${envInfo.system_prompt}`}</div>}
+            <Popover placement="left" title={<div style={{ fontSize: 12, width: 300 }}>
+              <div>{`Working dir: ${envInfo.working_dir || "(none)"}`}</div>
+              {envInfo.type && <div>{`Type: ${envInfo.type}`}</div>}
+              {conversationId && <div>{`Conversation ID: ${conversationId}`}</div>}
+              {currentTaskId && <div>{`Current task ID: ${currentTaskId}`}</div>}
+              <hr />
+              {envInfo.system_prompt && <div style={{ wordBreak: "break-word" }}>{`System prompt: ${envInfo.system_prompt}`}</div>}
 
- 
+
             </div>}>
               <Tag color="processing" style={{ marginInlineEnd: 0, cursor: "pointer" }}>
                 {envInfo.label}
@@ -495,14 +495,30 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
           )}
         </Flex>
         <Flex gap="small">
-          <Button size="small" icon={<ClearOutlined />} onClick={handleClear}>
-            New Chat
-          </Button>
+
+          {sending && (
+            <Flex align="center" gap={8} style={{ marginBottom: 8 }}>
+              <Spin size="small" indicator={<LoadingOutlined spin />} />
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {waiting ? "Waiting for permission…" : "Agent is running…"}
+              </Text>
+              {currentTaskId && (
+                <Popconfirm title="Cancel this task?" onConfirm={handleCancelTask}>
+                  <Button danger size="small" loading={canceling}>
+                    Cancel
+                  </Button>
+                </Popconfirm>
+              )}
+            </Flex>
+          )}
           {onCancel && (
             <Button size="small" onClick={onCancel}>
               Close
             </Button>
           )}
+          <Button size="small" icon={<ClearOutlined />} onClick={handleClear}>
+            New Chat
+          </Button>
         </Flex>
       </Flex>
 
@@ -566,21 +582,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       </Flex>
 
       {/* 运行中 / 等待权限状态提示 */}
-      {sending && (
-        <Flex align="center" gap={8} style={{ marginBottom: 8 }}>
-          <Spin size="small" indicator={<LoadingOutlined spin />} />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {waiting ? "Waiting for permission…" : "Agent is running…"}
-          </Text>
-          {currentTaskId && (
-            <Popconfirm title="Cancel this task?" onConfirm={handleCancelTask}>
-              <Button danger size="small" loading={canceling}>
-                Cancel
-              </Button>
-            </Popconfirm>
-          )}
-        </Flex>
-      )}
+
 
 
       {/* 消息区域：历史消息气泡始终展示；存在进行中的任务（currentTaskId）时，
@@ -619,15 +621,15 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
                   style={
                     m.role === "user"
                       ? {
-                          maxWidth: "78%",
-                          padding: "8px 12px",
-                          borderRadius: 8,
-                          background: "#1677ff",
-                          color: "#fff",
-                          border: "none",
-                          whiteSpace: "pre-wrap",
-                          wordBreak: "break-word",
-                        }
+                        maxWidth: "78%",
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        background: "#1677ff",
+                        color: "#fff",
+                        border: "none",
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-word",
+                      }
                       : undefined
                   }
                 >
@@ -641,10 +643,10 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
               </Flex>
             ))}
 
-            {/* 进行中的任务展示完整实时事件流（reasoning/tool/message）。 */}
-            {currentTaskId ? (
-              <AgentTaskStream taskId={currentTaskId} />
-            ) : (
+            {/* 进行中的任务展示完整实时事件流（reasoning/tool/message）。
+                嵌入模式下由 AgentTaskStream 委托父容器滚动，避免嵌套滚动条。 */}
+            {currentTaskId && <AgentTaskStream taskId={currentTaskId} scrollContainerRef={listRef} />}
+            {/* {
               sending && (
                 <Flex align="flex-start" gap={8}>
                   <RobotOutlined style={{ color: "#1677ff", marginTop: 4 }} />
@@ -669,14 +671,15 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
                   </div>
                 </Flex>
               )
-            )}
+            } */}
           </Flex>
         )}
       </div>
 
+
       {/* 待确认权限：固定在输入区上方，便于快速 Approve / Deny。
           存在进行中的任务时，权限由 AgentTaskStream 统一展示，避免重复。 */}
-      {!currentTaskId && pendingPermissions.length > 0 && (
+      {pendingPermissions.length > 0 && (
         <Flex
           vertical
           gap={8}
@@ -688,7 +691,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
             background: "#fffbe6",
           }}
         >
-          
+
           <Flex align="center" gap={6}>
             <WarningOutlined style={{ color: "#faad14", fontSize: 13 }} />
             <Text type="warning" style={{ fontSize: 12 }}>
@@ -722,32 +725,24 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
                   </Text>
                 </Flex>
                 <Space size={4}>
-                  <Popconfirm
-                    title="Approve this permission?"
-                    onConfirm={() => handleApprove(perm)}
+                  <Button
+                    type="primary"
+                    size="small"
+                    onClick={() => handleApprove(perm)}
+                    icon={<CheckOutlined />}
+                    loading={pendingLoading}
                   >
-                    <Button
-                      type="primary"
-                      size="small"
-                      icon={<CheckOutlined />}
-                      loading={pendingLoading}
-                    >
-                      Approve
-                    </Button>
-                  </Popconfirm>
-                  <Popconfirm
-                    title="Deny this permission?"
-                    onConfirm={() => handleDeny(perm)}
+                    Approve
+                  </Button>
+                  <Button
+                    danger
+                    size="small"
+                    onClick={() => handleDeny(perm)}
+                    icon={<CloseOutlined />}
+                    loading={pendingLoading}
                   >
-                    <Button
-                      danger
-                      size="small"
-                      icon={<CloseOutlined />}
-                      loading={pendingLoading}
-                    >
-                      Deny
-                    </Button>
-                  </Popconfirm>
+                    Deny
+                  </Button>
                 </Space>
               </Flex>
             );

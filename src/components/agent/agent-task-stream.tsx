@@ -1,4 +1,4 @@
-import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FC, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Button, Empty, Flex, Popconfirm, Space, Spin, Tag, Typography } from "antd";
 import {
   CheckCircleOutlined,
@@ -58,6 +58,8 @@ interface StreamMessage {
 
 interface AgentTaskStreamProps {
   taskId: string;
+  /** 嵌入到父级滚动容器（如 AgentChat 的消息列表）时传入，避免出现嵌套滚动条；自动滚动委托给父容器。 */
+  scrollContainerRef?: RefObject<HTMLDivElement | null>;
 }
 
 const renderOperation = (op?: AgentOperation | null) => {
@@ -65,13 +67,14 @@ const renderOperation = (op?: AgentOperation | null) => {
   return op.path || op.command || op.content || op.type || "";
 };
 
-const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId }) => {
+const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId, scrollContainerRef }) => {
+  const embedded = !!scrollContainerRef;
   const [messages, setMessages] = useState<StreamMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [status, setStatus] = useState<string>("created");
 
-  const [pendingPermissions, setPendingPermissions] = useState<AgentPermissionItem[]>([]);
+  // const [pendingPermissions, setPendingPermissions] = useState<AgentPermissionItem[]>([]);
   const [resolvingId, setResolvingId] = useState<string>();
 
   const msgsRef = useRef<StreamMessage[]>([]);
@@ -129,42 +132,42 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId }) => {
     setMessages([...msgsRef.current]);
   };
 
-  const loadPermissions = async () => {
-    if (!taskId) return;
-    try {
-      const res = await getAgentPendingPermissionsApi(taskId);
-      const items = res.data ?? [];
-      setPendingPermissions(items.filter((p) => p.status === AgentPermissionStatus.Pending));
-    } catch {
-      // API errors are shown globally by the http interceptor.
-    }
-  };
+  // const loadPermissions = async () => {
+  //   if (!taskId) return;
+  //   try {
+  //     const res = await getAgentPendingPermissionsApi(taskId);
+  //     const items = res.data ?? [];
+  //     setPendingPermissions(items.filter((p) => p.status === AgentPermissionStatus.Pending));
+  //   } catch {
+  //     // API errors are shown globally by the http interceptor.
+  //   }
+  // };
 
-  const handleApprove = async (id: string) => {
-    setResolvingId(id);
-    try {
-      await approveAgentPermissionApi(id);
-      getGlobalMessage()?.success("Permission approved");
-      await loadPermissions();
-    } catch {
-      // API errors are shown globally by the http interceptor.
-    } finally {
-      setResolvingId(undefined);
-    }
-  };
+  // const handleApprove = async (id: string) => {
+  //   setResolvingId(id);
+  //   try {
+  //     await approveAgentPermissionApi(id);
+  //     getGlobalMessage()?.success("Permission approved");
+  //     await loadPermissions();
+  //   } catch {
+  //     // API errors are shown globally by the http interceptor.
+  //   } finally {
+  //     setResolvingId(undefined);
+  //   }
+  // };
 
-  const handleDeny = async (id: string) => {
-    setResolvingId(id);
-    try {
-      await denyAgentPermissionApi(id);
-      getGlobalMessage()?.success("Permission denied");
-      await loadPermissions();
-    } catch {
-      // API errors are shown globally by the http interceptor.
-    } finally {
-      setResolvingId(undefined);
-    }
-  };
+  // const handleDeny = async (id: string) => {
+  //   setResolvingId(id);
+  //   try {
+  //     await denyAgentPermissionApi(id);
+  //     getGlobalMessage()?.success("Permission denied");
+  //     await loadPermissions();
+  //   } catch {
+  //     // API errors are shown globally by the http interceptor.
+  //   } finally {
+  //     setResolvingId(undefined);
+  //   }
+  // };
 
   const applyEvent = useCallback((ev: AgentEventItem) => {
     const dedupeKey = `${ev.id ?? ""}:${ev.sequence ?? ""}`;
@@ -188,7 +191,7 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId }) => {
     }
 
     if (ev.type === "permission.created" || ev.type === "permission.resolved") {
-      void loadPermissions();
+      // void loadPermissions();
       return;
     }
 
@@ -309,7 +312,7 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId }) => {
         if (!cancelled) setLoading(false);
       });
 
-    void loadPermissions();
+    // void loadPermissions();
 
     return () => {
       cancelled = true;
@@ -335,17 +338,26 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId }) => {
   const statusMeta = useMemo(() => STATUS_META[status] ?? { color: "default", text: status }, [status]);
   const running = status === "created" || status === "running" || status === "waiting";
 
+  // 自动滚动到底部：嵌入模式下滚动父容器，否则滚动自身容器。
   useEffect(() => {
-    if (autoScrollRef.current && containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    if (!autoScrollRef.current) return;
+    const target = scrollContainerRef?.current ?? containerRef.current;
+    if (target) {
+      target.scrollTop = target.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, scrollContainerRef]);
 
-  const onScroll = () => {
-    const el = containerRef.current;
-    if (!el) return;
-    autoScrollRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
-  };
+  // 监听滚动：用户向上翻阅时暂停自动滚动（嵌入模式下监听父容器）。
+  useEffect(() => {
+    const target = scrollContainerRef?.current ?? containerRef.current;
+    if (!target) return;
+    const handler = () => {
+      autoScrollRef.current =
+        target.scrollHeight - target.scrollTop - target.clientHeight < 40;
+    };
+    target.addEventListener("scroll", handler);
+    return () => target.removeEventListener("scroll", handler);
+  }, [scrollContainerRef, loading, loadError]);
 
   return (
     <Flex vertical gap="small" style={{ padding: "8px 0" }}>
@@ -365,7 +377,7 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId }) => {
         </Text>
       </Flex>
 
-      {pendingPermissions.length > 0 && (
+      {/* {pendingPermissions.length > 0 && (
         <Flex vertical gap="small">
           <Text type="warning" style={{ fontSize: 12 }}>
             Pending permissions ({pendingPermissions.length})
@@ -409,7 +421,7 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId }) => {
             );
           })}
         </Flex>
-      )}
+      )} */}
 
       {loading ? (
         <Flex justify="center" style={{ padding: 24 }}>
@@ -418,7 +430,14 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId }) => {
       ) : loadError ? (
         <Empty description="Failed to load task events" image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ) : (
-        <div ref={containerRef} onScroll={onScroll} style={{ maxHeight: 480, overflow: "auto", paddingRight: 4 }}>
+        <div
+          ref={containerRef}
+          style={
+            embedded
+              ? { background: "#ffffff", border: "1px solid #f0f0f0", borderRadius: 8, padding: "8px 12px" }
+              : { maxHeight: 480, overflow: "auto", paddingRight: 4 }
+          }
+        >
           {messages.length === 0 ? (
             !running ? (
               <Empty description="No output" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ margin: "4px 0" }} />
