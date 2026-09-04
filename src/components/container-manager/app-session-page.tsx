@@ -223,6 +223,26 @@ const AppSessionPage = ({
     }
   };
 
+  const handleDescribe = async (record: AppSessionItem) => {
+    const instanceId = normalizeText(record.container_instance_id);
+    if (!instanceId) {
+      messageApi.warning("No container instance");
+      return;
+    }
+    try {
+      await invoke.containerInstanceDescribeDialog.openAsync(
+        { instanceId },
+        {
+          title: `Describe: ${record.container_instance_name || record.name || instanceId}`,
+          width: 720,
+          footer: false,
+        }
+      );
+    } catch {
+      // User cancelled
+    }
+  };
+
   const renderOperationButtons = (record: AppSessionItem, compact = false) => {
     const itemStatus = record.status || "";
     const startKey = `start-${record.id}`;
@@ -243,6 +263,15 @@ const AppSessionPage = ({
             Open
           </Button>
         </Tooltip>
+
+        <Button
+          size="small"
+          type="link"
+          disabled={!record.container_instance_id}
+          onClick={() => handleDescribe(record)}
+        >
+          Describe
+        </Button>
 
         <Button
           size="small"

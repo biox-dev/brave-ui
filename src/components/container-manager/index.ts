@@ -11,6 +11,7 @@ const viewLoaders = {
   containerTemplateImportDialog: () => import("./container-template-import-dialog"),
   appSessionPage: () => import("./app-session-page"),
   containerInstancePage: () => import("./container-instance-page"),
+  containerInstanceDescribeDialog: () => import("./container-instance-describe-dialog"),
   containerEventPage: () => import("./container-event-page"),
   outboxEventPage: () => import("./outbox-event-page"),
 };

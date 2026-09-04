@@ -278,6 +278,17 @@ export const pageContainerInstanceApi = (payload: PageRequest<ContainerInstanceP
     return http.post<PageResponse<ContainerInstanceItem>>("/container/instance/list-by-page", payload);
 };
 
+export interface RuntimeDescription {
+    kind: string;
+    name: string;
+    format: string;
+    raw: string;
+}
+
+export const describeContainerInstanceApi = (id: string) => {
+    return http.get<RuntimeDescription>("/container/instance/describe", { params: { id } });
+};
+
 export const pageContainerEventApi = (payload: PageRequest<ContainerEventPageQuery>) => {
     return http.post<PageResponse<ContainerEventItem>>("/container/event/list-by-page", payload);
 };

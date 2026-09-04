@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Card, Flex, Space, Table, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { ReloadOutlined } from "@ant-design/icons";
 import { useContainerInstancePageQuery } from "@/hooks/usePaginationV2";
 import type { ContainerInstanceItem } from "@/api/container";
+import { invoke } from "@/core/ui-system/invokeV2";
 
 const { Text } = Typography;
 
@@ -180,16 +181,42 @@ const ContainerInstancePage = ({
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 
+  const handleDescribe = useCallback(async (record: ContainerInstanceItem) => {
+    try {
+      await invoke.containerInstanceDescribeDialog.openAsync(
+        { instanceId: record.id },
+        { title: `Describe: ${record.name || record.id}`, width: 720, footer: false }
+      );
+    } catch {
+      // User cancelled
+    }
+  }, []);
+
   const selectColumns = useMemo<ColumnsType<ContainerInstanceItem>>(() => {
+    const describeColumn: ColumnsType<ContainerInstanceItem> = [
+      {
+        title: "Actions",
+        key: "actions",
+        width: 120,
+        fixed: "right",
+        render: (_: unknown, record) => (
+          <Button type="link" size="small" onClick={() => handleDescribe(record)}>
+            Describe
+          </Button>
+        ),
+      },
+    ];
+
     if (!selectable) {
-      return columns;
+      return [...columns, ...describeColumn];
     }
 
     return [
       ...columns,
+      ...describeColumn,
       {
-        title: "Action",
-        key: "action",
+        title: "Select",
+        key: "select",
         width: 120,
         fixed: "right",
         render: (_: unknown, record) => (
@@ -203,7 +230,7 @@ const ContainerInstancePage = ({
         ),
       },
     ];
-  }, [selectable, selectedId]);
+  }, [selectable, selectedId, handleDescribe]);
 
   const handleConfirm = () => {
     if (!selectedItem || !onOk) {
