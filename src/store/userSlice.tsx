@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { getActiveProjectApi } from '@/api/project'
-import { getCurrentUserApi } from '@/api/auth'
+import { getCurrentUserApi, type AgentUserConfig } from '@/api/auth'
 import { getPathname } from "@/utils/utils";
 
 const locale = localStorage.getItem('locale')
@@ -50,6 +50,7 @@ export interface LoginUserInfo {
     email: string;
     avatar: string;
     profile?: string;
+    agent_config?: AgentUserConfig;
     is_active: boolean;
     can_access_all_tenants: boolean;
     created_at: string;

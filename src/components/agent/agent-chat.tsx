@@ -4,6 +4,7 @@ import {
   CheckOutlined,
   ClearOutlined,
   CloseOutlined,
+  EditOutlined,
   LoadingOutlined,
   ReloadOutlined,
   RobotOutlined,
@@ -35,8 +36,9 @@ import { getGlobalMessage } from "@/hooks/useGlobalMessage";
 import { sseClient } from "@/sse";
 import { useDispatch, useSelector } from "react-redux";
 import { Popover } from "antd/lib";
-import { updateUserProfileApi } from "@/api/auth";
+import type { AgentUserConfig } from "@/api/auth";
 import { setUserItem } from "@/store/userSlice";
+import { invoke } from "@/core/ui-system/invokeV2";
 import AgentTaskStream from "./agent-task-stream";
 import { renderAssistantMessage } from "./agent-message-render";
 
@@ -392,17 +394,22 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 切换 Profile：先持久化到后端当前用户，再同步更新 Redux 中的 userInfo。
-  const handleProfileChange = async (value?: string) => {
-    const next = value ?? "";
-    try {
-      await updateUserProfileApi(next);
-    } catch {
-      return; // 错误由全局拦截器提示，不更新本地状态。
-    }
-    if (userInfo) {
-      dispatch(setUserItem({ userInfo: { ...userInfo, profile: next } }));
-    }
+  // 切换 Profile / Agent 配置：通过 invokeV2 弹窗展示并编辑当前用户的
+  // agent_config（Profile + Permissions），保存后同步更新 Redux 中的 userInfo。
+  const handleProfileChange = () => {
+    invoke.agentConfigModal
+      .openAsync({
+        config: userInfo?.agent_config ?? null,
+        profiles,
+      }, { footer: null })
+      .then((next?: AgentUserConfig) => {
+        if (next && userInfo) {
+          dispatch(setUserItem({ userInfo: { ...userInfo, agent_config: next } }));
+        }
+      })
+      .catch(() => {
+        // 用户取消，无需处理。
+      });
   };
 
   const handleSend = async () => {
@@ -471,7 +478,12 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   return (
     <Flex vertical style={{ height: "100%", minHeight: 480 }}>
       {/* 头部 */}
-      <Flex align="center" justify="space-between" style={{ marginBottom: 8 }}>
+      <Flex
+        align="center"
+        justify="space-between"
+        gap={12}
+        style={{ height: 40, flexShrink: 0, marginBottom: 8 }}
+      >
         <Flex align="center" gap={8} style={{ minWidth: 0 }}>
           {/* <Text type="secondary" style={{ fontSize: 12 }}>
             {conversationId ? `Conversation: ${conversationId}` : "New conversation"}
@@ -484,8 +496,6 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
               {currentTaskId && <div>{`Current task ID: ${currentTaskId}`}</div>}
               <hr />
               {envInfo.system_prompt && <div style={{ wordBreak: "break-word" }}>{`System prompt: ${envInfo.system_prompt}`}</div>}
-
-
             </div>}>
               <Tag color="processing" style={{ marginInlineEnd: 0, cursor: "pointer" }}>
                 {envInfo.label}
@@ -494,21 +504,21 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
             </Popover>
           )}
         </Flex>
-        <Flex gap="small">
-
+        <Flex align="center" gap={8} style={{ flexShrink: 0 }}>
+          <Tag
+            color={userInfo?.agent_config?.profile ? "processing" : "default"}
+            icon={<EditOutlined />}
+            style={{ cursor: "pointer", marginInlineEnd: 0 }}
+            onClick={handleProfileChange}
+          >
+            {userInfo?.agent_config?.profile || "Default profile"}
+          </Tag>
           {sending && (
-            <Flex align="center" gap={8} style={{ marginBottom: 8 }}>
+            <Flex align="center" gap={8}>
               <Spin size="small" indicator={<LoadingOutlined spin />} />
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {waiting ? "Waiting for permission…" : "Agent is running…"}
               </Text>
-              {currentTaskId && (
-                <Popconfirm title="Cancel this task?" onConfirm={handleCancelTask}>
-                  <Button danger size="small" loading={canceling}>
-                    Cancel
-                  </Button>
-                </Popconfirm>
-              )}
             </Flex>
           )}
           {onCancel && (
@@ -522,20 +532,8 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
         </Flex>
       </Flex>
 
-      {/* Profile 选择：为空表示使用默认 Profile */}
-      <Select
-        value={userInfo?.profile}
-        placeholder="Select agent profile (default)"
-        onChange={handleProfileChange}
-        allowClear
-        showSearch
-        optionFilterProp="label"
-        style={{ width: "100%", marginBottom: 8 }}
-        options={profiles.map((p) => ({
-          value: p.name,
-          label: `${p.display_name || p.name}${p.is_default ? " (default)" : ""}`,
-        }))}
-      />
+      {/* Profile：显示当前用户的 Agent Profile，点击打开配置弹窗修改 */}
+
 
       {/* 会话切换下拉 + 刷新 */}
       <Flex gap="small" style={{ marginBottom: 8 }}>
@@ -765,15 +763,19 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
           }}
           disabled={sending}
         />
-        <Button
-          type="primary"
-          icon={<SendOutlined />}
-          onClick={handleSend}
-          loading={sending}
-          disabled={!input.trim()}
-        >
-          Send
-        </Button>
+        {sending ? (
+
+          <Button onClick={handleCancelTask} danger type="primary" icon={<CloseOutlined />} loading={canceling} />
+        ) : (
+          <Button
+            type="primary"
+            icon={<SendOutlined />}
+            onClick={handleSend}
+            disabled={!input.trim()}
+          >
+            Send
+          </Button>
+        )}
       </Flex>
     </Flex>
   );

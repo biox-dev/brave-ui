@@ -5,12 +5,19 @@ export interface LoginRequest {
 	password: string;
 }
 
+// Agent 用户配置（对应后端 agent.UserAgentConfig）。
+export interface AgentUserConfig {
+	profile?: string;
+	permissions?: Record<string, string>;
+}
+
 export interface LoginUser {
 	id: string;
 	username: string;
 	email: string;
 	avatar: string;
 	profile?: string;
+	agent_config?: AgentUserConfig;
 	is_active: boolean;
 	can_access_all_tenants: boolean;
 	created_at: string;
@@ -76,4 +83,15 @@ export const updateUserProfileApi = (profile: string) => {
 	return http.post<{ success: boolean; message: string; user: LoginUser }>("/auth/profile", {
 		profile,
 	});
+};
+
+// 更新当前用户的 Agent 配置（Profile + Permissions）。
+export const updateAgentConfigApi = (payload: {
+	profile?: string;
+	permissions?: Record<string, string>;
+}) => {
+	return http.post<{ success: boolean; message: string; user: LoginUser }>(
+		"/auth/agent-config",
+		payload
+	);
 };
