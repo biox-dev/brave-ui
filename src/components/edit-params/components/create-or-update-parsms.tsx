@@ -108,7 +108,7 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
                 V2: `/analysis/controllerV2`,
                 V3: `/analysis/controllerV3`,
             }
-            const controllerPath = analysisNodeId ? "/analysis/controller-script" : controllerPathMap[controllerVersion]
+            const controllerPath = analysisNodeId || script ? "/analysis/controller-script" : controllerPathMap[controllerVersion]
 
             const resp = await http.post(controllerPath, {
                 request_param: requestParams,
