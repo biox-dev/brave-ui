@@ -344,6 +344,10 @@ export interface AgentProfileItem {
   is_default?: boolean;
   is_builtin?: boolean;
   system_prompt?: string;
+  /** 本 Profile 使用的模型名（对应 config.agent.providers 的 key）。 */
+  model?: string;
+  /** 本 Profile 使用的 Agent（Provider）名称。 */
+  provider?: string;
   skills?: string[];
   context?: AgentProfileContext;
   created_at: string;
@@ -357,6 +361,8 @@ export interface AgentProfileSaveRequest {
   display_name?: string;
   description?: string;
   system_prompt?: string;
+  /** 本 Profile 使用的模型名（为空回退到请求级 / Provider 兜底）。 */
+  model?: string;
   skills?: string[];
   context?: AgentProfileContext;
   is_default?: boolean;

@@ -36,6 +36,7 @@ interface ProfileFormValues {
   display_name?: string;
   description?: string;
   system_prompt?: string;
+  model?: string;
   skills?: string[];
   inject_memory?: boolean;
   inject_project?: boolean;
@@ -100,6 +101,7 @@ const AgentProfilePage = () => {
       display_name: record.display_name,
       description: record.description,
       system_prompt: record.system_prompt,
+      model: record.model,
       skills: record.skills ?? [],
       inject_memory: record.context?.inject_memory ?? true,
       inject_project: record.context?.inject_project ?? false,
@@ -115,6 +117,7 @@ const AgentProfilePage = () => {
       display_name: values.display_name,
       description: values.description,
       system_prompt: values.system_prompt,
+      model: values.model,
       skills: values.skills ?? [],
       context: {
         inject_memory: values.inject_memory ?? true,
@@ -160,11 +163,17 @@ const AgentProfilePage = () => {
           {record.is_default && <Tag color="gold">default</Tag>}
         </Space>
       ),
-    },
-    {
+    }, {
       title: "Display Name",
       dataIndex: "display_name",
       key: "display_name",
+      width: 160,
+      render: (value?: string) => value || "-",
+    },
+    {
+      title: "Provider",
+      dataIndex: "provider",
+      key: "provider",
       width: 160,
       render: (value?: string) => value || "-",
     },
@@ -174,6 +183,18 @@ const AgentProfilePage = () => {
       key: "description",
       ellipsis: true,
       render: (value?: string) => value || "-",
+    },
+    {
+      title: "Model",
+      dataIndex: "model",
+      key: "model",
+      width: 220,
+      render: (value: string | undefined, record) => (
+        <Space size={4} wrap>
+          <Text>{value || "-"}</Text>
+          {record.provider && <Tag color="cyan">{record.provider}</Tag>}
+        </Space>
+      ),
     },
     {
       title: "Skills",
@@ -208,14 +229,13 @@ const AgentProfilePage = () => {
       title: "Actions",
       key: "actions",
       width: 150,
-      render: (_, record) =>
-        record.is_builtin ? (
-          <Text type="secondary">read-only</Text>
-        ) : (
-          <Space size={4}>
-            <Button size="small" onClick={() => openEdit(record)}>
-              Edit
-            </Button>
+      fixed: "right",
+      render: (_, record) => (
+        <Space size={4}>
+          <Button size="small" onClick={() => openEdit(record)}>
+            Edit
+          </Button>
+          {!record.is_builtin && (
             <Popconfirm
               title="Delete this profile?"
               okText="Delete"
@@ -227,8 +247,9 @@ const AgentProfilePage = () => {
                 Delete
               </Button>
             </Popconfirm>
-          </Space>
-        ),
+          )}
+        </Space>
+      ),
     },
   ];
 
@@ -251,8 +272,8 @@ const AgentProfilePage = () => {
       <Flex gap="small" style={{ marginBottom: 12 }} wrap>
         <Text type="secondary">
           Each profile bundles a system prompt, a set of skills and context
-          injection switches. Builtin profiles are read-only; custom profiles
-          are per-user.
+          injection switches. Builtin profiles can be edited but not deleted;
+          custom profiles are per-user.
         </Text>
       </Flex>
 
@@ -261,6 +282,7 @@ const AgentProfilePage = () => {
         columns={columns}
         dataSource={data}
         loading={loading}
+        scroll={{ x: 1000 }}
         pagination={false}
         expandable={{
           expandedRowRender: (record) => (
@@ -311,6 +333,10 @@ const AgentProfilePage = () => {
 
           <Form.Item name="description" label="Description">
             <Input placeholder="Short description (optional)" />
+          </Form.Item>
+
+          <Form.Item name="model" label="Model">
+            <Input placeholder="Model name, e.g. deepseek-v4-flash (optional)" />
           </Form.Item>
 
           <Form.Item name="system_prompt" label="System Prompt">
