@@ -69,10 +69,10 @@ const AISummaryInputModal = ({ ownerType, ownerId }: AISummaryInputModalProps) =
               </Typography.Paragraph>
             </div>
           )}
-          <div>
+          {/* <div>
             <Typography.Text strong>System Prompt</Typography.Text>
             <pre style={PRE_STYLE}>{input.system_prompt || "-"}</pre>
-          </div>
+          </div> */}
           <div>
             <Typography.Text strong>Working Directory</Typography.Text>
             <pre style={PRE_STYLE}>{input.working_dir || "-"}</pre>
