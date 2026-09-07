@@ -76,9 +76,10 @@ const ToolsDetail = lazy(() => import("../pages/components-relation/workflow-pan
 const ComponentsV3 = lazy(() => import("../pages/components-relation/script-panel"));
 const Login = lazy(() => import("@/pages/users/login"));
 const Register = lazy(() => import("@/pages/users/register"));
-const DatasetProjectPage = lazy(() => import("@/components/data-dataset-page/dataset-project-page"))
-const DatasetFilePage = lazy(() => import("@/components/data-dataset-page/dataset-file-page"))
-const SampleProjectPage = lazy(() => import("@/components/data-dataset-page/sample-project-page"))
+const DatasetProjectPage = lazy(() => import("@/components/layout-sider/data-dataset-page/dataset-project-page"))
+const DatasetFilePage = lazy(() => import("@/components/layout-sider/data-dataset-page/dataset-file-page"))
+const DatasetFileDetailPage = lazy(() => import("@/pages/page-route/dataset-file-detail"))
+const SampleProjectPage = lazy(() => import("@/components/layout-sider/data-dataset-page/sample-project-page"))
 const ContainerImagePage = lazy(() => import("@/components/container-manager/container-image-page"))
 const ContainerTemplatePage = lazy(() => import("@/components/container-manager/container-template-page"))
 const AppSessionPage = lazy(() => import("@/components/container-manager/app-session-page"))
@@ -110,6 +111,9 @@ if (appType == "index") {
         }, {
             path: "dataset-file",
             element: <DatasetFilePage />
+        }, {
+            path: "/dataset-file/:id",
+            element: <DatasetFileDetailPage />
         }, {
             path: "app-session",
             element: <AppSessionPage />

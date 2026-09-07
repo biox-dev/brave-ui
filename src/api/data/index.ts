@@ -159,3 +159,21 @@ export interface UpdateDatasetFileRequest {
 export const updateDatasetFileApi = (payload: UpdateDatasetFileRequest) => {
 	return http.post<{ message: string }>("/data/dataset-file/update", payload);
 };
+
+export interface DataFileItem {
+	id: string;
+	file_id: string;
+	file_name: string;
+	path: string;
+	format: string;
+	size: number;
+	md5: string;
+	storage: string;
+	description: string;
+	created_at: string;
+	updated_at: string;
+}
+
+export const getFileApi = (id: string) => {
+	return http.get<DataFileItem>(`/data/file/get?id=${encodeURIComponent(id)}`);
+};

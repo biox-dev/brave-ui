@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ApartmentOutlined, BookOutlined, FileTextOutlined, SettingOutlined, FileSearchOutlined, FolderOpenOutlined, FileDoneOutlined, NodeIndexOutlined, UnorderedListOutlined, BarChartOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, BookOutlined, FileTextOutlined, SettingOutlined, FileSearchOutlined, FolderOpenOutlined, FileDoneOutlined, NodeIndexOutlined, UnorderedListOutlined, BarChartOutlined, ExperimentOutlined, FileOutlined } from '@ant-design/icons';
 import { Dropdown, Layout, Segmented, theme } from 'antd';
 import { Outlet, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
@@ -15,10 +15,10 @@ import SplitWorkspace from './components/SplitWorkspace.tsx';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
-type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList'| 'analysisNodeList' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature';
+type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList'| 'analysisNodeList' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'sampleProjectPage' | 'datasetFilePage';
 
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
-  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature';
+  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'sampleProjectPage' || key === 'datasetFilePage';
 
 const App: React.FC = () => {
   const { locale } = useI18n();
@@ -51,6 +51,7 @@ const App: React.FC = () => {
         label: locale === 'en_US' ? 'Script Page' : '脚本页',
         icon: <FileTextOutlined />,
       },
+     
       {
         key: 'workflowPage',
         label: locale === 'en_US' ? 'Workflow Page' : '流程页',
@@ -69,6 +70,16 @@ const App: React.FC = () => {
         key: 'projectReport',
         label: locale === 'en_US' ? 'Project Report' : '项目报告',
         icon: <BarChartOutlined />,
+      }, 
+      
+      {
+        key: 'datasetFilePage',
+        label: locale === 'en_US' ? 'Dataset Files' : '数据集文件',
+        icon: <FileOutlined />,
+      },{
+        key: 'sampleProjectPage',
+        label: locale === 'en_US' ? 'Samples' : '样本',
+        icon: <ExperimentOutlined />,
       },
       {
         key: 'projectLiterature',

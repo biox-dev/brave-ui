@@ -9,6 +9,11 @@ const viewLoaders = {
     workflowPage: () => import("./workflow-page/workflow-page-list"),
     scriptPage: () => import("./script-page/script-page-list"),
     sysFileBrowser: () => import("./sys-file/sys-file"),
+     datasetProjectPage: () => import("./data-dataset-page/dataset-project-page"),
+    datasetFilePage: () => import("./data-dataset-page/dataset-file-page"),
+    sampleProjectPage: () => import("./data-dataset-page/sample-project-page"),
+    editFilePage: () => import("./data-dataset-page/edit-file-page"),
+    editDatasetFileRole: () => import("./data-dataset-page/edit-datasetfile-role"),
 };
 
 declare module "@/core/component-registry/registry-types" {

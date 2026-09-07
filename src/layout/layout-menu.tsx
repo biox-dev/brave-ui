@@ -84,14 +84,14 @@ export const layoutMenuTree: LayoutMenuItem[] = [
   //     en_US: 'Report',
   //   },
   // },
-  {
-    key: '/files',
-    icon: 'files',
-    label: {
-      zh_CN: '文件',
-      en_US: 'Files',
-    },
-  },
+  // {
+  //   key: '/files',
+  //   icon: 'files',
+  //   label: {
+  //     zh_CN: '文件',
+  //     en_US: 'Files',
+  //   },
+  // },
   {
     key: '/app-session',
     icon: 'container',

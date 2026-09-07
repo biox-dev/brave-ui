@@ -90,14 +90,14 @@ const DatasetProjectPage = ({
   onCancel,
   close,
 }: DatasetProjectPageProps) => {
-  const { project, projectObj } = useSelector((state: any) => state.user);
+  const { projectId } = useSelector((state: any) => state.user);
   const [selectedId, setSelectedID] = useState<string>();
 
   const selectable = Boolean(onOk || onCancel);
 
   const resolvedProjectId = useMemo(
-    () => normalizeText(project_id) || normalizeText(project) || normalizeText(projectObj?.project_id) || "",
-    [project_id, project, projectObj?.project_id]
+    () =>  projectId ,
+    [projectId]
   );
 
   const {
