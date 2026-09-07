@@ -322,7 +322,7 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
                         <Button disabled={formStatus == "stopping"} size="small" color="cyan" variant="solid"
                             onClick={async () => {
                                 try {
-                                    if (script) {
+                                    if (script || analysisNodeId) {
                                         if (!analysisNodeId) {
                                             messageApi.error("analysis_node_id is required")
                                             return

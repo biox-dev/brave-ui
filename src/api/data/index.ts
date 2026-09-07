@@ -31,6 +31,7 @@ export interface DatasetFileItem {
 	path: string;
 	format: string;
 	size: number;
+	analysis_node_id: string;
 	md5: string;
 	storage: string;
 	description: string;

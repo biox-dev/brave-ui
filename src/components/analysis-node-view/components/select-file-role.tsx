@@ -31,7 +31,7 @@ const SelectFileRole = ({
 }: SelectFileRoleProps) => {
   const [selectedRole, setSelectedRole] = useState<string>("DEFAULT");
   const [fileName, setFileName] = useState<string>(defaultFileName || "");
-  const [isCopy, setIsCopy] = useState<boolean>(true);
+  const [isCopy, setIsCopy] = useState<boolean>(false);
   const [isPrefix, setIsPrefix] = useState<boolean>(defaultIsPrefix ?? false);
   const [filePath, setFilePath] = useState<string>(path || "");
 

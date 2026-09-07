@@ -96,6 +96,8 @@ const FileDetailCard = ({ item }: { item: DatasetFileItem }) => (
       items={[
         { key: "file_name", label: "File Name", children: item.file_name || item.file_id || "-" },
         { key: "file_id", label: "File ID", children: item.file_id || "-" },
+        { key: "analysis_node_id", label: "Analysis Node ID", children: item.analysis_node_id || "-" },
+
         { key: "dataset", label: "Dataset", children: item.dataset_name || "-" },
         { key: "role", label: "Role", children: item.role || "-" },
         { key: "format", label: "Format", children: item.format || "-" },
@@ -376,24 +378,24 @@ const DatasetFilePage = ({
 
   const columns: ColumnsType<DatasetFileItem> = selectable
     ? [
-        ...detailColumns,
-        actionsColumn,
-        {
-          title: "Action",
-          key: "action",
-          width: 96,
-          fixed: "right",
-          render: (_: unknown, record) => (
-            <Button
-              type={record.id === selectedId ? "primary" : "default"}
-              size="small"
-              onClick={() => setSelectedID(record.id)}
-            >
-              {record.id === selectedId ? "Selected" : "Select"}
-            </Button>
-          ),
-        },
-      ]
+      ...detailColumns,
+      actionsColumn,
+      {
+        title: "Action",
+        key: "action",
+        width: 96,
+        fixed: "right",
+        render: (_: unknown, record) => (
+          <Button
+            type={record.id === selectedId ? "primary" : "default"}
+            size="small"
+            onClick={() => setSelectedID(record.id)}
+          >
+            {record.id === selectedId ? "Selected" : "Select"}
+          </Button>
+        ),
+      },
+    ]
     : [...listColumns, actionsColumn];
 
   const handleConfirm = () => {
@@ -445,12 +447,12 @@ const DatasetFilePage = ({
             rowSelection={
               selectable
                 ? {
-                    type: "radio",
-                    selectedRowKeys: selectedId ? [selectedId] : [],
-                    onChange: (selectedRowKeys) => {
-                      setSelectedID(String(selectedRowKeys[0] || ""));
-                    },
-                  }
+                  type: "radio",
+                  selectedRowKeys: selectedId ? [selectedId] : [],
+                  onChange: (selectedRowKeys) => {
+                    setSelectedID(String(selectedRowKeys[0] || ""));
+                  },
+                }
                 : undefined
             }
             onRow={(record) => ({

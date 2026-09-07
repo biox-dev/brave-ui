@@ -6,7 +6,7 @@ import { addFileToDatasetApi } from "@/api/data";
 import { openFileByPath } from "@/utils/file-open";
 
 
-export const FilesRender: FC<any> = ({ name,files }) => {
+export const FilesRender: FC<any> = ({ name, analysis_node_id, files }) => {
     const message = useGlobalMessage()
 
     if (!files || !Array.isArray(files)) {
@@ -70,10 +70,11 @@ export const FilesRender: FC<any> = ({ name,files }) => {
                                                         const result = await invoke.selectFileRole.openDrawerAsync(
                                                   
                                                             { defaultFileName: fileName,path:filePath },
-                                                            { width: 450, title: "Add File to Dataset" }
+                                                            { width: 450, title: analysis_node_id ? `Add File to Dataset (${analysis_node_id})` : "Add File to Dataset" }
                                                         )
                                                         const params = {
                                                             dataset_id: dataset.id,
+                                                            analysis_node_id:analysis_node_id,
                                                             path: result.path,
                                                             source: "analysis",
                                                             role: result.role,

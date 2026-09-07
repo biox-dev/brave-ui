@@ -542,8 +542,8 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
                         ownerType="analysis_node"
                         ownerId={analysis_node_id}
                     />
-                    {selectedSampleDetail?.result?.output_files && <FilesRender name="Output Files" files={selectedSampleDetail.result.output_files}></FilesRender>}
-                    {selectedSampleDetail?.result?.cache_files && <FilesRender name="Cache Files" files={selectedSampleDetail?.result?.cache_files}></FilesRender>}
+                    {selectedSampleDetail?.result?.output_files && <FilesRender analysis_node_id={analysis_node_id} name="Output Files" files={selectedSampleDetail.result.output_files}></FilesRender>}
+                    {selectedSampleDetail?.result?.cache_files && <FilesRender analysis_node_id={analysis_node_id} name="Cache Files" files={selectedSampleDetail?.result?.cache_files}></FilesRender>}
 
                     {selectedSampleDetail.status == "running" || detailLoading ? (
                         <Skeleton active paragraph={{ rows: 6 }} />
