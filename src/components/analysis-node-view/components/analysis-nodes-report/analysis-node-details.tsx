@@ -12,6 +12,7 @@ import { useSelector } from "react-redux";
 import { useStoreRender } from "@/context/render/RenderProvider";
 import { useSideViewContext } from "@/context/side/SideViewContext";
 import { useComponentStore } from "@/event-bus/stores/components";
+import { FilesRender } from "../result-render/components/files-render";
 
 type NodeResultAsset = {
     images?: any[];
@@ -537,10 +538,13 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
                             </Space>
                         </Flex>
                     </Card>
-                      <AISummaryPanel
+                    <AISummaryPanel
                         ownerType="analysis_node"
                         ownerId={analysis_node_id}
                     />
+                    {selectedSampleDetail?.result?.output_files && <FilesRender name="Output Files" files={selectedSampleDetail.result.output_files}></FilesRender>}
+                    {selectedSampleDetail?.result?.cache_files && <FilesRender name="Cache Files" files={selectedSampleDetail?.result?.cache_files}></FilesRender>}
+
                     {selectedSampleDetail.status == "running" || detailLoading ? (
                         <Skeleton active paragraph={{ rows: 6 }} />
                     ) : (
@@ -551,11 +555,13 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
                         ></ViewResolver>
                     )}
 
-                  
+
                 </Flex>
             )}
         </Card>
     );
 };
+
+
 
 export default AnalysisNodeDetails;

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { Button, Empty, Flex, Pagination, Popconfirm, Table, Tag, Tooltip } from "antd";
+import { Button, Descriptions, Empty, Flex, Pagination, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { DeleteOutlined, EditOutlined, FileOutlined, ReloadOutlined, TableOutlined, TagsOutlined } from "@ant-design/icons";
 import { useDatasetFilePageQuery } from "@/hooks/usePaginationV2";
@@ -69,6 +69,58 @@ const isSpreadsheetFile = (item: DatasetFileItem) => {
   const path = String(item.path ?? "").toLowerCase();
   return [".xlsx", ".xls", ".csv", ".tsv"].some((ext) => path.endsWith(ext));
 };
+
+const formatBytes = (size?: number) => {
+  if (typeof size !== "number" || !Number.isFinite(size)) {
+    return "-";
+  }
+
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = size;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+};
+
+const FileDetailCard = ({ item }: { item: DatasetFileItem }) => (
+  <div style={{ width: 380 }}>
+    <Descriptions
+      size="small"
+      column={1}
+      bordered
+      items={[
+        { key: "file_name", label: "File Name", children: item.file_name || item.file_id || "-" },
+        { key: "file_id", label: "File ID", children: item.file_id || "-" },
+        { key: "dataset", label: "Dataset", children: item.dataset_name || "-" },
+        { key: "role", label: "Role", children: item.role || "-" },
+        { key: "format", label: "Format", children: item.format || "-" },
+        { key: "size", label: "Size", children: formatBytes(item.size) },
+        { key: "storage", label: "Storage", children: item.storage || "-" },
+        { key: "md5", label: "MD5", children: item.md5 || "-" },
+        {
+          key: "path",
+          label: "Path",
+          children: item.path ? (
+            <span style={{ wordBreak: "break-all", whiteSpace: "pre-wrap" }}>{item.path}</span>
+          ) : (
+            "-"
+          ),
+        },
+        { key: "description", label: "Description", children: item.description || "-" },
+        {
+          key: "created_at",
+          label: "Created At",
+          children: item.created_at ? new Date(item.created_at).toLocaleString() : "-",
+        },
+      ]}
+    />
+  </div>
+);
 
 const listColumns: ColumnsType<DatasetFileItem> = [
   {
@@ -204,6 +256,37 @@ const DatasetFilePage = ({
   }, [file_id, file_name, path, format, storage, description, dataset_id, dataset_name, role, setQuery]);
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
+
+  const bodyRow = useMemo(() => {
+    const Row = (props: any) => {
+      const rowKey = props?.["data-row-key"];
+      const record = data.find((item) => String(item.id) === String(rowKey));
+      const rowElement = <tr {...props} />;
+
+      if (!record) {
+        return rowElement;
+      }
+
+      return (
+        <Popover
+          placement="left"
+          mouseEnterDelay={0.2}
+          mouseLeaveDelay={0.1}
+          title={
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <FileOutlined />
+              {record.file_name || record.file_id || `File-${record.id}`}
+            </span>
+          }
+          content={<FileDetailCard item={record} />}
+        >
+          {rowElement}
+        </Popover>
+      );
+    };
+
+    return Row;
+  }, [data]);
 
   const handleOpenSheet = (item: DatasetFileItem) => {
     if (!isSpreadsheetFile(item)) {
@@ -355,6 +438,7 @@ const DatasetFilePage = ({
             pagination={false}
             showHeader={selectable}
             scroll={selectable ? { x: 1200 } : undefined}
+            components={{ body: { row: bodyRow } }}
             rowClassName={(record) =>
               record.id === selectedId ? "project-report-row-selected" : ""
             }
