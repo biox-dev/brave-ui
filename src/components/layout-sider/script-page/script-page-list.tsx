@@ -109,7 +109,12 @@ const ScriptPageList: FC<any> = () => {
               size="small"
               icon={<PlusOutlined />}
               onClick={async () => {
-                await invoke.createOrUpdateComponent.openAsync({});
+                await invoke.createOrUpdateComponent.openAsync({},{
+                  footer: null,
+                  width: "40%",
+                  title: `Create script`,
+                });
+                refetch()
               }}
             />
           </Tooltip>

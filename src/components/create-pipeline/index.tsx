@@ -856,9 +856,9 @@ export const CreateOrUpdatePipelineV2: FC<any> = ({ script_id, structure, callba
 
 
                 <ComponentsRender structure={structure} {...structure} data={component} form={form}></ComponentsRender>
-                <Form.Item name={"prompt"} label="Prompt" >
+                {/* <Form.Item name={"prompt"} label="Prompt" >
                     <TextArea rows={4}></TextArea>
-                </Form.Item>
+                </Form.Item> */}
 
                 <Form.Item name={"tags"} label="Tags">
                     <Select
