@@ -1,5 +1,5 @@
 import { CreateOrUpdatePipeline } from "@/components/create-pipeline"
-import Code from "@/components/module-edit/code"
+import Code from "@/components/script/code"
 import { Card, Empty, Popconfirm, Segmented, Space } from "antd"
 import axios from "axios"
 import { FC, useEffect, useState } from "react"

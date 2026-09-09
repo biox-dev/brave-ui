@@ -1,7 +1,7 @@
 import AI from "@/components/chat/ai";
 import { FC } from "react";
 import { Card, Col, Row } from "antd";
-import Code from "@/components/module-edit/code";
+import Code from "@/components/script/code";
 
 const LLMAnalysis: FC<any> = ({ analysis_id}) => {
 

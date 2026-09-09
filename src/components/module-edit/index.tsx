@@ -5,7 +5,7 @@ import { message as $message } from 'antd';
 import TextArea from "antd/es/input/TextArea";
 import Typography from "antd/es/typography/Typography";
 import { MonacoEditor } from "../react-monaco-editor"
-import Code from "./code";
+import Code from "../script/code";
 const ModuleEdit: FC<any> = ({ visible, onClose, params, callback }) => {
     if (!visible) return null;
 

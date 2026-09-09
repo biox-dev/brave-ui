@@ -1,5 +1,5 @@
 import { CreateOrUpdatePipeline } from "@/components/create-pipeline"
-import Code from "@/components/module-edit/code"
+import Code from "@/components/script/code"
 import { Card, Empty, Segmented } from "antd"
 import { FC, useEffect, useState } from "react"
 import AnalysisResultPage from "@/components/result-list/page";

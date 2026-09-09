@@ -6,6 +6,7 @@ const viewLoaders = {
     // `invoke.createOrUpdateScript.*`, or inline by <ViewResolver
     // view="createOrUpdateScript" ... /> (script-panel "structure").
     createOrUpdateScript: () => import("./create-or-update-script"),
+    scriptCode: () => import('./code'),
 };
 
 declare module "@/core/component-registry/registry-types" {

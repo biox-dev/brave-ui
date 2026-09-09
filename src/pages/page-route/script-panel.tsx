@@ -63,106 +63,28 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
     }, [])
 
     useEffect(() => {
-        // setScript(undefined)
-        if (component_type == "script") {
-            setPanel("analysisNodePage")
-            setSegmentedOptions([
-                {
-                    label: "AnalysisNode",
-                    value: "analysisNodePage"
-                },
-                // {
-                //     label: "Script View",
-                //     value: "scriptView"
-                // },
-                {
-                    label: "structure",
-                    value: "createOrUpdateScript"
-                }, {
-                    label: "Code",
-                    value: "scriptCode"
-                }
-            ])
-        } else if (component_type == "file") {
-            setPanel("fileView")
-            setSegmentedOptions([
-                {
-                    label: "File View",
-                    value: "fileView"
-                },
-                {
-                    label: "structure",
-                    value: "createOrUpdateScript"
-                }
-                , {
-                    label: "Files",
-                    value: "analysisResult"
-                }
-            ])
-        }
+        setPanel("analysisNodePage")
+        setSegmentedOptions([
+            {
+                label: "AnalysisNode",
+                value: "analysisNodePage"
+            },
+            // {
+            //     label: "Script View",
+            //     value: "scriptView"
+            // },
+            {
+                label: "structure",
+                value: "createOrUpdateScript"
+            }, {
+                label: "Code",
+                value: "scriptCode"
+            }
+        ])
     }, [component_type])
-    // useEffect(() => {
-    //     setSideOptions([
-    //         // {
-    //         //     label: "LLM",
-    //         //     value: "llm-card"
-    //         // }, {
-    //         //     label: "Container App",
-    //         //     value: "appSessionPage"
-    //         // },
-    //         // {
-    //         //     label: "Parameters",
-    //         //     value: "editParamsPanel"
-    //         // }
-    //         { label: locale === 'en_US' ? 'Parameters' : '参数', value: 'editParamsPanel' }
-    //     ])
-    //     setSideView("editParamsPanel")
-    //     // setLeftPaneContent(
-    //     //     <Card
-    //     //         size="small"
-    //     //         className="layout-sharp-side-card"
-    //     //         styles={{ body: { padding: "0" } }}
-    //     //         extra={<Space>
-    //     //             <Button size="small" color="cyan" variant="solid" onClick={async () => {
-    //     //                 await invoke.installComponentsV2.openAsync({
-    //     //                     storeType: "script",
-    //     //                 }, {
-    //     //                     width: "80%",
-    //     //                     title: `Install script`,
-    //     //                     footer: null,
-    //     //                 })
-    //     //             }}>Intsall</Button>
-    //     //             <Button size="small" color="cyan" variant="solid" onClick={async () => {
-    //     //                 await invoke.createOrUpdateComponent.openAsync({})
-    //     //             }}>Create</Button>
-    //     //         </Space>}
-    //     //     >
-    //     //         <ScriptPage onOk={(script) => {
-    //     //             if (!script?.id) {
-    //     //                 return
-    //     //             }
 
-    //     //             navigate(`/c/scripts/${encodeURIComponent(script.id)}`)
-    //     //         }}></ScriptPage>
-    //     //     </Card>
-    //     // )
-    //     return () => {
-    //         setSideOptions([])
-    //         setSideView("llm-card")
-    //         // clearLeftPane()
-    //     }
-    // }, [navigate, loadScript])
     const message = useGlobalMessage()
-    // useEffect(() => {
-    //     if (!component?.component_id && panel != "structure") {
-    //         setPanel("structure")
-    //     }
-    //     if (panel == "deleted") {
-    //         setPanel("structure")
-    //     }
-
-    // }, [component])
-
+ 
 
     return <div >
         <Row gutter={[16, 16]}>
@@ -177,25 +99,7 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
                             size="small"
                             title={<Space>
                                 {script?.component_name || ''}
-                                {/* {script?.component_id && <>
-
-                                    <Popconfirm title="Copy component ?" onConfirm={async (e: any) => {
-                                        e.stopPropagation()
-                                        await axios.post(`/copy-component/${script.component_id}`)
-                                        message.success("Component copied!")
-                                        // reload()
-                                        loadTable()
-                                    }}>
-                                        <CopyOutlined onClick={(e) => {
-                                            e.stopPropagation()
-
-                                        }} />
-
-                                    </Popconfirm>
-
-
-                                </>} */}
-
+                            
                                 {script && <>
                                     <StoreVersionActions
                                         entity="script"

@@ -21,7 +21,7 @@ const importComponentLoaders = {
     fileView: () => import('../../pages/components-relation/components/file-view'),
 
     scriptDesc: () => import('../../pages/components-relation/components/script-desc'),
-    scriptCode: () => import('../../pages/components-relation/components/script-code'),
+    
 
     'component-structure': () => import('../../pages/components-relation/components/component-structure'),
     'component-script': () => import('../../pages/components-relation/components/component-script'),
@@ -39,7 +39,7 @@ const importComponentLoaders = {
     editParamsPanelWithAnalysisId: () => import('@/components/edit-params/components/edit-params-panel-with-analysis-id'),
     markdown: () => import('../../layout/components/md'),
     'module-edit': () => import('../../components/module-edit'),
-    scriptCodeEdit: () => import('@/components/module-edit/code'),
+    scriptCodeEdit: () => import('@/components/script/code'),
     'create-or-update-component-drawer': () => import('@/components/create-pipeline/create-or-update-component-drawer'),
     // scriptPage: () => import('../left-panel-components/script-page-side'),
     fileTypePage: () => import('../workflow-page/file-type-page'),

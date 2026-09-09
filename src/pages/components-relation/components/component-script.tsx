@@ -2,7 +2,7 @@ import AI from "@/components/chat/ai";
 import { FC, forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import AnalysisResultPage from "./analysis-result-page";
 import { Button, Card, Col, Popconfirm, Row, Space } from "antd";
-import Code from "@/components/module-edit/code";
+import Code from "@/components/script/code";
 import { MonacoEditor } from "@/components/react-monaco-editor";
 import axios from "axios";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
