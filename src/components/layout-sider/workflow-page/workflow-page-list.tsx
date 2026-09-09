@@ -109,7 +109,10 @@ const WorkflowPageList: FC<any> = () => {
               size="small"
               icon={<PlusOutlined />}
               onClick={() => {
-                invoke.createOrUpdateRelation.openAsync({});
+                invoke.createOrUpdateWorkflow.open(
+                  { callback: () => refetch() },
+                  { title: "Create Workflow", width: "60%", footer: null }
+                );
               }}
             />
           </Tooltip>

@@ -71,9 +71,9 @@ const InteractiveTools = lazy(() => import('@/pages/interactive-tools'));
 const ToolsPage = lazy(() => import('@/pages/tools-page'))
 
 const ToolsCard = lazy(() => import("../pages/pipeline-components-card-v2/index-component"));
-const ToolsDetail = lazy(() => import("../pages/components-relation/workflow-panel"));
+const WorkflowPanel = lazy(() => import("../pages/page-route/workflow-panel"));
 
-const ComponentsV3 = lazy(() => import("../pages/components-relation/script-panel"));
+const ComponentsV3 = lazy(() => import("../pages/page-route/script-panel"));
 const Login = lazy(() => import("@/pages/users/login"));
 const Register = lazy(() => import("@/pages/users/register"));
 const DatasetProjectPage = lazy(() => import("@/components/layout-sider/data-dataset-page/dataset-project-page"))
@@ -206,17 +206,18 @@ if (appType == "index") {
         //     path: "/c/tools",
         //     element: <ToolsCard relation_type={"tools"} />
         // },
+        // {
+        //     path: "/c/tools",
+        //     element: <WorkflowPanel />
+        // },
         {
-            path: "/c/tools",
-            element: <ToolsDetail />
+            path: "/c/tools/:workflow_id",
+            element: <WorkflowPanel />
         },
-        {
-            path: "/c/tools/:relation_id",
-            element: <ToolsDetail />
-        }, {
-            path: "/c/tools/:relation_id/:analysis_id",
-            element: <ToolsDetail />
-        },
+        // , {
+        //     path: "/c/tools/:relation_id/:analysis_id",
+        //     element: <WorkflowPanel />
+        // },
         // {
         //     path: "/c/:component_type/:relation_id",
         //     element: <ToolsPage />

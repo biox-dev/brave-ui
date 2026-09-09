@@ -29,7 +29,7 @@ import { useSelector } from "react-redux"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
 import { useStickyTop } from "@/hooks/useStickyTop"
 import Markdown from "@/components/markdown"
-import PipelineComponent from './pipeline'
+import PipelineComponent from '../components-relation/pipeline'
 import ComponentsDetailsRender from "../../core/ui-renderer/ComponentsDetailsRender"
 import { AppstoreOutlined, ArrowLeftOutlined, CloseOutlined, DeleteColumnOutlined, DeleteOutlined, DownOutlined, PlusOutlined, QuestionCircleOutlined, RedoOutlined } from '@ant-design/icons'
 import { AI } from '@/components/chat'
@@ -39,9 +39,8 @@ import { renderCloseViewButton, renderViewButton } from "@/utils/render-view-btn
 import { useSideViewContext } from "@/context/side/SideViewContext"
 import ViewResolver from "@/core/ui-renderer/ViewResolver"
 import { invoke } from "@/core/ui-system/invokeV2"
-import WorkflowPage from "@/components/workflow-page/workflow-page"
 import { http } from "@/api/client/http"
-import StoreVersionActions from "./components/store-version-actions"
+import StoreVersionActions from "../components-relation/components/store-version-actions"
 import { useI18n } from "@/hooks/useI18n"
 
 const Pipeline: FC<any> = ({ }) => {
@@ -57,7 +56,7 @@ const Pipeline: FC<any> = ({ }) => {
 
 
     console.log("Pipeline")
-    const { relation_id } = useParams()
+    const { workflow_id } = useParams()
     // const [relation_id, setRelationId] = useState<any>(relation_id_ ? relation_id_ : workflow?.relation_id)
     const relation_type = "tools"
     // const [leftPanel, setLeftPanel] = useState<any>("analysisTools")
@@ -206,15 +205,14 @@ const Pipeline: FC<any> = ({ }) => {
         // }
         return pipeline
     }
-    const loadData = async (workflowId?: any) => {
-        const targetWorkflowId = workflowId ?? workflow?.relation_id ?? workflow?.id
-        if (!targetWorkflowId) {
+    const loadData = async () => {
+        if (!workflow_id) {
             return
         }
 
         setLoading(true)
         try {
-            const pipeline = await getData(targetWorkflowId)
+            const pipeline = await getData(workflow_id)
             setComponent(pipeline)
             setWorkflow(pipeline)
         } finally {
@@ -246,16 +244,7 @@ const Pipeline: FC<any> = ({ }) => {
             messageApi.error(`${error.response.data.detail}`)
         }
     }
-    const datelePipeline = async (pipelineId: any) => {
-        try {
-            const resp = await axios.delete(`/delete-pipeline/${pipelineId}`)
-            messageApi.success("删除成功!")
-            loadData()
-        } catch (error: any) {
-            console.log(error)
-            messageApi.error(`${error.response.data.detail}`)
-        }
-    }
+   
     const operatePipeline = {
         deletePipelineRelation: deletePipelineRelation,
         openModal: openModal,
@@ -275,12 +264,9 @@ const Pipeline: FC<any> = ({ }) => {
     // };
 
     useEffect(() => {
-        const targetWorkflowId = relation_id ? decodeURIComponent(relation_id) : (workflow?.relation_id ?? workflow?.id)
-        if (!targetWorkflowId) {
-            return
-        }
-        loadData(targetWorkflowId)
-    }, [relation_id, workflow?.relation_id, workflow?.id])
+      
+        loadData()
+    }, [workflow_id])
 
     // useEffect(() => {
 
@@ -319,7 +305,7 @@ const Pipeline: FC<any> = ({ }) => {
     //     //                 loadDataRef.current()
     //     //             }}>Intsall</Button>
     //     //             <Button size="small" color="cyan" variant="solid" onClick={() => {
-    //     //                 invoke.createOrUpdateRelation.openAsync({})
+    //     //                 invoke.createOrUpdateWorkflow.openAsync({})
     //     //             }}>Create</Button>
     //     //         </Space>}
     //     //     >
@@ -454,7 +440,7 @@ const Pipeline: FC<any> = ({ }) => {
                             {/* {renderViewButton(view, setView, "analysisTools", "Tools Panel")} */}
 
                             {renderViewButton(view, setView, "workflowComponent", "Workflow")}
-                            {renderViewButton(view, setView, "depContainer", "Container")}
+                            {/* {renderViewButton(view, setView, "depContainer", "Container")} */}
 
 
                             {renderViewButton(view, (view) => {
@@ -464,7 +450,7 @@ const Pipeline: FC<any> = ({ }) => {
                                         relation_type: relation_type,
                                     }
                                 })
-                            }, "createOrUpdateRelation", "Edit Tools")}
+                            }, "createOrUpdateWorkflow", "Edit Tools")}
                             {/* {(leftPanel != "workflowComponent") ? <Button size="small" color="cyan" variant="solid" onClick={() => {
                         setLeftPanel("workflowComponent")
                     }}>Workflow</Button> : <>

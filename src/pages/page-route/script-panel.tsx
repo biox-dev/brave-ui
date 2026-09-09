@@ -13,7 +13,7 @@ import ViewResolver from "@/core/ui-renderer/ViewResolver"
 import { invoke } from "@/core/ui-system/invokeV2"
 import { renderViewButton } from "@/utils/render-view-btn"
 import { http } from "@/api/client/http"
-import StoreVersionActions from "./components/store-version-actions"
+import StoreVersionActions from "../components-relation/components/store-version-actions"
 import { useI18n } from "@/hooks/useI18n"
 
 const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {

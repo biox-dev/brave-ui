@@ -14,7 +14,6 @@ const importComponentLoaders = {
     fileV2: () => import('../../pages/components-relation/components/create-or-update-component'),
     scriptV2: () => import('../../pages/components-relation/script/indexV2'),
     createOrUpdateComponent: () => import('../../pages/components-relation/components/create-or-update-component'),
-    createOrUpdateRelation: () => import('../../pages/components-relation/components/create-or-update-relation'),
     analysisResult: () => import('../../pages/components-relation/components/analysis-result-page'),
 
     llmFile: () => import('../../pages/components-relation/components/llm-file'),
