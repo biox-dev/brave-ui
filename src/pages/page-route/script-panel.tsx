@@ -1,4 +1,4 @@
-import { Button, Card, Col, Empty, Modal, Popconfirm, Row, Segmented, Skeleton, Space, Spin, Table } from "antd"
+import { Button, Card, Col, Empty, Modal, Popconfirm, Row, Skeleton, Space, Spin, Table } from "antd"
 import { FC, use, useCallback, useEffect, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router"
 import ComponentsDetailsRender from "../../core/ui-renderer/ComponentsDetailsRender"
@@ -32,7 +32,6 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
     // const { setSideView, setSideOptions, setLeftPaneContent, clearLeftPane } = useSideViewContext();
     const { script, setScript, clear } = useStoreRender()
 
-    let [segmentedOptions, setSegmentedOptions] = useState<any[]>([])
     const [panel, setPanel] = useState<any>("analysisNodePage")
     const [loading, setLoading] = useState(false)
 
@@ -64,23 +63,6 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
 
     useEffect(() => {
         setPanel("analysisNodePage")
-        setSegmentedOptions([
-            {
-                label: "AnalysisNode",
-                value: "analysisNodePage"
-            },
-            // {
-            //     label: "Script View",
-            //     value: "scriptView"
-            // },
-            {
-                label: "structure",
-                value: "createOrUpdateScript"
-            }, {
-                label: "Code",
-                value: "scriptCode"
-            }
-        ])
     }, [component_type])
 
     const message = useGlobalMessage()
@@ -144,23 +126,15 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
 
                                 {script?.component_id &&
                                     <>
-                                        <ApartmentOutlined style={{ cursor: "pointer" }} onClick={(e) => {
-                                            e.stopPropagation()
-                                            openModal("componentRelation", {
-                                                component_id: script.component_id,
-                                                component_name: script.component_name,
-                                            })
-                                        }} />
-                                        <Segmented size="small" value={panel}
-                                            onChange={(val: any) => setPanel(val)}
-                                            options={segmentedOptions} />
+                                        {renderViewButton(panel, setPanel, "analysisNodePage", "AnalysisNode")}
+                                        {renderViewButton(panel, setPanel, "createOrUpdateScript", "structure")}
+                                        {renderViewButton(panel, setPanel, "scriptCode", "Code")}
                                     </>}
 
                                 {renderViewButton(panel, setPanel, "PublishToolsV2", "Publish")}
                                 <Button size="small" color="cyan" variant="outlined" icon={<RedoOutlined />} onClick={loadData}></Button>
 
                             </Space>}
-
                         >
                             {panel ? <>
                                 <ViewResolver

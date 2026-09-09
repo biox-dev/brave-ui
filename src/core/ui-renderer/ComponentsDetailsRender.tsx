@@ -15,7 +15,7 @@ const LLMFile = lazy(()=>import("../../pages/components-relation/components/llm-
 const LLMTools = lazy(()=>import("../../pages/components-relation/components/llm-tools"))
 const ScriptDesc = lazy(()=>import("../../pages/components-relation/components/script-desc"))
 const LLMScript = lazy(()=>import("../../pages/components-relation/components/llm-script"))
-const ScriptCode = lazy(()=>import("../../pages/components-relation/components/script-code"))
+// const ScriptCode = lazy(()=>import("../../pages/components-relation/components/script-code"))
 const ComponentStructure = lazy(()=>import("../../pages/components-relation/components/component-structure"))
 const ComponentScript = lazy(()=>import("../../pages/components-relation/components/component-script"))
 const PreviewRelationExample = lazy(() => import('../../pages/components-relation/components/preview-example'))
@@ -55,7 +55,7 @@ const viewMapping: {
         {key:"fileView", label:"fileView", component: FileView},
 
         { key: "scriptDesc", label: "scriptDesc", component: ScriptDesc },
-        { key: "scriptCode", label: "scriptCode", component: ScriptCode },
+        // { key: "scriptCode", label: "scriptCode", component: ScriptCode },
 
         { key: "component-structure", label: "component-structure", component: ComponentStructure },
         { key: "component-script", label: "component-script", component: ComponentScript },

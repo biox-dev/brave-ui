@@ -1,4 +1,4 @@
-import PipelineFlow from "@/components/pipeline-flow/indexV2"
+import PipelineFlow from "@/components/workflow/pipeline-flow"
 import { Button, Card, Space, Spin } from "antd"
 import axios from "axios"
 import { FC, useEffect, useMemo, useState } from "react"

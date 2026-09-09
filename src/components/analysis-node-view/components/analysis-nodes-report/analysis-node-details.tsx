@@ -220,7 +220,7 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
                                     variant="solid"
                                     onClick={() => {
                                         console.log("selectedSampleDetail: ", selectedSampleDetail)
-                                        invoke.scriptCodeEdit.openAsync(
+                                        invoke.scriptCode.openAsync(
                                             {
                                                 script_id: selectedSampleDetail.node?.script_id,
                                             },

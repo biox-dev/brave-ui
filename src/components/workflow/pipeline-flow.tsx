@@ -493,7 +493,7 @@ export const CustomNode = memo(({ data, selected, isConnectable }: any) => {
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            invoke.scriptCodeEdit.open(
+            invoke.scriptCode.open(
               { component_id: data.script_id },
               {
                 width: "60%",
