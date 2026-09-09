@@ -26,9 +26,9 @@ const InputFileComponent = lazy(() => import('@/components/result-list/input-fil
 const OutputFileComponent = lazy(() => import('@/components/result-list/output-file-component'))
 const AnalysisResultView = lazy(() => import('@/components/analysis-result-view/analysis-reuslt-view'))
 const AnalysisList = lazy(() => import('@/components/analysis-list'))
-const WorkflowComponent = lazy(() => import('../../pages/components-relation/workflow'))
-const RelationDefinitionDAG = lazy(() => import('../../pages/components-relation/components/relation-definition-dag')) 
-const WorkflowVisComponent = lazy(() => import('../../pages/components-relation/workflow/workflow-vis-component'))
+const WorkflowComponent = lazy(() => import('../../components/workflow/workflow-vis'))
+const RelationDefinitionDAG = lazy(() => import('../../components/workflow/relation-definition-dag')) 
+const WorkflowVisComponent = lazy(() => import('../../components/workflow/workflow-vis-component'))
 const viewMapping: {
     key: string;
     label: string;

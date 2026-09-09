@@ -439,7 +439,7 @@ const Pipeline: FC<any> = ({ }) => {
 
                             {/* {renderViewButton(view, setView, "analysisTools", "Tools Panel")} */}
 
-                            {renderViewButton(view, setView, "workflowComponent", "Workflow")}
+                            {renderViewButton(view, setView, "workflowVisCard", "Workflow")}
                             {/* {renderViewButton(view, setView, "depContainer", "Container")} */}
 
 

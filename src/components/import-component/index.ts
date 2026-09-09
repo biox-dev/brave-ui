@@ -4,7 +4,6 @@ import PublishTools from '../publish-tools/publish-tools';
 
 const importComponentLoaders = {
     workflow2: () => import('../../pages/components-relation/pipeline/components/pipeline-flow'),
-    workflowComponent: () => import('../../pages/components-relation/workflow'),
     software: () => import('../../pages/components-relation/tools'),
     tools: () => import('../../pages/components-relation/tools'),
     analysisTools: () => import('../../pages/components-relation/tools/analysis-tools'),
@@ -34,10 +33,8 @@ const importComponentLoaders = {
     analysisResultView: () => import('@/components/analysis-result-view/analysis-reuslt-view'),
     // analysisList: () => import('@/components/analysis-list'),
     analysisPage: () => import('@/components/analysis-list/analysis-page'),
-    relationDefinitionDAG: () => import('../../pages/components-relation/components/relation-definition-dag'),
 
     'workflow-input': () => import('../../pages/components-relation/pipeline/components/pipeline-input'),
-    'workflow-vis': () => import('../../pages/components-relation/workflow/workflow-vis-component'),
     'llm-card': () => import('../../layout/components/llm-card'),
     editParamsPanelWithAnalysisId: () => import('@/components/edit-params/components/edit-params-panel-with-analysis-id'),
     markdown: () => import('../../layout/components/md'),
