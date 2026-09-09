@@ -524,7 +524,7 @@ export const CustomNode = memo(({ data, selected, isConnectable }: any) => {
             e.preventDefault();
             e.stopPropagation();
             // console.log("Edit details for node", data.script_id);
-            invoke.createOrUpdateComponent.openAsync(
+            invoke.createOrUpdateScript.openAsync(
               {
                 component_id: data.script_id,
                 structure: {

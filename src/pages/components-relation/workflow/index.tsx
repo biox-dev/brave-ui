@@ -36,7 +36,7 @@ const WorkflowComponent: FC<any> = ({ component }) => {
                 variant={"outlined"}
                 onClick={async () => {
                     try {
-                        await invoke.createOrUpdateComponent.openDrawerAsync(
+                        await invoke.createOrUpdateScript.openDrawerAsync(
                             {
                                 // component_id: data.script_id,
                                 structure: {

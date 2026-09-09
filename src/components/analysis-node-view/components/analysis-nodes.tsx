@@ -385,7 +385,7 @@ const AnalysisNodes: FC<any> = ({ analysis_id }) => {
                             //     component_type: "script",
                             // }
                             // })
-                            invoke.createOrUpdateComponent.drawer(
+                            invoke.createOrUpdateScript.drawer(
                                 {
                                     component_id: record?.script_id,
                                     structure: {

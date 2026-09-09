@@ -77,7 +77,7 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
                 // },
                 {
                     label: "structure",
-                    value: "createOrUpdateComponent"
+                    value: "createOrUpdateScript"
                 }, {
                     label: "Code",
                     value: "scriptCode"
@@ -92,7 +92,7 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
                 },
                 {
                     label: "structure",
-                    value: "createOrUpdateComponent"
+                    value: "createOrUpdateScript"
                 }
                 , {
                     label: "Files",

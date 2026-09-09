@@ -8,8 +8,7 @@ const ScriptV2Component = lazy(() => import('../../pages/components-relation/scr
 const EditParamsPanel = lazy(() => import('@/components/edit-params/components/edit-params'));
 
 const FileComponent = lazy(() => import('../../pages/components-relation/file'))
-const FileV2Component = lazy(() => import('../../pages/components-relation/components/create-or-update-component'))
-const CreateOrUpdateComponent = lazy(() => import('../../pages/components-relation/components/create-or-update-component'))
+// const CreateOrUpdateScript = lazy(() => import('@/components/script/create-or-update-script'))
 const AnalysisResultPageAdapter = lazy(() => import('../../pages/components-relation/components/analysis-result-page'))
 const PipelineInputComponent = lazy(() => import('../../pages/components-relation/pipeline/components/pipeline-input'))
 const LLMFile = lazy(()=>import("../../pages/components-relation/components/llm-file"))
@@ -43,10 +42,9 @@ const viewMapping: {
 
         { key: "script", label: "script", component: ScriptComponent },
         { key: "file", label: "file", component: FileComponent },
-        { key: "fileV2", label: "file", component: FileV2Component },
 
         { key: "scriptV2", label: "script", component: ScriptV2Component },
-        { key: "createOrUpdateComponent", label: "CreateOrUpdateComponent", component: CreateOrUpdateComponent },
+        // { key: "createOrUpdateScript", label: "CreateOrUpdateScript", component: CreateOrUpdateScript },
         { key: "analysisResult", label: "analysisResult", component: AnalysisResultPageAdapter },
         
         { key: "llmFile", label: "llmFile", component: LLMFile },

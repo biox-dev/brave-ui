@@ -192,7 +192,7 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
                                     color="cyan"
                                     variant="solid"
                                     onClick={async () => {
-                                        await invoke.createOrUpdateComponent.openAsync(
+                                        await invoke.createOrUpdateScript.openAsync(
                                             {
                                                 script_id: selectedSampleDetail.node?.script_id,
                                                 structure: {

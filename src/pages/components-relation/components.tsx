@@ -32,7 +32,7 @@ const Components: FC<any> = () => {
                 },
                 {
                     label: "structure",
-                    value: "createOrUpdateComponent"
+                    value: "createOrUpdateScript"
                 }, {
                     label: "Code",
                     value: "scriptCode"
@@ -47,7 +47,7 @@ const Components: FC<any> = () => {
                 },
                 {
                     label: "structure",
-                    value: "createOrUpdateComponent"
+                    value: "createOrUpdateScript"
                 }
                 , {
                     label: "Files",
@@ -86,7 +86,7 @@ const Components: FC<any> = () => {
                             //         component_type: component_type,
                             //     }
                             // })
-                            setPanel("createOrUpdateComponent")
+                            setPanel("createOrUpdateScript")
                             setComponent({})
                         }}>
                             Create

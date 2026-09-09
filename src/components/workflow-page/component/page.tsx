@@ -50,7 +50,7 @@ const ComponentsPage = forwardRef<any, any>(({ component_type, setComponent }, r
             render: (_: any, record: any) => {
                 return <Space>
                     <a onClick={async () => {
-                        await invoke.createOrUpdateComponent.openAsync(
+                        await invoke.createOrUpdateScript.openAsync(
                             {
                                 component_id: record.id,
                                 structure: {
@@ -114,7 +114,7 @@ const ComponentsPage = forwardRef<any, any>(({ component_type, setComponent }, r
                 <Space>
 
                     <Button size="small" onClick={async () => {
-                        await invoke.createOrUpdateComponent.openAsync(
+                        await invoke.createOrUpdateScript.openAsync(
                             {
                                 // component_id: data.script_id,
                                 structure: {
