@@ -405,7 +405,7 @@ const AnalysisNodes: FC<any> = ({ analysis_id }) => {
                             // openModals("moduleEdit", {
                             //     component_id: record?.script_id,
                             // })
-                            invoke.scriptCodeEdit.drawer({
+                            invoke.scriptCode.drawer({
                                 component_id: record?.script_id
                             }, {
                                 width: 960,
