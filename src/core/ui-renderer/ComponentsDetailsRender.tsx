@@ -26,7 +26,7 @@ const InputFileComponent = lazy(() => import('@/components/result-list/input-fil
 const OutputFileComponent = lazy(() => import('@/components/result-list/output-file-component'))
 const AnalysisResultView = lazy(() => import('@/components/analysis-result-view/analysis-reuslt-view'))
 const AnalysisList = lazy(() => import('@/components/analysis-list'))
-const WorkflowComponent = lazy(() => import('../../components/workflow/workflow-vis'))
+// const WorkflowComponent = lazy(() => import('../../components/workflow/workflow-vis-card'))
 const RelationDefinitionDAG = lazy(() => import('../../components/workflow/relation-definition-dag')) 
 const WorkflowVisComponent = lazy(() => import('../../components/workflow/workflow-vis-component'))
 const viewMapping: {
@@ -35,7 +35,7 @@ const viewMapping: {
     component: React.ComponentType<any>;
 }[] = [
         { key: "workflow2", label: "workflow", component: PipelineFlowComponent },
-        { key: "workflowComponent", label: "workflowComponent", component: WorkflowComponent },
+        // { key: "workflowComponent", label: "workflowComponent", component: WorkflowComponent },
         { key: "software", label: "software", component: SoftwareComponent },
         { key: "tools", label: "software", component: SoftwareComponent },
         { key: "analysisTools", label: "analysisTools", component: AnalysisTools },

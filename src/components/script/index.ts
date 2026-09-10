@@ -7,6 +7,8 @@ const viewLoaders = {
     // view="createOrUpdateScript" ... /> (script-panel "structure").
     createOrUpdateScript: () => import("./create-or-update-script"),
     scriptCode: () => import('./code'),
+    addScriptToNode: () => import('./add-script-to-node'),
+    scriptPageCard: () => import('./script-page-card'),
 };
 
 declare module "@/core/component-registry/registry-types" {

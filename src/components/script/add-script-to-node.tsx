@@ -1,5 +1,5 @@
 import { ActionDispatcher } from "@/event-bus/dispatcher";
-import ScriptPageView from "./components/script-page";
+import ScriptPageView from "./script-page-card";
 import { Empty } from "antd";
 import { useStoreRender } from "@/context/render/RenderProvider";
 import axios from "axios";

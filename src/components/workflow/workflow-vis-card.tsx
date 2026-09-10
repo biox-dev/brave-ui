@@ -6,15 +6,16 @@ import { renderViewButton } from "@/utils/render-view-btn"
 import ViewResolver from "@/core/ui-renderer/ViewResolver"
 import { invoke } from "@/core/ui-system/invokeV2"
 import { ActionDispatcher } from "@/event-bus/dispatcher"
+import { http } from "@/api/client/http"
 
-const WorkflowComponent: FC<any> = ({ component }) => {
+const WorkflowComponent: FC<any> = ({ workflow }) => {
     const defaultView = "workflow-vis"
     const [view, setView] = useState<any>(defaultView)
-    const [params, setParams] = useState<any>({})
-    const isToolsExist = () => {
-        if (component?.component_id && component?.component_id != "") return true
-        return false
-    }
+    // const [params, setParams] = useState<any>({})
+    // const isToolsExist = () => {
+    //     if (workflow?.component_id && component?.component_id != "") return true
+    //     return false
+    // }
     // relationDefinitionDAG
 
     return <Card size="small" bordered={false}
@@ -30,6 +31,30 @@ const WorkflowComponent: FC<any> = ({ component }) => {
             {renderViewButton(view, setView, "workflow-vis", "Visualization")}
 
             {renderViewButton(view, setView, "relationDefinitionDAG", "DAG Definition")}
+            <Button size="small" color="cyan" variant={"outlined"} onClick={async () => {
+                const script = await invoke.scriptPageCard.openAsync({}, { footer: null, width: 800, title: "Add Script to Node" })
+                console.log(script)
+                if (!workflow?.id) {
+                    console.error("workflow  不存在！")
+                    return
+                }
+                const resp = await http.get(`/workflow/script-to-node?scriptId=${script?.id}&workflowId=${workflow?.id}`)
+                // return resp.data
+                // console.log("Response from script-to-node API", resp.data)
+                const data = {
+                    action: "component.invoke",
+                    payload: {
+                        category: "graph",
+                        id: workflow?.id,
+                        method: "addNode",
+                        args: resp.data
+                    }
+                }
+                ActionDispatcher.dispatch(data.action, data.payload);
+            }
+            }>
+                Add Node
+            </Button>
             <Button
                 size="small"
                 color="cyan"
@@ -116,10 +141,10 @@ const WorkflowComponent: FC<any> = ({ component }) => {
     >
 
         <ViewResolver
-            {...params}
-            relation_id={component?.relation_id}
-            dag_definition={component.dag_definition}
-            component_id={component?.component_id}
+            // {...params}
+            workflow_id={workflow?.id}
+            dag_definition={workflow.dag_definition}
+            component_id={workflow?.component_id}
             view={view}
         />
     </Card >

@@ -8,7 +8,7 @@ const viewLoaders = {
     createOrUpdateWorkflow: () => import("./create-or-update-workflow"),
     relationDefinitionDAG: () => import('./relation-definition-dag'),
     'workflow-vis': () => import('./workflow-vis-component'),
-    workflowVisCard: () => import('../workflow/workflow-vis'),
+    workflowVisCard: () => import('./workflow-vis-card'),
 
 
 };

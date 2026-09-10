@@ -1,6 +1,5 @@
 import PipelineFlow from "@/components/workflow/pipeline-flow"
 import { Button, Card, Space, Spin } from "antd"
-import axios from "axios"
 import { FC, useEffect, useMemo, useState } from "react"
 import { ReloadOutlined } from '@ant-design/icons'
 import { colors } from "@/utils/utils"
@@ -8,9 +7,9 @@ import { useGlobalMessage } from "@/hooks/useGlobalMessage"
 import { useComponentStore } from "@/event-bus/stores/components"
 import { http } from "@/api/client/http"
 type Prop = {
-    relation_id: string
+    workflow_id: string
 }
-const WorkflowVisComponent: FC<Prop> = ({ relation_id }) => {
+const WorkflowVisComponent: FC<Prop> = ({ workflow_id }) => {
 
     const componentColorMap: Record<string, string> = {
         qc: '#2F54EB',
@@ -60,7 +59,7 @@ const WorkflowVisComponent: FC<Prop> = ({ relation_id }) => {
     const message = useGlobalMessage()
     const loadData = async () => {
         setLoading(true)
-        const resp = await http.get(`/tools/get-workflow-vis/${relation_id}`)
+        const resp = await http.get(`/tools/get-workflow-vis/${workflow_id}`)
         // setData(resp.data)
         if (resp.data?.nodes) {
             const nodes = getInitialNodesV2(resp.data.nodes)
@@ -123,7 +122,13 @@ const WorkflowVisComponent: FC<Prop> = ({ relation_id }) => {
             addNode: (args: any) => {
 
                 console.log("Adding node to workflow vis", args);
+                const addNode ={
+                    name:args?.component_name,
+                    node_id:args?.component_id,
+                    
+                }
                 const node = formatNode(args, 0)
+                console.log("Formatted node", node);
                 setNodes((prevNodes) => [...prevNodes, node]);
             }
 
@@ -131,10 +136,10 @@ const WorkflowVisComponent: FC<Prop> = ({ relation_id }) => {
     }, [])
     const { register, unregister } = useComponentStore();
     useEffect(() => {
-        register("graph", relation_id, instance);
+        register("graph", workflow_id, instance);
         return () => {
             // debugger
-            unregister("graph", relation_id, instance);
+            unregister("graph", workflow_id, instance);
         }
     }, []);
     const getInitialNodesV2 = (nodes: any) => {
@@ -168,8 +173,9 @@ const WorkflowVisComponent: FC<Prop> = ({ relation_id }) => {
             nodes: nodesParams,
             edges: edges,
         }
-        const resp = await axios.post("/save-pipeline-relation", {
-            relation_id: relation_id,
+        // 只更新 dag_definition，后端 /workflow/save-workflow-dag 不会动 name/tags/store_id 等字段
+        await http.post("/workflow/save-workflow-dag", {
+            workflow_id: workflow_id,
             dag_definition: JSON.stringify(params)
         })
         message.success("Structure saved")
