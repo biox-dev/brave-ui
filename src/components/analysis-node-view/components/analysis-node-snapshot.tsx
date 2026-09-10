@@ -6,6 +6,7 @@ import { useComponentStore } from "@/event-bus/stores/components";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useSelector } from "react-redux";
 import { stopAnalysisApi } from "@/api/analysisv1";
+import { http } from "@/api/client/http";
 const STATUS_ORDER = [
     "pending",
     "ready",
@@ -30,7 +31,7 @@ const AnalysisNodeSnapshot: FC<any> = ({ analysis_id }) => {
         // /analysis-runtime/snapshot
         setLoading(true);
         try {
-            const resp = await axios.post("/analysis-runtime/snapshot", {
+            const resp = await http.post("/analysis-runtime/snapshot", {
                 analysis_id
             })
             setData(resp.data);
@@ -104,7 +105,7 @@ const AnalysisNodeSnapshot: FC<any> = ({ analysis_id }) => {
     return <>
         <Card title="Analysis Snapshot" size="small"
             extra={<Space>
-                {data?.server_status == "running" ?
+                {/* {data?.server_status == "running" ?
 
                     <>
 
@@ -131,13 +132,13 @@ const AnalysisNodeSnapshot: FC<any> = ({ analysis_id }) => {
                     }}>Dag Server</Button>
 
 
-                }
+                } */}
 
 
 
 
 
-                {data?.status != "running" ?
+                {/* {data?.status != "running" ?
                     <Popconfirm title="Are you sure to run the entire DAG again?"
                         onConfirm={async () => {
                             // /run-dag/{analysis_id}
@@ -160,8 +161,8 @@ const AnalysisNodeSnapshot: FC<any> = ({ analysis_id }) => {
 
                     </>
 
-                }
-                <Switch size="small" checkedChildren="cache" unCheckedChildren="no-cache" disabled={data?.status == "running"} checked={isCache} onChange={setIsCache} />
+                } */}
+                {/* <Switch size="small" checkedChildren="cache" unCheckedChildren="no-cache" disabled={data?.status == "running"} checked={isCache} onChange={setIsCache} /> */}
 
                 <Button onClick={loadData} icon={<RedoOutlined />} size="small" loading={loading}></Button>
             </Space>}
