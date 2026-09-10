@@ -55,7 +55,7 @@ const WorkflowComponent: FC<any> = ({ workflow }) => {
             }>
                 Add Node
             </Button>
-            <Button
+            {/* <Button
                 size="small"
                 color="cyan"
                 variant={"outlined"}
@@ -93,7 +93,7 @@ const WorkflowComponent: FC<any> = ({ workflow }) => {
                 }}
             >
                 Create Script
-            </Button>
+            </Button> */}
 
             {/* {(view != "createOrUpdateComponent") ? <Button size="small" color="cyan" variant="solid" onClick={() => {
                 setView("createOrUpdateComponent")

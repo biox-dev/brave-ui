@@ -6,22 +6,23 @@ import axios from "axios";
 import { MonacoEditor } from "@/components/react-monaco-editor";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { RedoOutlined } from '@ant-design/icons'
+import { http } from "@/api/client/http";
 const RelationDefinitionDAG = forwardRef<any, any>(
 
-    ({ relation_id, callback }, ref) => {
+    ({ workflow_id, callback }, ref) => {
 
         const message = useGlobalMessage()
         const [content, setContent] = useState<string>("")
         const loadData = async () => {
-            const resp = await axios.post(`/find-pipeline-relation/${relation_id}`)
+            const resp = await http.get(`/workflow/${workflow_id}/get-workflow`)
             const data = resp.data
             setContent(data?.dag_definition || "")
           
         }
         const save = async () => {
             console.log("save called structure")
-            const resp = await axios.post("/save-pipeline-relation", {
-                relation_id: relation_id,
+            const resp = await http.post("/workflow/save-workflow-dag",{
+                relation_id: workflow_id,
                 dag_definition: content
             })
             message.success("Structure saved")
