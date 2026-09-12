@@ -28,7 +28,7 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
     databases, callback, analysisResultId, showCancal = false }) => {
     const { modals, openModals, closeModals } = useModals(["paramsView", "bioDatabases"]);
     const [loading, setLoading] = useState<boolean>(false)
-    const [controllerVersion, setControllerVersion] = useState<"V1" | "V2" | "V3">("V2")
+    const [scheduler, setScheduler] = useState<string>("dynamic")
     const messageApi = useGlobalMessage()
     const { project } = useSelector((state: any) => state.user);
     const { setAnalysisId, analysisNodeId, setAnalysisNodeId, formStatus, setFormStatus, analysisId, script } = useStoreRender()
@@ -103,17 +103,16 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
             //     is_submit: is_submit,
             //     analysis_node_id: analysisNodeId
             // })
-            const controllerPathMap: Record<"V1" | "V2" | "V3", string> = {
-                V1: `/analysis/controller`,
-                V2: `/analysis/controllerV2`,
-                V3: `/analysis/controllerV3`,
-            }
-            const controllerPath = analysisNodeId || script ? "/analysis/controller-script" : controllerPathMap[controllerVersion]
+            // A single controller endpoint serves every scheduler; the backend
+            // resolves the orchestrator from `scheduler` and persists it as
+            // analysis.scheduler_mode. Script nodes still use their own endpoint.
+            const controllerPath = analysisNodeId || script ? "/analysis/controller-script" : "/analysis/controller"
 
             const resp = await http.post(controllerPath, {
                 request_param: requestParams,
                 save: save,
-                is_submit: is_submit
+                is_submit: is_submit,
+                scheduler,
             })
             // setFilePlot(resp.data)
             // setAnalysisParams(resp.data)
@@ -477,13 +476,13 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
                         }}> debug Parameters</Button>
                     <Select
                         size="small"
-                        value={controllerVersion}
-                        onChange={setControllerVersion}
-                        style={{ minWidth: 80 }}
+                        value={scheduler}
+                        onChange={setScheduler}
+                        style={{ minWidth: 110 }}
                         options={[
-                            { value: "V1", label: "V1" },
-                            { value: "V2", label: "V2" },
-                            { value: "V3", label: "V3" },
+                            { value: "dag", label: "dag" },
+                            { value: "dynamic", label: "dynamic" },
+                            { value: "dataflow", label: "dataflow" },
                         ]}
                     />
                     {/* <Button disabled={formStatus == "running"} size="small" color="cyan" variant="solid" onClick={() => {
