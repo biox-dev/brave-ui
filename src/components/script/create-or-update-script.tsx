@@ -144,6 +144,8 @@ const CreateOrUpdateScript: FC<CreateOrUpdateScriptProps> = (params) => {
   const [loading, setLoading] = useState(false);
   // stores data loaded from the server when only a numeric id is given
   const [loaded, setLoaded] = useState<any>();
+  // gates the "More" debug preview so it does not re-render on every keystroke
+  const [showDebug, setShowDebug] = useState(false);
 
   const incoming = data ?? component;
   // script-panel and workflow-page pass numeric db ids; node flows may pass uuid
@@ -357,11 +359,17 @@ const CreateOrUpdateScript: FC<CreateOrUpdateScriptProps> = (params) => {
 
           <Collapse
             ghost
+            activeKey={showDebug ? ["1"] : []}
+            onChange={(keys) =>
+              setShowDebug((Array.isArray(keys) ? keys : [keys]).includes("1"))
+            }
             items={[
               {
                 key: "1",
                 label: "More",
-                children: (
+                // A `shouldUpdate` item re-runs on EVERY form change; mounting it
+                // only while the panel is open keeps editing responsive.
+                children: showDebug ? (
                   <Form.Item noStyle shouldUpdate>
                     {() => (
                       <Typography>
@@ -369,7 +377,7 @@ const CreateOrUpdateScript: FC<CreateOrUpdateScriptProps> = (params) => {
                       </Typography>
                     )}
                   </Form.Item>
-                ),
+                ) : null,
               },
             ]}
           />
