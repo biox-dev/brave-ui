@@ -18,6 +18,7 @@ import { useSelector } from "react-redux";
 import { http } from "@/api/client/http";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
+import IOSchemaEditor, { normalizeIOSchema } from "./io-schema-editor";
 
 // ---------- small helpers ----------
 
@@ -35,16 +36,6 @@ const normalizeTags = (value: any): string[] => {
   return [];
 };
 
-const toJSONString = (value: any): string | undefined => {
-  if (value == null || value === "") return undefined;
-  if (typeof value === "string") return value;
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return undefined;
-  }
-};
-
 const toFormValues = (script: any) => ({
   component_name: script?.component_name,
   container_template_id: script?.container_template_id,
@@ -52,7 +43,9 @@ const toFormValues = (script: any) => ({
   container_name:
     script?.continername ?? script?.container_template_name ?? script?.container_name,
   script_type: script?.script_type,
-  io_schema: toJSONString(script?.io_schema),
+  // normalized to an object so <IOSchemaEditor /> can edit it visually;
+  // getParams() re-serializes it back to a JSON string on save.
+  io_schema: normalizeIOSchema(script?.io_schema),
   content:
     script?.content && typeof script?.content !== "string"
       ? JSON.stringify(script?.content, null, 2)
@@ -332,8 +325,8 @@ const CreateOrUpdateScript: FC<CreateOrUpdateScriptProps> = (params) => {
             />
           </Form.Item>
 
-          <Form.Item name="io_schema" label="io_schema">
-            <Input.TextArea rows={5} spellCheck={false} />
+          <Form.Item name="io_schema" label="IO Schema (visual form builder)">
+            <IOSchemaEditor />
           </Form.Item>
 
           <Form.Item name="content" label="Content">
