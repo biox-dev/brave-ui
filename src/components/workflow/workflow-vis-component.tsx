@@ -94,6 +94,7 @@ const WorkflowVisComponent: FC<Prop> = ({ workflow_id }) => {
             script_id: node.script_id,
             node_id:node.node_id,
             type: 'custom',
+           
             position: position,
             scatter:node?.scatter,
             // {
@@ -105,6 +106,7 @@ const WorkflowVisComponent: FC<Prop> = ({ workflow_id }) => {
                 color,
                 inputs,
                 outputs,
+                script_db_id: node.script_db_id,
                 script_id: node.script_id,
                 componentType: node.component_type || node.type || 'script',
                 bioMeta: {
