@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Button, Card, Flex, Space, Table, Typography } from "antd";
+import { Button, Card, Flex, Popconfirm, Space, Table, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { ReloadOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { useDatasetProjectPageQuery } from "@/hooks/usePaginationV2";
+import { deleteDatasetApi } from "@/api/data";
 import type { DatasetItem } from "@/api/data";
+import { invoke } from "@/core/ui-system/invokeV2";
+import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 
 const { Text } = Typography;
 
 export interface DatasetProjectPageProps {
   project_id?: string;
-  dataset_id?: string;
   dataset_name?: string;
   description?: string;
   metadata?: string;
@@ -47,13 +49,7 @@ const columns: ColumnsType<DatasetItem> = [
     dataIndex: "dataset_name",
     key: "dataset_name",
     ellipsis: true,
-  },
-  {
-    title: "Dataset ID",
-    dataIndex: "dataset_id",
-    key: "dataset_id",
-    width: 180,
-    render: (value: string) => value || "-",
+    render: (value: string, record) => value || `Dataset-${record.id}`,
   },
   {
     title: "Description",
@@ -80,7 +76,6 @@ const columns: ColumnsType<DatasetItem> = [
 
 const DatasetProjectPage = ({
   project_id,
-  dataset_id,
   dataset_name,
   description,
   metadata,
@@ -90,14 +85,17 @@ const DatasetProjectPage = ({
   onCancel,
   close,
 }: DatasetProjectPageProps) => {
+  const message = useGlobalMessage();
   const { projectId } = useSelector((state: any) => state.user);
   const [selectedId, setSelectedID] = useState<string>();
 
   const selectable = Boolean(onOk || onCancel);
 
+  // The backend resolves the project from the caller's active project, the
+  // value below is only forwarded so the page query keeps its previous shape.
   const resolvedProjectId = useMemo(
-    () =>  projectId ,
-    [projectId]
+    () => normalizeText(project_id) ?? projectId,
+    [project_id, projectId]
   );
 
   const {
@@ -117,7 +115,6 @@ const DatasetProjectPage = ({
       project_id: resolvedProjectId,
     },
     {
-      enabled: Boolean(resolvedProjectId),
       initialPageSize: normalizePageSize(page_size),
       keepPreviousData: true,
       staleTime: 30_000,
@@ -128,39 +125,91 @@ const DatasetProjectPage = ({
   useEffect(() => {
     setQuery({
       project_id: resolvedProjectId,
-      dataset_id: normalizeText(dataset_id),
       dataset_name: normalizeText(dataset_name),
       description: normalizeText(description),
       metadata: normalizeText(metadata),
     });
-  }, [resolvedProjectId, dataset_id, dataset_name, description, metadata, setQuery]);
+  }, [resolvedProjectId, dataset_name, description, metadata, setQuery]);
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 
-  const selectColumns = useMemo<ColumnsType<DatasetItem>>(() => {
-    if (!selectable) {
-      return columns;
+  const handleCreate = async () => {
+    try {
+      await invoke.editDatasetPage.openDrawerAsync({}, { width: 480, title: "New Dataset" });
+      refetch();
+    } catch {
+      // user cancelled
     }
+  };
 
-    return [
-      ...columns,
-      {
-        title: "Action",
-        key: "action",
-        width: 120,
-        fixed: "right",
-        render: (_: unknown, record) => (
+  const handleEdit = async (record: DatasetItem) => {
+    try {
+      await invoke.editDatasetPage.openDrawerAsync(
+        { dataset: record },
+        { width: 480, title: `Edit Dataset: ${record.dataset_name || record.id}` }
+      );
+      refetch();
+    } catch {
+      // user cancelled
+    }
+  };
+
+  const handleDelete = async (record: DatasetItem) => {
+    try {
+      await deleteDatasetApi({ id: record.id });
+      message.success("Dataset deleted successfully");
+      refetch();
+    } catch {
+      message.error("Failed to delete dataset");
+    }
+  };
+
+  const actionsColumn: ColumnsType<DatasetItem>[number] = {
+    title: "Actions",
+    key: "actions",
+    width: 110,
+    align: "right",
+    fixed: "right",
+    render: (_: unknown, record) => (
+      <span className="project-report-item-actions" onClick={(event) => event.stopPropagation()}>
+        <Tooltip title="Edit">
           <Button
-            type={record.id === selectedId ? "primary" : "default"}
+            type="text"
             size="small"
-            onClick={() => setSelectedID(record.id)}
-          >
-            {record.id === selectedId ? "Selected" : "Select"}
-          </Button>
-        ),
-      },
-    ];
-  }, [selectable, selectedId]);
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+          />
+        </Tooltip>
+        <Popconfirm
+          title="Delete this dataset?"
+          description="This will also remove its project, file and sample associations."
+          onConfirm={() => handleDelete(record)}
+        >
+          <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+        </Popconfirm>
+      </span>
+    ),
+  };
+
+  const selectColumn: ColumnsType<DatasetItem>[number] = {
+    title: "Action",
+    key: "action",
+    width: 120,
+    fixed: "right",
+    render: (_: unknown, record) => (
+      <Button
+        type={record.id === selectedId ? "primary" : "default"}
+        size="small"
+        onClick={() => setSelectedID(record.id)}
+      >
+        {record.id === selectedId ? "Selected" : "Select"}
+      </Button>
+    ),
+  };
+
+  const tableColumns: ColumnsType<DatasetItem> = selectable
+    ? [...columns, actionsColumn, selectColumn]
+    : [...columns, actionsColumn];
 
   const handleConfirm = () => {
     if (!selectedItem || !onOk) {
@@ -179,10 +228,6 @@ const DatasetProjectPage = ({
     }
   };
 
-  if (!resolvedProjectId) {
-    return <Alert type="warning" showIcon message="Project ID is required" description="No project_id found in props or store." />;
-  }
-
   return (
     <Card
       size="small"
@@ -190,6 +235,9 @@ const DatasetProjectPage = ({
       extra={
         <Space>
           <Text type="secondary">Total: {total}</Text>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+            New
+          </Button>
           <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
             Refresh
           </Button>
@@ -198,7 +246,7 @@ const DatasetProjectPage = ({
     >
       <Table<DatasetItem>
         rowKey="id"
-        columns={selectColumns}
+        columns={tableColumns}
         dataSource={data}
         loading={isLoading || isFetching}
         size="small"

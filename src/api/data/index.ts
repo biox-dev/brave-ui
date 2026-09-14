@@ -16,7 +16,6 @@ export interface PageResponse<TItem> {
 
 export interface DatasetItem {
 	id: string;
-	dataset_id: string;
 	dataset_name: string;
 	description: string;
 	metadata: string;
@@ -58,9 +57,8 @@ export interface SampleItem {
 }
 
 export interface DatasetPageQuery {
-	project_id: string;
+	project_id?: string;
 	id?: string;
-	dataset_id?: string;
 	dataset_name?: string;
 	description?: string;
 	metadata?: string;
@@ -127,8 +125,34 @@ export const listFileByProjectGroupApi = (projectId: string) => {
 	);
 };
 
+export interface CreateDatasetRequest {
+	dataset_name: string;
+	description?: string;
+	metadata?: string;
+}
+
+export interface UpdateDatasetRequest extends CreateDatasetRequest {
+	id: string;
+}
+
+export interface DeleteDatasetRequest {
+	id: string;
+}
+
 export const pageDatasetByProjectApi = (payload: PageRequest<DatasetPageQuery>) => {
 	return http.post<PageResponse<DatasetItem>>("/data/dataset/list-by-project-page", payload);
+};
+
+export const createDatasetApi = (payload: CreateDatasetRequest) => {
+	return http.post<DatasetItem>("/data/dataset/create", payload);
+};
+
+export const updateDatasetApi = (payload: UpdateDatasetRequest) => {
+	return http.post<{ message: string }>("/data/dataset/update", payload);
+};
+
+export const deleteDatasetApi = (payload: DeleteDatasetRequest) => {
+	return http.post<{ message: string }>("/data/dataset/delete", payload);
 };
 
 export const pageFileByProjectApi = (payload: PageRequest<DatasetFilePageQuery>) => {
