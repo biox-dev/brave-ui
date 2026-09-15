@@ -106,9 +106,12 @@ const SchemaItemCardInner: FC<
           message="请先选择 type"
         />
       )}
+        {/* {JSON.stringify(editorProps)}
 
+       ----
+                {JSON.stringify(groups)} */}
       <InlinePropGroups {...editorProps} groups={groups} />
-
+ {/* {JSON.stringify(groups)} */}
       <Collapse
         ghost
         size="small"

@@ -7,11 +7,11 @@
 export const INPUT_TYPE_OPTIONS = [
   "file",
   "sample",
-  "dir",
-  "value",
-  "string",
-  "number",
-  "bool",
+//   "dir",
+//   "value",
+//   "string",
+//   "number",
+//   "bool",
 ].map((value) => ({ value }));
 
 /** `mode` of a select component. */

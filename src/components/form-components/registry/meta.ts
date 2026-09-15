@@ -19,7 +19,7 @@ import type { ComponentMeta } from "./types";
 /** Plain value input: text / number / switch / color. */
 const INPUT_GROUPS = [
   "identity",
-  "io",
+//   "io",
   "display",
   "validation",
   "depends",

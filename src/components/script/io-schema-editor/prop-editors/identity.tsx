@@ -45,7 +45,7 @@ export const IdentityEditor: PropEditor = ({ item, listKey, set }) => {
       )}
 
       {!isOutput && (
-        <Field label="col" span={isLayout ? 21 : 24}>
+        <Field label="col" >
           <InputNumber
             size="small"
             min={1}

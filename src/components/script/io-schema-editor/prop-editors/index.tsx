@@ -65,7 +65,10 @@ export const PropGroupSection: FC<PropEditorProps & { group: PropGroupKey }> = (
   ...rest
 }) => {
   const Editor = PROP_EDITORS[group];
-  return <Editor {...rest} />;
+  return <>
+  {/* {JSON.stringify(rest)} */}
+  <Editor {...rest} />
+  </>;
 };
 
 /** Renders every inline (non-collapsed) group of an item. */
