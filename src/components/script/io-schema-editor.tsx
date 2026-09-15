@@ -47,6 +47,7 @@ import {
 } from "@ant-design/icons";
 import {
   FC,
+  Fragment,
   memo,
   ReactNode,
   useCallback,
@@ -511,15 +512,7 @@ const SchemaItemCardInner: FC<
       }
     >
       <Row gutter={12}>
-        <Field label="name">
-          <Input size="small" value={item.name ?? ""} onChange={(e) => set("name", e.target.value)} />
-        </Field>
-        {!isOutput && (
-          <Field label="label">
-            <Input size="small" value={item.label ?? ""} onChange={(e) => set("label", e.target.value)} />
-          </Field>
-        )}
-        <Field label="type">
+         <Field label="type">
           {showsTypeOptions ? (
             <ComponentTypeSelect value={item.type} onChange={(v) => set("type", v)} />
           ) : (
@@ -531,6 +524,15 @@ const SchemaItemCardInner: FC<
             />
           )}
         </Field>
+        <Field label="name">
+          <Input size="small" value={item.name ?? ""} onChange={(e) => set("name", e.target.value)} />
+        </Field>
+        {!isOutput && (
+          <Field label="label">
+            <Input size="small" value={item.label ?? ""} onChange={(e) => set("label", e.target.value)} />
+          </Field>
+        )}
+       
       </Row>
 
       {!isOutput && (
@@ -746,15 +748,28 @@ const ListEditorInner: FC<{
     [onChange]
   );
 
+  const createItem = useCallback(
+    (): JSONMap =>
+      listKey === "outputs"
+        ? { name: "", type: "file" }
+        : { name: "", label: "", type: "BaseInput" },
+    [listKey]
+  );
+
   const addItem = useCallback(
-    () =>
-      onChange([
-        ...listRef.current,
-        listKey === "outputs"
-          ? { name: "", type: "file" }
-          : { name: "", label: "", type: "BaseInput" },
-      ]),
-    [listKey, onChange]
+    () => onChange([...listRef.current, createItem()]),
+    [createItem, onChange]
+  );
+
+  // Insert a fresh item right below the card at `index`. Without this a new
+  // component could only ever be appended to the end of the list.
+  const insertAfter = useCallback(
+    (index: number) => {
+      const copy = [...listRef.current];
+      copy.splice(index + 1, 0, createItem());
+      onChange(copy);
+    },
+    [createItem, onChange]
   );
 
   const singular = listKey.slice(0, -1);
@@ -773,16 +788,29 @@ const ListEditorInner: FC<{
       )}
 
       {list.map((item, index) => (
-        <SchemaItemCard
-          key={index}
-          listKey={listKey}
-          item={item}
-          index={index}
-          total={list.length}
-          onPatch={onPatch}
-          onRemove={onRemove}
-          onMove={onMove}
-        />
+        <Fragment key={index}>
+          <SchemaItemCard
+            listKey={listKey}
+            item={item}
+            index={index}
+            total={list.length}
+            onPatch={onPatch}
+            onRemove={onRemove}
+            onMove={onMove}
+          />
+          <Tooltip title={`Insert a new ${singular} below this component`}>
+            <Button
+              size="small"
+              type="dashed"
+              block
+              icon={<PlusOutlined />}
+              style={{ color: "rgba(0, 0, 0, 0.45)" }}
+              onClick={() => insertAfter(index)}
+            >
+              Add {singular} below
+            </Button>
+          </Tooltip>
+        </Fragment>
       ))}
     </Flex>
   );
