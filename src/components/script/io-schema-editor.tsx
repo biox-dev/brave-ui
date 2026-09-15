@@ -44,6 +44,7 @@ import {
   ArrowUpOutlined,
   DeleteOutlined,
   PlusOutlined,
+  UndoOutlined,
 } from "@ant-design/icons";
 import {
   FC,
@@ -892,6 +893,17 @@ const IOSchemaEditor: FC<IOSchemaEditorProps> = ({ value, onChange }) => {
   const [schema, setSchema] = useState<JSONMap>(() => normalizeIOSchema(value));
   const [activeTab, setActiveTab] = useState("inputs");
 
+  // The schema as it was last handed to us from the outside (form load / external
+  // reset). "Restore" puts the draft back to this snapshot, i.e. discards every
+  // local edit made since the schema was loaded.
+  const originalRef = useRef<JSONMap | undefined>(undefined);
+  if (!originalRef.current) originalRef.current = normalizeIOSchema(value);
+
+  // Drives the Restore button's enabled state. Kept as its own flag instead of a
+  // deep compare against `originalRef`, so we never serialize the schema to know
+  // whether there is anything to undo.
+  const [dirty, setDirty] = useState(false);
+
   // Mirrors `schema` so debounced/stable callbacks always read the latest draft
   // without being re-created on every keystroke.
   const schemaRef = useRef(schema);
@@ -937,8 +949,11 @@ const IOSchemaEditor: FC<IOSchemaEditorProps> = ({ value, onChange }) => {
     if (value === emittedRef.current) return;
     emittedRef.current = undefined;
     const next = normalizeIOSchema(value);
+    // A genuinely external value becomes the new restore point.
+    originalRef.current = next;
     schemaRef.current = next;
     setSchema(next);
+    setDirty(false);
   }, [value]);
 
   const update = useCallback(
@@ -946,6 +961,7 @@ const IOSchemaEditor: FC<IOSchemaEditorProps> = ({ value, onChange }) => {
       const next = patch(schemaRef.current);
       schemaRef.current = next;
       setSchema(next);
+      setDirty(true);
       scheduleCommit();
     },
     [scheduleCommit]
@@ -983,6 +999,23 @@ const IOSchemaEditor: FC<IOSchemaEditorProps> = ({ value, onChange }) => {
     [update]
   );
 
+  // Cancel every pending/local change: drop the debounce, re-seed the draft from
+  // the last externally-supplied schema and push that same object upstream so the
+  // surrounding form is restored too (otherwise submitting would still save the
+  // edited value).
+  const handleRestore = useCallback(() => {
+    if (timerRef.current !== undefined) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = undefined;
+    }
+    const next = normalizeIOSchema(originalRef.current);
+    schemaRef.current = next;
+    setSchema(next);
+    setDirty(false);
+    emittedRef.current = next;
+    onChangeRef.current?.(next);
+  }, []);
+
   const items = useMemo(
     () => [
       ...(["inputs", "params", "outputs"] as const).map((key) => ({
@@ -1019,7 +1052,28 @@ const IOSchemaEditor: FC<IOSchemaEditorProps> = ({ value, onChange }) => {
     [schema, listHandlers, handleResourcesChange, handleUiChange, handleJsonCommit]
   );
 
-  return <Tabs size="small" activeKey={activeTab} onChange={setActiveTab} items={items} />;
+  return (
+    <Tabs
+      size="small"
+      activeKey={activeTab}
+      onChange={setActiveTab}
+      items={items}
+      tabBarExtraContent={
+        <Tooltip title="取消修改：丢弃本地编辑，恢复到加载时的 io_schema">
+          <Button
+            size="small"
+            color="cyan"
+            variant="solid"
+            icon={<UndoOutlined />}
+            disabled={!dirty}
+            onClick={handleRestore}
+          >
+            恢复
+          </Button>
+        </Tooltip>
+      }
+    />
+  );
 };
 
 export default IOSchemaEditor;
