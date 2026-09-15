@@ -1,7 +1,7 @@
 // src/components/script/io-schema-editor/prop-editors/io.tsx
-// How an item binds to an analysis input: `input_type`, `component_id`, `mode`,
-// `db` and `resolver.accept_formats`.
-import { AutoComplete, Flex, Input, Row, Select, Switch } from "antd";
+// How an item binds to an analysis input: `input_type`, `mode`, `db` and
+// `resolver.accept_formats` (the upstream data role, also used to resolve `data`).
+import { AutoComplete, Flex, Row, Select, Switch } from "antd";
 import { Field } from "../shared/field";
 import { FORMAT_OPTIONS, INPUT_TYPE_OPTIONS, MODE_OPTIONS } from "./constants";
 import { isPlainObject } from "../normalize";
@@ -32,14 +32,6 @@ export const IoEditor: PropEditor = ({ item, set, patch }) => {
             placeholder="file / sample / dir ..."
             options={INPUT_TYPE_OPTIONS}
             onChange={(v) => set("input_type", v)}
-          />
-        </Field>
-        <Field label="component_id">
-          <Input
-            size="small"
-            value={item.component_id ?? ""}
-            placeholder="DEFAULT / TABLE / uuid"
-            onChange={(e) => set("component_id", e.target.value)}
           />
         </Field>
         <Field label="mode">

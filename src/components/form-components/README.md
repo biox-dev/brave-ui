@@ -34,7 +34,7 @@ form-components/
 | 关注点 | 数据来源 |
 | --- | --- |
 | 渲染哪个组件 | `registry/meta.ts` 的 `type` + `components/index.ts` 的实现 → `core/component-map.tsx` |
-| 组件数据从哪来 | `core/components-render.tsx`（`dataMap` / `dataKey` / `component_id` / `first_data_key`） |
+| 组件数据从哪来 | `core/components-render.tsx`（`dataMap` / `dataKey` / `resolver.accept_formats` / `first_data_key`） |
 | 编辑器显示哪些属性 | `registry/meta.ts` 的 `groups` / `dataFields` / `displayFields` / `columnFields` |
 
 ## 新增一个组件类型

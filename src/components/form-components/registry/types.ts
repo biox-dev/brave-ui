@@ -25,7 +25,7 @@ export type ComponentCategory =
  * of that type supports; the editor renders exactly those, in this order.
  *
  * - `identity`   type / name / label / col
- * - `io`         input_type / component_id / mode / db / accept_formats
+ * - `io`         input_type / mode / db / resolver.accept_formats
  * - `datasource` dataKey / filter / group / groupField / analysisResultId / field
  * - `columns`    columns / modes / columns_rules / groups
  * - `nest`       append (nested sub-fields, used by `Nest*` components)

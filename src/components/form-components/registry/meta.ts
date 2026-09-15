@@ -196,7 +196,7 @@ export const COMPONENT_META: readonly ComponentMeta[] = [
     label: "BaseSelect",
     category: "select",
     description:
-      "Generic select. Options come from `dataMap[dataKey]` (or the item's `component_id`).",
+      "Generic select. Options come from `dataMap[dataKey]` (or the upstream role in `resolver.accept_formats`).",
     groups: SELECT_GROUPS,
     defaults: { label: "" },
     dataFields: ["dataKey"],

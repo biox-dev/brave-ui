@@ -54,7 +54,10 @@ export const CollectedSampleSelectV2: FC<any> = ({
     if (selectCollectFile) {
       let columnsData = data.find((it: any) => it.id == selectCollectFile);
       if (columnsData) {
-        columnsData = columnsData.columns.map((it: any) => ({
+        // 后端只给 EXP / TABLE 角色的文件生成 `columns`（buildCompatFileItem），
+        // 多个 accept_formats 合并成候选列表后可能选到没有 `columns` 的文件。
+        const columnList = Array.isArray(columnsData.columns) ? columnsData.columns : [];
+        columnsData = columnList.map((it: any) => ({
           label: it.columns_name,
           value: it.columns_name,
           ...it,

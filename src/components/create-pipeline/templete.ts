@@ -6,7 +6,6 @@ export const INPUTS = [
     "name": "seuratObject",
     "type": "SelectSample",
     "input_type": "file",
-    "component_id": "DEFAULT",
     "resolver": {
       "accept_formats": [
         "DEFAULT"
@@ -30,7 +29,6 @@ export const INPUTS = [
         "TABLE"
       ]
     },
-    "component_id": "TABLE",
     "columns": [],
     "modes": [
       0
@@ -65,7 +63,6 @@ export const INPUTS = [
         "tooltip": "cell type"
       }
     ],
-    "component_id": "TABLE",
     "resolver": {
       "accept_formats": [
         "TABLE"
@@ -101,7 +98,6 @@ export const INPUTS = [
         "tooltip": "name"
       }
     ],
-    "component_id": "TABLE",
     "resolver": {
       "accept_formats": [
         "TABLE"
@@ -124,7 +120,6 @@ export const INPUTS = [
         "TABLE"
       ]
     },
-    "component_id": "TABLE",
     "columns": [
       "pheno_name"
     ],

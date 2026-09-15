@@ -16,8 +16,8 @@ const RenderFromJson: FC<any> = ({ formJson, dataMap, databases, analysisResultI
 
     // const initForm = () => {
     //     if (Array.isArray(formJson_)) {
-    //         const formJson = formJson_.filter((item: any) => !item?.required && !item?.db && !item.component_id)
-    //         const dbFormJson = formJson_.filter((item: any) => item?.required || item?.db || item.component_id)
+    //         const formJson = formJson_.filter((item: any) => !item?.required && !item?.db && !item?.resolver?.accept_formats?.length)
+    //         const dbFormJson = formJson_.filter((item: any) => item?.required || item?.db || item?.resolver?.accept_formats?.length)
     //         setDbFormJson(dbFormJson)
     //         setFormJson(formJson)
     //     }

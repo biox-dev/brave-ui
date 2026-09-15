@@ -1,6 +1,6 @@
 // src/components/form-components/components/base/base-select.tsx
 // Options are passed in as `data` (resolved by `ComponentsRender` from the
-// item's `dataKey` / `component_id`).
+// item's `dataKey` / `resolver.accept_formats`).
 import { Form } from "antd";
 import { FC } from "react";
 import { BasicSelect } from "../shared/basic-select";

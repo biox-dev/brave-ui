@@ -10,7 +10,7 @@
 | 关注点 | 决定它的地方 |
 | --- | --- |
 | 某个 `type` 渲染成什么 | `registry/meta.ts`（有哪些 type）+ `components/index.ts`（实现）→ `core/component-map.tsx` 派生 `componentMap` |
-| 组件的 `data` 从哪来 | `core/components-render.tsx`：`data` prop → `inputAnalysisMethod` → `dataKey` → `component_id` → `first_data_key` |
+| 组件的 `data` 从哪来 | `core/components-render.tsx`：`data` prop → `inputAnalysisMethod` → `dataKey` → `resolver.accept_formats` → `first_data_key` |
 | 编辑器显示哪些属性输入框 | `registry/meta.ts` 的 `groups` / `dataFields` / `displayFields` / `columnFields` |
 
 目录：
@@ -122,7 +122,7 @@ export const COMPONENT_IMPLEMENTATIONS: Record<string, FC<any>> = {
 | 组 | 内容 | 现成模板 |
 | --- | --- | --- |
 | `identity` | `type` / `name` / `label` / `col` | 所有类型 |
-| `io` | `input_type` / `component_id` / `mode` / `db` / `resolver.accept_formats` | `INPUT_GROUPS` |
+| `io` | `input_type` / `mode` / `db` / `resolver.accept_formats` | `INPUT_GROUPS` |
 | `datasource` | `dataKey` / `field` / `filter` / `group` / `groupField`（按 `dataFields` 过滤） | `SELECT_GROUPS` / `SAMPLE_GROUPS` |
 | `columns` | `columns` / `modes` / `columns_rules` / `groups`（按 `columnFields` 过滤） | `COLLECTED_GROUPS` |
 | `nest` | `append` 子字段编辑器（按 `appendTypes` 过滤可选类型） | `NEST_GROUPS` |
@@ -196,7 +196,9 @@ interface PropEditorProps {
 3. **保持回调稳定**。列表里每一行都是 `memo` 的，父级用 ref 缓存最新值来提供稳定回调。
    如果组件内 `useCallback` 依赖了每次变化的对象，会导致整列重渲染。
 4. **`data` 由渲染器解析**：要么在 meta 里给 `dataKey`（或 `renderProps.dataKey`），
-   要么在 item 里写 `dataKey` / `component_id`；否则拿到的可能是 `dataMap.first_data_key` 对应的值。
+   要么在 item 里写 `dataKey`，要么靠 `resolver.accept_formats` 命中上游角色
+   （多个角色是"任选其一"的候选格式，会按 `id` 去重合并成一个候选列表）；
+   否则拿到的可能是 `dataMap.first_data_key` 对应的值。
    项目级常量在 `core/form-json-comp.tsx` 的 `constDataMap`（`rank`、`group_field`）。
 5. **`depends` 不用在组件里处理**，`FormJsonComp` 已按字段级 `shouldUpdate` 统一控制显隐。
 6. **`col`** 由 `FormJsonComp` 转成 `<Col span>`，组件本身不用管栅格。
