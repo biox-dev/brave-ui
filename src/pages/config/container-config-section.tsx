@@ -56,6 +56,7 @@ const ContainerConfigSection = ({ value, onSave }: ConfigSectionProps<ContainerC
 		} catch {
 			// 错误提示已由 http 拦截器统一处理
 		}
+		setSaving(false);
 	};
 
 	return (
