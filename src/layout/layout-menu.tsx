@@ -9,6 +9,7 @@ import {
   FolderOpenOutlined,
   ReadOutlined,
   RobotOutlined,
+  SettingOutlined,
   ToolOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
@@ -43,6 +44,7 @@ const iconRegistry: Record<string, ReactNode> = {
   container: <ContainerOutlined />,
   code: <CodeOutlined />,
   agent: <RobotOutlined />,
+  setting: <SettingOutlined />,
 };
 
 const resolveMenuIcon = (iconName?: string) => {
@@ -142,6 +144,14 @@ export const layoutMenuTree: LayoutMenuItem[] = [
         },
       },
     ],
+  },
+  {
+    key: '/config',
+    icon: 'setting',
+    label: {
+      zh_CN: '可视化配置',
+      en_US: 'Config',
+    },
   },
   {
     key: '/agent',
