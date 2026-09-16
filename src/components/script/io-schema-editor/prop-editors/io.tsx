@@ -23,8 +23,10 @@ export const IoEditor: PropEditor = ({ item, set, patch }) => {
 
   return (
     <>
+    
+
       <Row gutter={12}>
-        <Field label="input_type">
+        <Field label="input_type"  span={8}>
           <AutoComplete
             size="small"
             value={item.input_type}
@@ -34,25 +36,12 @@ export const IoEditor: PropEditor = ({ item, set, patch }) => {
             onChange={(v) => set("input_type", v)}
           />
         </Field>
-        <Field label="mode">
-          <AutoComplete
-            size="small"
-            value={item.mode}
-            style={{ width: "100%" }}
-            placeholder="none / multiple"
-            options={MODE_OPTIONS}
-            onChange={(v) => set("mode", v)}
-          />
-        </Field>
-      </Row>
-
-      <Row gutter={12}>
-        <Field label="db" span={6}>
+        <Field label="db" span={8}>
           <Flex align="center" gap={8}>
             <Switch size="small" checked={!!item.db} onChange={(v) => set("db", v)} />
           </Flex>
         </Field>
-        <Field label="resolver.accept_formats" span={18}>
+        <Field label="resolver.accept_formats" span={8}>
           <Select
             size="small"
             mode="tags"

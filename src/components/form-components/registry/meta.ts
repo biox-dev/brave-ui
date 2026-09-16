@@ -29,8 +29,8 @@ const INPUT_GROUPS = [
 /** Option list / project aware selector (rank, group field, ...). */
 const SELECT_GROUPS = [
   "identity",
-  "io",
-  "datasource",
+  // "io",
+  // "datasource",
   "display",
   "validation",
   "depends",
@@ -52,7 +52,7 @@ const SAMPLE_GROUPS = [
 const COLLECTED_GROUPS = [
   "identity",
   "io",
-  "datasource",
+  // "datasource",
   "columns",
   "display",
   "validation",
@@ -199,7 +199,7 @@ export const COMPONENT_META: readonly ComponentMeta[] = [
       "Generic select. Options come from `dataMap[dataKey]` (or the upstream role in `resolver.accept_formats`).",
     groups: SELECT_GROUPS,
     defaults: { label: "" },
-    dataFields: ["dataKey"],
+    // dataFields: ["dataKey"],
     displayFields: ["tooltip", "initialValue", "extra"],
   },
   {
