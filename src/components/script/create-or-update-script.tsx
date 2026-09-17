@@ -11,11 +11,10 @@
 //    in as `component`/`data`, so NO extra fetch API is needed — the form is
 //    prefilled from the passed data and "Update" saves it back.
 
-import { Button, Card, Collapse, Form, Input, InputNumber, Select, Space, Spin, Typography, Upload } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
+import { Button, Card, Collapse, Form, Input, InputNumber, Select, Space, Spin, Typography } from "antd";
 import { FC, useEffect, useMemo, useState } from "react";
-import { useSelector } from "react-redux";
 import { http } from "@/api/client/http";
+import { ComponentImageUpload } from "@/components/common/component-image";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import IOSchemaEditor, { normalizeIOSchema } from "./io-schema-editor";
@@ -68,45 +67,6 @@ const serializeJSON = (value: any, fallback = "{}") => {
   } catch {
     return String(value);
   }
-};
-
-// ---------- script image upload ----------
-
-const ScriptImageUpload: FC<any> = ({ value, onChange, component_id }) => {
-  const { baseURL } = useSelector((state: any) => state.user);
-  const [fileList, setFileList] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (value) {
-      setFileList([
-        {
-          uid: "-1",
-          name: "image.png",
-          status: "done",
-          url: `${baseURL}${value}`,
-        },
-      ]);
-    }
-  }, [value, baseURL]);
-
-  return (
-    <Upload
-      fileList={fileList}
-      listType="picture-card"
-      action={`${baseURL}/brave-api/component/upload/${component_id}`}
-      onChange={({ file, fileList: list }) => {
-        setFileList([file]);
-        if (file.status === "done") {
-          onChange(file.response?.url);
-        }
-      }}
-    >
-      <button type="button" style={{ border: 0, background: "none", cursor: "pointer" }}>
-        <PlusOutlined />
-        <div style={{ marginTop: 8 }}>Upload</div>
-      </button>
-    </Upload>
-  );
 };
 
 // ---------- component ----------
@@ -169,8 +129,6 @@ const CreateOrUpdateScript: FC<CreateOrUpdateScriptProps> = (params) => {
   }, [incoming, loaded]);
 
   const isEdit = Boolean(numericId);
-  // upload needs an existing component uuid
-  const uploadComponentId = record?.component_id ?? component_id;
 
   // prefill: from passed data when available, otherwise fetch by numeric id
   useEffect(() => {
@@ -343,9 +301,9 @@ const CreateOrUpdateScript: FC<CreateOrUpdateScriptProps> = (params) => {
             <Input />
           </Form.Item>
 
-          {uploadComponentId && (
+          {numericId && (
             <Form.Item name="img" label="Upload">
-              <ScriptImageUpload component_id={uploadComponentId} />
+              <ComponentImageUpload kind="script" id={numericId} />
             </Form.Item>
           )}
 

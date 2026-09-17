@@ -17,6 +17,7 @@ import DependComponent from "../../components/depend-component"
 import "./index.css"
 import { base } from "@faker-js/faker"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
+import { ComponentImage } from "@/components/common/component-image"
 import { add } from "@dnd-kit/utilities"
 import { useStickyTop } from "@/hooks/useStickyTop"
 import ToolsLLMRender from "./tools-llm-render"
@@ -278,7 +279,7 @@ const PipelineComponentsCard: FC<any> = (params) => {
                                     padding: "12px 16px",          // 内边距更紧凑
                                 }}
                                 cover={<div style={{ height: "15rem" }}>
-                                    <img style={{ height: "100%", width: "100%", objectFit: "cover" }} alt={item.label} src={`${baseURL}${item.img}`} />
+                                    <ComponentImage kind="workflow" id={item.id} img={item.img} alt={item.name} style={{ height: "100%", width: "100%", objectFit: "cover" }} />
                                 </div>}
                                 onClick={() => navigate(item.path)}>
 
@@ -567,6 +568,13 @@ const InstallComponents: FC<any> = ({ visible, onClose, params, callback }) => {
     //     })
     // }, [])
     const getImgPath = (img: any) => {
+        if (!img) {
+            return ""
+        }
+        // 新约定：img 只存纯文件名（image.<ext>），商店列表拿不到 int64 主键，只能兼容历史路径。
+        if (!img.includes("/")) {
+            return ""
+        }
         if (img.startsWith("http")) {
             return img
         }

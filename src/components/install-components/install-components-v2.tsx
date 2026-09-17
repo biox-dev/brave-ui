@@ -54,7 +54,7 @@ const InstallComponents: FC<any> = ({ storeType, onOk, onCancel }) => {
                     url: e.target.value
                 })}
             />
-            <Button type="default" onClick={async () => {
+            {/* <Button type="default" onClick={async () => {
                 const result = await invoke.remoteStore.openAsync({}, {
                     footer: null,
                     width: 800,
@@ -66,7 +66,7 @@ const InstallComponents: FC<any> = ({ storeType, onOk, onCancel }) => {
                         url: result
                     })
                 }
-            }} >Store</Button>
+            }} >Store</Button> */}
             <Button type="primary" onClick={async () => {
                 if (!downloadParams?.url) {
                     message.error("Please input store url!")

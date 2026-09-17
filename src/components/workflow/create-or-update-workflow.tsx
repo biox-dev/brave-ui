@@ -9,11 +9,10 @@
 //    passed in as `component` (aliased to `data`) so NO extra fetch API is called;
 //    the form is prefilled from the passed data and "Update" saves it back.
 
-import { Button, Card, Collapse, Form, Input, InputNumber, Select, Space, Spin, Typography, Upload } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
+import { Button, Card, Collapse, Form, Input, InputNumber, Select, Space, Spin, Typography } from "antd";
 import { FC, useEffect, useState } from "react";
-import { useSelector } from "react-redux";
 import { http } from "@/api/client/http";
+import { ComponentImageUpload } from "@/components/common/component-image";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 
 // ---------- small helpers ----------
@@ -60,48 +59,6 @@ const serializeJSON = (value: any, fallback = "[]") => {
   } catch {
     return String(value);
   }
-};
-
-// ---------- relation image upload ----------
-
-const RelationImageUpload: FC<any> = ({ value, onChange, relation_id }) => {
-  const { baseURL } = useSelector((state: any) => state.user);
-  const [fileList, setFileList] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (value) {
-      setFileList([
-        {
-          uid: "-1",
-          name: "relation.png",
-          status: "done",
-          url: `${baseURL}${value}`,
-        },
-      ]);
-    }
-  }, [value, baseURL]);
-
-  return (
-    <Upload
-      fileList={fileList}
-      listType="picture-card"
-      action={`${baseURL}/brave-api/component/relation-img-upload/${relation_id}`}
-      onChange={({ file, fileList: list }) => {
-        setFileList([file]);
-        if (file.status === "done") {
-          onChange(file.response?.url);
-        }
-      }}
-    >
-      <button
-        type="button"
-        style={{ border: 0, background: "none", cursor: "pointer" }}
-      >
-        <PlusOutlined />
-        <div style={{ marginTop: 8 }}>Upload</div>
-      </button>
-    </Upload>
-  );
 };
 
 // ---------- component ----------
@@ -244,9 +201,9 @@ const CreateOrUpdateWorkflow: FC<CreateOrUpdateWorkflowProps> = (params) => {
             <Input />
           </Form.Item>
 
-          {relation?.relation_id && (
+          {relation?.id != null && (
             <Form.Item name="img" label="Upload">
-              <RelationImageUpload relation_id={relation.relation_id} />
+              <ComponentImageUpload kind="workflow" id={relation.id} />
             </Form.Item>
           )}
 

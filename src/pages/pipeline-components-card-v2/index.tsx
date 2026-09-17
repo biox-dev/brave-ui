@@ -17,6 +17,7 @@ import DependComponent from "../../components/depend-component"
 import "./index.css"
 import { base } from "@faker-js/faker"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
+import { ComponentImage } from "@/components/common/component-image"
 import { add } from "@dnd-kit/utilities"
 import { useStickyTop } from "@/hooks/useStickyTop"
 import ToolsLLMRender from "./tools-llm-render"
@@ -24,7 +25,6 @@ import { invoke } from "@/core/ui-system/invokeV2"
 const PipelineComponentsCard: FC<any> = ({ params, map }) => {
     const { Search } = Input;
     // const [searchText, setSearchText] = useState("");
-    const { baseURL } = useSelector((state: any) => state.user)
     const navigate = useNavigate();
     const { messageApi } = useOutletContext<any>()
     const { modal, openModal, closeModal } = useModal();
@@ -290,7 +290,7 @@ const PipelineComponentsCard: FC<any> = ({ params, map }) => {
                                             padding: "12px 16px",          // 内边距更紧凑
                                         }}
                                         cover={<div style={{ height: "15rem" }}>
-                                            <img style={{ height: "100%", width: "100%", objectFit: "cover" }} alt={item.label} src={`${baseURL}${item.img}`} />
+                                            <ComponentImage kind="workflow" id={item.id} img={item.img} alt={item.name} style={{ height: "100%", width: "100%", objectFit: "cover" }} />
                                         </div>}
                                         onClick={() => navigate(`${item.path}`)}>
 

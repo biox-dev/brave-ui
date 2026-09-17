@@ -92,6 +92,10 @@ const StoreContent: FC<StoreContentProps> = ({
         if (!img) {
             return "";
         }
+        // 新约定：img 只存纯文件名（image.<ext>），商店列表拿不到 int64 主键，只能兼容历史路径。
+        if (!img.includes("/")) {
+            return "";
+        }
         if (img.startsWith("http")) {
             return img;
         }

@@ -10,6 +10,7 @@ import axios from "axios"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
 import { useComponentStore } from "@/event-bus/stores/components"
 import { http } from "@/api/client/http"
+import { ComponentImage } from "@/components/common/component-image"
 
 type StoreType = "workflow" | "script"
 
@@ -50,7 +51,7 @@ const normalizeText = (value?: string) => {
 
 const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow" }, ref) => {
     const normalizedStoreType: StoreType = storeType === "script" ? "script" : "workflow"
-    const { baseURL, projectId } = useSelector((state: any) => state.user)
+    const { projectId } = useSelector((state: any) => state.user)
 
     const { data, total, page, pageSize, isLoading, isFetching, refetch, setPage, setQuery } = usePageQuery<StorePageItem, StorePageQuery>({
         queryKey: ["store-page", normalizedStoreType],
@@ -68,6 +69,7 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
             return resp.data
         },
         keepPreviousData: true,
+        scopeKey:projectId,
         staleTime: 30_000,
         cacheTime: 5 * 60_000,
     })
@@ -82,15 +84,15 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
     // The backend resolves the active project from the session (GetActiveProjectByUserID),
     // so projectId is not sent with the request. When the active project changes we reset
     // to the first page and refresh the list so per-project data (e.g. `installed`) is current.
-    useEffect(() => {
+    // useEffect(() => {
       
-        if (page === 1) {
-            refetch()
-        } else {
-            // Changing the page changes the query key, which triggers the refetch.
-            setPage(1)
-        }
-    }, [projectId, page, refetch, setPage])
+    //     if (page === 1) {
+    //         refetch()
+    //     } else {
+    //         // Changing the page changes the query key, which triggers the refetch.
+    //         setPage(1)
+    //     }
+    // }, [projectId, page, refetch, setPage])
 
     useImperativeHandle(ref, () => ({
         reload: () => {
@@ -227,7 +229,9 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
                                         {item?.status == "running" ? <>
                                             <Skeleton active></Skeleton>
                                         </> :
-                                            <img style={{ height: "100%", width: "100%", objectFit: "cover" }} alt={item?.name || item?.store_id} src={`${baseURL}${item?.img || ""}`} />
+                                            // 封面地址由 int64 主键推导（后端定位 {path}/{store_type}/{img}），
+                                            // 文件不存在时后端返回占位图
+                                            <ComponentImage kind="store" id={item?.id} img={item?.img} alt={item?.name || item?.store_id} style={{ height: "100%", width: "100%", objectFit: "cover" }} />
                                         }
                                     </div>}
                                 >

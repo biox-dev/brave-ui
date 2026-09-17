@@ -17,6 +17,7 @@ import DependComponent from "../depend-component"
 import "./index.css"
 import { base } from "@faker-js/faker"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
+import { ComponentImage } from "@/components/common/component-image"
 import { add } from "@dnd-kit/utilities"
 import { useStickyTop } from "@/hooks/useStickyTop"
 const PipelineComponentsCard: FC<any> = ({ params, map }) => {
@@ -225,7 +226,7 @@ const PipelineComponentsCard: FC<any> = ({ params, map }) => {
                                             padding: "12px 16px",          // 内边距更紧凑
                                         }}
                                         cover={<div style={{ height: "15rem" }}>
-                                            <img style={{ height: "100%", width: "100%", objectFit: "cover" }} alt={item.label} src={`${baseURL}${item.img}`} />
+                                            <ComponentImage kind="script" id={item.id} img={item.img} alt={item.name} style={{ height: "100%", width: "100%", objectFit: "cover" }} />
                                         </div>}
                                         onClick={() => navigate(`${item.path}`)}>
 
@@ -576,6 +577,14 @@ const InstallComponents: FC<any> = ({ visible, onClose, params, callback }) => {
     //     })
     // }, [])
     const getImgPath = (img: any) => {
+        if (!img) {
+            return ""
+        }
+        // 新约定：img 只存纯文件名（image.<ext>），需要 int64 主键才能拼出接口地址；
+        // 商店/导入列表拿不到主键，只能兼容历史完整路径。
+        if (!img.includes("/")) {
+            return ""
+        }
         if (img.startsWith("http")) {
             return img
         }

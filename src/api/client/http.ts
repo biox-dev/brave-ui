@@ -3,6 +3,16 @@ import type { AxiosError } from "axios";
 import { API_CONFIG } from "./config";
 import { getGlobalMessage } from "@/hooks/useGlobalMessage";
 
+declare module "axios" {
+	export interface AxiosRequestConfig {
+		/**
+		 * 设为 true 时该请求失败不弹全局错误提示。
+		 * 适合封面图这类「失败可以静默降级」的请求。
+		 */
+		skipGlobalError?: boolean;
+	}
+}
+
 const LOGIN_HASH_PATH = "#/login";
 
 const redirectToLogin = () => {
@@ -104,7 +114,7 @@ http.interceptors.response.use(
 		}
 
 		const globalMessage = getGlobalMessage();
-		if (globalMessage) {
+		if (globalMessage && !error.config?.skipGlobalError) {
 			globalMessage.error(normalized.error.message);
 		}
 		return Promise.reject(error);
