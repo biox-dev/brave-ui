@@ -29,13 +29,16 @@ const PublishToolsV2: FC<any> = ({ type, store, callback }) => {
 
 
     useEffect(() => {
-        form.setFieldsValue(store)
+        if (store?.store_id != "0") {
+            form.setFieldsValue(store)
+
+        }
     }, [store])
 
     return <Card size="small"
         extra={<Space>
 
-            {store?.store_id && <Tag>
+            {store?.store_id!="0" && <Tag>
                 {store?.store_id}
             </Tag>}
             <Tag>
@@ -69,7 +72,7 @@ const PublishToolsV2: FC<any> = ({ type, store, callback }) => {
                 callback && callback()
             }}>Publish Store</Button>
 
-            {store?.store_id && <Button size="small" color="cyan" variant="solid" onClick={() => {
+            {store?.store_id != "0" && <Button size="small" color="cyan" variant="solid" onClick={() => {
                 invoke.publishStore.open(store, {
                     footer: null,
                     width: 640,
@@ -83,19 +86,20 @@ const PublishToolsV2: FC<any> = ({ type, store, callback }) => {
         </Space>}
     >
         {/* {JSON.stringify(workflow)} */}
-
+        {/* {JSON.stringify(store)} */}
         {/* {JSON.stringify(workflow)} */}
-        <Flex justify="center">
+        <Flex justify="center" >
             <Form form={form} layout="vertical" style={{ width: "50%" }} disabled={loading}>
+
+                <Form.Item initialValue={"v0.0.1"} name={"version"} label="Version" rules={[{ required: true, message: 'Please input version!' }]}>
+                    <Input ></Input>
+                </Form.Item>
                 <Form.Item
                     label="URL"
                     name="url"
-                    rules={[{ required: true, message: "Please input URL" }]}
+                // rules={[{ required: true, message: "Please input URL" }]}
                 >
                     <Input placeholder="http://github.com/owner/repo" />
-                </Form.Item>
-                <Form.Item name={"version"} label="Version" rules={[{ required: true, message: 'Please input version!' }]}>
-                    <Input ></Input>
                 </Form.Item>
                 <Form.Item label="message" name="update_info">
                     <TextArea placeholder="Update Info" />

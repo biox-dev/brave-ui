@@ -1,7 +1,7 @@
 import { usePageQuery } from "@/hooks/usePaginationV2"
 import { Button, Card, Col, Empty, Flex, Input, Pagination, Popconfirm, Row, Skeleton, Space, Tag, Tooltip } from "antd"
 import Meta from "antd/es/card/Meta"
-import { forwardRef, useEffect, useImperativeHandle, useMemo } from "react"
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from "react"
 import { useSelector } from "react-redux"
 import { colors } from '@/utils/utils'
 import { DownloadOutlined, RedoOutlined } from '@ant-design/icons'
@@ -33,7 +33,7 @@ interface StorePageItem {
     created_at?: string
     updated_at?: string
     description?: string
-    installed?:boolean
+    installed?: boolean
 }
 
 interface StorePageQuery {
@@ -50,6 +50,7 @@ const normalizeText = (value?: string) => {
 
 const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow" }, ref) => {
     const normalizedStoreType: StoreType = storeType === "script" ? "script" : "workflow"
+    const { baseURL, projectId } = useSelector((state: any) => state.user)
 
     const { data, total, page, pageSize, isLoading, isFetching, refetch, setPage, setQuery } = usePageQuery<StorePageItem, StorePageQuery>({
         queryKey: ["store-page", normalizedStoreType],
@@ -71,13 +72,25 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
         cacheTime: 5 * 60_000,
     })
 
-    const { baseURL } = useSelector((state: any) => state.user)
     const { Search } = Input
     const message = useGlobalMessage()
 
     useEffect(() => {
         setQuery({ store_type: normalizedStoreType })
     }, [normalizedStoreType, setQuery])
+
+    // The backend resolves the active project from the session (GetActiveProjectByUserID),
+    // so projectId is not sent with the request. When the active project changes we reset
+    // to the first page and refresh the list so per-project data (e.g. `installed`) is current.
+    useEffect(() => {
+      
+        if (page === 1) {
+            refetch()
+        } else {
+            // Changing the page changes the query key, which triggers the refetch.
+            setPage(1)
+        }
+    }, [projectId, page, refetch, setPage])
 
     useImperativeHandle(ref, () => ({
         reload: () => {
@@ -130,11 +143,13 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
                     style={{ width: 400 }}
                 />
                 <Tag color="blue">{normalizedStoreType}</Tag>
+                <Tag color="blue">{projectId}</Tag>
             </Space>}
             size="small" extra={<Space>
                 <Button size="small" color="cyan" variant="solid" icon={<RedoOutlined />} onClick={() => refetch()}></Button>
 
             </Space>}>
+
             {data ? <>
                 {data.length === 0 ? <Empty description="No data" /> : <Spin spinning={isLoading || isFetching}>
                     <Row gutter={16} >
@@ -177,10 +192,10 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
                                             <Popconfirm
                                                 title={`ReDownload ${item?.url} ?`}
                                                 onConfirm={async () => {
-												await http.post(`/store/redownload`, {
-													id: item?.id,
-												})
-												message.success("ReDownload success!")
+                                                    await http.post(`/store/redownload`, {
+                                                        id: item?.id,
+                                                    })
+                                                    message.success("ReDownload success!")
                                                     refetch()
                                                 }}
                                             >
@@ -192,9 +207,9 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
                                         <Popconfirm
                                             title={`Delete Store ${item?.name} ?`}
                                             onConfirm={async () => {
-												await http.post(`/store/delete`, {
-													id: item?.id,
-												})
+                                                await http.post(`/store/delete`, {
+                                                    id: item?.id,
+                                                })
                                                 message.success("Delete success!")
                                                 refetch()
                                             }}
@@ -248,7 +263,7 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
                                                         onOk && onOk()
                                                     }}
                                                 >
-                                                    <Button size="small" color={item?.installed ?"red":"blue"} variant="solid" icon={<DownloadOutlined />} >{item?.installed ?"ReInstall":"Install"}</Button>
+                                                    <Button size="small" color={item?.installed ? "red" : "blue"} variant="solid" icon={<DownloadOutlined />} >{item?.installed ? "ReInstall" : "Install"}</Button>
                                                 </Popconfirm>}
 
                                                 {onOk && normalizedStoreType === "script" && <Popconfirm

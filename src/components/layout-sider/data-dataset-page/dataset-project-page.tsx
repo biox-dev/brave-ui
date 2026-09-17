@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Card, Flex, Popconfirm, Space, Table, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, FolderAddOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { useDatasetProjectPageQuery } from "@/hooks/usePaginationV2";
-import { deleteDatasetApi } from "@/api/data";
+import { deleteDatasetApi, ensureDatasetDirApi } from "@/api/data";
 import type { DatasetItem } from "@/api/data";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
@@ -164,14 +164,35 @@ const DatasetProjectPage = ({
     }
   };
 
+  const handleEnsureDir = async (record: DatasetItem) => {
+    try {
+      const response = await ensureDatasetDirApi({ id: record.id });
+      const dirPath = response.data?.path;
+      message.success(dirPath ? `Dataset dir ready: ${dirPath}` : "Dataset dir ready");
+    } catch {
+      message.error("Failed to create dataset dir");
+    }
+  };
+
   const actionsColumn: ColumnsType<DatasetItem>[number] = {
     title: "Actions",
     key: "actions",
-    width: 110,
+    width: 150,
     align: "right",
     fixed: "right",
     render: (_: unknown, record) => (
-      <span className="project-report-item-actions" onClick={(event) => event.stopPropagation()}>
+      <span
+        className="project-report-item-actions project-report-item-actions-static"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <Tooltip title="Create Dir">
+          <Button
+            type="text"
+            size="small"
+            icon={<FolderAddOutlined />}
+            onClick={() => handleEnsureDir(record)}
+          />
+        </Tooltip>
         <Tooltip title="Edit">
           <Button
             type="text"

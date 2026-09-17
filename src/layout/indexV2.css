@@ -140,6 +140,12 @@
   transition: opacity 0.15s ease;
 }
 
+/* Tables rendered outside `.project-report-panel` (e.g. Card-based pages) have
+   no hover-reveal ancestor, so their actions must stay visible. */
+.project-report-item-actions.project-report-item-actions-static {
+  opacity: 1;
+}
+
 .project-report-panel .ant-table-tbody > tr:hover .project-report-item-actions,
 .project-report-panel .ant-table-tbody > tr.project-report-row-selected .project-report-item-actions {
   opacity: 1;

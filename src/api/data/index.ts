@@ -100,6 +100,10 @@ export interface AddFileToDatasetRequest {
 	role?: string;
 	file_name?: string;
 	is_copy?: boolean;
+	is_prefix?: boolean;
+	analysis_node_id?: string;
+	// "data" resolves the path under base_dir/data/<project_id>, "analysis" expects an absolute path
+	source?: string;
 }
 
 export interface AddFileToDatasetResponse {
@@ -153,6 +157,14 @@ export const updateDatasetApi = (payload: UpdateDatasetRequest) => {
 
 export const deleteDatasetApi = (payload: DeleteDatasetRequest) => {
 	return http.post<{ message: string }>("/data/dataset/delete", payload);
+};
+
+export interface EnsureDatasetDirResponse {
+	path: string;
+}
+
+export const ensureDatasetDirApi = (payload: { id: string }) => {
+	return http.post<EnsureDatasetDirResponse>("/data/dataset/ensure-dir", payload);
 };
 
 export const pageFileByProjectApi = (payload: PageRequest<DatasetFilePageQuery>) => {

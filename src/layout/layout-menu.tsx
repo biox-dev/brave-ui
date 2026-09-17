@@ -95,6 +95,14 @@ export const layoutMenuTree: LayoutMenuItem[] = [
   //   },
   // },
   {
+    key: '/dataset',
+    icon: 'files',
+    label: {
+      zh_CN: '数据集',
+      en_US: 'Datasets',
+    },
+  },
+  {
     key: '/app-session',
     icon: 'container',
     label: {

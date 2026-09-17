@@ -45,9 +45,11 @@ type FileItem = {
     modified: number;
     url?: string;
 };
-import { FolderOutlined, FileOutlined, ReloadOutlined, UploadOutlined, FileAddOutlined, FolderAddOutlined, DeleteOutlined, EditOutlined, CloseOutlined, ArrowLeftOutlined } from "@ant-design/icons"
+import { FolderOutlined, FileOutlined, ReloadOutlined, UploadOutlined, FileAddOutlined, FolderAddOutlined, DeleteOutlined, EditOutlined, CloseOutlined, ArrowLeftOutlined, ImportOutlined } from "@ant-design/icons"
 import { useSelector } from "react-redux";
 import { http } from "@/api/client/http";
+import { invoke } from "@/core/ui-system/invokeV2";
+import { addFileToDatasetApi } from "@/api/data";
 
 const joinPath = (basePath: string, name: string) => {
     if (!basePath || basePath === "/") {
@@ -236,6 +238,41 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
         navigate(`/preview/file?url=${encodeURIComponent(file.url)}`)
     }
 
+    const handleAddToDataset = async (file: FileItem) => {
+        const filePath = joinPath(currentPath, file.name)
+        if (!filePath) {
+            messageApi.error("Invalid file path")
+            return
+        }
+        try {
+            const dataset = await invoke.datasetProjectPage.openDrawerAsync({}, {
+                width: 600,
+                title: "Select Dataset",
+            })
+            if (!dataset?.id) {
+                return
+            }
+            const result = await invoke.selectFileRole.openDrawerAsync(
+                { defaultFileName: file.name, path: filePath },
+                { width: 450, title: "Add File to Dataset" }
+            )
+            await addFileToDatasetApi({
+                dataset_id: dataset.id,
+                path: result.path,
+                // this browser always lists the project data dir, so paths are
+                // relative to base_dir/data/<project_id>
+                source: "data",
+                role: result.role,
+                is_prefix: result.is_prefix,
+                file_name: result.file_name || undefined,
+                is_copy: result.is_copy,
+            })
+            messageApi.success("File added to dataset")
+        } catch (error) {
+            console.log("Dataset selection cancelled or failed", error)
+        }
+    }
+
     const pathSegments = currentPath.split("/").filter(Boolean)
 
     return (
@@ -358,6 +395,14 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
                                                     size="small"
                                                     icon={<FileOutlined />}
                                                     onClick={() => handleOpenFile(file)}
+                                                />
+                                            </Tooltip>
+                                            <Tooltip title="Add To">
+                                                <Button
+                                                    type="text"
+                                                    size="small"
+                                                    icon={<ImportOutlined />}
+                                                    onClick={() => handleAddToDataset(file)}
                                                 />
                                             </Tooltip>
                                             <Tooltip title="Rename">
