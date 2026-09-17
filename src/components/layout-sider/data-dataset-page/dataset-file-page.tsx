@@ -327,7 +327,7 @@ const DatasetFilePage = ({
   const actionsColumn: ColumnsType<DatasetFileItem>[number] = {
     title: "Actions",
     key: "actions",
-    width: 100,
+    width: 80,
     align: "right",
     render: (_: unknown, record) => (
       <span

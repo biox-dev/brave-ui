@@ -4,7 +4,7 @@ import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { formatRelativeTime } from "@/utils/time";
 import { DeleteOutlined, ExperimentOutlined, ReloadOutlined } from "@ant-design/icons";
-import { Button, Empty, Pagination, Popconfirm, Table, Tag } from "antd";
+import { Button, Descriptions, Empty, Pagination, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
@@ -28,6 +28,63 @@ const statusColor = (status: string) => {
       return "default";
   }
 };
+
+const formatDateTime = (value?: string) =>
+  value ? new Date(value).toLocaleString() : "-";
+
+const AnalysisNodeDetailCard = ({ item }: { item: AnalysisNodeItem }) => (
+  <div style={{ width: 380 }}>
+    <Descriptions
+      size="small"
+      column={1}
+      bordered
+      items={[
+        { key: "node_name", label: "Node Name", children: item.node_name || item.analysis_node_id || "-" },
+        { key: "id", label: "ID", children: item.id || "-" },
+        { key: "analysis_node_id", label: "Analysis Node ID", children: item.analysis_node_id || "-" },
+        { key: "node_id", label: "Node ID", children: item.node_id || "-" },
+        { key: "script_id", label: "Script ID", children: item.script_id || "-" },
+        { key: "analysis_id", label: "Analysis ID", children: item.analysis_id || "-" },
+        { key: "project_id", label: "Project ID", children: item.project_id || "-" },
+        {
+          key: "status",
+          label: "Status",
+          children: item.status ? <Tag color={statusColor(item.status)}>{item.status}</Tag> : "-",
+        },
+        // { key: "server_status", label: "Server Status", children: item.server_status || "-" },
+        { key: "executor", label: "Executor", children: item.executor || "-" },
+        // { key: "cache_hit", label: "Cache Hit", children: item.cache_hit ? "Yes" : "No" },
+        {
+          key: "retry",
+          label: "Retry",
+          children: `${item.retry ?? 0} / ${item.max_retry ?? 0}`,
+        },
+        // { key: "created_at", label: "Created At", children: formatDateTime(item.created_at) },
+        { key: "updated_at", label: "Updated At", children: formatDateTime(item.updated_at) },
+        // { key: "started_at", label: "Started At", children: formatDateTime(item.started_at) },
+        { key: "finished_at", label: "Finished At", children: formatDateTime(item.finished_at) },
+        {
+          key: "output_dir",
+          label: "Output Dir",
+          children: item.output_dir ? (
+            <span style={{ wordBreak: "break-all", whiteSpace: "pre-wrap" }}>{item.output_dir}</span>
+          ) : (
+            "-"
+          ),
+        },
+        {
+          key: "workspace_dir",
+          label: "Workspace Dir",
+          children: item.workspace_dir ? (
+            <span style={{ wordBreak: "break-all", whiteSpace: "pre-wrap" }}>{item.workspace_dir}</span>
+          ) : (
+            "-"
+          ),
+        },
+      ]}
+    />
+  </div>
+);
 
 const AnalysisResultList: FC<any> = () => {
   const navigate = useNavigate();
@@ -71,30 +128,44 @@ const AnalysisResultList: FC<any> = () => {
         title: "Node Name",
         dataIndex: "node_name",
         key: "node_name",
-        render: (name: string, record) => (
-          <div className="project-report-item">
-            <ExperimentOutlined className="project-report-item-icon" />
-            <div className="project-report-item-text">
-              <span className="project-report-item-title">
-                {name || `Node-${record.id}`}
-              </span>
-              {record.updated_at && (
-                <span className="project-report-item-meta">
-                  {formatRelativeTime(record.updated_at, locale)}
-                </span>
-              )}
+        ellipsis: { showTitle: false },
+        render: (name: string, record) => {
+          const title = name || record.analysis_node_id || `Node-${record.id}`;
+          const meta = [
+            record.updated_at
+              ? formatRelativeTime(record.updated_at, locale)
+              : undefined,
+            // record.executor,
+
+          ]
+            .filter(Boolean)
+            .join(" · ");
+
+          return (
+            <div className="project-report-item">
+              <ExperimentOutlined className="project-report-item-icon" />
+              <div className="project-report-item-text">
+                <Tooltip placement="topLeft" title={title}>
+                  <span className="project-report-item-title">{title}</span>
+                </Tooltip>
+                {meta && (
+                  <span className="project-report-item-meta" title={meta}>
+                    {meta}
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
-        ),
+          );
+        },
       },
-      {
-        title: "Status",
-        dataIndex: "status",
-        key: "status",
-        width: 96,
-        render: (status: string) =>
-          status ? <Tag color={statusColor(status)}>{status}</Tag> : "-",
-      },
+      // {
+      //   title: "Status",
+      //   dataIndex: "status",
+      //   key: "status",
+      //   width: 96,
+      //   render: (status: string) =>
+      //     status ? <Tag color={statusColor(status)}>{status}</Tag> : "-",
+      // },
       {
         title: "Actions",
         key: "actions",
@@ -117,6 +188,37 @@ const AnalysisResultList: FC<any> = () => {
     ],
     [locale]
   );
+
+  const bodyRow = useMemo(() => {
+    const Row = (props: any) => {
+      const rowKey = props?.["data-row-key"];
+      const record = data.find((item) => String(item.id) === String(rowKey));
+      const rowElement = <tr {...props} />;
+
+      if (!record) {
+        return rowElement;
+      }
+
+      return (
+        <Popover
+          placement="left"
+          mouseEnterDelay={0.2}
+          mouseLeaveDelay={0.1}
+          title={
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <ExperimentOutlined />
+              {record.node_name || record.analysis_node_id || `Node-${record.id}`}
+            </span>
+          }
+          content={<AnalysisNodeDetailCard item={record} />}
+        >
+          {rowElement}
+        </Popover>
+      );
+    };
+
+    return Row;
+  }, [data]);
 
   return (
     <div className="project-report-panel">
@@ -147,6 +249,7 @@ const AnalysisResultList: FC<any> = () => {
             loading={isLoading || isFetching}
             pagination={false}
             showHeader={false}
+            components={{ body: { row: bodyRow } }}
             rowClassName={(record) =>
               record.id === selectedId ? "project-report-row-selected" : ""
             }

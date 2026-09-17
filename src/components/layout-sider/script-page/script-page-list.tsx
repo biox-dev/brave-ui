@@ -1,15 +1,81 @@
 import { useScriptPageQuery } from "@/hooks/usePaginationV2";
 import type { ScriptItem } from "@/api/workflow";
+import { http } from "@/api/client/http";
 import { invoke } from "@/core/ui-system/invokeV2";
+import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { formatRelativeTime } from "@/utils/time";
-import { CodeOutlined, DownloadOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
-import { Button, Empty, Pagination, Table, Tag, Tooltip } from "antd";
+import { CodeOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import { Button, Descriptions, Empty, Pagination, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
 
+const splitTags = (tags?: string) =>
+  (tags ?? "")
+    .split(/[,;|\s]+/)
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+
+const ScriptDetailCard = ({ item }: { item: ScriptItem }) => {
+  const tags = splitTags(item.tags);
+
+  return (
+    <div style={{ width: 380 }}>
+      <Descriptions
+        size="small"
+        column={1}
+        bordered
+        items={[
+          { key: "component_name", label: "Script Name", children: item.component_name || item.component_id || "-" },
+          { key: "id", label: "Script ID", children: item.id || "-" },
+          { key: "component_id", label: "Component ID", children: item.component_id || "-" },
+          { key: "script_type", label: "Script Type", children: item.script_type || "-" },
+          { key: "category", label: "Category", children: item.category || "-" },
+          { key: "install_key", label: "Install Key", children: item.install_key || "-" },
+          { key: "container_template_id", label: "Container Template", children: item.container_template_id || "-" },
+          {
+            key: "tags",
+            label: "Tags",
+            children: tags.length > 0 ? (
+              <span style={{ display: "inline-flex", flexWrap: "wrap", gap: 4 }}>
+                {tags.map((tag) => (
+                  <Tag key={tag} color="blue" style={{ marginInlineEnd: 0 }}>
+                    {tag}
+                  </Tag>
+                ))}
+              </span>
+            ) : (
+              "-"
+            ),
+          },
+          {
+            key: "description",
+            label: "Description",
+            children: item.description ? (
+              <span style={{ wordBreak: "break-all", whiteSpace: "pre-wrap" }}>{item.description}</span>
+            ) : (
+              "-"
+            ),
+          },
+          {
+            key: "created_at",
+            label: "Created At",
+            children: item.created_at ? new Date(item.created_at).toLocaleString() : "-",
+          },
+          {
+            key: "updated_at",
+            label: "Updated At",
+            children: item.updated_at ? new Date(item.updated_at).toLocaleString() : "-",
+          },
+        ]}
+      />
+    </div>
+  );
+};
+
 const ScriptPageList: FC<any> = () => {
+  const message = useGlobalMessage();
   const navigate = useNavigate();
   const location = useLocation();
   const { locale } = useI18n();
@@ -51,33 +117,126 @@ const ScriptPageList: FC<any> = () => {
         title: "Script Name",
         dataIndex: "component_name",
         key: "component_name",
-        render: (name: string, record) => (
-          <div className="project-report-item">
-            <CodeOutlined className="project-report-item-icon" />
-            <div className="project-report-item-text">
-              <span className="project-report-item-title">
-                {name || `Script-${record.id}`}
-              </span>
-              {record.updated_at && (
-                <span className="project-report-item-meta">
-                  {formatRelativeTime(record.updated_at, locale)}
-                </span>
-              )}
+        ellipsis: { showTitle: false },
+        render: (name: string, record) => {
+          const title = name || record.component_id || `Script-${record.id}`;
+          const meta = [
+            record.updated_at
+              ? formatRelativeTime(record.updated_at, locale)
+              : undefined,
+            record.script_type,
+            // record.category,
+            // record.tags
+            ,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+
+          return (
+            <div className="project-report-item">
+              <CodeOutlined className="project-report-item-icon" />
+              <div className="project-report-item-text">
+                <Tooltip placement="topLeft" title={title}>
+                  <span className="project-report-item-title">{title}</span>
+                </Tooltip>
+                {meta && (
+                  <span className="project-report-item-meta" title={meta}>
+                    {meta}
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
-        ),
+          );
+        },
       },
-      {
-        title: "Script Type",
-        dataIndex: "script_type",
-        key: "script_type",
-        width: 110,
-        render: (value: string) =>
-          value ? <Tag color="blue">{value}</Tag> : "-",
-      },
+      // {
+      //   title: "Script Type",
+      //   dataIndex: "script_type",
+      //   key: "script_type",
+      //   width: 110,
+      //   render: (value: string) =>
+      //     value ? <Tag color="blue">{value}</Tag> : "-",
+      // },
     ],
     [locale]
   );
+
+  const bodyRow = useMemo(() => {
+    const Row = (props: any) => {
+      const rowKey = props?.["data-row-key"];
+      const record = data.find((item) => String(item.id) === String(rowKey));
+      const rowElement = <tr {...props} />;
+
+      if (!record) {
+        return rowElement;
+      }
+
+      return (
+        <Popover
+          placement="left"
+          mouseEnterDelay={0.2}
+          mouseLeaveDelay={0.1}
+          title={
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <CodeOutlined />
+              {record.component_name || record.component_id || `Script-${record.id}`}
+            </span>
+          }
+          content={<ScriptDetailCard item={record} />}
+        >
+          {rowElement}
+        </Popover>
+      );
+    };
+
+    return Row;
+  }, [data]);
+
+  const actionsColumn: ColumnsType<ScriptItem>[number] = {
+    title: "Actions",
+    key: "actions",
+    width: 80,
+    align: "right",
+    render: (_: unknown, record) => (
+      <span
+        className="project-report-item-actions"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Tooltip title="Edit">
+          <Button
+            type="text"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={async () => {
+              try {
+                await invoke.createOrUpdateScript.openDrawerAsync(
+                  { data: record },
+                  {
+                    width: 960,
+                    title: `Edit Script: ${record.component_name || record.component_id}`,
+                  }
+                );
+                refetch();
+              } catch {
+                // user cancelled
+              }
+            }}
+          />
+        </Tooltip>
+        <Popconfirm
+          title="Delete this script?"
+          description="Cannot delete if analysis nodes exist or this script is referenced in a workflow."
+          onConfirm={async () => {
+            await http.post(`/script/delete/${encodeURIComponent(record.id)}`);
+            message.success("Script deleted successfully");
+            refetch();
+          }}
+        >
+          <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+        </Popconfirm>
+      </span>
+    ),
+  };
 
   return (
     <div className="project-report-panel">
@@ -135,11 +294,12 @@ const ScriptPageList: FC<any> = () => {
           <Table<ScriptItem>
             rowKey="id"
             size="small"
-            columns={columns}
+            columns={[...columns, actionsColumn]}
             dataSource={data}
             loading={isLoading || isFetching}
             pagination={false}
             showHeader={false}
+            components={{ body: { row: bodyRow } }}
             rowClassName={(record) =>
               String(record.id) === selectedId ? "project-report-row-selected" : ""
             }
