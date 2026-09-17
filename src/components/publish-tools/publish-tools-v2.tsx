@@ -1,5 +1,5 @@
 import { invoke } from "@/core/ui-system/invokeV2"
-import { Button, Card, Flex, Form, Input, Space, Switch, Tag } from "antd"
+import { Button, Card, Flex, Form, Input, Popconfirm, Space, Switch, Tag, Tooltip } from "antd"
 import axios from "axios"
 import { FC, useEffect, useState } from "react"
 import { RedoOutlined } from '@ant-design/icons'
@@ -49,8 +49,7 @@ const PublishToolsV2: FC<any> = ({ type, store, callback }) => {
                 message.success("Generated successfully")
             }}> Generate </Button> */}
 
-
-            <Button size="small" color="cyan" variant="solid" onClick={async () => {
+            <Popconfirm title="Are you sure to publish?" onConfirm={async () => {
                 const values = await form.validateFields()
                 const payload = {
                     url: values.url,
@@ -70,7 +69,10 @@ const PublishToolsV2: FC<any> = ({ type, store, callback }) => {
                 }
                 message.success("Published successfully")
                 callback && callback()
-            }}>Publish Store</Button>
+            }}>
+                <Button size="small" color="cyan" variant="solid">Publish Store</Button>
+            </Popconfirm>
+           
 
             {store?.store_id != "0" && <Button size="small" color="cyan" variant="solid" onClick={() => {
                 invoke.publishStore.open(store, {
@@ -104,6 +106,21 @@ const PublishToolsV2: FC<any> = ({ type, store, callback }) => {
                 <Form.Item label="message" name="update_info">
                     <TextArea placeholder="Update Info" />
                 </Form.Item>
+                <Form.Item label="Store Path">
+                    <Tooltip title={store?.store_path}>
+                        <Input value={store?.store_path} disabled placeholder="-" />
+                    </Tooltip>
+                </Form.Item>
+                {type === "workflow" && <Form.Item label="Workflow Path">
+                    <Tooltip title={store?.workflow_path}>
+                        <Input value={store?.workflow_path} disabled placeholder="-" />
+                    </Tooltip>
+                </Form.Item>}
+                {type === "script" && <Form.Item label="Script Path">
+                    <Tooltip title={store?.script_path}>
+                        <Input value={store?.script_path} disabled placeholder="-" />
+                    </Tooltip>
+                </Form.Item>}
                 {/* <Form.Item label="Force" name="force" initialValue={true} >
                     <Switch size="small" checkedChildren="Force" unCheckedChildren="Force" />
                 </Form.Item> */}

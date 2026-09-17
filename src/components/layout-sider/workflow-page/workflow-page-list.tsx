@@ -12,14 +12,14 @@ import { FC, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 
-const splitTags = (tags?: string) =>
-  (tags ?? "")
-    .split(/[,;|\s]+/)
-    .map((tag) => tag.trim())
-    .filter(Boolean);
+// const splitTags = (tags?: string) =>
+//   (tags ?? "")
+//     .split(/[,;|\s]+/)
+//     .map((tag) => tag.trim())
+//     .filter(Boolean);
 
 const WorkflowDetailCard = ({ item }: { item: WorkflowItem }) => {
-  const tags = splitTags(item.tags);
+  // const tags = splitTags(item.tags);
 
   return (
     <div style={{ width: 380 }}>
@@ -38,21 +38,21 @@ const WorkflowDetailCard = ({ item }: { item: WorkflowItem }) => {
           { key: "install_key", label: "Install Key", children: item.install_key || "-" },
           { key: "version", label: "Version", children: item.version || "-" },
           { key: "order_index", label: "Order Index", children: item.order_index ?? "-" },
-          {
-            key: "tags",
-            label: "Tags",
-            children: tags.length > 0 ? (
-              <span style={{ display: "inline-flex", flexWrap: "wrap", gap: 4 }}>
-                {tags.map((tag) => (
-                  <Tag key={tag} color="blue" style={{ marginInlineEnd: 0 }}>
-                    {tag}
-                  </Tag>
-                ))}
-              </span>
-            ) : (
-              "-"
-            ),
-          },
+          // {
+          //   key: "tags",
+          //   label: "Tags",
+          //   children: tags.length > 0 ? (
+          //     <span style={{ display: "inline-flex", flexWrap: "wrap", gap: 4 }}>
+          //       {tags.map((tag) => (
+          //         <Tag key={tag} color="blue" style={{ marginInlineEnd: 0 }}>
+          //           {tag}
+          //         </Tag>
+          //       ))}
+          //     </span>
+          //   ) : (
+          //     "-"
+          //   ),
+          // },
           {
             key: "description",
             label: "Description",

@@ -12,14 +12,14 @@ import { FC, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 
-const splitTags = (tags?: string) =>
-  (tags ?? "")
-    .split(/[,;|\s]+/)
-    .map((tag) => tag.trim())
-    .filter(Boolean);
+// const splitTags = (tags?: string) =>
+//   (tags ?? "")
+//     .split(/[,;|\s]+/)
+//     .map((tag) => tag.trim())
+//     .filter(Boolean);
 
 const ScriptDetailCard = ({ item }: { item: ScriptItem }) => {
-  const tags = splitTags(item.tags);
+  // const tags = splitTags(item.tags);
 
   return (
     <div style={{ width: 380 }}>
@@ -35,21 +35,21 @@ const ScriptDetailCard = ({ item }: { item: ScriptItem }) => {
           { key: "category", label: "Category", children: item.category || "-" },
           { key: "install_key", label: "Install Key", children: item.install_key || "-" },
           { key: "container_template_id", label: "Container Template", children: item.container_template_id || "-" },
-          {
-            key: "tags",
-            label: "Tags",
-            children: tags.length > 0 ? (
-              <span style={{ display: "inline-flex", flexWrap: "wrap", gap: 4 }}>
-                {tags.map((tag) => (
-                  <Tag key={tag} color="blue" style={{ marginInlineEnd: 0 }}>
-                    {tag}
-                  </Tag>
-                ))}
-              </span>
-            ) : (
-              "-"
-            ),
-          },
+          // {
+          //   key: "tags",
+          //   label: "Tags",
+          //   children: tags.length > 0 ? (
+          //     <span style={{ display: "inline-flex", flexWrap: "wrap", gap: 4 }}>
+          //       {tags.map((tag) => (
+          //         <Tag key={tag} color="blue" style={{ marginInlineEnd: 0 }}>
+          //           {tag}
+          //         </Tag>
+          //       ))}
+          //     </span>
+          //   ) : (
+          //     "-"
+          //   ),
+          // },
           {
             key: "description",
             label: "Description",
