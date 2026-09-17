@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { Button, Descriptions, Empty, Flex, Pagination, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
+import { Button, Descriptions, Empty, Flex, Pagination, Popconfirm, Popover, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { DeleteOutlined, EditOutlined, FileOutlined, ReloadOutlined, TableOutlined, TagsOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, FileOutlined, FolderOpenOutlined, ReloadOutlined, TableOutlined, TagsOutlined } from "@ant-design/icons";
 import { useDatasetFilePageQuery } from "@/hooks/usePaginationV2";
 import type { DatasetFileItem } from "@/api/data";
 import { deleteFileApi } from "@/api/data";
 import { invoke } from "@/core/ui-system/invokeV2";
+import { useUI } from "@/core/ui-system/useUI";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 
 export interface DatasetFilePageProps {
@@ -129,28 +130,29 @@ const listColumns: ColumnsType<DatasetFileItem> = [
     title: "File Name",
     dataIndex: "file_name",
     key: "file_name",
-    render: (name: string, record) => (
-      <div className="project-report-item">
-        <FileOutlined className="project-report-item-icon" />
-        <div className="project-report-item-text">
-          <span className="project-report-item-title">
-            {name || record.file_id || `File-${record.id}`}
-          </span>
-          {[record.dataset_name, record.format].filter(Boolean).length > 0 && (
-            <span className="project-report-item-meta">
-              {[record.dataset_name, record.format].filter(Boolean).join(" · ")}
-            </span>
-          )}
+    ellipsis: { showTitle: false },
+    render: (name: string, record) => {
+      const meta = [record.format, record.dataset_name, record.role]
+        .filter(Boolean)
+        .join(" · ");
+      const title = name || record.file_id || `File-${record.id}`;
+
+      return (
+        <div className="project-report-item">
+          <FileOutlined className="project-report-item-icon" />
+          <div className="project-report-item-text">
+            <Tooltip placement="topLeft" title={title}>
+              <span className="project-report-item-title">{title}</span>
+            </Tooltip>
+            {meta && (
+              <span className="project-report-item-meta" title={meta}>
+                {meta}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
-    ),
-  },
-  {
-    title: "Role",
-    dataIndex: "role",
-    key: "role",
-    width: 110,
-    render: (value: string) => (value ? <Tag color="cyan">{value}</Tag> : "-"),
+      );
+    },
   },
 ];
 
@@ -217,6 +219,7 @@ const DatasetFilePage = ({
 }: DatasetFilePageProps) => {
   const message = useGlobalMessage();
   const navigate = useNavigate();
+  const { close: closeUI } = useUI();
   const [selectedId, setSelectedID] = useState<string>();
 
   const selectable = Boolean(onOk || onCancel);
@@ -299,6 +302,20 @@ const DatasetFilePage = ({
     navigate(`/dataset-file/${encodeURIComponent(item.id)}`);
   };
 
+  const handleOpenSysFileBrowser = () => {
+    const id = invoke.sysFileBrowser.drawer(
+      {
+        type: "data",
+        path: "/",
+        onClose: () => {
+          closeUI(id);
+          refetch();
+        },
+      },
+      { width: 640, title: "System Files" }
+    );
+  };
+
   const handleRowClick = (record: DatasetFileItem) => {
     setSelectedID(record.id);
     if (selectable) {
@@ -310,7 +327,7 @@ const DatasetFilePage = ({
   const actionsColumn: ColumnsType<DatasetFileItem>[number] = {
     title: "Actions",
     key: "actions",
-    width: 150,
+    width: 100,
     align: "right",
     render: (_: unknown, record) => (
       <span
@@ -420,6 +437,14 @@ const DatasetFilePage = ({
       <div className="project-report-panel-header">
         <span className="project-report-panel-title">{title || "Files"}</span>
         <div className="project-report-panel-actions">
+          <Tooltip title="System Files">
+            <Button
+              type="text"
+              size="small"
+              icon={<FolderOpenOutlined />}
+              onClick={handleOpenSysFileBrowser}
+            />
+          </Tooltip>
           <Button type="text" size="small" icon={<ReloadOutlined />} onClick={() => refetch()} />
         </div>
       </div>

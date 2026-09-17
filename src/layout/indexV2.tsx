@@ -42,11 +42,13 @@ const App: React.FC = () => {
 
   const leftActivityItems = useMemo(
     () => [
-      {
-        key: 'sysFileBrowser',
-        label: locale === 'en_US' ? 'System Files' : '系统文件',
+       {
+        key: 'datasetFilePage',
+        label: locale === 'en_US' ? 'Dataset Files' : '数据集文件',
         icon: <FolderOpenOutlined />,
-      }, {
+      },
+     
+       {
         key: 'scriptPage',
         label: locale === 'en_US' ? 'Script Page' : '脚本页',
         icon: <FileTextOutlined />,
@@ -71,12 +73,12 @@ const App: React.FC = () => {
         label: locale === 'en_US' ? 'Project Report' : '项目报告',
         icon: <BarChartOutlined />,
       }, 
-      
-      {
-        key: 'datasetFilePage',
-        label: locale === 'en_US' ? 'Dataset Files' : '数据集文件',
-        icon: <FileOutlined />,
-      },{
+       // {
+      //   key: 'sysFileBrowser',
+      //   label: locale === 'en_US' ? 'System Files' : '系统文件',
+      //   icon: <FolderOpenOutlined />,
+      // },
+     {
         key: 'sampleProjectPage',
         label: locale === 'en_US' ? 'Samples' : '样本',
         icon: <ExperimentOutlined />,
