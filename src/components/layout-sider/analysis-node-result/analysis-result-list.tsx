@@ -8,6 +8,7 @@ import { Button, Descriptions, Empty, Pagination, Popconfirm, Popover, Table, Ta
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { useSelector } from "react-redux";
 
 const statusColor = (status: string) => {
   switch (status) {
@@ -99,6 +100,10 @@ const AnalysisResultList: FC<any> = () => {
     return match ? decodeURIComponent(match[1]) : undefined;
   }, [location.pathname]);
 
+  // 后端按调用者的 active project 过滤数据，所以把 project_id 作为 scopeKey 传给
+  // 分页 hook：只进 query key（切项目时自动重新请求并回到第 1 页），不发给后端。
+  const { projectId } = useSelector((state: any) => state.user);
+
   const {
     data,
     total,
@@ -113,6 +118,7 @@ const AnalysisResultList: FC<any> = () => {
     {},
     {
       initialPageSize: 20,
+      scopeKey: projectId,
     }
   );
 

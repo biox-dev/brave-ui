@@ -119,6 +119,7 @@ const DatasetProjectPage = ({
       keepPreviousData: true,
       staleTime: 30_000,
       cacheTime: 5 * 60_000,
+      scopeKey: projectId,
     }
   );
 

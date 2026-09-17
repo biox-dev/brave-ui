@@ -36,7 +36,7 @@ const ProjectReportList: FC<any> = () => {
     isLoading,
     isFetching,
     refetch,
-  } = useProjectReportPageQuery({}, { initialPageSize: 10 });
+  } = useProjectReportPageQuery({}, { initialPageSize: 10, scopeKey: projectId });
 
   const openCreate = async () => {
     if (!projectId) {

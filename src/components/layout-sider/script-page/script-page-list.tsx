@@ -10,6 +10,7 @@ import { Button, Descriptions, Empty, Pagination, Popconfirm, Popover, Table, Ta
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { useSelector } from "react-redux";
 
 const splitTags = (tags?: string) =>
   (tags ?? "")
@@ -86,6 +87,7 @@ const ScriptPageList: FC<any> = () => {
     const match = location.pathname.match(/\/c\/scripts\/([^/]+)/);
     return match ? decodeURIComponent(match[1]) : undefined;
   }, [location.pathname]);
+  const { projectId } = useSelector((state: any) => state.user);
 
   const {
     data,
@@ -101,6 +103,7 @@ const ScriptPageList: FC<any> = () => {
     {},
     {
       initialPageSize: 20,
+      scopeKey: projectId,
     }
   );
 

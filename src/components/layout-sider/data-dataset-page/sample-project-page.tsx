@@ -4,6 +4,7 @@ import type { ColumnsType } from "antd/es/table";
 import { ExperimentOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useSampleProjectPageQuery } from "@/hooks/usePaginationV2";
 import type { SampleItem } from "@/api/data";
+import { useSelector } from "react-redux";
 
 export interface SampleProjectPageProps {
   project_id?: string;
@@ -137,6 +138,7 @@ const SampleProjectPage = ({
   const [selectedId, setSelectedID] = useState<string>();
 
   const selectable = Boolean(onOk || onCancel);
+  const { projectId } = useSelector((state: any) => state.user);
 
   const {
     data,
@@ -157,6 +159,7 @@ const SampleProjectPage = ({
       keepPreviousData: true,
       staleTime: 30_000,
       cacheTime: 5 * 60_000,
+      scopeKey: projectId,
     }
   );
 

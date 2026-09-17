@@ -46,7 +46,8 @@ const ProjectLiteratureList: FC<any> = () => {
     isLoading,
     isFetching,
     refetch,
-  } = useProjectLiteraturePageQuery({}, { initialPageSize: 10 });
+  } = useProjectLiteraturePageQuery({},
+     { initialPageSize: 10, scopeKey: projectId });
 
   const openCreate = async () => {
     if (!projectId) {

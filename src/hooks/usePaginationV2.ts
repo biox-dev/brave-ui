@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, type QueryKey, type UseQueryOptions, type UseQueryResult } from "react-query";
 import { http } from "@/api/client/http";
 import type { AxiosError } from "axios";
@@ -83,6 +83,11 @@ export interface UsePageQueryOptions<
 	TError = AxiosError,
 > {
 	queryKey: QueryKey;
+	/**
+	 * 只参与 query key、不会随 payload 发给后端的上下文（例如当前 active project 的
+	 * project_id）。值变化时会自动重新请求，并把分页位置重置回第 1 页。
+	 */
+	scopeKey?: unknown;
 	endpoint?: string;
 	query?: TQuery;
 	initialPage?: number;
@@ -124,6 +129,7 @@ export function usePageQuery<TItem, TQuery extends object, TError = AxiosError>(
 ): UsePageQueryResult<TItem, TQuery, TError> {
 	const {
 		queryKey,
+		scopeKey,
 		endpoint,
 		query,
 		initialPage = DEFAULT_PAGE,
@@ -142,15 +148,28 @@ export function usePageQuery<TItem, TQuery extends object, TError = AxiosError>(
 	const [pageSize, setPageSizeState] = useState<number>(normalizePageSize(initialPageSize));
 	const [queryState, setQueryState] = useState<TQuery>(initialQuery);
 
+	// scopeKey 变化意味着数据来源整体切换（如切换项目），此时旧的页码已无意义，
+	// 回到第 1 页；缓存 key 同时变化，所以新数据一定会重新请求。
+	const previousScopeKeyRef = useRef(scopeKey);
+	useEffect(() => {
+		if (previousScopeKeyRef.current === scopeKey) {
+			return;
+		}
+		previousScopeKeyRef.current = scopeKey;
+		setPageState(DEFAULT_PAGE);
+	}, [scopeKey]);
+
 	const payload = useMemo<PageRequest<TQuery>>(
 		() => ({ ...queryState, page, page_size: pageSize }),
 		[queryState, page, pageSize]
 	);
 
-	const mergedKey = useMemo<QueryKey>(
-		() => (Array.isArray(queryKey) ? [...queryKey, payload] : [queryKey, payload]),
-		[queryKey, payload]
-	);
+	const mergedKey = useMemo<QueryKey>(() => {
+		const base = Array.isArray(queryKey) ? [...queryKey] : [queryKey];
+		// scopeKey 只进 key 不进 payload，后端仍按其 active project 过滤数据。
+		// 未传 scopeKey 时保持原有 key 结构，避免拆分既有缓存。
+		return scopeKey === undefined ? [...base, payload] : [...base, scopeKey, payload];
+	}, [queryKey, payload, scopeKey]);
 
 	const normalizedFetcher = async (): Promise<PageResponse<TItem>> => {
 		if (queryFn) {

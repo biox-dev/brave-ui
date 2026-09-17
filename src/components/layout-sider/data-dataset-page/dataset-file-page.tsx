@@ -9,6 +9,7 @@ import { deleteFileApi } from "@/api/data";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useUI } from "@/core/ui-system/useUI";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
+import { useSelector } from "react-redux";
 
 export interface DatasetFilePageProps {
   project_id?: string;
@@ -223,6 +224,7 @@ const DatasetFilePage = ({
   const [selectedId, setSelectedID] = useState<string>();
 
   const selectable = Boolean(onOk || onCancel);
+  const { projectId } = useSelector((state: any) => state.user);
 
   const {
     data,
@@ -243,6 +245,7 @@ const DatasetFilePage = ({
       keepPreviousData: true,
       staleTime: 30_000,
       cacheTime: 5 * 60_000,
+      scopeKey: projectId,
     }
   );
 
