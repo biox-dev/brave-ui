@@ -40,7 +40,7 @@ import { useSideViewContext } from "@/context/side/SideViewContext"
 import ViewResolver from "@/core/ui-renderer/ViewResolver"
 import { invoke } from "@/core/ui-system/invokeV2"
 import { http } from "@/api/client/http"
-import StoreVersionActions from "../components-relation/components/store-version-actions"
+import GitStateActions from "../components-relation/components/git-state-actions"
 import { useI18n } from "@/hooks/useI18n"
 
 const Pipeline: FC<any> = ({ }) => {
@@ -404,11 +404,10 @@ const Pipeline: FC<any> = ({ }) => {
                         </Tooltip>
                     
                         {component && (
-                            <StoreVersionActions
+                            <GitStateActions
                                 entity="workflow"
                                 item={component}
                                 onReload={loadData}
-                                showStop={Boolean(component?.store_url)}
                             />
                         )}
 

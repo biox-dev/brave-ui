@@ -13,7 +13,7 @@ import ViewResolver from "@/core/ui-renderer/ViewResolver"
 import { invoke } from "@/core/ui-system/invokeV2"
 import { renderViewButton } from "@/utils/render-view-btn"
 import { http } from "@/api/client/http"
-import StoreVersionActions from "../components-relation/components/store-version-actions"
+import GitStateActions from "../components-relation/components/git-state-actions"
 import { useI18n } from "@/hooks/useI18n"
 
 const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
@@ -84,26 +84,13 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
                                     {script?.component_name || ''}
                                 </Tooltip>
 
-                                {script && <>
-                                    <StoreVersionActions
+                                {script && (
+                                    <GitStateActions
                                         entity="script"
                                         item={script}
                                         onReload={loadData}
                                     />
-
-                                    {/* 
-                                    <Popconfirm title="Reinstall?" onConfirm={async () => {
-                                        // /reinstall-relation/{relation_id}
-                                        await axios.post(`/reinstall-relation/${script.id}`)
-                                        message.success("ReInstalled successfully!")
-                                        loadScript()
-
-                                    }}>
-                                        <Button variant="solid" size="small" style={{ cursor: "pointer" }}>ReInstall</Button>
-
-                                    </Popconfirm> */}
-
-                                </>}
+                                )}
 
 
                             </Space>}

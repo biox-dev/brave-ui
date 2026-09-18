@@ -69,7 +69,7 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
             return resp.data
         },
         keepPreviousData: true,
-        scopeKey:projectId,
+        scopeKey: projectId,
         staleTime: 30_000,
         cacheTime: 5 * 60_000,
     })
@@ -85,7 +85,7 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
     // so projectId is not sent with the request. When the active project changes we reset
     // to the first page and refresh the list so per-project data (e.g. `installed`) is current.
     // useEffect(() => {
-      
+
     //     if (page === 1) {
     //         refetch()
     //     } else {
@@ -171,9 +171,9 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
                                     title={<Space>
                                         {item?.origin && <Tag color="blue">{item?.origin}</Tag>}
 
-                                        {item?.version && <Tag color="blue">{item?.version}</Tag>}
+                                        {/* {item?.version && <Tag color="blue">{item?.version}</Tag>} */}
 
-                                        {item?.status != "done" && (
+                                        {/* {item?.status != "done" && (
                                             <Tooltip title={item?.log}>
                                                 <Button
                                                     icon={<Spin size="small" />}
@@ -189,23 +189,23 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
                                                     Stop ({item?.status})
                                                 </Button>
                                             </Tooltip>
-                                        )}
-                                        {item?.status === "done" && (
-                                            <Popconfirm
-                                                title={`ReDownload ${item?.url} ?`}
-                                                onConfirm={async () => {
-                                                    await http.post(`/store/redownload`, {
-                                                        id: item?.id,
-                                                    })
-                                                    message.success("ReDownload success!")
-                                                    refetch()
-                                                }}
-                                            >
-                                                <Button color="cyan" variant="solid" size="small">
-                                                    ReDownload
-                                                </Button>
-                                            </Popconfirm>
-                                        )}
+                                        )} */}
+                                        {/* {item?.status === "done" && ( */}
+                                        <Popconfirm
+                                            title={`ReDownload ${item?.url} ?`}
+                                            onConfirm={async () => {
+                                                await http.post(`/store/redownload`, {
+                                                    id: item?.id,
+                                                })
+                                                message.success("ReDownload success!")
+                                                refetch()
+                                            }}
+                                        >
+                                            <Button color="cyan" variant="solid" size="small">
+                                                ReDownload
+                                            </Button>
+                                        </Popconfirm>
+                                        {/* )} */}
                                         <Popconfirm
                                             title={`Delete Store ${item?.name} ?`}
                                             onConfirm={async () => {
@@ -237,9 +237,8 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
                                 >
                                     <Meta title={<Flex gap={"small"} wrap>
                                         <Tooltip title={<>
-                                            Store ID: {item.store_id}
-                                            <br />
-                                            path: {item.path}
+                                            Store ID: {item.id}
+                                         
                                         </>}>
                                             <span>{item.name}</span>
                                         </Tooltip>

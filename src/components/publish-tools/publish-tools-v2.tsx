@@ -93,9 +93,9 @@ const PublishToolsV2: FC<any> = ({ type, store, callback }) => {
         <Flex justify="center" >
             <Form form={form} layout="vertical" style={{ width: "50%" }} disabled={loading}>
 
-                <Form.Item initialValue={"v0.0.1"} name={"version"} label="Version" rules={[{ required: true, message: 'Please input version!' }]}>
+                {/* <Form.Item initialValue={"v0.0.1"} name={"version"} label="Version" rules={[{ required: true, message: 'Please input version!' }]}>
                     <Input ></Input>
-                </Form.Item>
+                </Form.Item> */}
                 <Form.Item
                     label="URL"
                     name="url"
