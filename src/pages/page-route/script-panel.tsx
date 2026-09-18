@@ -1,4 +1,4 @@
-import { Button, Card, Col, Empty, Modal, Popconfirm, Row, Skeleton, Space, Spin, Table } from "antd"
+import { Button, Card, Col, Empty, Modal, Popconfirm, Row, Skeleton, Space, Spin, Table, Tooltip } from "antd"
 import { FC, use, useCallback, useEffect, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router"
 import ComponentsDetailsRender from "../../core/ui-renderer/ComponentsDetailsRender"
@@ -66,7 +66,7 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
     }, [component_type])
 
     const message = useGlobalMessage()
- 
+
 
     return <div >
         <Row gutter={[16, 16]}>
@@ -80,8 +80,10 @@ const ComponentsV3: FC<any> = ({ component_type, navigateView }) => {
                         <Card
                             size="small"
                             title={<Space>
-                                {script?.component_name || ''}
-                            
+                                <Tooltip title={script?.script_path || ''}>
+                                    {script?.component_name || ''}
+                                </Tooltip>
+
                                 {script && <>
                                     <StoreVersionActions
                                         entity="script"

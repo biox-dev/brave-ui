@@ -399,7 +399,7 @@ const Pipeline: FC<any> = ({ }) => {
                         }
                     }}
                     title={<Space >
-                        <Tooltip title={component?.category}>
+                        <Tooltip title={component?.workflow_path}>
                             {component?.name}
                         </Tooltip>
                     
