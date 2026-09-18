@@ -24,6 +24,7 @@ interface StorePageItem {
     status?: string
     path?: string
     path_name?: string
+    store_path?: string
     category?: string
     tags?: any
     img?: string
@@ -237,7 +238,8 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
                                 >
                                     <Meta title={<Flex gap={"small"} wrap>
                                         <Tooltip title={<>
-                                            Store ID: {item.id}
+                                            Store ID: {item.id} <br />
+                                            Path: {item.store_path}
                                          
                                         </>}>
                                             <span>{item.name}</span>
