@@ -90,7 +90,7 @@ const PublishToolsV2: FC<any> = ({ type, store, callback }) => {
         {/* {JSON.stringify(store)} */}
         {/* {JSON.stringify(workflow)} */}
         <Flex justify="center" >
-            <Form form={form} layout="vertical" style={{ width: "50%" }} disabled={loading}>
+            <Form form={form} layout="vertical" style={{ width: "100%", maxWidth: 520 }} disabled={loading}>
 
                 {/* <Form.Item initialValue={"v0.0.1"} name={"version"} label="Version" rules={[{ required: true, message: 'Please input version!' }]}>
                     <Input ></Input>

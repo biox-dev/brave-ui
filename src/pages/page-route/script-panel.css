@@ -82,7 +82,7 @@
 }
 
 .script-panel-body {
-  padding: 16px;
+  padding: 14px 16px 16px;
 }
 
 .script-panel-placeholder {
@@ -94,4 +94,62 @@
 
 .script-panel-placeholder .ant-skeleton {
   width: 100%;
+}
+
+/* ---------------------------------------------------------------------------
+   Inner views (analysis nodes / structure / code / publish / node details)
+   render their own antd Cards INSIDE this panel, which is already a Card.
+   Flatten the nested cards so they read as light section surfaces instead of
+   stacked cards with duplicated headers, borders and shadows.
+   --------------------------------------------------------------------------- */
+
+/* Nested cards keep a single hairline border, no elevation. */
+.script-panel-body .ant-card {
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+/* Turn the nested card head into a compact, muted section bar. */
+.script-panel-body .ant-card > .ant-card-head {
+  min-height: 42px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--sharp-divider, #eceff4);
+  background: color-mix(in srgb, var(--sharp-panel-muted, #f8fafc) 72%, transparent);
+}
+
+.script-panel-body .ant-card > .ant-card-head .ant-card-head-title {
+  padding: 9px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sharp-text, rgba(0, 0, 0, 0.88));
+}
+
+.script-panel-body .ant-card > .ant-card-head .ant-card-extra {
+  padding: 8px 0;
+}
+
+/* Tighter body padding — the panel already provides outer breathing room. */
+.script-panel-body .ant-card > .ant-card-body {
+  padding: 14px;
+}
+
+/* Deeper nesting (e.g. node details inside the node list) stays plain so the
+   visual hierarchy does not turn into a stack of identical header bars. */
+.script-panel-body .ant-card .ant-card > .ant-card-head {
+  background: transparent;
+}
+
+.script-panel-body .ant-card .ant-card > .ant-card-body {
+  padding: 12px;
+}
+
+/* Tables blend into the flattened surface. */
+.script-panel-body .ant-table-wrapper .ant-table {
+  background: transparent;
+}
+
+.script-panel-body .ant-table-thead > tr > th {
+  background: color-mix(in srgb, var(--sharp-panel-muted, #f8fafc) 80%, transparent);
+  color: var(--sharp-text-soft, rgba(0, 0, 0, 0.65));
+  font-weight: 600;
 }
