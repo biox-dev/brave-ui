@@ -373,6 +373,7 @@ const Pipeline: FC<any> = ({ }) => {
         { label: zh ? "分析" : "Analysis", value: "analysisPage" },
         { label: zh ? "输出" : "Output", value: "outputFileComponent" },
         { label: zh ? "流程" : "Workflow", value: "workflowVisCard" },
+        { label: "README", value: "workflowReadme" },
         { label: zh ? "编辑工具" : "Edit Tools", value: "createOrUpdateWorkflow" },
         { label: zh ? "发布" : "Publish", value: "PublishToolsV2" },
     ]

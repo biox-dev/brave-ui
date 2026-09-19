@@ -13,7 +13,7 @@ import { http } from "@/api/client/http"
 import "./script-panel.css"
 
 /** Views the script panel can switch between. */
-type ScriptViewKey = "analysisNodePage" | "createOrUpdateScript" | "scriptCode" | "PublishToolsV2"
+type ScriptViewKey = "analysisNodePage" | "createOrUpdateScript" | "scriptCode" | "scriptReadme" | "PublishToolsV2"
 
 /** Default view; reset whenever the mounted component type changes. */
 const DEFAULT_VIEW: ScriptViewKey = "analysisNodePage"
@@ -72,6 +72,7 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
                 { label: zh ? "代码" : "Code", value: "scriptCode" },
             )
         }
+        options.push({ label: "README", value: "scriptReadme" })
         options.push({ label: zh ? "发布" : "Publish", value: "PublishToolsV2" })
         return options
     }, [script?.component_id, zh])
