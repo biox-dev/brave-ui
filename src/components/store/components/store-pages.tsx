@@ -191,22 +191,25 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
                                                 </Button>
                                             </Tooltip>
                                         )} */}
-                                        {/* {item?.status === "done" && ( */}
-                                        <Popconfirm
-                                            title={`ReDownload ${item?.url} ?`}
-                                            onConfirm={async () => {
-                                                await http.post(`/store/redownload`, {
-                                                    id: item?.id,
-                                                })
-                                                message.success("ReDownload success!")
-                                                refetch()
-                                            }}
-                                        >
-                                            <Button color="cyan" variant="solid" size="small">
-                                                ReDownload
-                                            </Button>
-                                        </Popconfirm>
-                                        {/* )} */}
+                                        {item?.url !== "" && (
+                                            <Tooltip title={item?.url}>
+                                                <Popconfirm
+                                                    title={`ReDownload ${item?.url} ?`}
+                                                    onConfirm={async () => {
+                                                        await http.post(`/store/redownload`, {
+                                                            id: item?.id,
+                                                        })
+                                                        message.success("ReDownload success!")
+                                                        refetch()
+                                                    }}
+                                                >
+                                                    <Button color="cyan" variant="solid" size="small">
+                                                        ReDownload
+                                                    </Button>
+                                                </Popconfirm>
+                                            </Tooltip>
+                                        )}
+
                                         <Popconfirm
                                             title={`Delete Store ${item?.name} ?`}
                                             onConfirm={async () => {
@@ -221,7 +224,6 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
                                                 Delete
                                             </Button>
                                         </Popconfirm>
-
                                     </Space>}
                                     bodyStyle={{
                                         padding: "12px 16px",
@@ -240,7 +242,7 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
                                         <Tooltip title={<>
                                             Store ID: {item.id} <br />
                                             Path: {item.store_path}
-                                         
+
                                         </>}>
                                             <span>{item.name}</span>
                                         </Tooltip>

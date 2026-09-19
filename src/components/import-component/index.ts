@@ -48,7 +48,7 @@ const importComponentLoaders = {
     paramsView: () => import('@/components/edit-params/components/params-view'),
     containerInspect: () => import('@/components/container/container-inspect'),
     depContainer: () => import('../../pages/components-relation/workflow/dep-container'),
-    remoteStore: () => import('../install-components/components/remote-store'),
+    remoteStore: () => import('../store/components/remote-store'),
     writePermission: () => import('../chat/write-permission'),
 };
 
