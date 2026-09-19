@@ -1,47 +1,34 @@
-import { Breadcrumb, Button, Card, message, Empty, Flex, Modal, Popconfirm, Skeleton, Switch, Tabs, Tag, Tooltip, Row, Col, Spin, Menu, Dropdown, Space, Collapse, Typography, Segmented, Divider } from "antd"
-import { FC, lazy, Suspense, useEffect, useMemo, useRef, useState } from "react"
-import AnalysisPanel, { UpstreamAnalysisInput, UpstreamAnalysisOutput } from '../../components/analysis-sotware-panel'
-import Meta from "antd/es/card/Meta"
-import { colors } from '@/utils/utils'
+import { Button, Card, message, Empty, Flex, Modal, Popconfirm, Skeleton, Switch, Tag, Tooltip, Spin, Space, Segmented } from "antd"
+import { FC, useEffect, useMemo, useRef, useState } from "react"
 
 import axios from "axios"
-import { useLocation, useNavigate, useOutletContext, useParams } from "react-router"
-import { deletePipelineRelationApi, listPipeline } from "@/api/pipeline"
+import { useNavigate, useParams } from "react-router"
+import { deletePipelineRelationApi } from "@/api/pipeline"
 import { CreateORUpdatePipelineCompnentRelation, CreateOrUpdatePipelineComponent } from "../../components/create-pipeline"
 import ModuleEdit from "../../components/module-edit"
 import { useModal, useModals } from '@/hooks/useModal'
-import ImportData from '@/components/import-data'
 import BioDatabases from '@/components/bio-databases'
 import ParamsView from "../../components/params-view"
-// import InstallNamespace from "@/components/namespace-operature"
 import DependComponent from "@/components/depend-component"
 import MonacoEditorModal from "@/components/react-monaco-editor"
-import React from "react"
 import { BindSample, MetadataModal } from "@/pages/sample"
 import MetadataForm from "@/components/metadata-form"
-import AnalysisResultEdit from "@/components/analysis-result-edit"
 import OpenFile from "@/components/open-file"
-import PipelineFlow from "@/components/pipeline-flow"
 import SortSoftwareModal from "@/components/sort-software"
 import DescriptionModal from "@/components/description-modal"
 import FormProject from "@/components/form-project"
 import { useSelector } from "react-redux"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
 import { useStickyTop } from "@/hooks/useStickyTop"
-import Markdown from "@/components/markdown"
-import PipelineComponent from '../components-relation/pipeline'
-import ComponentsDetailsRender from "../../core/ui-renderer/ComponentsDetailsRender"
-import { AppstoreOutlined, ArrowLeftOutlined, CloseOutlined, DeleteColumnOutlined, DeleteOutlined, DownOutlined, PlusOutlined, QuestionCircleOutlined, RedoOutlined } from '@ant-design/icons'
-import { AI } from '@/components/chat'
+import { ApartmentOutlined, DeleteOutlined, QuestionCircleOutlined, RedoOutlined } from '@ant-design/icons'
 import { useComponentStore } from "@/event-bus/stores/components"
 import { useStoreRender } from "@/context/render/RenderProvider"
-import { renderCloseViewButton, renderViewButton } from "@/utils/render-view-btn"
-import { useSideViewContext } from "@/context/side/SideViewContext"
 import ViewResolver from "@/core/ui-renderer/ViewResolver"
 import { invoke } from "@/core/ui-system/invokeV2"
 import { http } from "@/api/client/http"
 import GitStateActions from "../components-relation/components/git-state-actions"
 import { useI18n } from "@/hooks/useI18n"
+import "./workflow-panel.css"
 
 const Pipeline: FC<any> = ({ }) => {
 
@@ -380,142 +367,124 @@ const Pipeline: FC<any> = ({ }) => {
     }, [component?.store_id, instance, register, unregister]);
 
 
-    return <div >
-        <Row gutter={[16, 16]}>
-            <Col span={24}>
-                <Card size="small"
-                    style={{
-                        flex: 1,
-                        display: "flex",
-                        flexDirection: "column",
-                        height: " 100%"
-                    }}
-                    styles={{
-                        body: {
-                            padding: 0,
-                            // height: "90%",
-                            flex: 1,
-                            // overflowY: "auto"
-                        }
-                    }}
-                    title={<Space >
-                        <Tooltip title={component?.workflow_path}>
-                            {component?.name}
-                        </Tooltip>
-                    
-                        {component && (
-                            <GitStateActions
-                                entity="workflow"
-                                item={component}
-                                onReload={loadData}
+    const zh = locale !== "en_US"
+
+    const views = [
+        { label: zh ? "分析" : "Analysis", value: "analysisPage" },
+        { label: zh ? "输出" : "Output", value: "outputFileComponent" },
+        { label: zh ? "流程" : "Workflow", value: "workflowVisCard" },
+        { label: zh ? "编辑工具" : "Edit Tools", value: "createOrUpdateWorkflow" },
+        { label: zh ? "发布" : "Publish", value: "PublishToolsV2" },
+    ]
+
+    // Selecting "Edit Tools" also carries the structure params that view expects.
+    const handleViewChange = (next: any) => {
+        if (next === "createOrUpdateWorkflow") {
+            setParams({ structure: { relation_type } })
+        }
+        setView(next)
+    }
+
+    const openDescription = () => {
+        invoke.markdown.open(
+            { introduction: component?.description },
+            { title: `Description - ${component?.name}`, footer: null, width: "60%" },
+        )
+    }
+
+    const handleDelete = async () => {
+        // Failures are surfaced by the shared http interceptor.
+        await http.post(`/workflow/delete/${encodeURIComponent(component.id)}`)
+        message.success(zh ? "工作流已删除" : "Workflow deleted successfully")
+    }
+
+    return <div className="workflow-panel">
+        <Card size="small" className="workflow-panel-card" styles={{ body: { padding: 0 } }}>
+            <Spin spinning={loading}>
+                {component ? <>
+                    <header className="workflow-panel-header">
+                        <div className="workflow-panel-heading">
+                            <div className="workflow-panel-title-row">
+                                <ApartmentOutlined className="workflow-panel-icon" />
+                                <Tooltip title={component?.workflow_path || component?.name}>
+                                    <span className="workflow-panel-title">{component?.name || component?.id}</span>
+                                </Tooltip>
+                                {component?.relation_type ? (
+                                    <Tag color="purple" style={{ marginInlineEnd: 0 }}>{component.relation_type}</Tag>
+                                ) : null}
+                                <GitStateActions
+                                    entity="workflow"
+                                    item={component}
+                                    onReload={loadData}
+                                />
+                            </div>
+                            {component?.workflow_path ? (
+                                <Tooltip title={component.workflow_path}>
+                                    <span className="workflow-panel-path">{component.workflow_path}</span>
+                                </Tooltip>
+                            ) : null}
+                        </div>
+
+                        <div className="workflow-panel-actions">
+                            <Segmented
+                                size="small"
+                                value={view}
+                                options={views}
+                                onChange={handleViewChange}
                             />
-                        )}
-
-                    </Space>}
-                    extra={<Flex justify={"space-between"} align={"center"} gap="small" >
-                        <Space wrap>
-
-                          
-
-                            <QuestionCircleOutlined
-                                onClick={() => {
-                                    // setSize([14, 6])
-                                    invoke.markdown.open({ introduction: component?.description }, {
-                                        title: `Description - ${component?.name}`,
-                                        footer: null,
-                                        width: "60%",
-                                    })
-                                }}
-                                style={{ color: "#1890ff" }} />
-
-                                
-
-                            {renderViewButton(view, setView, "datasetFilePage", "Input File")}
-                            {renderViewButton(view, setView, "sampleProjectPage", "Input Sample")}
-
-                            {renderViewButton(view, setView, "analysisPage", "Analysis")}
-                            {renderViewButton(view, setView, "outputFileComponent", "Output")}
-
-                            {/* {renderViewButton(view, setView, "analysisTools", "Tools Panel")} */}
-
-                            {renderViewButton(view, setView, "workflowVisCard", "Workflow")}
-                            {/* {renderViewButton(view, setView, "depContainer", "Container")} */}
-
-
-                            {renderViewButton(view, (view) => {
-                                setView(view)
-                                setParams({
-                                    structure: {
-                                        relation_type: relation_type,
-                                    }
-                                })
-                            }, "createOrUpdateWorkflow", "Edit Tools")}
-                            {/* {(leftPanel != "workflowComponent") ? <Button size="small" color="cyan" variant="solid" onClick={() => {
-                        setLeftPanel("workflowComponent")
-                    }}>Workflow</Button> : <>
-                        <Button size="small" color="blue" variant="solid" icon={<CloseOutlined />} onClick={() => {
-                            setLeftPanel("analysisTools")
-                        }}>Close</Button>
-                    </>} */}
-                            {renderViewButton(view, setView, "PublishToolsV2", "Publish")}
-                                
+                            {component?.description ? (
+                                <Tooltip title={zh ? "查看说明" : "View description"}>
+                                    <Button
+                                        size="small"
+                                        type="text"
+                                        icon={<QuestionCircleOutlined />}
+                                        onClick={openDescription}
+                                    />
+                                </Tooltip>
+                            ) : null}
+                            <Tooltip title={zh ? "刷新" : "Refresh"}>
+                                <Button size="small" icon={<RedoOutlined />} onClick={loadData} />
+                            </Tooltip>
                             <Popconfirm
-                                title="Delete this workflow?"
-                                description="This workflow cannot be deleted if there are associated analysis records."
-                                onConfirm={async () => {
-                                    try {
-                                        await http.post(`/workflow/delete/${encodeURIComponent(component.id)}`);
-                                        message.success("Workflow deleted successfully");
-                                        // loadData();
-                                    } catch {
-                                        message.error("Failed to delete workflow");
-                                    }
-                                }}
-                                okText="Delete"
+                                title={zh ? "确定删除该工作流？" : "Delete this workflow?"}
+                                description={zh
+                                    ? "存在关联的分析记录时无法删除。"
+                                    : "This workflow cannot be deleted if there are associated analysis records."}
+                                onConfirm={handleDelete}
+                                okText={zh ? "删除" : "Delete"}
                                 okButtonProps={{ danger: true }}
                             >
-                                <Button size="small" color="red" variant="outlined" icon={<DeleteOutlined />}>Delete</Button>
+                                <Tooltip title={zh ? "删除" : "Delete"}>
+                                    <Button size="small" danger icon={<DeleteOutlined />} />
+                                </Tooltip>
                             </Popconfirm>
-                            
-                            <Button size="small" color="cyan" variant="outlined" icon={<RedoOutlined />} onClick={loadData}></Button>
+                        </div>
+                    </header>
 
-                        </Space>
-                        {/* <Flex gap="small" wrap>
-                               
-                            </Flex> */}
+                    {openAnalysis && openAnalysis.length > 0 ? (
+                        <div className="workflow-panel-tabs">
+                            {openAnalysis.map((item: any) => (
+                                <Tag
+                                    key={item.analysis_id}
+                                    className={`workflow-panel-analysis-tag${item.analysis_id === analysisId ? " is-active" : ""}`}
+                                    closable
+                                    onClose={(event) => {
+                                        event.preventDefault()
+                                        closeAnalysis(item.analysis_id)
+                                        setView("analysisList")
+                                    }}
+                                    onClick={() => {
+                                        setView("analysisNodePanel")
+                                        setAnalysisId(item.analysis_id)
+                                    }}
+                                >
+                                    {item.analysis_name || (zh ? "分析" : "Analysis")}
+                                </Tag>
+                            ))}
+                        </div>
+                    ) : null}
 
-                    </Flex>}
-                >
-                    {/* {JSON.stringify(component)} */}
-
-
-                    {openAnalysis && openAnalysis.length > 0 &&
-                        <>
-
-                            <Flex style={{ marginTop: "0.5rem", marginLeft: "0.5rem" }} >
-
-                                <Space>
-                                    {openAnalysis.map((item: any) => (
-                                        renderCloseViewButton(`${view}-${analysisId}`, (view) => {
-                                            setView("analysisNodePanel")
-                                            setAnalysisId(item.analysis_id)
-                                        }, `${view}-${item.analysis_id}`, item.analysis_name ? item.analysis_name : "Analysis",
-                                            () => {
-                                                closeAnalysis(item.analysis_id)
-                                                setView("analysisList")
-
-                                            })
-
-                                    ))}
-                                </Space>
-                            </Flex>
-                            <Divider></Divider>
-
-                        </>
-
-                    }
-
-                    {(component) ? <>
+                    <div className="workflow-panel-body">
                         <ViewResolver
                             type={"workflow"}
                             store={component}
@@ -534,19 +503,21 @@ const Pipeline: FC<any> = ({ }) => {
                             view={view}
                             {...parsms}
                         />
-                    </> : <Empty></Empty>}
-                    {/* component-structure */}
-
-                    {/* <MemoizedComponentsRender
-                            setMenus={setMenus}
-                            componentLayout={componentLayout}
-                            component_type={component_type || ""}
-                            component={pipeline}
-                            tableRef={tableRef}
-                            operatePipeline={operatePipeline} /> */}
-                </Card>
-            </Col>
-        </Row>
+                    </div>
+                </> : (
+                    <div className="workflow-panel-placeholder">
+                        {loading ? (
+                            <Skeleton active />
+                        ) : (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description={zh ? "请在左侧选择一个工作流" : "Select a workflow from the left"}
+                            />
+                        )}
+                    </div>
+                )}
+            </Spin>
+        </Card>
 
         {contextHolder}
 

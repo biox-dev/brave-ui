@@ -1,0 +1,97 @@
+/* Script panel (rendered in the layout <Outlet /> main pane). */
+.script-panel {
+  min-height: 100%;
+}
+
+.script-panel-card {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.script-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--sharp-divider, #eceff4);
+}
+
+.script-panel-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 220px;
+  flex: 1 1 auto;
+}
+
+.script-panel-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.script-panel-icon {
+  color: #1677ff;
+  font-size: 16px;
+}
+
+.script-panel-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--sharp-text, rgba(0, 0, 0, 0.88));
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.script-panel-path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--sharp-text-soft, rgba(0, 0, 0, 0.45));
+  max-width: min(620px, 70vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+
+.script-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+}
+
+.script-panel-description {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--sharp-divider, #eceff4);
+  background: var(--sharp-panel-muted, #f8fafc);
+  color: var(--sharp-text-soft, rgba(0, 0, 0, 0.65));
+  font-size: 13px;
+}
+
+.script-panel-description > *:last-child {
+  margin-bottom: 0;
+}
+
+.script-panel-body {
+  padding: 16px;
+}
+
+.script-panel-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 16px;
+}
+
+.script-panel-placeholder .ant-skeleton {
+  width: 100%;
+}

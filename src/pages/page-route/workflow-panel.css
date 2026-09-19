@@ -1,0 +1,109 @@
+/* Workflow panel (rendered in the layout <Outlet /> main pane). */
+.workflow-panel {
+  min-height: 100%;
+}
+
+.workflow-panel-card {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.workflow-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--sharp-divider, #eceff4);
+}
+
+.workflow-panel-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 220px;
+  flex: 1 1 auto;
+}
+
+.workflow-panel-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.workflow-panel-icon {
+  color: #722ed1;
+  font-size: 16px;
+}
+
+.workflow-panel-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--sharp-text, rgba(0, 0, 0, 0.88));
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-panel-path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--sharp-text-soft, rgba(0, 0, 0, 0.45));
+  max-width: min(620px, 70vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+
+.workflow-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+}
+
+/* Open-analysis tabs strip. */
+.workflow-panel-tabs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--sharp-divider, #eceff4);
+  background: var(--sharp-panel-muted, #f8fafc);
+}
+
+.workflow-panel-analysis-tag {
+  cursor: pointer;
+  margin-inline-end: 0;
+  border-radius: 999px;
+  user-select: none;
+}
+
+.workflow-panel-analysis-tag.is-active {
+  color: #722ed1;
+  border-color: #722ed1;
+  background: color-mix(in srgb, #722ed1 10%, transparent);
+}
+
+.workflow-panel-body {
+  padding: 16px;
+}
+
+.workflow-panel-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 16px;
+}
+
+.workflow-panel-placeholder .ant-skeleton {
+  width: 100%;
+}
