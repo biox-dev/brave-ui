@@ -52,9 +52,8 @@ const PublishToolsV2: FC<any> = ({ type, store, callback }) => {
             <Popconfirm title="Are you sure to publish?" onConfirm={async () => {
                 const values = await form.validateFields()
                 const payload = {
-                    url: values.url,
-                    version: values.version,
-                    message: values.update_info,
+                    url: values.store_url,
+                    message: values.store_message,
                 }
                 if (type === "script") {
                     await http.post(`/workflow/publish-script`, {
@@ -98,12 +97,12 @@ const PublishToolsV2: FC<any> = ({ type, store, callback }) => {
                 </Form.Item> */}
                 <Form.Item
                     label="URL"
-                    name="url"
+                    name="store_url"
                 // rules={[{ required: true, message: "Please input URL" }]}
                 >
                     <Input placeholder="http://github.com/owner/repo" />
                 </Form.Item>
-                <Form.Item label="message" name="update_info">
+                <Form.Item label="Message" name="store_message">
                     <TextArea placeholder="Update Info" />
                 </Form.Item>
                 <Form.Item label="Store Path">
