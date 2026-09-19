@@ -1,27 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Card, Flex, Popconfirm, Space, Table, Typography, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { ImportOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
-import { useContainerTemplatePageQuery } from "@/hooks/usePaginationV2";
-import { deleteContainerTemplateApi, exportContainerTemplateApi, type ContainerTemplateItem } from "@/api/container";
+import { PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import { useContainerTemplateSpecPageQuery } from "@/hooks/usePaginationV2";
+import { deleteContainerTemplateSpecApi, type ContainerTemplateSpecItem } from "@/api/container";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useI18n } from "@/hooks/useI18n";
 import { formatRelativeTime } from "@/utils/time";
 
 const { Text } = Typography;
 
-export interface ContainerTemplatePageProps {
+export interface ContainerTemplateSpecPageProps {
   id?: string;
   name?: string;
   description?: string;
-  type?: string;
-  image_id?: string;
-  spec_id?: string;
+  app_type?: string;
   command?: string;
   work_dir?: string;
   page_size?: number | string;
   title?: string;
-  onOk?: (item: ContainerTemplateItem) => void;
+  onOk?: (item: ContainerTemplateSpecItem) => void;
   onCancel?: () => void;
   close?: () => void;
 }
@@ -57,7 +55,7 @@ const getErrorMessage = (error: unknown, fallback: string) => {
   return fallback;
 };
 
-const createColumns = (locale: string): ColumnsType<ContainerTemplateItem> => [
+const createColumns = (locale: string): ColumnsType<ContainerTemplateSpecItem> => [
   {
     title: "Name",
     dataIndex: "name",
@@ -66,40 +64,10 @@ const createColumns = (locale: string): ColumnsType<ContainerTemplateItem> => [
     ellipsis: true,
   },
   {
-    title: "Spec ID",
-    dataIndex: "spec_id",
-    key: "spec_id",
-    width: 170,
-    render: (value: string) => value || "-",
-  },
-  {
     title: "App Type",
     dataIndex: "app_type",
     key: "app_type",
     width: 120,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Image",
-    key: "image",
-    width: 220,
-    ellipsis: true,
-    render: (_: unknown, record) => record.image?.full_name || record.image_id || "-",
-  },
-  {
-    title: "R Lib",
-    dataIndex: "r_library_path",
-    key: "r_library_path",
-    width: 140,
-    ellipsis: true,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Python Lib",
-    dataIndex: "python_library_path",
-    key: "python_library_path",
-    width: 140,
-    ellipsis: true,
     render: (value: string) => value || "-",
   },
   {
@@ -124,12 +92,26 @@ const createColumns = (locale: string): ColumnsType<ContainerTemplateItem> => [
     render: (value: number) => (Number.isFinite(value) ? value : "-"),
   },
   {
+    title: "Port",
+    dataIndex: "port",
+    key: "port",
+    width: 90,
+    render: (value: number) => (Number.isFinite(value) ? value : "-"),
+  },
+  {
     title: "Work Dir",
     dataIndex: "work_dir",
     key: "work_dir",
     width: 180,
     ellipsis: true,
     render: (value: string) => value || "-",
+  },
+  {
+    title: "Change UID",
+    dataIndex: "change_uid",
+    key: "change_uid",
+    width: 110,
+    render: (value?: boolean) => (value ? "Yes" : "No"),
   },
   {
     title: "Created At",
@@ -140,13 +122,15 @@ const createColumns = (locale: string): ColumnsType<ContainerTemplateItem> => [
   },
 ];
 
-const ContainerTemplatePage = ({
+/**
+ * ContainerTemplateSpec（共享运行配置）增删改查页面。
+ * 一个 Spec 可被多个 Definition（配置 × 镜像绑定行）复用，见 container-template-page。
+ */
+const ContainerTemplateSpecPage = ({
   id,
   name,
   description,
-  type,
-  image_id,
-  spec_id,
+  app_type,
   command,
   work_dir,
   page_size,
@@ -154,17 +138,14 @@ const ContainerTemplatePage = ({
   onOk,
   onCancel,
   close,
-}: ContainerTemplatePageProps) => {
+}: ContainerTemplateSpecPageProps) => {
   const [selectedId, setSelectedID] = useState<string>();
   const [deletingId, setDeletingId] = useState<string>();
   const [messageApi, contextHolder] = message.useMessage();
   const { locale } = useI18n();
   const selectable = Boolean(onOk || onCancel);
 
-  const columns = useMemo<ColumnsType<ContainerTemplateItem>>(
-    () => createColumns(locale),
-    [locale]
-  );
+  const columns = useMemo<ColumnsType<ContainerTemplateSpecItem>>(() => createColumns(locale), [locale]);
 
   const {
     data,
@@ -178,7 +159,7 @@ const ContainerTemplatePage = ({
     isFetching,
     error,
     refetch,
-  } = useContainerTemplatePageQuery(
+  } = useContainerTemplateSpecPageQuery(
     {},
     {
       initialPageSize: normalizePageSize(page_size),
@@ -193,21 +174,19 @@ const ContainerTemplatePage = ({
       id: normalizeText(id),
       name: normalizeText(name),
       description: normalizeText(description),
-      type: normalizeText(type),
-      image_id: normalizeText(image_id),
-      spec_id: normalizeText(spec_id),
+      app_type: normalizeText(app_type),
       command: normalizeText(command),
       work_dir: normalizeText(work_dir),
     });
-  }, [id, name, description, type, image_id, spec_id, command, work_dir, setQuery]);
+  }, [id, name, description, app_type, command, work_dir, setQuery]);
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 
   const handleCreate = useCallback(async () => {
     try {
-      await invoke.containerTemplateForm.openAsync(
+      await invoke.containerTemplateSpecForm.openAsync(
         {},
-        { title: "Create Container Template", width: 600, footer: false }
+        { title: "Create Container Template Spec", width: 640, footer: false }
       );
       refetch();
     } catch {
@@ -215,11 +194,24 @@ const ContainerTemplatePage = ({
     }
   }, [refetch]);
 
-  const handleEdit = useCallback(async (record: ContainerTemplateItem) => {
+  const handleEdit = useCallback(async (record: ContainerTemplateSpecItem) => {
+    try {
+      await invoke.containerTemplateSpecForm.openAsync(
+        { item: record },
+        { title: "Edit Container Template Spec", width: 640, footer: false }
+      );
+      refetch();
+    } catch {
+      // User cancelled
+    }
+  }, [refetch]);
+
+  // 绑定镜像：用模板表单在该 Spec 下新增一条 Definition（spec_id 已锁定）。
+  const handleBindImage = useCallback(async (record: ContainerTemplateSpecItem) => {
     try {
       await invoke.containerTemplateForm.openAsync(
-        { item: record },
-        { title: "Edit Container Template", width: 600, footer: false }
+        { initialSpecId: record.id, initialSpecName: record.name },
+        { title: `Bind Image: ${record.name}`, width: 640, footer: false }
       );
       refetch();
     } catch {
@@ -227,70 +219,37 @@ const ContainerTemplatePage = ({
     }
   }, [refetch]);
 
-  const handleDelete = useCallback(async (record: ContainerTemplateItem) => {
+  const handleDelete = useCallback(async (record: ContainerTemplateSpecItem) => {
     setDeletingId(record.id);
     try {
-      await deleteContainerTemplateApi({ id: record.id });
-      messageApi.success("Container template deleted successfully");
+      await deleteContainerTemplateSpecApi({ id: record.id });
+      messageApi.success("Container template spec deleted successfully");
       refetch();
     } catch (error) {
-      messageApi.error(getErrorMessage(error, "Failed to delete container template"));
+      messageApi.error(getErrorMessage(error, "Failed to delete container template spec"));
     } finally {
       setDeletingId(undefined);
     }
   }, [messageApi, refetch]);
 
-  const handleExport = useCallback(async (record: ContainerTemplateItem) => {
-    try {
-      const resp = await exportContainerTemplateApi({ id: record.id });
-      const json = JSON.stringify(resp.data, null, 2);
-      invoke.containerTemplateExportDialog.open(
-        { json, name: record.name },
-        { title: `Export: ${record.name}`, width: 720, footer: false }
-      );
-    } catch (error) {
-      messageApi.error(getErrorMessage(error, "Failed to export container template"));
-    }
-  }, [messageApi]);
-
-  const handleImport = useCallback(async () => {
-    try {
-      await invoke.containerTemplateImportDialog.openAsync(
-        {},
-        { title: "Import Container Template", width: 600, footer: false }
-      );
-      refetch();
-    } catch {
-      // User cancelled
-    }
-  }, [refetch]);
-
-  const selectColumns = useMemo<ColumnsType<ContainerTemplateItem>>(() => {
-    const crudColumns: ColumnsType<ContainerTemplateItem> = [
+  const selectColumns = useMemo<ColumnsType<ContainerTemplateSpecItem>>(() => {
+    const crudColumns: ColumnsType<ContainerTemplateSpecItem> = [
       {
         title: "Actions",
         key: "crud_actions",
-        width: 160,
+        width: 240,
         fixed: "right" as const,
         render: (_: unknown, record) => (
           <Space size="small">
-            <Button
-              type="link"
-              size="small"
-              onClick={() => handleEdit(record)}
-            >
+            <Button type="link" size="small" onClick={() => handleEdit(record)}>
               Edit
             </Button>
-            <Button
-              type="link"
-              size="small"
-              onClick={() => handleExport(record)}
-            >
-              Export
+            <Button type="link" size="small" onClick={() => handleBindImage(record)}>
+              Bind Image
             </Button>
             <Popconfirm
-              title="Delete this template?"
-              description="This action cannot be undone."
+              title="Delete this spec?"
+              description="Specs still referenced by a binding row cannot be deleted."
               onConfirm={() => handleDelete(record)}
               okButtonProps={{ loading: deletingId === record.id }}
             >
@@ -326,7 +285,7 @@ const ContainerTemplatePage = ({
         ),
       },
     ];
-  }, [selectable, selectedId, deletingId, columns, handleExport]);
+  }, [selectable, selectedId, deletingId, columns, handleEdit, handleBindImage, handleDelete]);
 
   const handleConfirm = () => {
     if (!selectedItem || !onOk) {
@@ -348,21 +307,13 @@ const ContainerTemplatePage = ({
   return (
     <Card
       size="small"
-      title={title || "Container Template List"}
+      title={title || "Container Template Spec List"}
       extra={
         <Space>
           <Text type="secondary">Total: {total}</Text>
-          {/* {!selectable && (
-            <>
-             
-            </>
-          )} */}
-           <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-                Create
-              </Button>
-              <Button icon={<ImportOutlined />} onClick={handleImport}>
-                Import
-              </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+            Create
+          </Button>
           <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
             Refresh
           </Button>
@@ -370,14 +321,14 @@ const ContainerTemplatePage = ({
       }
     >
       {contextHolder}
-      <Table<ContainerTemplateItem>
+      <Table<ContainerTemplateSpecItem>
         rowKey="id"
         columns={selectColumns}
         dataSource={data}
         loading={isLoading || isFetching}
         size="small"
-        scroll={{ x: 1500 }}
-        locale={{ emptyText: error ? "Failed to load container templates" : "No container templates" }}
+        scroll={{ x: 1700 }}
+        locale={{ emptyText: error ? "Failed to load container template specs" : "No container template specs" }}
         rowSelection={
           selectable
             ? {
@@ -424,4 +375,4 @@ const ContainerTemplatePage = ({
   );
 };
 
-export default ContainerTemplatePage;
+export default ContainerTemplateSpecPage;

@@ -26,17 +26,49 @@ export interface ContainerMount {
 
 export interface ContainerTemplateItem {
     id: string;
+    spec_id: string;
+    image_id: string;
     name: string;
     description: string;
     type: string;
-    image_id: string;
+    image?: ContainerImageItem;
     command: string;
     cpu: number;
     memory: number;
     work_dir: string;
+    port: number;
+    app_type: string;
     env: Record<string, unknown> | null;
     mounts: ContainerMount[] | null;
     volumes: Record<string, unknown> | null;
+    labels: Record<string, unknown> | null;
+    change_uid: boolean;
+    schedule_constraint: Record<string, unknown> | null;
+    r_library_path: string;
+    python_library_path: string;
+    conda_library_path: string;
+    created_at: string;
+    updated_at: string;
+}
+
+/**
+ * ContainerTemplateSpec = 共享运行配置（表 go_container_template_spec）。
+ * 只描述“怎么跑”（命令、资源、端口、环境变量、挂载、标签），不含镜像；
+ * 镜像通过 ContainerTemplateDefinition 绑定行关联。
+ */
+export interface ContainerTemplateSpecItem {
+    id: string;
+    name: string;
+    description: string;
+    command: string;
+    cpu: number;
+    memory: number;
+    work_dir: string;
+    port: number;
+    app_type: string;
+    env: Record<string, unknown> | null;
+    mounts: ContainerMount[] | null;
+    scheduling_constraint: Record<string, unknown> | null;
     labels: Record<string, unknown> | null;
     change_uid: boolean;
     created_at: string;
@@ -148,6 +180,16 @@ export interface ContainerTemplatePageQuery {
     description?: string;
     type?: string;
     image_id?: string;
+    spec_id?: string;
+    command?: string;
+    work_dir?: string;
+}
+
+export interface ContainerTemplateSpecPageQuery {
+    id?: string;
+    name?: string;
+    description?: string;
+    app_type?: string;
     command?: string;
     work_dir?: string;
 }
@@ -239,6 +281,28 @@ export const exportContainerTemplateApi = (payload: { id: string }) => {
 
 export const importContainerTemplateApi = (payload: ContainerTemplateExportItem) => {
     return http.post<ContainerTemplateExportItem>("/container/template/import", payload);
+};
+
+// ===== ContainerTemplateSpec（共享运行配置）CRUD =====
+
+export const pageContainerTemplateSpecApi = (payload: PageRequest<ContainerTemplateSpecPageQuery>) => {
+    return http.post<PageResponse<ContainerTemplateSpecItem>>("/container/template-spec/list-by-page", payload);
+};
+
+export const listContainerTemplateSpecApi = () => {
+    return http.get<ContainerTemplateSpecItem[]>("/container/template-spec/list");
+};
+
+export const createContainerTemplateSpecApi = (payload: Partial<ContainerTemplateSpecItem>) => {
+    return http.post<ContainerTemplateSpecItem>("/container/template-spec/create", payload);
+};
+
+export const updateContainerTemplateSpecApi = (payload: Partial<ContainerTemplateSpecItem> & { id: string }) => {
+    return http.post<ContainerTemplateSpecItem>("/container/template-spec/update", payload);
+};
+
+export const deleteContainerTemplateSpecApi = (payload: { id: string }) => {
+    return http.post<{ message: string }>("/container/template-spec/delete", payload);
 };
 
 export const pageAppSessionApi = (payload: PageRequest<AppSessionPageQuery>) => {

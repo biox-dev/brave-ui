@@ -37,8 +37,11 @@ const entriesToEnv = (entries: { key: string; value: string }[]) => {
 };
 
 export interface ContainerTemplateFormProps {
-    // When editing, pass the existing item
+    // When editing, pass the existing item (a ContainerTemplate read model = definition + spec + image)
     item?: ContainerTemplateItem;
+    // 从 Spec 列表“Bind Image”进入时预置要复用的运行配置（新增绑定行）。
+    initialSpecId?: string;
+    initialSpecName?: string;
     // openAsync injects onOk/onCancel into params
     onOk?: (result: ContainerTemplateItem) => void;
     onCancel?: () => void;
@@ -46,8 +49,15 @@ export interface ContainerTemplateFormProps {
     close?: () => void;
 }
 
+/**
+ * ContainerTemplateDefinition（运行配置 × 镜像 绑定行）表单。
+ * 一条绑定行 = 一个可直接运行的容器模板：对外 ID 即绑定行主键。
+ * 运行配置（ContainerTemplateSpec）可以复用已有的，也可以随绑定行一起新建。
+ */
 const ContainerTemplateForm = ({
     item,
+    initialSpecId,
+    initialSpecName,
     onOk,
     onCancel,
     close,
@@ -57,17 +67,26 @@ const ContainerTemplateForm = ({
     const [saving, setSaving] = useState(false);
     const isEdit = Boolean(item?.id);
 
+    const specIdValue = Form.useWatch<string | undefined>("spec_id", form);
+    // 编辑时 spec 固定；新增时选择“复用已有配置”则隐藏运行配置字段（由后端忽略）。
+    const reuseSpec = Boolean(specIdValue);
+    const hideRuntimeFields = !isEdit && reuseSpec;
+
     useEffect(() => {
         if (isEdit && item) {
             form.setFieldsValue({
                 ...item,
+                spec_id: item.spec_id,
                 env: envToEntries(item.env as Record<string, unknown> | null),
                 mounts: item.mounts && Array.isArray(item.mounts) ? item.mounts : [],
             });
         } else {
             form.resetFields();
+            if (initialSpecId) {
+                form.setFieldsValue({ spec_id: initialSpecId });
+            }
         }
-    }, [item, isEdit, form]);
+    }, [item, isEdit, form, initialSpecId]);
 
     const buildPayload = (values: Record<string, unknown>) => {
         const payload: Record<string, unknown> = {};
@@ -76,7 +95,25 @@ const ContainerTemplateForm = ({
             payload.id = item!.id;
         }
 
+        // 复用已有运行配置时，运行配置字段一律不发送（后端会忽略）。
+        const runtimeKeys = new Set([
+            "name",
+            "description",
+            "command",
+            "work_dir",
+            "port",
+            "cpu",
+            "memory",
+            "app_type",
+            "change_uid",
+            "env",
+            "mounts",
+        ]);
+
         for (const [key, val] of Object.entries(values)) {
+            if (hideRuntimeFields && runtimeKeys.has(key)) {
+                continue;
+            }
             // Skip undefined, null, or empty string (do not send nil values)
             if (val === undefined || val === null || val === "") {
                 continue;
@@ -156,6 +193,25 @@ const ContainerTemplateForm = ({
         }
     };
 
+    // 选择要复用的运行配置（ContainerTemplateSpec）。
+    const handleSelectSpec = async () => {
+        try {
+            const selected = await invoke.containerTemplateSpecPage.openAsync(
+                {},
+                { title: "Select Container Template Spec", width: "80%", footer: false }
+            );
+            if (selected?.id) {
+                form.setFieldsValue({ spec_id: selected.id, spec_name: selected.name });
+            }
+        } catch {
+            // User cancelled selection
+        }
+    };
+
+    const clearSpec = () => {
+        form.setFieldsValue({ spec_id: undefined, spec_name: undefined });
+    };
+
     return (
         <Form
             form={form}
@@ -167,27 +223,28 @@ const ContainerTemplateForm = ({
                 memory: 0,
             }}
         >
-            <Form.Item
-                name="name"
-                label="Name"
-                rules={[{ required: true, message: "Please enter the template name" }]}
-            >
-                <Input placeholder="e.g. RStudio Server" />
+            {/* 运行配置：可复用已有 Spec，也可在下面随绑定行一起新建 */}
+            <Form.Item label="Runtime Spec">
+                <Space.Compact style={{ width: "100%" }}>
+                    <Form.Item name="spec_id" noStyle>
+                        <Input
+                            readOnly
+                            placeholder="Click to reuse an existing spec (empty = create new)"
+                            onClick={isEdit ? undefined : handleSelectSpec}
+                            style={{ cursor: isEdit ? "default" : "pointer" }}
+                        />
+                    </Form.Item>
+                    {!isEdit && (
+                        <Button onClick={reuseSpec ? clearSpec : handleSelectSpec}>
+                            {reuseSpec ? "Clear" : "Select Spec"}
+                        </Button>
+                    )}
+                </Space.Compact>
             </Form.Item>
 
-            {/* <Form.Item
-                name="type"
-                label="Type"
-                rules={[{ required: true, message: "Please select the template type" }]}
-            >
-                <Select
-                    options={[
-                        { label: "Workflow", value: "workflow" },
-                        { label: "App", value: "app" },
-                        { label: "Service", value: "service" },
-                    ]}
-                />
-            </Form.Item> */}
+            <Form.Item name="spec_name" hidden>
+                <Input />
+            </Form.Item>
 
             <Form.Item
                 name="image_id"
@@ -202,52 +259,79 @@ const ContainerTemplateForm = ({
                 />
             </Form.Item>
 
-            <Form.Item name="app_type" label="App Type">
-                <Input placeholder="e.g. rstudio, jupyter, vscode" />
-            </Form.Item>
-            
             <Form.Item name="image_name" hidden>
                 <Input />
             </Form.Item>
 
-            <Form.Item name="description" label="Description">
-                <Input.TextArea rows={3} placeholder="Template description" />
+            {/* 绑定行（Definition）自身字段 */}
+            <Form.Item name="display_name" label="Display Name" tooltip="Overrides the spec name for this binding only">
+                <Input placeholder="Optional display name for this image binding" />
             </Form.Item>
 
-            <Form.Item name="command" label="Command">
-                <Input.TextArea rows={2} placeholder="Container command" />
+            <Form.Item name="r_library_path" label="R Library Path">
+                <Input placeholder="e.g. /package/R/4.4" />
             </Form.Item>
 
-            <Form.Item name="work_dir" label="Work Directory">
-                <Input placeholder="e.g. /home/rstudio" />
+            <Form.Item name="python_library_path" label="Python Library Path">
+                <Input placeholder="e.g. /package/python/3.11" />
             </Form.Item>
 
-
-            <Form.Item name="port" label="Port">
-                <InputNumber
-                    style={{ width: "100%" }}
-                    placeholder="Exposed port"
-                    min={0}
-                    max={65535}
-                />
+            <Form.Item name="conda_library_path" label="Conda Library Path">
+                <Input placeholder="e.g. /package/conda/envs/base" />
             </Form.Item>
 
-            <Form.Item name="cpu" label="CPU (cores)">
-                <InputNumber
-                    style={{ width: "100%" }}
-                    placeholder="CPU cores"
-                    min={0}
-                    step={0.1}
-                />
-            </Form.Item>
+            {!hideRuntimeFields && (
+                <>
+                    <Form.Item
+                        name="name"
+                        label="Spec Name"
+                        rules={[{ required: true, message: "Please enter the template name" }]}
+                    >
+                        <Input placeholder="e.g. RStudio Server" />
+                    </Form.Item>
 
-            <Form.Item name="memory" label="Memory (bytes)">
-                <InputNumber
-                    style={{ width: "100%" }}
-                    placeholder="Memory limit in bytes"
-                    min={0}
-                />
-            </Form.Item>
+                    <Form.Item name="app_type" label="App Type">
+                        <Input placeholder="e.g. rstudio, jupyter, vscode" />
+                    </Form.Item>
+
+                    <Form.Item name="description" label="Description">
+                        <Input.TextArea rows={3} placeholder="Template description" />
+                    </Form.Item>
+
+                    <Form.Item name="command" label="Command">
+                        <Input.TextArea rows={2} placeholder="Container command" />
+                    </Form.Item>
+
+                    <Form.Item name="work_dir" label="Work Directory">
+                        <Input placeholder="e.g. /home/rstudio" />
+                    </Form.Item>
+
+
+                    <Form.Item name="port" label="Port">
+                        <InputNumber
+                            style={{ width: "100%" }}
+                            placeholder="Exposed port"
+                            min={0}
+                            max={65535}
+                        />
+                    </Form.Item>
+
+                    <Form.Item name="cpu" label="CPU (cores)">
+                        <InputNumber
+                            style={{ width: "100%" }}
+                            placeholder="CPU cores"
+                            min={0}
+                            step={0.1}
+                        />
+                    </Form.Item>
+
+                    <Form.Item name="memory" label="Memory (bytes)">
+                        <InputNumber
+                            style={{ width: "100%" }}
+                            placeholder="Memory limit in bytes"
+                            min={0}
+                        />
+                    </Form.Item>
 
             {/* Environment Variables */}
             <Card
@@ -329,6 +413,8 @@ const ContainerTemplateForm = ({
                     )}
                 </Form.List>
             </Card>
+                </>
+            )}
 
             <Flex justify="end" gap="small" style={{ marginTop: 16 }}>
                 <Button onClick={handleCancel} disabled={saving}>

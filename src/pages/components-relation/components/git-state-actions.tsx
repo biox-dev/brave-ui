@@ -84,7 +84,7 @@ const GitStateActions: FC<GitStateActionsProps> = ({ entity, item, onReload }) =
 	const state = readGitState(item?.git_state)
 	const version = toText(item?.version)
 	const storeId = toText(item?.store_id)
-	const storeURL = toText(item?.url)
+	const storeURL = toText(item?.store_url)
 
 	const reinstallEndpoint = entity === "script"
 		? `/workflow/install-script/${encodeURIComponent(storeId)}`
@@ -203,7 +203,7 @@ const GitStateActions: FC<GitStateActionsProps> = ({ entity, item, onReload }) =
 	)
 
 	// redownload 需要 store 目录已存在（未发布时无目录可拉取）。
-	const canCheckUpdate = storeId !== "" && !!state.store_initialized
+	const canCheckUpdate = storeId !== "" && storeURL !== ""
 	// store 领先本地时才需要从 store 重新安装。
 	const canReinstall = storeId !== "" && !!state.has_store_changes
 

@@ -45,6 +45,7 @@ import {
 	pageContainerImageApi,
 	pageContainerInstanceApi,
 	pageContainerTemplateApi,
+	pageContainerTemplateSpecApi,
 	pageOutboxEventApi,
 	type AppSessionItem,
 	type AppSessionPageQuery,
@@ -56,6 +57,8 @@ import {
 	type ContainerInstancePageQuery,
 	type ContainerTemplateItem,
 	type ContainerTemplatePageQuery,
+	type ContainerTemplateSpecItem,
+	type ContainerTemplateSpecPageQuery,
 	type OutboxEventItem,
 	type OutboxEventPageQuery,
 } from "@/api/container";
@@ -457,6 +460,22 @@ export const useContainerTemplatePageQuery = (
 		query,
 		queryFn: async (payload) => {
 			const response = await pageContainerTemplateApi(payload);
+			return response.data;
+		},
+		initialPageSize: 10,
+		...options,
+	});
+};
+
+export const useContainerTemplateSpecPageQuery = (
+	query: ContainerTemplateSpecPageQuery,
+	options?: Omit<UsePageQueryOptions<ContainerTemplateSpecItem, ContainerTemplateSpecPageQuery>, "queryKey" | "query" | "endpoint" | "queryFn">
+) => {
+	return usePageQuery<ContainerTemplateSpecItem, ContainerTemplateSpecPageQuery>({
+		queryKey: ["container-template-spec-page"],
+		query,
+		queryFn: async (payload) => {
+			const response = await pageContainerTemplateSpecApi(payload);
 			return response.data;
 		},
 		initialPageSize: 10,
