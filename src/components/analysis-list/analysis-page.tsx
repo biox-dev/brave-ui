@@ -98,7 +98,7 @@ const AnalysisPage = ({
 			key: "job_status",
 			width: 130,
 			render: (value: string) => <Tag color={statusColor(value)}>{value || "-"}</Tag>,
-		},{
+		}, {
 			title: "Analysis Name",
 			dataIndex: "analysis_name",
 			key: "analysis_name",
@@ -113,7 +113,7 @@ const AnalysisPage = ({
 			key: "updated_at",
 			width: 210,
 			render: (value: string) => (value ? new Date(value).toLocaleString() : "-"),
-		},{
+		}, {
 			title: "Report",
 			dataIndex: "is_report",
 			key: "is_report",
@@ -128,7 +128,7 @@ const AnalysisPage = ({
 					<Tag color={value ? "blue" : "default"}>{value ? "yes" : "no"}</Tag>
 				</Button>
 			),
-		},{
+		}, {
 			title: "Cache Type",
 			dataIndex: "cache_type",
 			key: "cache_type",
@@ -143,8 +143,8 @@ const AnalysisPage = ({
 			ellipsis: true,
 			render: (value: string) => value || "-",
 		},
-		
-	{
+
+		{
 			title: "Analysis ID",
 			dataIndex: "id",
 			key: "id",
@@ -152,8 +152,8 @@ const AnalysisPage = ({
 			ellipsis: true,
 			render: (value: string) => value || "-",
 		},
-		
-		
+
+
 		{
 			title: "Created At",
 			dataIndex: "created_at",
@@ -161,7 +161,7 @@ const AnalysisPage = ({
 			width: 210,
 			render: (value: string) => (value ? new Date(value).toLocaleString() : "-"),
 		},
-		
+
 		{
 			title: "Action",
 			key: "action",
@@ -331,88 +331,92 @@ const AnalysisPage = ({
 		}
 	};
 	return (
-		<Card
-			size="small"
-			title={title || "Analysis List By Active Project"}
-			extra={
-				<Space>
-
-					<Text type="secondary">Total: {total}</Text>
-					<Button
-						icon={<FileTextOutlined />}
-						onClick={handlePublishToDoc}
-						loading={publishing}
-						disabled={!relation_id}
-					>
-						Publish to Doc
-					</Button>
-					<Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
-						Refresh
-					</Button>
-				</Space>
-			}
-		>
-			{error ? <Alert type="error" showIcon message="Failed to load analyses" style={{ marginBottom: 12 }} /> : null}
-
-			<Table<AnalysisItem>
-				rowKey="id"
-				columns={selectColumns}
-				dataSource={data}
-				loading={isLoading || isFetching}
+		<>
+			<Card
 				size="small"
-				scroll={{ x: 1800 }}
-				locale={{ emptyText: error ? "Failed to load analyses" : "No analyses" }}
-				rowClassName={(record) =>
-					record.id === analysisId ? "analysis-node-row-selected" : ""
-				}
-				rowSelection={
-					selectable
-						? {
-							type: "radio",
-							selectedRowKeys: selectedId ? [selectedId] : [],
-							onChange: (selectedRowKeys) => {
-								setSelectedID(String(selectedRowKeys[0] || ""));
-							},
-						}
-						: undefined
-				}
-				onRow={
-					selectable
-						? (record) => ({
-							onClick: () => setSelectedID(record.id),
-						})
-						: undefined
-				}
-				pagination={{
-					current: page,
-					pageSize,
-					total,
-					showSizeChanger: true,
-					pageSizeOptions: [20, 50, 100, 200, 500, 1000],
-					onChange: (nextPage, nextPageSize) => {
-						if (nextPageSize !== pageSize) {
-							setPageSize(nextPageSize);
-						}
-						setPage(nextPage);
-					},
-					showTotal: (value) => `Total ${value} items`,
-				}}
-			/>
+				title={title || "Analysis List By Active Project"}
+				extra={
+					<Space>
 
-			{selectable && (
-				<Flex justify="end" gap="small" style={{ marginTop: 12 }}>
-					<Button onClick={handleCancel}>Cancel</Button>
-					<Button type="primary" disabled={!selectedItem} onClick={handleConfirm}>
-						Confirm
-					</Button>
-				</Flex>
-			)}
+						<Text type="secondary">Total: {total}</Text>
+						<Button
+							icon={<FileTextOutlined />}
+							onClick={handlePublishToDoc}
+							loading={publishing}
+							disabled={!relation_id}
+						>
+							Publish to Doc
+						</Button>
+						<Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
+							Refresh
+						</Button>
+					</Space>
+				}
+			>
+				{error ? <Alert type="error" showIcon message="Failed to load analyses" style={{ marginBottom: 12 }} /> : null}
 
-			{analysisId && <>
+				<Table<AnalysisItem>
+					rowKey="id"
+					columns={selectColumns}
+					dataSource={data}
+					loading={isLoading || isFetching}
+					size="small"
+					scroll={{ x: 1800 }}
+					locale={{ emptyText: error ? "Failed to load analyses" : "No analyses" }}
+					rowClassName={(record) =>
+						record.id === analysisId ? "analysis-node-row-selected" : ""
+					}
+					rowSelection={
+						selectable
+							? {
+								type: "radio",
+								selectedRowKeys: selectedId ? [selectedId] : [],
+								onChange: (selectedRowKeys) => {
+									setSelectedID(String(selectedRowKeys[0] || ""));
+								},
+							}
+							: undefined
+					}
+					onRow={
+						selectable
+							? (record) => ({
+								onClick: () => setSelectedID(record.id),
+							})
+							: undefined
+					}
+					pagination={{
+						current: page,
+						pageSize,
+						total,
+						showSizeChanger: true,
+						pageSizeOptions: [20, 50, 100, 200, 500, 1000],
+						onChange: (nextPage, nextPageSize) => {
+							if (nextPageSize !== pageSize) {
+								setPageSize(nextPageSize);
+							}
+							setPage(nextPage);
+						},
+						showTotal: (value) => `Total ${value} items`,
+					}}
+				/>
 
-				<AnalysisNodePanel></AnalysisNodePanel>
-			</>}
-		</Card>
+				{selectable && (
+					<Flex justify="end" gap="small" style={{ marginTop: 12 }}>
+						<Button onClick={handleCancel}>Cancel</Button>
+						<Button type="primary" disabled={!selectedItem} onClick={handleConfirm}>
+							Confirm
+						</Button>
+					</Flex>
+				)}
+
+
+			</Card>
+			<div style={{ marginTop: "1rem" }}>
+				{analysisId && <>
+					<AnalysisNodePanel></AnalysisNodePanel>
+				</>}
+			</div>
+		</>
 	);
 };
 

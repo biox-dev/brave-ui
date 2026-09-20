@@ -514,11 +514,11 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
                                         complete node
                                     </Button>
                                 </Popconfirm>}
-                                {selectedSampleDetail.server_status && (
+                                {/* {selectedSampleDetail.server_status && (
                                     <Tag color={statusColorMap[selectedSampleDetail.server_status]}>
                                         {selectedSampleDetail.server_status}
                                     </Tag>
-                                )}
+                                )} */}
 
 
 

@@ -25,7 +25,7 @@ const AnalysisNodePanel: FC<any> = () => {
         }
     }, [])
     return <Card size="small"
-        variant="borderless"
+        // variant="borderless"
         title={title}
         extra={<Space>
             {/* {relation?.relation_id && <Button size="small" color="primary" variant="solid" onClick={() =>
@@ -60,7 +60,7 @@ const AnalysisNodePanel: FC<any> = () => {
 
 
         {analysisId ? (<>
-
+        
             <div style={{ marginBottom: "0.5rem" }}>
                 <ViewResolver view="analysisNodeSnapshot" analysis_id={analysisId}></ViewResolver>
             </div>

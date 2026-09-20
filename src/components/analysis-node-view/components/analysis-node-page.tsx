@@ -91,8 +91,8 @@ const AnalysisNodePage = ({
 			ellipsis: true,
 			render: (value: string) => value || "-",
 		},
-		
-		
+
+
 		{
 			title: "Status",
 			dataIndex: "status",
@@ -100,7 +100,7 @@ const AnalysisNodePage = ({
 			width: 120,
 			render: (value: string) => <Tag color={statusColor(value)}>{value || "-"}</Tag>,
 		},
-		
+
 		{
 			title: "Created At",
 			dataIndex: "created_at",
@@ -114,21 +114,21 @@ const AnalysisNodePage = ({
 			key: "updated_at",
 			width: 210,
 			render: (value: string) => (value ? new Date(value).toLocaleString() : "-"),
-		},{
+		}, {
 			title: "Script ID",
 			dataIndex: "script_id",
 			key: "script_id",
 			width: 180,
 			ellipsis: true,
 			render: (value: string) => value || "-",
-		},{
+		}, {
 			title: "Analysis ID",
 			dataIndex: "analysis_id",
 			key: "analysis_id",
 			width: 200,
 			ellipsis: true,
 			render: (value: string) => value || "-",
-		},{
+		}, {
 			title: "Executor",
 			dataIndex: "executor",
 			key: "executor",
@@ -306,98 +306,105 @@ const AnalysisNodePage = ({
 
 
 	return (
-		<Card
-			size="small"
-			title={title || "Analysis Node List By Active Project"}
-			extra={
-				<Space>
-					<Text type="secondary">Total: {total}</Text>
+		<>
 
-					<Button
-						icon={<PlayCircleOutlined />}
-						onClick={handleRunAllNodes}
-						loading={runningAll}
-						disabled={!script_id || runningAll}
-						title={activeNodeCount > 0 ? `${activeNodeCount} node(s) already running` : undefined}
-					>
-						Run All{activeNodeCount > 0 ? ` (${activeNodeCount} running)` : ""}
-					</Button>
-					<Button
-						icon={<FileTextOutlined />}
-						onClick={handlePublishToDoc}
-						loading={publishing}
-						disabled={!script_id}
-					>
-						Publish to Doc
-					</Button>
-					<Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
-						Refresh
-					</Button>
-				</Space>
-			}
-		>
-
-			{error ? (
-				<Alert type="error" showIcon message="Failed to load analysis nodes" style={{ marginBottom: 12 }} />
-			) : null}
-
-			<Table<AnalysisNodeItem>
-				rowKey="id"
-				columns={selectColumns}
-				dataSource={data}
-				loading={isLoading || isFetching}
+			<Card
 				size="small"
-				scroll={{ x: 1500 }}
-				locale={{ emptyText: error ? "Failed to load analysis nodes" : "No analysis nodes" }}
-				rowClassName={(record) =>
-					record.id === analysisNodeId ? "analysis-node-row-selected" : ""
-				}
-				rowSelection={
-					selectable
-						? {
-							type: "radio",
-							selectedRowKeys: selectedId ? [selectedId] : [],
-							onChange: (selectedRowKeys) => {
-								setSelectedID(String(selectedRowKeys[0] || ""));
-							},
-						}
-						: undefined
-				}
-				onRow={
-					selectable
-						? (record) => ({
-							onClick: () => setSelectedID(record.id),
-						})
-						: undefined
-				}
-				pagination={{
-					current: page,
-					pageSize,
-					total,
-					showSizeChanger: true,
-					pageSizeOptions: [20, 50, 100, 200, 500, 1000],
-					onChange: (nextPage, nextPageSize) => {
-						if (nextPageSize !== pageSize) {
-							setPageSize(nextPageSize);
-						}
-						setPage(nextPage);
-					},
-					showTotal: (value) => `Total ${value} items`,
-				}}
-			/>
+				title={title || "Analysis Node List By Active Project"}
+				extra={
+					<Space>
+						<Text type="secondary">Total: {total}</Text>
 
-			{selectable && (
-				<Flex justify="end" gap="small" style={{ marginTop: 12 }}>
-					<Button onClick={handleCancel}>Cancel</Button>
-					<Button type="primary" disabled={!selectedItem} onClick={handleConfirm}>
-						Confirm
-					</Button>
-				</Flex>
-			)}
+						<Button
+							icon={<PlayCircleOutlined />}
+							onClick={handleRunAllNodes}
+							loading={runningAll}
+							disabled={!script_id || runningAll}
+							title={activeNodeCount > 0 ? `${activeNodeCount} node(s) already running` : undefined}
+						>
+							Run All{activeNodeCount > 0 ? ` (${activeNodeCount} running)` : ""}
+						</Button>
+						<Button
+							icon={<FileTextOutlined />}
+							onClick={handlePublishToDoc}
+							loading={publishing}
+							disabled={!script_id}
+						>
+							Publish to Doc
+						</Button>
+						<Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
+							Refresh
+						</Button>
+					</Space>
+				}
+			>
 
-			{analysisNodeId && <AnalysisNodeDetails analysis_node_id={analysisNodeId}></AnalysisNodeDetails>}
+				{error ? (
+					<Alert type="error" showIcon message="Failed to load analysis nodes" style={{ marginBottom: 12 }} />
+				) : null}
 
-		</Card>
+				<Table<AnalysisNodeItem>
+					rowKey="id"
+					columns={selectColumns}
+					dataSource={data}
+					loading={isLoading || isFetching}
+					size="small"
+					scroll={{ x: 1500 }}
+					locale={{ emptyText: error ? "Failed to load analysis nodes" : "No analysis nodes" }}
+					rowClassName={(record) =>
+						record.id === analysisNodeId ? "analysis-node-row-selected" : ""
+					}
+					rowSelection={
+						selectable
+							? {
+								type: "radio",
+								selectedRowKeys: selectedId ? [selectedId] : [],
+								onChange: (selectedRowKeys) => {
+									setSelectedID(String(selectedRowKeys[0] || ""));
+								},
+							}
+							: undefined
+					}
+					onRow={
+						selectable
+							? (record) => ({
+								onClick: () => setSelectedID(record.id),
+							})
+							: undefined
+					}
+					pagination={{
+						current: page,
+						pageSize,
+						total,
+						showSizeChanger: true,
+						pageSizeOptions: [20, 50, 100, 200, 500, 1000],
+						onChange: (nextPage, nextPageSize) => {
+							if (nextPageSize !== pageSize) {
+								setPageSize(nextPageSize);
+							}
+							setPage(nextPage);
+						},
+						showTotal: (value) => `Total ${value} items`,
+					}}
+				/>
+
+				{selectable && (
+					<Flex justify="end" gap="small" style={{ marginTop: 12 }}>
+						<Button onClick={handleCancel}>Cancel</Button>
+						<Button type="primary" disabled={!selectedItem} onClick={handleConfirm}>
+							Confirm
+						</Button>
+					</Flex>
+				)}
+
+
+			</Card>
+			<div style={{ marginTop: "1rem" }}>
+				{analysisNodeId && <AnalysisNodeDetails analysis_node_id={analysisNodeId}></AnalysisNodeDetails>}
+
+			</div>
+
+		</>
 	);
 };
 
