@@ -64,7 +64,7 @@ export const pageScriptApi = (payload: ScriptPageRequest) => {
 
 export interface WorkflowItem {
 	id: number;
-	relation_id: string;
+	workflow_id: string;
 	name: string;
 	img?: string;
 	tags?: string;

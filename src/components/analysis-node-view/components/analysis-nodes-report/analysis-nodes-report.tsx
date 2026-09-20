@@ -216,7 +216,8 @@ const AnalysisNodesReport: FC<AnalysisNodesReportProps> = ({ analysis_id }) => {
             setReportTreeData(nextReportTreeData);
             setReportMenuItems(buildReportMenuItems(nextReportTreeData));
             setRelation({
-                relation_id: res.data?.relation_id,
+                id: res.data?.workflow_id,
+                workflow_id: res.data?.workflow_id,
             })
             // setSampleDetailMap({})
             // setTitle(res.data.analysis_name + " - Report")

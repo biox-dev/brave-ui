@@ -122,11 +122,11 @@ const CreateOrUpdateWorkflow: FC<CreateOrUpdateWorkflowProps> = (params) => {
       payload.dag_definition = serializeJSON(payload.dag_definition);
     }
     if (relation) {
-      // update existing workflow: id selects the DB row, relation_id keeps its uuid
+      // update existing workflow: id selects the DB row, workflow_id keeps its uuid
       payload.id = relation?.id != null ? String(relation.id) : undefined;
-      payload.relation_id =
-        relation?.relation_id ??
+      payload.workflow_id =
         relation?.workflow_id ??
+        relation?.relation_id ??
         (relation?.id != null ? String(relation.id) : undefined);
     }
     return payload;

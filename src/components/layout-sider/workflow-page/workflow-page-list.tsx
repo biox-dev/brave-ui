@@ -28,9 +28,9 @@ const WorkflowDetailCard = ({ item }: { item: WorkflowItem }) => {
         column={1}
         bordered
         items={[
-          { key: "name", label: "Workflow Name", children: item.name || item.relation_id || "-" },
+          { key: "name", label: "Workflow Name", children: item.name || item.workflow_id || "-" },
           { key: "id", label: "ID", children: item.id ?? "-" },
-          { key: "relation_id", label: "Relation ID", children: item.relation_id || "-" },
+          { key: "workflow_id", label: "Workflow ID", children: item.workflow_id || "-" },
           { key: "relation_type", label: "Relation Type", children: item.relation_type || "-" },
           { key: "component_id", label: "Component ID", children: item.component_id || "-" },
           { key: "container_id", label: "Container ID", children: item.container_id || "-" },
@@ -111,7 +111,7 @@ const WorkflowPageList: FC<any> = () => {
   );
 
   const handleOpen = (workflow: WorkflowItem) => {
-    if (!workflow?.relation_id) {
+    if (!workflow?.workflow_id) {
       return;
     }
     navigate(`/c/tools/${encodeURIComponent(String(workflow.id))}`);
@@ -125,7 +125,7 @@ const WorkflowPageList: FC<any> = () => {
         key: "name",
         ellipsis: { showTitle: false },
         render: (name: string, record) => {
-          const title = name || record.relation_id || `Workflow-${record.id}`;
+          const title = name || record.workflow_id || `Workflow-${record.id}`;
           const meta = [
             record.updated_at
               ? formatRelativeTime(record.updated_at, locale)
@@ -185,7 +185,7 @@ const WorkflowPageList: FC<any> = () => {
           title={
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
               <ApartmentOutlined />
-              {record.name || record.relation_id || `Workflow-${record.id}`}
+              {record.name || record.workflow_id || `Workflow-${record.id}`}
             </span>
           }
           content={<WorkflowDetailCard item={record} />}
@@ -219,7 +219,7 @@ const WorkflowPageList: FC<any> = () => {
                   { data: record },
                   {
                     width: 960,
-                    title: `Edit Workflow: ${record.name || record.relation_id}`,
+                    title: `Edit Workflow: ${record.name || record.workflow_id}`,
                   }
                 );
                 refetch();

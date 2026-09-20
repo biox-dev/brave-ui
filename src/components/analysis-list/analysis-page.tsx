@@ -137,8 +137,8 @@ const AnalysisPage = ({
 		},
 		{
 			title: "Workflow ID",
-			dataIndex: "relation_id",
-			key: "relation_id",
+			dataIndex: "workflow_id",
+			key: "workflow_id",
 			width: 220,
 			ellipsis: true,
 			render: (value: string) => value || "-",
@@ -220,7 +220,7 @@ const AnalysisPage = ({
 	useEffect(() => {
 		setQuery({
 			analysis_name: normalizeText(analysis_name),
-			relation_id: normalizeText(relation_id),
+			workflow_id: normalizeText(relation_id),
 			job_status: normalizeText(job_status),
 			server_status: normalizeText(server_status),
 		});

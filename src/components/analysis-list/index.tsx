@@ -247,7 +247,7 @@ const AnalysisList = forwardRef<any, any>(({
             key: 'relation_name',
             ellipsis: true,
             render: (text: any, record: any) => {
-                return <Tooltip title={record.relation_id}>
+                return <Tooltip title={record.workflow_id}>
                     <span style={{ cursor: "pointer" }}>{text}</span>
                 </Tooltip>
             }

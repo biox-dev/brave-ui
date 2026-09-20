@@ -44,7 +44,7 @@ const AnalysisDetailCard = ({ item }: { item: AnalysisItem }) => (
         { key: "analysis_name", label: "Analysis Name", children: item.analysis_name || item.analysis_id || "-" },
         { key: "id", label: "ID", children: item.id || "-" },
         { key: "analysis_id", label: "Analysis ID", children: item.analysis_id || "-" },
-        { key: "relation_id", label: "Relation ID", children: item.relation_id || "-" },
+        { key: "workflow_id", label: "Workflow ID", children: item.workflow_id || "-" },
         { key: "project_id", label: "Project ID", children: item.project_id || "-" },
         {
           key: "job_status",

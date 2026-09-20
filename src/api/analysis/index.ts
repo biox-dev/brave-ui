@@ -75,7 +75,7 @@ export interface AnalysisItem {
 	id: string;
 	project_id: string;
 	analysis_id: string;
-	relation_id: string;
+	workflow_id: string;
 	analysis_name: string;
 	job_status: string;
 	server_status: string;
@@ -89,7 +89,7 @@ export interface AnalysisPageQuery {
 	id?: string;
 	analysis_id?: string;
 	analysis_name?: string;
-	relation_id?: string;
+	workflow_id?: string;
 	job_status?: string;
 	server_status?: string;
 	is_report?: boolean;

@@ -322,7 +322,7 @@ export const CreateAnalysisComp: FC<any> = ({ pipeline, operatePipeline, markdow
             component_id: rest.component_id,
             data_component_ids: JSON.stringify(dataComponentIds),
             component_parent_ids_map: componentParentIdsMap,
-            relation_id: rest.relation_id,
+            workflow_id: rest.workflow_id ?? rest.relation_id,
 
         }
         return requestParams

@@ -395,6 +395,10 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
                                 </Typography.Text>
 
                                 <Typography.Text type="secondary">
+                                    script_id: {selectedSampleDetail.node?.script_id}
+                                </Typography.Text>
+
+                                <Typography.Text type="secondary">
                                     container_name: <Tooltip title={selectedSampleDetail.node?.container_image}>
                                         {selectedSampleDetail.node?.container_name}
                                     </Tooltip>

@@ -116,7 +116,7 @@ export const RenderProvider: FC<any> = ({ children }) => {
             component_id: relation.component_id,
             data_component_ids: JSON.stringify(dataComponentIds),
             // component_parent_ids_map: componentParentIdsMap,
-            relation_id: relation.relation_id,
+            workflow_id: relation.id,
         }
         return {
             requestParam: requestParams,
@@ -189,7 +189,7 @@ export const RenderProvider: FC<any> = ({ children }) => {
                 setFormStatus(null)
                 let data = formData;
                 if (!data || force) {
-                    data = await loadToolsForm(relation.relation_id)
+                    data = await loadToolsForm(relation.id)
                     // setFormData(data)
                 }
                 const params = buildRequestParams()
