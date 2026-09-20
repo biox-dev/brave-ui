@@ -1,9 +1,10 @@
-import { Button, Popconfirm, Popover, Space, Tag, Tooltip } from "antd"
+import { Button, Input, Popconfirm, Popover, Space, Tag, Tooltip } from "antd"
 import { FC, useState, type ReactNode } from "react"
-import { InfoCircleOutlined, LinkOutlined, ReloadOutlined, SyncOutlined } from "@ant-design/icons"
+import { InfoCircleOutlined, LinkOutlined, ReloadOutlined, SaveOutlined, SyncOutlined } from "@ant-design/icons"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
 import { useI18n } from "@/hooks/useI18n"
 import { http } from "@/api/client/http"
+import { saveScriptFilesApi, saveWorkflowFilesApi } from "@/api/pipeline/export-files"
 
 /**
  * 与后端 `utils.GitSyncState` 一一对应，来自 `GetScriptById` / `GetWorkflowById`
@@ -80,18 +81,56 @@ const GitStateActions: FC<GitStateActionsProps> = ({ entity, item, onReload }) =
 
 	const [checkingUpdate, setCheckingUpdate] = useState(false)
 	const [reinstalling, setReinstalling] = useState(false)
+	// 「生成导出文件并提交」的展开状态 / 可选 commit message / 提交中标记。
+	const [commitOpen, setCommitOpen] = useState(false)
+	const [commitMessage, setCommitMessage] = useState("")
+	const [committing, setCommitting] = useState(false)
 
 	const state = readGitState(item?.git_state)
 	const version = toText(item?.version)
 	const storeId = toText(item?.store_id)
 	const storeURL = toText(item?.store_url)
+	// 组件 int64 主键（后端 `json:"id,string"`，前端收到的就是字符串）。
+	const componentId = toText(item?.id)
 
 	const reinstallEndpoint = entity === "script"
 		? `/workflow/install-script/${encodeURIComponent(storeId)}`
 		: `/workflow/install-workflow/${encodeURIComponent(storeId)}`
 
+	/**
+	 * 「生成导出文件并提交」入口的可见性：只在本地代码有变化时展示。
+	 *
+	 * 保存组件（/workflow/save-script、/workflow/save-workflow）不再隐式生成 script.json /
+	 * workflow.json，也不再隐式提交 git，因此需要用户显式触发一次：
+	 *   - `local_dirty`：工作区存在未提交改动（保存后、上传封面/README 后都会有）；
+	 *   - `!local_initialized`：本地目录还不是 git 仓库（首次保存，尚无任何提交）。
+	 * 提交过后工作区变干净且仓库已初始化，该入口自动隐藏（剩余差异交给发布）。
+	 */
+	const canGenerateFiles = componentId !== "" && (!state?.local_initialized || !!state?.local_dirty)
+
 	if (!state) {
 		return null
+	}
+
+	const handleGenerateFiles = async () => {
+		if (!componentId || committing) {
+			return
+		}
+		setCommitting(true)
+		try {
+			// 错误已由 http 拦截器统一提示。
+			if (entity === "script") {
+				await saveScriptFilesApi(componentId, commitMessage)
+			} else {
+				await saveWorkflowFilesApi(componentId, commitMessage)
+			}
+			message.success(zh ? "已生成导出文件并提交" : "Export files generated and committed")
+			setCommitOpen(false)
+			setCommitMessage("")
+			onReload?.()
+		} finally {
+			setCommitting(false)
+		}
 	}
 
 	const localCommit = shortCommit(state.local_commit)
@@ -243,6 +282,60 @@ const GitStateActions: FC<GitStateActionsProps> = ({ entity, item, onReload }) =
 						onClick={() => window.open(storeURL, "_blank")}
 					/>
 				</Tooltip>
+			)}
+
+			{/* 生成导出文件并提交：仅在本地代码有变化（未提交改动 / 本地目录还没成为 git 仓库）时展示。 */}
+			{canGenerateFiles && (
+				<Popover
+					trigger="click"
+					placement="bottomLeft"
+					open={commitOpen}
+					onOpenChange={(open) => {
+						setCommitOpen(open)
+						if (!open) {
+							setCommitMessage("")
+						}
+					}}
+					title={zh ? "生成导出文件并提交" : "Generate files & commit"}
+					content={
+						<div style={{ width: 320 }}>
+							<div style={{ marginBottom: 8, fontSize: 12, color: "rgba(0, 0, 0, 0.45)" }}>
+								{zh
+									? `将重新生成 ${entity === "script" ? "script.json" : "workflow.json"}，并把本地目录改动提交为一个 commit。`
+									: `Regenerates ${entity === "script" ? "script.json" : "workflow.json"} and commits the local changes.`}
+							</div>
+							<Input
+								value={commitMessage}
+								onChange={(event) => setCommitMessage(event.target.value)}
+								placeholder={zh ? "可选：commit message" : "Optional commit message"}
+								allowClear
+								disabled={committing}
+								onPressEnter={handleGenerateFiles}
+							/>
+							<div style={{ marginTop: 8, textAlign: "right" }}>
+								<Space size={4}>
+									<Button size="small" disabled={committing} onClick={() => setCommitOpen(false)}>
+										{zh ? "取消" : "Cancel"}
+									</Button>
+									<Button size="small" type="primary" loading={committing} onClick={handleGenerateFiles}>
+										{zh ? "确定" : "OK"}
+									</Button>
+								</Space>
+							</div>
+						</div>
+					}
+				>
+					<Button
+						size="small"
+						color="green"
+						variant="outlined"
+						icon={<SaveOutlined />}
+						loading={committing}
+						disabled={checkingUpdate || reinstalling}
+					>
+						{zh ? "生成并提交" : "Generate & Commit"}
+					</Button>
+				</Popover>
 			)}
 
 			{canCheckUpdate && (
