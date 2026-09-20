@@ -1,6 +1,6 @@
 import { Button, Card, Empty, Popconfirm, Segmented, Skeleton, Spin, Tag, Tooltip } from "antd"
 import { DeleteOutlined, FileTextOutlined, ReloadOutlined } from "@ant-design/icons"
-import { FC, useCallback, useEffect, useMemo, useState } from "react"
+import { FC, useCallback, useEffect, useState } from "react"
 import { useParams } from "react-router"
 import { useModal } from "@/hooks/useModal"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
@@ -15,7 +15,7 @@ import "./script-panel.css"
 /** Views the script panel can switch between. */
 type ScriptViewKey = "analysisNodePage" | "createOrUpdateScript" | "scriptCode" | "scriptReadme" | "PublishToolsV2"
 
-/** Default view; reset whenever the mounted component type changes. */
+/** Default view; the tab list is static so this is always a valid value. */
 const DEFAULT_VIEW: ScriptViewKey = "analysisNodePage"
 
 type ScriptPanelProps = { component_type?: string }
@@ -62,27 +62,14 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    // Available tabs depend on whether the script has been published (component_id).
-    const views = useMemo<{ label: string; value: ScriptViewKey }[]>(() => {
-        const options: { label: string; value: ScriptViewKey }[] = []
-        if (script?.component_id) {
-            options.push(
-                { label: zh ? "分析节点" : "Analysis Nodes", value: "analysisNodePage" },
-                { label: zh ? "结构" : "Structure", value: "createOrUpdateScript" },
-                { label: zh ? "代码" : "Code", value: "scriptCode" },
-            )
-        }
-        options.push({ label: "README", value: "scriptReadme" })
-        options.push({ label: zh ? "发布" : "Publish", value: "PublishToolsV2" })
-        return options
-    }, [script?.component_id, zh])
-
-    // Keep the active tab valid when the script (or its publish state) changes.
-    useEffect(() => {
-        if (!views.some((item) => item.value === view)) {
-            setView(views[0].value)
-        }
-    }, [views, view])
+    // Static tab list, mirroring workflow-panel: every script shows the same tabs.
+    const views: { label: string; value: ScriptViewKey }[] = [
+        { label: zh ? "分析节点" : "Analysis Nodes", value: "analysisNodePage" },
+        { label: zh ? "结构" : "Structure", value: "createOrUpdateScript" },
+        { label: zh ? "代码" : "Code", value: "scriptCode" },
+        { label: "README", value: "scriptReadme" },
+        { label: zh ? "发布" : "Publish", value: "PublishToolsV2" },
+    ]
 
     const handleDelete = async () => {
         await http.post(`/script/delete/${encodeURIComponent(script.id)}`)
