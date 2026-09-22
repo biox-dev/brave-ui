@@ -76,7 +76,8 @@ const GitStateActions: FC<GitStateActionsProps> = ({ entity, item, onReload }) =
 	const { locale } = useI18n()
 	const zh = locale === "zh_CN"
 
-	const [checkingUpdate, setCheckingUpdate] = useState(false)
+	// 正在「检查更新」的 remote 名（空串表示空闲；同一时刻只允许一个在拉取）。
+	const [checkingUpdate, setCheckingUpdate] = useState("")
 	const [reinstalling, setReinstalling] = useState(false)
 	// 「生成导出文件并提交」的展开状态 / 可选 commit message / 提交中标记。
 	const [commitOpen, setCommitOpen] = useState(false)
@@ -138,6 +139,27 @@ const GitStateActions: FC<GitStateActionsProps> = ({ entity, item, onReload }) =
 			onReload?.()
 		} finally {
 			setCommitting(false)
+		}
+	}
+
+	/**
+	 * 「检查更新」：把 store 裸仓库从指定 remote 拉到最新。
+	 *
+	 * `/store/redownload` 需要 `remote_name`（后端 `ReDownloadStore`，为空才回退 origin），
+	 * 因此入口挂在「远程仓库」弹层的每个 remote 上，逐个 remote 触发。
+	 */
+	const handleCheckUpdate = async (remoteName: string) => {
+		if (!storeId || checkingUpdate) {
+			return
+		}
+		setCheckingUpdate(remoteName)
+		try {
+			// 错误已由 http 拦截器统一提示。
+			await http.post(`/store/redownload`, { id: storeId, remote_name: remoteName })
+			message.success(zh ? `已从 ${remoteName} 更新 store` : `Store refreshed from ${remoteName}`)
+			onReload?.()
+		} finally {
+			setCheckingUpdate("")
 		}
 	}
 
@@ -255,36 +277,47 @@ const GitStateActions: FC<GitStateActionsProps> = ({ entity, item, onReload }) =
 		</div>
 	)
 
-	// 远程仓库列表：每个 remote 一行，地址可点击时跳浏览器（本地路径 / 未知协议则只展示文本）。
+	// 远程仓库列表：每个 remote 一行，地址可点击时跳浏览器（本地路径 / 未知协议则只展示文本）；
+	// 右侧是该 remote 的「检查更新」按钮（/store/redownload + remote_name）。
 	const remotesContent = (
 		<div style={{ maxWidth: 460, fontSize: 12 }}>
 			{remotes.map((remote) => (
-				<div key={remote.name} style={{ marginBottom: 8 }}>
-					<Tag color="blue" style={{ marginInlineEnd: 8 }}>
-						{remote.name}
-					</Tag>
-					{remote.urls.map((rawURL) => {
-						const webURL = toWebURL(rawURL)
-						return (
-							<div key={rawURL} style={{ marginTop: 4, wordBreak: "break-all" }}>
-								{webURL ? (
-									<a href={webURL} target="_blank" rel="noopener noreferrer">
-										{rawURL}
-									</a>
-								) : (
-									<span>{rawURL}</span>
-								)}
-							</div>
-						)
-					})}
+				<div key={remote.name} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
+					<div style={{ flex: 1, minWidth: 0 }}>
+						<Tag color="blue" style={{ marginInlineEnd: 8 }}>
+							{remote.name}
+						</Tag>
+						{remote.urls.map((rawURL) => {
+							const webURL = toWebURL(rawURL)
+							return (
+								<div key={rawURL} style={{ marginTop: 4, wordBreak: "break-all" }}>
+									{webURL ? (
+										<a href={webURL} target="_blank" rel="noopener noreferrer">
+											{rawURL}
+										</a>
+									) : (
+										<span>{rawURL}</span>
+									)}
+								</div>
+							)
+						})}
+					</div>
+					<Button
+						size="small"
+						color="cyan"
+						variant="outlined"
+						icon={<SyncOutlined />}
+						loading={checkingUpdate === remote.name}
+						disabled={!storeId || reinstalling || committing || (checkingUpdate !== "" && checkingUpdate !== remote.name)}
+						onClick={() => handleCheckUpdate(remote.name)}
+					>
+						{zh ? "检查更新" : "Check Update"}
+					</Button>
 				</div>
 			))}
 		</div>
 	)
 
-	// redownload 走 store 仓库的 origin（拉取上游更新），因此要求仓库上确实配置了 origin remote。
-	const hasOriginRemote = remotes.some((remote) => remote.name === "origin")
-	const canCheckUpdate = storeId !== "" && hasOriginRemote
 	// 只要本地与 store 存在差异（本地有未提交/未发布改动，或 store 领先本地）就展示：
 	// 用户可以随时用 store 的版本覆盖回本地。store 尚未初始化时没有内容可拉取，不展示。
 	const canReinstall = storeId !== "" && !!state.store_initialized && !state.in_sync
@@ -341,7 +374,7 @@ const GitStateActions: FC<GitStateActionsProps> = ({ entity, item, onReload }) =
 					color="geekblue"
 					variant="outlined"
 					icon={<DiffOutlined />}
-					disabled={checkingUpdate || reinstalling || committing}
+					disabled={!!checkingUpdate || reinstalling || committing}
 					onClick={() =>
 						invoke.gitDiff.open(
 							{ entity, id: componentId },
@@ -404,34 +437,11 @@ const GitStateActions: FC<GitStateActionsProps> = ({ entity, item, onReload }) =
 						variant="outlined"
 						icon={<SaveOutlined />}
 						loading={committing}
-						disabled={checkingUpdate || reinstalling}
+						disabled={!!checkingUpdate || reinstalling}
 					>
 						{zh ? "生成并提交" : "Generate & Commit"}
 					</Button>
 				</Popover>
-			)}
-
-			{canCheckUpdate && (
-				<Button
-					size="small"
-					color="cyan"
-					variant="outlined"
-					icon={<SyncOutlined />}
-					loading={checkingUpdate}
-					disabled={reinstalling}
-					onClick={async () => {
-						try {
-							setCheckingUpdate(true)
-							await http.post(`/store/redownload`, { id: storeId })
-							message.success(zh ? "已从远端更新 store" : "Store refreshed from remote")
-							onReload?.()
-						} finally {
-							setCheckingUpdate(false)
-						}
-					}}
-				>
-					{zh ? "检查更新" : "Check Update"}
-				</Button>
 			)}
 
 			{canReinstall && (
@@ -453,7 +463,7 @@ const GitStateActions: FC<GitStateActionsProps> = ({ entity, item, onReload }) =
 							)}
 						</div>
 					}
-					okButtonProps={{ loading: reinstalling, disabled: checkingUpdate }}
+					okButtonProps={{ loading: reinstalling, disabled: !!checkingUpdate }}
 					cancelButtonProps={{ disabled: reinstalling }}
 					onConfirm={async () => {
 						try {
@@ -472,7 +482,7 @@ const GitStateActions: FC<GitStateActionsProps> = ({ entity, item, onReload }) =
 						variant="solid"
 						icon={<ReloadOutlined />}
 						loading={reinstalling}
-						disabled={checkingUpdate}
+						disabled={!!checkingUpdate}
 					>
 						{zh ? "重新安装" : "ReInstall"}
 					</Button>
