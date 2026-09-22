@@ -11,6 +11,7 @@ import { useGlobalMessage } from "@/hooks/useGlobalMessage"
 import { useComponentStore } from "@/event-bus/stores/components"
 import { http } from "@/api/client/http"
 import { ComponentImage } from "@/components/common/component-image"
+import { invoke } from "@/core/ui-system/invokeV2"
 
 type StoreType = "workflow" | "script"
 
@@ -20,7 +21,6 @@ interface StorePageItem {
     store_type?: StoreType
     name?: string
     origin?: string
-    url?: string
     status?: string
     path?: string
     path_name?: string
@@ -28,6 +28,7 @@ interface StorePageItem {
     category?: string
     tags?: any
     img?: string
+    remotes?: { name: string; urls: string[] }[]
     publish_urls?: any
     log?: string
     version?: string
@@ -191,10 +192,12 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
                                                 </Button>
                                             </Tooltip>
                                         )} */}
-                                        {item?.url !== "" && (
-                                            <Tooltip title={item?.url}>
+                                        {/* store 表已删除 url：能从上游拉取的只有远程下载的 store，
+                                            本地发布（origin=local）没有上游，不展示 ReDownload。 */}
+                                        {item?.origin !== "local" && (
+                                            <Tooltip title={item?.name}>
                                                 <Popconfirm
-                                                    title={`ReDownload ${item?.url} ?`}
+                                                    title={`ReDownload ${item?.name} ?`}
                                                     onConfirm={async () => {
                                                         await http.post(`/store/redownload`, {
                                                             id: item?.id,
@@ -209,6 +212,28 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
                                                 </Popconfirm>
                                             </Tooltip>
                                         )}
+
+                                        {/* 发布到远程：打开 publish-store-remote 抽屉，
+                                            把目标地址写成 store 裸仓库的 git remote（支持多个远端）。 */}
+                                        <Tooltip title="Publish to remote (github / gitee)">
+                                            <Button
+                                                color="geekblue"
+                                                variant="solid"
+                                                size="small"
+                                                onClick={() => {
+                                                    invoke.publishStore.open(
+                                                        { store_id: item?.id },
+                                                        {
+                                                            footer: null,
+                                                            width: 640,
+                                                            title: `Publish Remote · ${item?.name || item?.id}`,
+                                                        },
+                                                    )
+                                                }}
+                                            >
+                                                Publish Remote
+                                            </Button>
+                                        </Tooltip>
 
                                         <Popconfirm
                                             title={`Delete Store ${item?.name} ?`}

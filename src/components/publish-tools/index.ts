@@ -5,7 +5,7 @@ import type { InferViewRegistryFromLoaders } from "@/core/component-registry/reg
 
 const storeViewLoaders = {
     createUpdateStore: () => import("./components/create-update-store"),
-    publishStore: () => import("./components/publish-store"),
+    publishStore: () => import("./components/publish-store-remote"),
     publishTools: () => import('./publish-tools'),
     PublishToolsV2: () => import('./publish-tools-v2'),
 

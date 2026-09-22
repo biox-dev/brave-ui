@@ -92,14 +92,6 @@ const CreateUpdateStore: FC<CreateUpdateStoreProps> = ({ onOk, onCancel, store_i
         <>
             <Form form={form} layout="vertical">
                 <Form.Item
-                    label="URL"
-                    name="url"
-                    rules={[{ required: true, message: "Please input URL" }]}
-                >
-                    <Input placeholder="http://github.com/owner/repo" />
-                </Form.Item>
-
-                <Form.Item
                     label="Name"
                     name="name"
 

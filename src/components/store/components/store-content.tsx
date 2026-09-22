@@ -109,13 +109,10 @@ const StoreContent: FC<StoreContentProps> = ({
                 <Space>
                     {store?.store?.name && (
                         <Tooltip title={<>
-                            {store?.store?.url}<br></br>
-                            {store?.store?.path}
+                            {store?.store?.store_path}
                         </>}>
 
-                            <a href={store?.store?.url} target="_blank" rel="noopener noreferrer">
-                                {store?.store?.name}
-                            </a>
+                            <span>{store?.store?.name}</span>
                         </Tooltip>
                     )}
                     {store?.store?.version && <Tooltip title={<>
@@ -146,7 +143,7 @@ const StoreContent: FC<StoreContentProps> = ({
                     )}
                     {storeId && store?.store?.status === "done" && (
                         <Popconfirm
-                            title={`ReDownload ${store?.store?.url} ?`}
+                            title={`ReDownload ${store?.store?.name || storeId} ?`}
                             onConfirm={async () => {
 								await http.post(`/store/redownload`, {
 									id: store?.store?.id || storeId,

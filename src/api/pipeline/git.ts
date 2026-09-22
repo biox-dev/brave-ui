@@ -9,6 +9,14 @@ import { http } from "@/api/client/http";
  *   （后端 `handler.GitHandler`），本地有变化时才需要调用。
  */
 
+/** 仓库中配置的一个 git remote（与后端 `utils.GitRemote` 一一对应）。 */
+export interface GitRemote {
+	/** remote 名（origin / github / gitee / gitlab ...）。 */
+	name: string;
+	/** 该 remote 配置的地址列表（同一 remote 可以有多个 URL）。 */
+	urls: string[];
+}
+
 /** 与后端 `utils.GitSyncState` 一一对应。 */
 export interface GitSyncState {
 	/** 本地脚本/工作流目录（工作区仓库）。 */
@@ -35,6 +43,11 @@ export interface GitSyncState {
 	has_store_changes: boolean;
 	/** 本地干净且两侧 commit 一致。 */
 	in_sync: boolean;
+	/**
+	 * store 裸仓库上配置的远程仓库列表（发布到远程时写入 git remote，不落库）。
+	 * 未发布或未配置任何 remote 时为空/缺省。
+	 */
+	remotes?: GitRemote[];
 }
 
 /** 后端 `utils.GitDiffFile` 的文件状态。 */

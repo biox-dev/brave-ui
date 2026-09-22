@@ -139,12 +139,20 @@ const PublishTools: FC<any> = ({ relation_id, store_id,callback }) => {
                         </Tooltip>
                     }
                 }, {
-                    title: "remote url",
-                    dataIndex: "url",
-                    key: "url",
-                    render: (value: any) => <Tooltip title={value}>
-                        <a href={value} target="_blank" rel="noopener noreferrer">{value}</a>
-                    </Tooltip>
+                    title: "remotes",
+                    dataIndex: "remotes",
+                    key: "remotes",
+                    render: (value: any) => {
+                        const remotes: { name: string; urls: string[] }[] = Array.isArray(value) ? value : []
+                        if (remotes.length === 0) {
+                            return "-"
+                        }
+                        return (
+                            <Tooltip title={remotes.map((remote) => `${remote.name}: ${remote.urls.join(", ")}`).join(" / ")}>
+                                <span>{remotes.map((remote) => remote.name).join(", ")}</span>
+                            </Tooltip>
+                        )
+                    }
 
                 }, {
                     title: "action",

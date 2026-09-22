@@ -39,6 +39,25 @@ const toText = (value: unknown): string => {
 
 const shortCommit = (value: unknown): string => toText(value).trim().slice(0, 7)
 
+/**
+ * 把 git 地址转成可在浏览器打开的网页地址；无法转换（如本地路径）时返回空串。
+ * ssh 形式 `git@github.com:owner/repo.git` → `https://github.com/owner/repo`。
+ */
+const toWebURL = (raw: string): string => {
+	const url = toText(raw).trim()
+	if (!url) {
+		return ""
+	}
+	const ssh = url.match(/^git@([^:]+):(.+)$/)
+	if (ssh) {
+		return `https://${ssh[1]}/${ssh[2].replace(/\.git$/, "")}`
+	}
+	if (/^https?:\/\//i.test(url)) {
+		return url.replace(/\.git$/, "")
+	}
+	return ""
+}
+
 const readGitState = (value: unknown): GitSyncState | undefined => {
 	if (!value || typeof value !== "object") {
 		return undefined
@@ -67,7 +86,6 @@ const GitStateActions: FC<GitStateActionsProps> = ({ entity, item, onReload }) =
 	const state = readGitState(item?.git_state)
 	const version = toText(item?.version)
 	const storeId = toText(item?.store_id)
-	const storeURL = toText(item?.store_url)
 	// 组件 int64 主键（后端 `json:"id,string"`，前端收到的就是字符串）。
 	const componentId = toText(item?.id)
 
@@ -97,6 +115,10 @@ const GitStateActions: FC<GitStateActionsProps> = ({ entity, item, onReload }) =
 	if (!state) {
 		return null
 	}
+
+	// store 裸仓库上配置的远程仓库（发布到远程时写入 git remote，不落库）：
+	// 可能多个（github / gitee / origin ...），因此下面都按列表展示。
+	const remotes = state.remotes ?? []
 
 	const handleGenerateFiles = async () => {
 		if (!componentId || committing) {
@@ -224,11 +246,45 @@ const GitStateActions: FC<GitStateActionsProps> = ({ entity, item, onReload }) =
 			{detailRow(zh ? "未提交改动" : "Local edits", flagCell(!!state.local_dirty))}
 			{detailRow(zh ? "本地领先 store" : "Local ahead", flagCell(!!state.local_ahead))}
 			{detailRow(zh ? "store 领先本地" : "Store ahead", flagCell(!!state.store_ahead))}
+			{detailRow(
+				zh ? "远程仓库" : "Remotes",
+				remotes.length === 0
+					? "-"
+					: remotes.map((remote) => `${remote.name}: ${remote.urls.join(", ")}`).join(" / "),
+			)}
 		</div>
 	)
 
-	// redownload 需要 store 目录已存在（未发布时无目录可拉取）。
-	const canCheckUpdate = storeId !== "" && storeURL !== ""
+	// 远程仓库列表：每个 remote 一行，地址可点击时跳浏览器（本地路径 / 未知协议则只展示文本）。
+	const remotesContent = (
+		<div style={{ maxWidth: 460, fontSize: 12 }}>
+			{remotes.map((remote) => (
+				<div key={remote.name} style={{ marginBottom: 8 }}>
+					<Tag color="blue" style={{ marginInlineEnd: 8 }}>
+						{remote.name}
+					</Tag>
+					{remote.urls.map((rawURL) => {
+						const webURL = toWebURL(rawURL)
+						return (
+							<div key={rawURL} style={{ marginTop: 4, wordBreak: "break-all" }}>
+								{webURL ? (
+									<a href={webURL} target="_blank" rel="noopener noreferrer">
+										{rawURL}
+									</a>
+								) : (
+									<span>{rawURL}</span>
+								)}
+							</div>
+						)
+					})}
+				</div>
+			))}
+		</div>
+	)
+
+	// redownload 走 store 仓库的 origin（拉取上游更新），因此要求仓库上确实配置了 origin remote。
+	const hasOriginRemote = remotes.some((remote) => remote.name === "origin")
+	const canCheckUpdate = storeId !== "" && hasOriginRemote
 	// 只要本地与 store 存在差异（本地有未提交/未发布改动，或 store 领先本地）就展示：
 	// 用户可以随时用 store 的版本覆盖回本地。store 尚未初始化时没有内容可拉取，不展示。
 	const canReinstall = storeId !== "" && !!state.store_initialized && !state.in_sync
@@ -262,15 +318,20 @@ const GitStateActions: FC<GitStateActionsProps> = ({ entity, item, onReload }) =
 				</span>
 			</Popover>
 
-			{!!storeURL && (
-				<Tooltip title={storeURL}>
-					<Button
-						size="small"
-						type="text"
-						icon={<LinkOutlined />}
-						onClick={() => window.open(storeURL, "_blank")}
-					/>
-				</Tooltip>
+			{/* 远程仓库：store 裸仓库上配置的 remote（发布到远程时写入，不落库），可能多个。 */}
+			{remotes.length > 0 && (
+				<Popover
+					trigger="click"
+					placement="bottomLeft"
+					title={zh ? "远程仓库" : "Remotes"}
+					content={remotesContent}
+				>
+					<span style={{ cursor: "pointer" }}>
+						<Tag color="geekblue" icon={<LinkOutlined />} style={{ marginInlineEnd: 0 }}>
+							{remotes.length}
+						</Tag>
+					</span>
+				</Popover>
 			)}
 
 			{/* 查看本地变化：仅在本地仓库存在且有变化（未提交改动 / 已提交未发布）时展示。 */}
