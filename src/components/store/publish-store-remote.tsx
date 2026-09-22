@@ -10,14 +10,16 @@ import { Alert, Button, Form, Input, Space, Spin, Tag, Tooltip, Typography } fro
 import { FC, useEffect, useState } from "react";
 
 /**
- * 「发布到远程」抽屉：把 store 裸仓库的地址配置成 git remote（github / gitee ...）。
+ * 「发布到远程」抽屉：把 store 裸仓库的地址配置成 git remote（github / gitee ...）并把
+ * store 当前分支 push 上去。
  *
  * store 表已删除 url 列，目标地址保存在 store 裸仓库的 git remote 配置里，所以本组件：
  *   - 读出 store 详情，列出仓库当前已配置的所有 remote（可点击回填、便于再次发布）；
- *   - 提交后把新 remote 追加进列表，并按后端返回的 remote_added 如实提示
- *     （新增 / 已存在跳过添加；真正的 push 还没实现）。
+ *   - 提交成功后用后端返回的 remote 列表刷新展示，并按 published / up_to_date 如实提示
+ *     （已推送 / 远端已是最新）。
  *
- * 支持配置多个远端（一次发布到 github + gitee）：同一个地址重复提交会被识别为已存在。
+ * 支持配置多个远端（一次发布到 github + gitee）：同一个地址重复提交会被识别为已存在，
+ * 但仍会执行 push（「组件改完再发布一次」正是主路径）。
  *
  * 通过 `invoke.publishStore.open({ store_id })` 打开（注册见 ./index.ts），
  * 抽屉以 `footer: null` 打开，因此按钮由本组件自己渲染。
@@ -115,13 +117,13 @@ const PublishStoreRemote: FC<PublishStoreRemoteProps> = ({ store_id, onOk, onCan
 			const resp = await publishStoreRemoteApi(store_id, values.url);
 			// 后端返回写入后的完整 remote 列表，直接用它刷新展示。
 			setDetail((prev) => (prev ? { ...prev, remotes: resp.remotes ?? prev.remotes } : prev));
-			if (resp.published) {
-				message.success(`Published to ${resp.url}`);
-			} else if (resp.remote_added) {
-				// 只写了 remote 配置：如实告知，避免误以为已经推送到 github/gitee。
-				message.warning(`Remote "${resp.remote}" added. Pushing to github/gitee is not implemented yet.`);
+			if (!resp.published) {
+				// 兼容性兜底：push 失败时后端会返回错误响应，正常不会走到这里。
+				message.warning(`Remote "${resp.remote}" configured, but nothing was published.`);
+			} else if (resp.up_to_date) {
+				message.info(`Remote "${resp.remote}" is already up to date on branch ${resp.branch}.`);
 			} else {
-				message.warning(`Remote "${resp.remote}" already configured; skipping add. Pushing is not implemented yet.`);
+				message.success(`Pushed branch ${resp.branch} to ${resp.url}`);
 			}
 			onOk?.(resp);
 			close?.();
@@ -139,7 +141,7 @@ const PublishStoreRemote: FC<PublishStoreRemoteProps> = ({ store_id, onOk, onCan
 				showIcon
 				style={{ marginBottom: 16 }}
 				message="Publish store to remote"
-				description="The url below is added as a git remote of the store repository (a bare repo). Pushing the store to GitHub/Gitee is not implemented yet."
+				description="The url below is added as a git remote of the store repository (a bare repo), then the store's current branch is force-pushed to it. Embed credentials in the url (https://<user>:<token>@host/owner/repo.git) when the remote requires authentication."
 			/>
 
 			<Form form={form} layout="vertical">

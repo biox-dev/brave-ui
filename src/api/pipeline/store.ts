@@ -10,7 +10,8 @@ import type { GitRemote } from "./git";
  *
  * store 表已删除 url 列：目标地址保存在 store 裸仓库的 git remote 配置里，
  * 因此详情接口通过 `remotes` 返回仓库当前配置的所有 remote。
- * 真正的 push 还没实现，响应里的 `published` 恒为 false。
+ * `POST /store/publish-remote` 会把 url 写成 remote 并把 store 当前分支 push 到该远端，
+ * 响应里的 `published` / `pushed` 如实反映推送结果。
  */
 
 /** `store.publish_urls` 里的一条：同一仓库的 SSH / HTTPS 两种地址。 */
@@ -61,10 +62,16 @@ export interface PublishStoreRemoteResponse {
 	remote: string;
 	/** 是否为本次新增的 remote；false 表示该地址此前已配置、本次跳过添加。 */
 	remote_added: boolean;
+	/** 本次推送的分支名（store 裸仓库当前分支）。 */
+	branch: string;
 	/** 写入后 store 裸仓库上配置的全部 remote。 */
 	remotes: GitRemote[];
-	/** 是否真的完成了远程发布；当前阶段恒为 false（只配置 remote，未 push）。 */
+	/** 是否完成了远程发布（push 成功；已是最新也算成功）。 */
 	published: boolean;
+	/** 本次是否真的推送了新提交；false 表示远端已是最新。 */
+	pushed: boolean;
+	/** 远端是否已是最新（pushed 的反面），用于提示文案。 */
+	up_to_date: boolean;
 }
 
 /** 发布到远程：把 storeId 对应 store 的 url 写成其裸仓库的 git remote（github / gitee ...）。 */
