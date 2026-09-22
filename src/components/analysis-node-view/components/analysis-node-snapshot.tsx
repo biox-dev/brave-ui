@@ -60,13 +60,15 @@ const AnalysisNodeSnapshot: FC<any> = ({ analysis_id }) => {
             analysisStarted: (args: any) => {
                 console.log("AnalysisNodeSnapshot analysisStarted", args, data)
                 loadData()
-            }, dagStarted: (args: any) => {
-                console.log("AnalysisNodeSnapshot dagStarted", args, data)
-                loadData()
-            }, dagDone: (args: any) => {
-                console.log("AnalysisNodeSnapshot dagDone", args, data)
-                loadData()
-            }
+            },
+            
+            // dagStarted: (args: any) => {
+            //     console.log("AnalysisNodeSnapshot dagStarted", args, data)
+            //     loadData()
+            // }, dagDone: (args: any) => {
+            //     console.log("AnalysisNodeSnapshot dagDone", args, data)
+            //     loadData()
+            // }
         }
     }, [analysis_id])
 

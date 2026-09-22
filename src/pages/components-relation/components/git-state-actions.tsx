@@ -1,42 +1,20 @@
 import { Button, Input, Popconfirm, Popover, Space, Tag, Tooltip } from "antd"
 import { FC, useState, type ReactNode } from "react"
-import { InfoCircleOutlined, LinkOutlined, ReloadOutlined, SaveOutlined, SyncOutlined } from "@ant-design/icons"
+import { DiffOutlined, InfoCircleOutlined, LinkOutlined, ReloadOutlined, SaveOutlined, SyncOutlined } from "@ant-design/icons"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
 import { useI18n } from "@/hooks/useI18n"
 import { http } from "@/api/client/http"
 import { saveScriptFilesApi, saveWorkflowFilesApi } from "@/api/pipeline/export-files"
+import type { GitSyncState } from "@/api/pipeline/git"
+import { invoke } from "@/core/ui-system/invokeV2"
 
 /**
- * 与后端 `utils.GitSyncState` 一一对应，来自 `GetScriptById` / `GetWorkflowById`
- * 返回的 `git_state`（由磁盘上的 git 元数据实时推导，不落库）。
+ * `git_state` 与后端 `utils.GitSyncState` 一一对应（类型定义见 `@/api/pipeline/git`），
+ * 来自 `GetScriptById` / `GetWorkflowById` 返回的 `git_state`
+ * （由磁盘上的 git 元数据实时推导，不落库）。
+ *
+ * 「查看本地变化」按钮调用的 `git-diff` 接口也复用同一套状态位。
  */
-export interface GitSyncState {
-	/** 本地脚本/工作流目录（工作区仓库）。 */
-	local_dir?: string
-	/** 发布目标（store 裸仓库）目录。 */
-	store_dir?: string
-	/** 本地目录是否已初始化为 git 仓库。 */
-	local_initialized: boolean
-	/** store 是否已初始化（即是否发布过）。 */
-	store_initialized: boolean
-	/** 本地 HEAD commit（尚无提交时为空）。 */
-	local_commit?: string
-	/** store HEAD commit（未发布时为空）。 */
-	store_commit?: string
-	/** 本地工作区存在未提交改动（含未跟踪文件）。 */
-	local_dirty: boolean
-	/** 本地 HEAD 领先 store：有已提交但未发布的改动。 */
-	local_ahead: boolean
-	/** store 领先本地：远端有本地没有的提交（需要 install 同步）。 */
-	store_ahead: boolean
-	/** 本地有未发布改动 = local_dirty || local_ahead。 */
-	has_local_changes: boolean
-	/** store 有本地未同步的提交 = store_ahead。 */
-	has_store_changes: boolean
-	/** 本地干净且两侧 commit 一致。 */
-	in_sync: boolean
-}
-
 type StoreEntity = "script" | "workflow"
 
 interface GitStateActionsProps {
@@ -107,6 +85,14 @@ const GitStateActions: FC<GitStateActionsProps> = ({ entity, item, onReload }) =
 	 * 提交过后工作区变干净且仓库已初始化，该入口自动隐藏（剩余差异交给发布）。
 	 */
 	const canGenerateFiles = componentId !== "" && (!state?.local_initialized || !!state?.local_dirty)
+
+	/**
+	 * 「查看本地变化」入口的可见性：本地目录已是 git 仓库、且存在本地变化
+	 * （`local_dirty` 未提交改动 或 `local_ahead` 已提交未发布）时展示。
+	 *
+	 * 目录还不是 git 仓库（`!local_initialized`）时没有可对比的基线，隐藏该入口。
+	 */
+	const canViewDiff = componentId !== "" && !!state?.local_initialized && !!state?.local_dirty
 
 	if (!state) {
 		return null
@@ -243,8 +229,11 @@ const GitStateActions: FC<GitStateActionsProps> = ({ entity, item, onReload }) =
 
 	// redownload 需要 store 目录已存在（未发布时无目录可拉取）。
 	const canCheckUpdate = storeId !== "" && storeURL !== ""
-	// store 领先本地时才需要从 store 重新安装。
-	const canReinstall = storeId !== "" && !!state.has_store_changes
+	// 只要本地与 store 存在差异（本地有未提交/未发布改动，或 store 领先本地）就展示：
+	// 用户可以随时用 store 的版本覆盖回本地。store 尚未初始化时没有内容可拉取，不展示。
+	const canReinstall = storeId !== "" && !!state.store_initialized && !state.in_sync
+	// 本地存在会被覆盖的改动（未提交改动 / 已提交未发布）时，在确认框里额外提醒。
+	const reinstallOverwritesLocal = !!state.has_local_changes
 
 	return (
 		<Space size={4} wrap>
@@ -282,6 +271,29 @@ const GitStateActions: FC<GitStateActionsProps> = ({ entity, item, onReload }) =
 						onClick={() => window.open(storeURL, "_blank")}
 					/>
 				</Tooltip>
+			)}
+
+			{/* 查看本地变化：仅在本地仓库存在且有变化（未提交改动 / 已提交未发布）时展示。 */}
+			{canViewDiff && (
+				<Button
+					size="small"
+					color="geekblue"
+					variant="outlined"
+					icon={<DiffOutlined />}
+					disabled={checkingUpdate || reinstalling || committing}
+					onClick={() =>
+						invoke.gitDiff.open(
+							{ entity, id: componentId },
+							{
+								footer: null,
+								width: 960,
+								title: `${zh ? "本地变化" : "Local changes"} · ${entity === "script" ? (zh ? "脚本" : "script") : zh ? "工作流" : "workflow"}`,
+							},
+						)
+					}
+				>
+					{zh ? "查看变化" : "View Changes"}
+				</Button>
 			)}
 
 			{/* 生成导出文件并提交：仅在本地代码有变化（未提交改动 / 本地目录还没成为 git 仓库）时展示。 */}
@@ -365,9 +377,20 @@ const GitStateActions: FC<GitStateActionsProps> = ({ entity, item, onReload }) =
 				<Popconfirm
 					title={zh ? "从 store 重新安装？" : "ReInstall from store?"}
 					description={
-						zh
-							? "将用 store 中的版本覆盖本地目录，并同步组件记录。"
-							: "The local directory will be overwritten by the store version and the component record synced."
+						<div style={{ maxWidth: 320 }}>
+							<div>
+								{zh
+									? "将用 store 中的版本覆盖本地目录，并同步组件记录。"
+									: "The local directory will be overwritten by the store version and the component record synced."}
+							</div>
+							{reinstallOverwritesLocal && (
+								<div style={{ marginTop: 4, color: "#d4380d" }}>
+									{zh
+										? `本地存在${state.local_dirty && state.local_ahead ? "未提交改动与未发布的提交" : state.local_dirty ? "未提交改动" : "已提交但未发布的提交"}，会被丢弃。`
+										: `Local ${state.local_dirty && state.local_ahead ? "uncommitted changes and unpublished commits" : state.local_dirty ? "uncommitted changes" : "commits not yet published"} will be discarded.`}
+								</div>
+							)}
+						</div>
 					}
 					okButtonProps={{ loading: reinstalling, disabled: checkingUpdate }}
 					cancelButtonProps={{ disabled: reinstalling }}

@@ -89,15 +89,16 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
             analysisDone: () => {
                 loadSampleDetail(analysis_node_id);
             },
-            dagDone: () => {
-                loadSampleDetail(analysis_node_id);
+            // dagDone: () => {
+            //     loadSampleDetail(analysis_node_id);
 
-            },
+            // },
             analysisStarted: () => {
                 loadSampleDetail(analysis_node_id);
-            }, analysisPulled: () => {
-                loadSampleDetail(analysis_node_id);
             }
+            // , analysisPulled: () => {
+            //     loadSampleDetail(analysis_node_id);
+            // }
         };
     }, [analysis_node_id]);
 
