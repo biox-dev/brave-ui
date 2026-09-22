@@ -8,6 +8,9 @@ const storeLoaders = {
     storePages: () => import("./components/store-pages"),
     installComponents: () => import('./install-components'),
     installComponentsV2: () => import('./install-components-v2'),
+    PublishToolsV2: () => import('./publish-tools-v2'),
+    publishStore: () => import("./publish-store-remote"),
+
 
 };
 // ;
