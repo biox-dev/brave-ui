@@ -80,6 +80,8 @@ const DatasetProjectPage = lazy(() => import("@/components/layout-sider/data-dat
 const DatasetFilePage = lazy(() => import("@/components/layout-sider/data-dataset-page/dataset-file-page"))
 const DatasetFileDetailPage = lazy(() => import("@/pages/page-route/dataset-file-detail"))
 const AssayProjectPage = lazy(() => import("@/components/layout-sider/data-dataset-page/assay-project-page"))
+const SubjectProjectPage = lazy(() => import("@/components/layout-sider/data-dataset-page/subject-project-page"))
+const SampleProjectPage = lazy(() => import("@/components/layout-sider/data-dataset-page/sample-project-page"))
 const ContainerImagePage = lazy(() => import("@/components/container-manager/container-image-page"))
 const ContainerTemplatePage = lazy(() => import("@/components/container-manager/container-template-page"))
 const ContainerTemplateSpecPage = lazy(() => import("@/components/container-manager/container-template-spec-page"))
@@ -155,6 +157,12 @@ if (appType == "index") {
         }, {
             path: "assay-project",
             element: <AssayProjectPage />
+        }, {
+            path: "subject-project",
+            element: <SubjectProjectPage />
+        }, {
+            path: "sample-project",
+            element: <SampleProjectPage />
         }, {
             path: "container-image",
             element: <ContainerImagePage />

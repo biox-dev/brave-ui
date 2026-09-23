@@ -41,7 +41,7 @@ export interface DatasetFileItem {
 	role: string;
 }
 
-export interface AssayItem {
+export interface AssayDetailItem {
 	id: string;
 	sample_id: string;
 	assay_type: string;
@@ -50,8 +50,63 @@ export interface AssayItem {
 	metadata: string;
 	created_at: string;
 	updated_at: string;
+}
+
+// AssayItem is the read model of the paged assay API: it carries the owning
+// dataset on top of the plain assay entity, plus the owning sample/subject
+// labels joined in by the backend so the table needs no extra lookup.
+export interface AssayItem extends AssayDetailItem {
 	dataset_id: string;
 	dataset_name: string;
+	sample_name: string;
+	// subject_name is the owning Subject's business name (go_subject.subject_name).
+	subject_name: string;
+}
+
+// SubjectItem is a donor / individual (go_subject). subject_name is the business
+// name (e.g. "Mouse-001"), id is the int64 primary key.
+export interface SubjectItem {
+	id: string;
+	subject_name: string;
+	species: string;
+	strain: string;
+	sex: string;
+	age: string;
+	metadata: string;
+	created_at: string;
+	updated_at: string;
+}
+
+// SampleItem is one biological sample taken from a Subject (go_sample).
+// sample_id is the business number; subject_id is the owning subject's PK.
+export interface SampleItem {
+	id: string;
+	sample_id: string;
+	sample_name: string;
+	subject_id: string;
+	tissue: string;
+	cell_type: string;
+	collection_time?: string | null;
+	metadata: string;
+	description: string;
+	created_at: string;
+	updated_at: string;
+}
+
+// SampleWithSubjectItem is what /data/sample/page returns: a Sample joined with
+// its Subject's business name/species so the picker can show them directly.
+// `subject_id` (inherited) stays the owning subject's PK.
+export interface SampleWithSubjectItem extends SampleItem {
+	subject_name: string;
+	species: string;
+}
+
+// DatasetAssayItem binds an Assay into a Dataset (go_dataset_assay).
+export interface DatasetAssayItem {
+	id: string;
+	dataset_id: string;
+	assay_id: string;
+	created_at: string;
 }
 
 export interface DatasetPageQuery {
@@ -90,6 +145,69 @@ export interface AssayPageQuery {
 	dataset_name?: string;
 }
 
+export interface SubjectPageQuery {
+	subject_name?: string;
+	species?: string;
+	strain?: string;
+	sex?: string;
+}
+
+export interface SamplePageQuery {
+	sample_id?: string;
+	sample_name?: string;
+	subject_id?: string;
+	tissue?: string;
+	cell_type?: string;
+}
+
+// SaveSubjectRequest payload for /data/subject/create and /data/subject/update.
+// subject_name is the unique business name (e.g. "Mouse-001"); the PK is generated
+// by the backend. Fields left undefined are omitted from the request body.
+export interface SaveSubjectRequest {
+	subject_name: string;
+	species?: string;
+	strain?: string;
+	sex?: string;
+	age?: string;
+	metadata?: string;
+}
+
+// SaveSampleRequest payload for /data/sample/create and /data/sample/update.
+// subject_id is the owning subject's PK (sent as a string, backend int64).
+export interface SaveSampleRequest {
+	sample_id: string;
+	sample_name?: string;
+	subject_id: string;
+	tissue?: string;
+	cell_type?: string;
+	collection_time?: string | null;
+	metadata?: string;
+	description?: string;
+}
+
+// SaveAssayRequest payload for /data/assay/create and /data/assay/update.
+export interface SaveAssayRequest {
+	sample_id: string;
+	assay_type?: string;
+	platform?: string;
+	library_id?: string;
+	metadata?: string;
+}
+
+// CreateFileRequest payload for /data/file/create. assay_id binds the file to its
+// owning assay (a file belongs to at most one assay); omit it for files that are
+// only attached to a dataset.
+export interface CreateFileRequest {
+	file_id?: string;
+	file_name?: string;
+	path: string;
+	format?: string;
+	assay_id?: string;
+	role?: string;
+	analysis_node_id?: string;
+	description?: string;
+}
+
 export interface AddFileToDatasetRequest {
 	dataset_id: string;
 	path: string;
@@ -109,10 +227,15 @@ export interface AddFileToDatasetResponse {
 
 export interface UpdateFileRequest {
 	id: string;
+	// path re-points the record at another physical file. Omit it to keep the
+	// stored path (the backend only writes non-empty values).
+	path?: string;
 	file_name?: string;
 	description?: string;
 	format?: string;
 	storage?: string;
+	assay_id?: string;
+	role?: string;
 }
 
 export interface DeleteFileRequest {
@@ -171,6 +294,122 @@ export const pageAssayByProjectApi = (payload: PageRequest<AssayPageQuery>) => {
 	return http.post<PageResponse<AssayItem>>("/data/assay/list-by-project-page", payload);
 };
 
+// ---------------------------------------------------------------------------
+// Assay create / update / read
+// ---------------------------------------------------------------------------
+
+export const getAssayApi = (id: string) => {
+	return http.get<AssayDetailItem>(`/data/assay/get?id=${encodeURIComponent(id)}`);
+};
+
+export const createAssayApi = (payload: SaveAssayRequest) => {
+	return http.post<AssayDetailItem>("/data/assay/create", payload);
+};
+
+export const updateAssayApi = (payload: SaveAssayRequest & { id: string }) => {
+	return http.post<{ message: string }>("/data/assay/update", payload);
+};
+
+// Deleting an assay also removes the files it owns and its dataset binding.
+export const deleteAssayApi = (payload: { id: string }) => {
+	return http.post<{ message: string }>("/data/assay/delete", payload);
+};
+
+// ---------------------------------------------------------------------------
+// Assay files (go_file.assay_id: a file is owned by at most one assay)
+// ---------------------------------------------------------------------------
+
+export const listFileByAssayApi = (assayId: string) => {
+	return http.get<DataFileItem[]>(
+		`/data/file/list-by-assay?assay_id=${encodeURIComponent(assayId)}`
+	);
+};
+
+export const createFileApi = (payload: CreateFileRequest) => {
+	return http.post<DataFileItem>("/data/file/create", payload);
+};
+
+// ---------------------------------------------------------------------------
+// DatasetAssay (Assay -> Dataset binding)
+// ---------------------------------------------------------------------------
+
+export const createDatasetAssayApi = (payload: { dataset_id: string; assay_id: string }) => {
+	return http.post<DatasetAssayItem>("/data/dataset-assay/create", payload);
+};
+
+export const updateDatasetAssayApi = (payload: {
+	id: string;
+	dataset_id: string;
+	assay_id: string;
+}) => {
+	return http.post<{ message: string }>("/data/dataset-assay/update", payload);
+};
+
+// Returns null when the assay is not bound to any dataset yet.
+export const getDatasetAssayByAssayApi = (assayId: string) => {
+	return http.get<DatasetAssayItem | null>(
+		`/data/dataset-assay/get-by-assay?assay_id=${encodeURIComponent(assayId)}`
+	);
+};
+
+// ---------------------------------------------------------------------------
+// Subject
+// ---------------------------------------------------------------------------
+
+export const pageSubjectApi = (payload: PageRequest<SubjectPageQuery>) => {
+	return http.post<PageResponse<SubjectItem>>("/data/subject/page", payload);
+};
+
+export const listSubjectApi = () => {
+	return http.get<SubjectItem[]>("/data/subject/list");
+};
+
+export const getSubjectApi = (id: string) => {
+	return http.get<SubjectItem>(`/data/subject/get?id=${encodeURIComponent(id)}`);
+};
+
+export const createSubjectApi = (payload: SaveSubjectRequest) => {
+	return http.post<SubjectItem>("/data/subject/create", payload);
+};
+
+export const updateSubjectApi = (payload: SaveSubjectRequest & { id: string }) => {
+	return http.post<SubjectItem>("/data/subject/update", payload);
+};
+
+// The backend returns 409 while the subject still owns samples.
+export const deleteSubjectApi = (payload: { id: string }) => {
+	return http.post<{ message: string }>("/data/subject/delete", payload);
+};
+
+// ---------------------------------------------------------------------------
+// Sample
+// ---------------------------------------------------------------------------
+
+export const pageSampleApi = (payload: PageRequest<SamplePageQuery>) => {
+	return http.post<PageResponse<SampleWithSubjectItem>>("/data/sample/page", payload);
+};
+
+export const listSampleApi = () => {
+	return http.get<SampleItem[]>("/data/sample/list");
+};
+
+export const getSampleApi = (id: string) => {
+	return http.get<SampleItem>(`/data/sample/get?id=${encodeURIComponent(id)}`);
+};
+
+export const createSampleApi = (payload: SaveSampleRequest) => {
+	return http.post<SampleItem>("/data/sample/create", payload);
+};
+
+export const updateSampleApi = (payload: SaveSampleRequest & { id: string }) => {
+	return http.post<SampleItem>("/data/sample/update", payload);
+};
+
+// The backend returns 409 while the sample still owns assays.
+export const deleteSampleApi = (payload: { id: string }) => {
+	return http.post<{ message: string }>("/data/sample/delete", payload);
+};
+
 export const addFileToDatasetApi = (payload: AddFileToDatasetRequest) => {
 	return http.post<AddFileToDatasetResponse>("/data/dataset-file/add-file", payload);
 };
@@ -199,6 +438,10 @@ export interface DataFileItem {
 	file_name: string;
 	path: string;
 	format: string;
+	// assay_id is the owning assay's PK; empty when the file is not owned by any
+	// assay (dataset-only attachment).
+	assay_id: string;
+	role: string;
 	size: number;
 	md5: string;
 	storage: string;

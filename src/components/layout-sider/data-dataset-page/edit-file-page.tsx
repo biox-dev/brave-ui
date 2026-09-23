@@ -19,6 +19,7 @@ const EditFilePage = ({ file, onOk, onCancel, close }: EditFilePageProps) => {
   useEffect(() => {
     if (file) {
       form.setFieldsValue({
+        path: file.path,
         file_name: file.file_name,
         description: file.description,
         format: file.format,
@@ -65,8 +66,13 @@ const EditFilePage = ({ file, onOk, onCancel, close }: EditFilePageProps) => {
       <Form.Item label="File ID">
         <Input value={file.file_id} disabled />
       </Form.Item>
-      <Form.Item label="Path">
-        <Input value={file.path} disabled />
+      <Form.Item
+        name="path"
+        label="Path"
+        rules={[{ required: true, message: "Please input the absolute file path" }]}
+        tooltip="Absolute path on the storage server. Editing it re-points this record at another file."
+      >
+        <Input placeholder="e.g. /data2/brave_analysis_workspace/data/<project_id>/sample1.fastq.gz" />
       </Form.Item>
       <Form.Item name="file_name" label="File Name" rules={[{ required: true, message: "Please input file name" }]}>
         <Input placeholder="Enter file name" />

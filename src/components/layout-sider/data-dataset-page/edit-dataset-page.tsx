@@ -7,7 +7,8 @@ import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 export interface EditDatasetPageProps {
   /** When provided the form updates the dataset, otherwise it creates a new one. */
   dataset?: DatasetItem;
-  onOk?: (result: unknown) => void;
+  /** Receives the created/updated dataset (not the raw HTTP response). */
+  onOk?: (result: DatasetItem) => void;
   onCancel?: () => void;
   close?: () => void;
 }
@@ -43,12 +44,21 @@ const EditDatasetPage = ({ dataset, onOk, onCancel, close }: EditDatasetPageProp
         metadata: trimOrUndefined(values.metadata),
       };
 
-      const result = isEdit
-        ? await updateDatasetApi({ id: dataset!.id, ...payload })
-        : await createDatasetApi(payload);
-
-      message.success(isEdit ? "Dataset updated successfully" : "Dataset created successfully");
-      onOk?.(result);
+      if (isEdit) {
+        await updateDatasetApi({ id: dataset!.id, ...payload });
+        message.success("Dataset updated successfully");
+        // The update endpoint only returns a message, so echo the merged item back.
+        onOk?.({
+          ...dataset!,
+          dataset_name: payload.dataset_name,
+          description: payload.description ?? "",
+          metadata: payload.metadata ?? "",
+        });
+      } else {
+        const created = await createDatasetApi(payload);
+        message.success("Dataset created successfully");
+        onOk?.(created.data);
+      }
     } catch (error: any) {
       if (error?.errorFields) return; // validation error
       message.error(isEdit ? "Failed to update dataset" : "Failed to create dataset");

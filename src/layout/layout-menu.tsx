@@ -103,6 +103,30 @@ export const layoutMenuTree: LayoutMenuItem[] = [
     },
   },
   {
+    key: '/subject-project',
+    icon: 'files',
+    label: {
+      zh_CN: '实验对象',
+      en_US: 'Subjects',
+    },
+  },
+  {
+    key: '/sample-project',
+    icon: 'files',
+    label: {
+      zh_CN: '样本',
+      en_US: 'Samples',
+    },
+  },
+  {
+    key: '/assay-project',
+    icon: 'files',
+    label: {
+      zh_CN: '实验/建库',
+      en_US: 'Assays',
+    },
+  },
+  {
     key: '/app-session',
     icon: 'container',
     label: {
