@@ -1,13 +1,13 @@
-// src/components/form-components/components/collected/collected-group-select-sample-button.tsx
+// src/components/form-components/components/collected/collected-group-select-assay-button.tsx
 // Collected table picker with a group shortcut button, group name and colour for
 // every collected column.
 import { Flex, Form, Input, Select } from "antd";
 import { FC, useEffect, useState } from "react";
 import { ColorPickerComp } from "../shared/color-picker";
 import { GroupSelectButton } from "../shared/group-select-button";
-import { GroupSelectSample } from "../shared/group-select-sample";
+import { GroupSelectAssay } from "../shared/group-select-assay";
 
-export const CollectedGroupSelectSampleButton: FC<any> = ({
+export const CollectedGroupSelectAssayButton: FC<any> = ({
   label,
   modes = [],
   projParameter,
@@ -112,11 +112,11 @@ export const CollectedGroupSelectSampleButton: FC<any> = ({
         columns.map((item: any, index: any) => (
           <div key={index}>
             <Form.Item label={`${item} Columns`} name={[name, item]} rules={rules}>
-              <GroupSelectSample
+              <GroupSelectAssay
                 mode={modes[index] ? "multiple" : undefined}
                 sampleGrouped={sampleGrouped}
                 sampleGroup={options}
-              ></GroupSelectSample>
+              ></GroupSelectAssay>
             </Form.Item>
             {modes[index] != 0 && (
               <Flex gap="small">
@@ -141,4 +141,4 @@ export const CollectedGroupSelectSampleButton: FC<any> = ({
   );
 };
 
-export default CollectedGroupSelectSampleButton;
+export default CollectedGroupSelectAssayButton;

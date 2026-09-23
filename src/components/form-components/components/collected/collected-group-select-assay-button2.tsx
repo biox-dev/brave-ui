@@ -1,13 +1,13 @@
-// src/components/form-components/components/collected/collected-group-select-sample-button2.tsx
+// src/components/form-components/components/collected/collected-group-select-assay-button2.tsx
 // Collected column picker bound to a specific `analysis_result_id` (instead of a
 // user-chosen file): the columns are read from `data[analysisResultId]`.
 import { Flex, Form, Input } from "antd";
 import { FC, useEffect, useState } from "react";
 import { ColorPickerComp } from "../shared/color-picker";
 import { GroupSelectButton } from "../shared/group-select-button";
-import { GroupSelectSample } from "../shared/group-select-sample";
+import { GroupSelectAssay } from "../shared/group-select-assay";
 
-export const CollectedGroupSelectSampleButton2: FC<any> = ({
+export const CollectedGroupSelectAssayButton2: FC<any> = ({
   label,
   name,
   rules,
@@ -92,11 +92,11 @@ export const CollectedGroupSelectSampleButton2: FC<any> = ({
   return (
     <>
       <Form.Item label={`${label} Columns`} name={[name, "columns"]} rules={rules}>
-        <GroupSelectSample
+        <GroupSelectAssay
           sampleGrouped={sampleGrouped}
           sampleGroup={options}
           watch={[name, "group"]}
-        ></GroupSelectSample>
+        ></GroupSelectAssay>
       </Form.Item>
       <Flex gap="small">
         <Form.Item label={label} name={[name, "group"]} noStyle>
@@ -113,4 +113,4 @@ export const CollectedGroupSelectSampleButton2: FC<any> = ({
   );
 };
 
-export default CollectedGroupSelectSampleButton2;
+export default CollectedGroupSelectAssayButton2;

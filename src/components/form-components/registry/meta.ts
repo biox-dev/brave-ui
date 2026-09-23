@@ -37,8 +37,8 @@ const SELECT_GROUPS = [
   "advanced",
 ] as const;
 
-/** Sample (or analysis-result) picker that feeds a downstream analysis. */
-const SAMPLE_GROUPS = [
+/** Assay (or analysis-result) picker that feeds a downstream analysis. */
+const ASSAY_GROUPS = [
   "identity",
   "io",
   "datasource",
@@ -92,9 +92,9 @@ const APPEND_BASIC_FIELDS = [
   "BaseSelect",
 ] as const;
 
-/** Children accepted inside a `NestSelectSampleV2` row. */
+/** Children accepted inside a `NestSelectAssayV2` row. */
 const APPEND_V2_FIELDS = [
-  "CollectedSampleSelectV2",
+  "CollectedAssaySelectV2",
   ...APPEND_BASIC_FIELDS,
 ] as const;
 
@@ -279,33 +279,33 @@ export const COMPONENT_META: readonly ComponentMeta[] = [
     displayFields: ["tooltip", "initialValue"],
   },
 
-  // ----------------------------------------------------------------- sample
+  // ------------------------------------------------------------------ assay
   {
-    type: "SelectSample",
-    label: "SelectSample",
-    category: "sample",
-    description: "Sample picker, optionally grouped by a metadata field.",
-    groups: SAMPLE_GROUPS,
+    type: "SelectAssay",
+    label: "SelectAssay",
+    category: "assay",
+    description: "Assay picker, optionally grouped by a metadata field.",
+    groups: ASSAY_GROUPS,
     defaults: { label: "" },
     dataFields: ["dataKey", "filter", "group", "groupField"],
     displayFields: ["tooltip"],
   },
   {
-    type: "GroupSelectSampleButton",
-    label: "GroupSelectSampleButton",
-    category: "sample",
-    description: "Sample picker plus group shortcut buttons and a group name.",
-    groups: SAMPLE_GROUPS,
+    type: "GroupSelectAssayButton",
+    label: "GroupSelectAssayButton",
+    category: "assay",
+    description: "Assay picker plus group shortcut buttons and a group name.",
+    groups: ASSAY_GROUPS,
     defaults: { label: "" },
     dataFields: ["filter", "group", "groupField"],
     displayFields: ["tooltip"],
   },
   {
-    type: "NestSelectSample",
-    label: "NestSelectSample",
-    category: "sample",
+    type: "NestSelectAssay",
+    label: "NestSelectAssay",
+    category: "assay",
     description:
-      "Repeatable (`Form.List`) sample picker. Sub-fields are declared in `append`.",
+      "Repeatable (`Form.List`) assay picker. Sub-fields are declared in `append`.",
     groups: NEST_GROUPS,
     defaults: { label: "" },
     dataFields: ["filter", "group", "groupField"],
@@ -313,11 +313,11 @@ export const COMPONENT_META: readonly ComponentMeta[] = [
     displayFields: ["tooltip"],
   },
   {
-    type: "NestSelectSampleV2",
-    label: "NestSelectSampleV2",
-    category: "sample",
+    type: "NestSelectAssayV2",
+    label: "NestSelectAssayV2",
+    category: "assay",
     description:
-      "Repeatable sample picker whose rows hold other collected selectors.",
+      "Repeatable assay picker whose rows hold other collected selectors.",
     groups: NEST_GROUPS,
     defaults: { label: "" },
     appendTypes: APPEND_V2_FIELDS,
@@ -326,8 +326,8 @@ export const COMPONENT_META: readonly ComponentMeta[] = [
 
   // -------------------------------------------------------------- collected
   {
-    type: "CollectedSampleSelect",
-    label: "CollectedSampleSelect",
+    type: "CollectedAssaySelect",
+    label: "CollectedAssaySelect",
     category: "collected",
     description:
       "Table picker over upstream results, projecting one form field per collected column.",
@@ -339,11 +339,11 @@ export const COMPONENT_META: readonly ComponentMeta[] = [
     displayFields: ["tooltip"],
   },
   {
-    type: "CollectedSampleSelectV2",
-    label: "CollectedSampleSelectV2",
+    type: "CollectedAssaySelectV2",
+    label: "CollectedAssaySelectV2",
     category: "collected",
     description:
-      "Like CollectedSampleSelect but reading `abundances_meta` and hiding `node_name`.",
+      "Like CollectedAssaySelect but reading `abundances_meta` and hiding `node_name`.",
     groups: COLLECTED_GROUPS,
     defaults: { label: "" },
     dataFields: ["filter", "group", "groupField"],
@@ -362,10 +362,10 @@ export const COMPONENT_META: readonly ComponentMeta[] = [
     displayFields: ["tooltip"],
   },
   {
-    type: "NestCollectedSampleSelect",
-    label: "NestCollectedSampleSelect",
+    type: "NestCollectedAssaySelect",
+    label: "NestCollectedAssaySelect",
     category: "collected",
-    description: "Repeatable CollectedSampleSelect.",
+    description: "Repeatable CollectedAssaySelect.",
     groups: NEST_GROUPS,
     defaults: { label: "" },
     dataFields: ["filter", "group", "groupField"],
@@ -384,8 +384,8 @@ export const COMPONENT_META: readonly ComponentMeta[] = [
     displayFields: ["tooltip"],
   },
   {
-    type: "CollectedGroupSelectSampleButton",
-    label: "CollectedGroupSelectSampleButton",
+    type: "CollectedGroupSelectAssayButton",
+    label: "CollectedGroupSelectAssayButton",
     category: "collected",
     description:
       "Collected table picker with per-column group buttons + group name/colour.",
@@ -396,8 +396,8 @@ export const COMPONENT_META: readonly ComponentMeta[] = [
     displayFields: ["tooltip"],
   },
   {
-    type: "CollectedGroupSelectSampleButton2",
-    label: "CollectedGroupSelectSampleButton2",
+    type: "CollectedGroupSelectAssayButton2",
+    label: "CollectedGroupSelectAssayButton2",
     category: "collected",
     description: "Collected column picker bound to the analysis result id.",
     groups: COLLECTED_GROUPS,
@@ -464,7 +464,7 @@ export const COMPONENT_CATEGORY_LABELS: Record<
   basic: "Basic",
   layout: "Layout",
   select: "Select",
-  sample: "Sample",
+  assay: "Assay",
   collected: "Collected",
   params: "Params",
 };

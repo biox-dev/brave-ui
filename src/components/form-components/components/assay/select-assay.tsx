@@ -1,11 +1,11 @@
-// src/components/form-components/components/sample/select-sample.tsx
-// Sample picker. The value is written to `<name>.sample`; the sibling
+// src/components/form-components/components/assay/select-assay.tsx
+// Assay picker. The value is written to `<name>.assay`; the sibling
 // `<name>.group` field (if any) decides how the options are grouped.
 import { Form } from "antd";
 import { FC, useEffect, useState } from "react";
-import { GroupSelectSample } from "../shared/group-select-sample";
+import { GroupSelectAssay } from "../shared/group-select-assay";
 
-export const SelectSample: FC<any> = ({
+export const SelectAssay: FC<any> = ({
   label,
   mode,
   name: name_,
@@ -78,15 +78,15 @@ export const SelectSample: FC<any> = ({
   }, [data, groupField, customFilterValue]);
 
   return (
-    <Form.Item label={label} name={[name, "sample"]} rules={rules}>
-      <GroupSelectSample
+    <Form.Item label={label} name={[name, "assay"]} rules={rules}>
+      <GroupSelectAssay
         mode={mode}
         sampleGrouped={sampleGrouped}
         sampleGroup={options}
         watch={[name, "group"]}
-      ></GroupSelectSample>
+      ></GroupSelectAssay>
     </Form.Item>
   );
 };
 
-export default SelectSample;
+export default SelectAssay;

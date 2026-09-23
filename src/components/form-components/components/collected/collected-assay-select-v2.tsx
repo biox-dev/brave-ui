@@ -1,18 +1,14 @@
-// src/components/form-components/components/collected/collected-sample-select.tsx
-// Table picker over the results of upstream analyses. For every collected column
-// it projects one extra form field (`<name>.<column>`, plus `<column>_group`
-// when the matching `groups[i]` flag is set) and keeps `node_name` in sync with
-// the group names.
+// src/components/form-components/components/collected/collected-assay-select-v2.tsx
+// Like CollectedAssaySelect, but it reads the collected files from the
+// `abundances_meta` branch of the form and uses a flat (spread) name path.
 import { Form, Input, Select } from "antd";
 import { FC, useEffect, useState } from "react";
 import { useStoreForm } from "@/context/form/FormProvider";
-import { AppendFields } from "../append/append-fields";
 
-export const CollectedSampleSelect: FC<any> = ({
+export const CollectedAssaySelectV2: FC<any> = ({
   label,
   modes = [],
   columns,
-  append,
   groups,
   name: name_,
   columns_rules = [],
@@ -26,12 +22,7 @@ export const CollectedSampleSelect: FC<any> = ({
   const [options, setOptions] = useState<any>([]);
   const [collectFiles, setCollectFiles] = useState<any>([]);
   const { addColumns } = useStoreForm();
-  let name = name_;
-  if (name_ instanceof Array && name_.length > 1) {
-    name = name_[1];
-  } else {
-    name_ = [name_];
-  }
+  const name = name_;
 
   const form = Form.useFormInstance();
   const basePath = Array.isArray(name_) ? [...name_] : [name_];
@@ -47,7 +38,7 @@ export const CollectedSampleSelect: FC<any> = ({
 
   const groupField = Form.useWatch(group, form);
   const groupFormValues = Form.useWatch(basePath, form);
-  const selectCollectFile = Form.useWatch([...name_, "file"], form);
+  const selectCollectFile = Form.useWatch(["abundances_meta", ...name_, "file"], form);
 
   useEffect(() => {
     if (data && Array.isArray(data)) {
@@ -94,8 +85,6 @@ export const CollectedSampleSelect: FC<any> = ({
     }
   }, [data, selectCollectFile, groupField, customFilterValue]);
 
-  // `node_name` is derived from the selected group names, so downstream nodes can
-  // reference this selection by a stable name.
   useEffect(() => {
     if (!Array.isArray(columns) || columns.length === 0) return;
 
@@ -112,7 +101,7 @@ export const CollectedSampleSelect: FC<any> = ({
 
   return (
     <>
-      <Form.Item label={`${label} File`} name={[name, "file"]} rules={rules}>
+      <Form.Item label={`${label} File`} name={[...name, "file"]} rules={rules}>
         <Select options={collectFiles}></Select>
       </Form.Item>
 
@@ -126,7 +115,7 @@ export const CollectedSampleSelect: FC<any> = ({
           <div key={index}>
             <Form.Item
               label={`${item} Columns`}
-              name={[name, item]}
+              name={[...name, item]}
               rules={[
                 {
                   required: columns_rules[index] ? true : false,
@@ -152,10 +141,8 @@ export const CollectedSampleSelect: FC<any> = ({
             )}
           </div>
         ))}
-
-      <AppendFields append={append} prefix={[name]} />
     </>
   );
 };
 
-export default CollectedSampleSelect;
+export default CollectedAssaySelectV2;

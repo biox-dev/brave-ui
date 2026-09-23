@@ -1,10 +1,10 @@
-// src/components/form-components/components/shared/group-select-sample.tsx
-// A multi/single select over samples grouped by a metadata field. When several
-// samples are selected it reports how many were picked.
+// src/components/form-components/components/shared/group-select-assay.tsx
+// A multi/single select over assays grouped by a metadata field. When several
+// assays are selected it reports how many were picked.
 import { Select } from "antd";
 import { FC } from "react";
 
-export const GroupSelectSample: FC<any> = ({
+export const GroupSelectAssay: FC<any> = ({
   value,
   onChange,
   mode,
@@ -24,8 +24,8 @@ export const GroupSelectSample: FC<any> = ({
       onChange={onChange}
       options={sampleGroup}
     ></Select>
-    {mode == "multiple" && value && <>A total of {value.length} samples were selected</>}
+    {mode == "multiple" && value && <>A total of {value.length} assays were selected</>}
   </>
 );
 
-export default GroupSelectSample;
+export default GroupSelectAssay;

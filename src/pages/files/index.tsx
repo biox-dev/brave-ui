@@ -132,7 +132,7 @@ const Files: FC<any> = () => {
                                 }}
 
                             ></AnalysisResultPage> */}
-                            <ViewResolver view="sampleProjectPage"></ViewResolver>
+                            <ViewResolver view="assayProjectPage"></ViewResolver>
                         </>
                     }, 
                     

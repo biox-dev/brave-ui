@@ -2,7 +2,7 @@
 // One form-json entry. The card is *type aware*: it asks the registry which
 // property groups the item's `type` supports and renders only those, which is
 // what makes a `BaseInput` card look nothing like a
-// `CollectedSampleSelect` card.
+// `CollectedAssaySelect` card.
 import { Alert, Button, Card, Collapse, Flex, Popconfirm, Space, Tag, Tooltip, Typography } from "antd";
 import {
   ArrowDownOutlined,

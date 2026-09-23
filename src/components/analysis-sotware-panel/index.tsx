@@ -9,7 +9,7 @@ import React from "react"
 
 import FormJsonComp from "../form-components"
 import AnalysisList from '../analysis-list'
-import { GroupSelectSampleButton, BaseSelect } from '@/components/form-components'
+import { GroupSelectAssayButton, BaseSelect } from '@/components/form-components'
 import AnalysisForm from '../analysis-form'
 import PipelineMonitor from '@/components/pipeline-monitor'
 import { listAnalysisFiles } from '@/api/analysis-software'

@@ -1,12 +1,12 @@
-// src/components/form-components/components/sample/group-select-sample-button.tsx
-// Sample picker + group shortcut buttons + optional group name / colour.
+// src/components/form-components/components/assay/group-select-assay-button.tsx
+// Assay picker + group shortcut buttons + optional group name / colour.
 import { Flex, Form, Input } from "antd";
 import { FC, useEffect, useState } from "react";
 import { ColorPickerComp } from "../shared/color-picker";
 import { GroupSelectButton } from "../shared/group-select-button";
-import { GroupSelectSample } from "../shared/group-select-sample";
+import { GroupSelectAssay } from "../shared/group-select-assay";
 
-export const GroupSelectSampleButton: FC<any> = ({
+export const GroupSelectAssayButton: FC<any> = ({
   label,
   projParameter,
   name,
@@ -74,19 +74,19 @@ export const GroupSelectSampleButton: FC<any> = ({
 
   return (
     <>
-      <Form.Item label={label} name={[name, "sample"]} rules={rules}>
-        <GroupSelectSample
+      <Form.Item label={label} name={[name, "assay"]} rules={rules}>
+        <GroupSelectAssay
           mode="multiple"
           sampleGrouped={sampleGrouped}
           sampleGroup={options}
           watch={[name, "group"]}
-        ></GroupSelectSample>
+        ></GroupSelectAssay>
       </Form.Item>
       <Flex gap="small">
         <Form.Item label={label} name={[name, "group"]} noStyle>
           <GroupSelectButton
             sampleGrouped={sampleGrouped}
-            field={[name, "sample"]}
+            field={[name, "assay"]}
           ></GroupSelectButton>
         </Form.Item>
         <Form.Item name={[name, "group_name"]}>
@@ -100,4 +100,4 @@ export const GroupSelectSampleButton: FC<any> = ({
   );
 };
 
-export default GroupSelectSampleButton;
+export default GroupSelectAssayButton;

@@ -6,7 +6,7 @@
 /** `input_type` values understood by the backend / resolvers. */
 export const INPUT_TYPE_OPTIONS = [
   "file",
-  "sample",
+  "assay",
 //   "dir",
 //   "value",
 //   "string",

@@ -15,20 +15,20 @@ import { DividerComp } from "./base/divider";
 import { SelectAll } from "./base/select-all";
 import { ThreeColorPicker } from "./base/three-color-picker";
 import { CollectedColumnsSelect } from "./collected/collected-columns-select";
-import { CollectedGroupSelectSampleButton } from "./collected/collected-group-select-sample-button";
-import { CollectedGroupSelectSampleButton2 } from "./collected/collected-group-select-sample-button2";
-import { CollectedSampleSelect } from "./collected/collected-sample-select";
-import { CollectedSampleSelectV2 } from "./collected/collected-sample-select-v2";
+import { CollectedGroupSelectAssayButton } from "./collected/collected-group-select-assay-button";
+import { CollectedGroupSelectAssayButton2 } from "./collected/collected-group-select-assay-button2";
+import { CollectedAssaySelect } from "./collected/collected-assay-select";
+import { CollectedAssaySelectV2 } from "./collected/collected-assay-select-v2";
 import { CollectedSimplpeGroupSelect } from "./collected/collected-simplpe-group-select";
 import { NestCollectedColumnsSelect } from "./collected/nest-collected-columns-select";
-import { NestCollectedSampleSelect } from "./collected/nest-collected-sample-select";
+import { NestCollectedAssaySelect } from "./collected/nest-collected-assay-select";
 import { SimplpeGroupSelect } from "./collected/simplpe-group-select";
 import { DifferenceAnalysisConditions } from "./params/difference-analysis-conditions";
 import { HeatmapParams } from "./params/heatmap-params";
-import { GroupSelectSampleButton } from "./sample/group-select-sample-button";
-import { NestSelectSample } from "./sample/nest-select-sample";
-import { NestSelectSampleV2 } from "./sample/nest-select-sample-v2";
-import { SelectSample } from "./sample/select-sample";
+import { GroupSelectAssayButton } from "./assay/group-select-assay-button";
+import { NestSelectAssay } from "./assay/nest-select-assay";
+import { NestSelectAssayV2 } from "./assay/nest-select-assay-v2";
+import { SelectAssay } from "./assay/select-assay";
 import { FilterSelect } from "./select/filter-select";
 import { GroupCompareSelect } from "./select/group-compare-select";
 import { MetaphlanCladeSelect } from "./select/metaphlan-clade-select";
@@ -36,7 +36,7 @@ import { AppendFields } from "./append/append-fields";
 import { BasicSelect } from "./shared/basic-select";
 import { ColorPickerComp } from "./shared/color-picker";
 import { GroupSelectButton } from "./shared/group-select-button";
-import { GroupSelectSample } from "./shared/group-select-sample";
+import { GroupSelectAssay } from "./shared/group-select-assay";
 
 export {
   AppendFields,
@@ -49,10 +49,10 @@ export {
   BaseTextAreaNum,
   BasicSelect,
   CollectedColumnsSelect,
-  CollectedGroupSelectSampleButton,
-  CollectedGroupSelectSampleButton2,
-  CollectedSampleSelect,
-  CollectedSampleSelectV2,
+  CollectedGroupSelectAssayButton,
+  CollectedGroupSelectAssayButton2,
+  CollectedAssaySelect,
+  CollectedAssaySelectV2,
   CollectedSimplpeGroupSelect,
   ColorPickerComp,
   DifferenceAnalysisConditions,
@@ -60,16 +60,16 @@ export {
   FilterSelect,
   GroupCompareSelect,
   GroupSelectButton,
-  GroupSelectSample,
-  GroupSelectSampleButton,
+  GroupSelectAssay,
+  GroupSelectAssayButton,
   HeatmapParams,
   MetaphlanCladeSelect,
   NestCollectedColumnsSelect,
-  NestCollectedSampleSelect,
-  NestSelectSample,
-  NestSelectSampleV2,
+  NestCollectedAssaySelect,
+  NestSelectAssay,
+  NestSelectAssayV2,
   SelectAll,
-  SelectSample,
+  SelectAssay,
   SimplpeGroupSelect,
   ThreeColorPicker,
 };
@@ -91,17 +91,17 @@ export const COMPONENT_IMPLEMENTATIONS: Record<string, FC<any>> = {
   RankSelect: BaseSelect,
   GroupFieldSelect: BaseSelect,
   FilterFieldSelect: FilterSelect,
-  SelectSample,
-  NestSelectSample,
-  NestSelectSampleV2,
-  GroupSelectSampleButton,
+  SelectAssay,
+  NestSelectAssay,
+  NestSelectAssayV2,
+  GroupSelectAssayButton,
   SimplpeGroupSelect,
   CollectedSimplpeGroupSelect,
-  CollectedGroupSelectSampleButton,
-  CollectedGroupSelectSampleButton2,
-  CollectedSampleSelect,
+  CollectedGroupSelectAssayButton,
+  CollectedGroupSelectAssayButton2,
+  CollectedAssaySelect,
   CollectedColumnsSelect,
-  NestCollectedSampleSelect,
+  NestCollectedAssaySelect,
   NestCollectedColumnsSelect,
   MetaphlanCladeSelect,
   SelectAll,

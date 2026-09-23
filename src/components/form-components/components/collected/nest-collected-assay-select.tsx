@@ -1,14 +1,13 @@
-// src/components/form-components/components/sample/nest-select-sample-v2.tsx
-// Repeatable sample picker whose rows hold other collected selectors. The
-// parent's own props are forwarded to the `CollectedSampleSelectV2` child.
+// src/components/form-components/components/collected/nest-collected-assay-select.tsx
+// Repeatable CollectedAssaySelect, one card per row.
 import { Button, Card, Form } from "antd";
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
 import { FC } from "react";
-import { AppendFields } from "../append/append-fields";
+import { CollectedAssaySelect } from "./collected-assay-select";
 
-export const NestSelectSampleV2: FC<any> = ({ name, append, ...grest }) => (
+export const NestCollectedAssaySelect: FC<any> = ({ name, ...rest }) => (
   <>
-    {grest?.label}
+    {rest?.label}
     <Form.List name={name}>
       {(fields, { add, remove }) => (
         <>
@@ -18,11 +17,9 @@ export const NestSelectSampleV2: FC<any> = ({ name, append, ...grest }) => (
                 style={{ flex: 1, marginBottom: "0.5rem", marginRight: "0.5rem" }}
                 size="small"
               >
-                <AppendFields
-                  append={append}
-                  prefix={[listIndex]}
-                  variant="v2"
-                  inherited={grest}
+                <CollectedAssaySelect
+                  name={[name, listIndex]} //⭐ 把动态 index 传给子组件
+                  {...rest}
                 />
               </Card>
               <MinusCircleOutlined onClick={() => remove(listIndex)} />
@@ -39,4 +36,4 @@ export const NestSelectSampleV2: FC<any> = ({ name, append, ...grest }) => (
   </>
 );
 
-export default NestSelectSampleV2;
+export default NestCollectedAssaySelect;

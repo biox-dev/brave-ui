@@ -18,10 +18,10 @@ form-components/
 │   ├── append/              #   append 子字段渲染
 │   ├── base/                #   Input / Select / Switch / ColorPicker / Divider ...
 │   ├── select/              #   FilterSelect / MetaphlanCladeSelect / GroupCompareSelect
-│   ├── sample/              #   SelectSample / Nest* / GroupSelectSampleButton
+│   ├── assay/               #   SelectAssay / Nest* / GroupSelectAssayButton
 │   ├── collected/           #   Collected*（依赖上游分析结果列）
 │   ├── params/              #   DifferenceAnalysisConditions / HeatmapParams
-│   └── shared/              #   BasicSelect / ColorPickerComp / GroupSelect(Sample|Button)
+│   └── shared/              #   BasicSelect / ColorPickerComp / GroupSelect(Assay|Button)
 └── core/
     ├── depends.ts           # checkDepends / extractDependsNames
     ├── components-render.tsx# 解析 data 并渲染单个 item

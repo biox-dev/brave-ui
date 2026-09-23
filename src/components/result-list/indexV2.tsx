@@ -61,7 +61,7 @@ const ResultList = forwardRef<any, any>((params_, ref) => {
         {
             "name": "raw_reads",
             "mode": "multiple",
-            "type": "GroupSelectSampleButton",
+            "type": "GroupSelectAssayButton",
             "label": "Raw Reads", "group": "group_field",
             "rules": [{ "required": true, "message": "This field cannot be empty!" }],
             "dir": "", "fileFormat": { "profile": "*.tsv" },

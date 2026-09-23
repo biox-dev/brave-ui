@@ -96,7 +96,7 @@ const Breseq: FC<any> = ({ record, plot, setHtmlUrl, cleanDom, resultTableList, 
                                     name: "sites",
                                     label: "部位",
                                     rules: [{ required: true, message: '该字段不能为空!' }],
-                                    type: "GroupSelectSampleButton",
+                                    type: "GroupSelectAssayButton",
                                     group:"group_field",
                                     filter: [
                                         {

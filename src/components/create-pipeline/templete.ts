@@ -4,7 +4,7 @@ export const INPUTS = [
   {
     "label": "SeuratObject File",
     "name": "seuratObject",
-    "type": "SelectSample",
+    "type": "SelectAssay",
     "input_type": "file",
     "resolver": {
       "accept_formats": [
@@ -42,11 +42,11 @@ export const INPUTS = [
         "message": "This field cannot be empty!"
       }
     ],
-    "type": "CollectedSampleSelect"
+    "type": "CollectedAssaySelect"
   }, {
     "label": "SeuratObjects  File",
     "name": "seuratObjects",
-    "type": "NestSelectSample",
+    "type": "NestSelectAssay",
     "input_type": "file",
     "append": [
       {
@@ -79,12 +79,12 @@ export const INPUTS = [
     "label": "deg  File",
     "name": "degs",
     "input_type": "file",
-    "type": "NestSelectSampleV2",
+    "type": "NestSelectAssayV2",
     "append": [
       {
         "name": "cell_type",
         "label": "cell_type",
-        "type": "CollectedSampleSelectV2",
+        "type": "CollectedAssaySelectV2",
         "db": true,
         "input_type": "file",
         "initialValue": "",
@@ -135,7 +135,7 @@ export const INPUTS = [
         "message": "This field cannot be empty!"
       }
     ],
-    "type": "NestCollectedSampleSelect"
+    "type": "NestCollectedAssaySelect"
   }
 ]
 
@@ -189,7 +189,7 @@ export const scriptTempleteV1 = {
       "component_id": "75087620-2ff8-4045-8694-a0c19aac12fc",
       "db": true,
       "group": "group_field",
-      "type": "CollectedSampleSelect",
+      "type": "CollectedAssaySelect",
       "columns": [
         "sample_vars",
         "feature_var"
@@ -257,7 +257,7 @@ export const scriptTemplete = {
 export const fileTemplete = {
   "name": "raw_reads",
   "mode": "multiple",
-  "type": "GroupSelectSampleButton",
+  "type": "GroupSelectAssayButton",
   "label": "Raw Reads",
   "group": "group_field",
   "rules": [

@@ -2,24 +2,23 @@ import { useEffect, useMemo, useState } from "react";
 import { Button, Empty, Flex, Pagination, Table, Tag } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { ExperimentOutlined, ReloadOutlined } from "@ant-design/icons";
-import { useSampleProjectPageQuery } from "@/hooks/usePaginationV2";
-import type { SampleItem } from "@/api/data";
+import { useAssayProjectPageQuery } from "@/hooks/usePaginationV2";
+import type { AssayItem } from "@/api/data";
 import { useSelector } from "react-redux";
 
-export interface SampleProjectPageProps {
+export interface AssayProjectPageProps {
   project_id?: string;
+  id?: string;
   sample_id?: string;
-  sample_name?: string;
-  subject_id?: string;
-  group_name?: string;
-  phenotype?: string;
+  assay_type?: string;
+  platform?: string;
+  library_id?: string;
   metadata?: string;
-  description?: string;
   dataset_id?: string;
   dataset_name?: string;
   page_size?: number | string;
   title?: string;
-  onOk?: (sample: SampleItem) => void;
+  onOk?: (assay: AssayItem) => void;
   onCancel?: () => void;
   close?: () => void;
 }
@@ -44,21 +43,23 @@ const normalizePageSize = (value?: number | string) => {
   return 10;
 };
 
-const listColumns: ColumnsType<SampleItem> = [
+// Assay 没有独立 name 列，展示名按 library_id → assay_type → 主键推导（与后端 assayDisplayName 一致）。
+const assayLabel = (record: AssayItem) =>
+  record.library_id || record.assay_type || record.id;
+
+const listColumns: ColumnsType<AssayItem> = [
   {
-    title: "Sample Name",
-    dataIndex: "sample_name",
-    key: "sample_name",
-    render: (name: string, record) => (
+    title: "Assay",
+    dataIndex: "library_id",
+    key: "library_id",
+    render: (_value: string, record) => (
       <div className="project-report-item">
         <ExperimentOutlined className="project-report-item-icon" />
         <div className="project-report-item-text">
-          <span className="project-report-item-title">
-            {name || record.sample_id || `Sample-${record.id}`}
-          </span>
-          {[record.sample_id, record.dataset_name].filter(Boolean).length > 0 && (
+          <span className="project-report-item-title">{assayLabel(record)}</span>
+          {[record.assay_type, record.dataset_name].filter(Boolean).length > 0 && (
             <span className="project-report-item-meta">
-              {[record.sample_id, record.dataset_name].filter(Boolean).join(" · ")}
+              {[record.assay_type, record.dataset_name].filter(Boolean).join(" · ")}
             </span>
           )}
         </div>
@@ -66,26 +67,41 @@ const listColumns: ColumnsType<SampleItem> = [
     ),
   },
   {
-    title: "Group",
-    dataIndex: "group_name",
-    key: "group_name",
+    title: "Platform",
+    dataIndex: "platform",
+    key: "platform",
     width: 110,
     render: (value: string) => (value ? <Tag color="blue">{value}</Tag> : "-"),
   },
 ];
 
-const detailColumns: ColumnsType<SampleItem> = [
+const detailColumns: ColumnsType<AssayItem> = [
   {
-    title: "Sample Name",
-    dataIndex: "sample_name",
-    key: "sample_name",
+    title: "Assay",
+    dataIndex: "library_id",
+    key: "library_id",
     ellipsis: true,
+    render: (_value: string, record) => assayLabel(record),
+  },
+  {
+    title: "Assay Type",
+    dataIndex: "assay_type",
+    key: "assay_type",
+    width: 160,
+    render: (value: string) => value || "-",
+  },
+  {
+    title: "Platform",
+    dataIndex: "platform",
+    key: "platform",
+    width: 160,
+    render: (value: string) => value || "-",
   },
   {
     title: "Sample ID",
     dataIndex: "sample_id",
     key: "sample_id",
-    width: 180,
+    width: 160,
     render: (value: string) => value || "-",
   },
   {
@@ -97,20 +113,6 @@ const detailColumns: ColumnsType<SampleItem> = [
     render: (value: string) => value || "-",
   },
   {
-    title: "Subject",
-    dataIndex: "subject_id",
-    key: "subject_id",
-    width: 140,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Group",
-    dataIndex: "group_name",
-    key: "group_name",
-    width: 140,
-    render: (value: string) => value || "-",
-  },
-  {
     title: "Created At",
     dataIndex: "created_at",
     key: "created_at",
@@ -119,14 +121,13 @@ const detailColumns: ColumnsType<SampleItem> = [
   },
 ];
 
-const SampleProjectPage = ({
+const AssayProjectPage = ({
+  id,
   sample_id,
-  sample_name,
-  subject_id,
-  group_name,
-  phenotype,
+  assay_type,
+  platform,
+  library_id,
   metadata,
-  description,
   dataset_id,
   dataset_name,
   page_size,
@@ -134,7 +135,7 @@ const SampleProjectPage = ({
   onOk,
   onCancel,
   close,
-}: SampleProjectPageProps) => {
+}: AssayProjectPageProps) => {
   const [selectedId, setSelectedID] = useState<string>();
 
   const selectable = Boolean(onOk || onCancel);
@@ -152,7 +153,7 @@ const SampleProjectPage = ({
     isFetching,
     error,
     refetch,
-  } = useSampleProjectPageQuery(
+  } = useAssayProjectPageQuery(
     {},
     {
       initialPageSize: normalizePageSize(page_size),
@@ -165,21 +166,20 @@ const SampleProjectPage = ({
 
   useEffect(() => {
     setQuery({
+      id: normalizeText(id),
       sample_id: normalizeText(sample_id),
-      sample_name: normalizeText(sample_name),
-      subject_id: normalizeText(subject_id),
-      group_name: normalizeText(group_name),
-      phenotype: normalizeText(phenotype),
+      assay_type: normalizeText(assay_type),
+      platform: normalizeText(platform),
+      library_id: normalizeText(library_id),
       metadata: normalizeText(metadata),
-      description: normalizeText(description),
       dataset_id: normalizeText(dataset_id),
       dataset_name: normalizeText(dataset_name),
     });
-  }, [sample_id, sample_name, subject_id, group_name, phenotype, metadata, description, dataset_id, dataset_name, setQuery]);
+  }, [id, sample_id, assay_type, platform, library_id, metadata, dataset_id, dataset_name, setQuery]);
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 
-  const columns: ColumnsType<SampleItem> = selectable
+  const columns: ColumnsType<AssayItem> = selectable
     ? [
         ...detailColumns,
         {
@@ -220,7 +220,7 @@ const SampleProjectPage = ({
   return (
     <div className="project-report-panel">
       <div className="project-report-panel-header">
-        <span className="project-report-panel-title">{title || "Samples"}</span>
+        <span className="project-report-panel-title">{title || "Assays"}</span>
         <div className="project-report-panel-actions">
           <Button type="text" size="small" icon={<ReloadOutlined />} onClick={() => refetch()} />
         </div>
@@ -230,10 +230,10 @@ const SampleProjectPage = ({
         {data.length === 0 && !isLoading ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={error ? "Failed to load samples" : "No samples"}
+            description={error ? "Failed to load assays" : "No assays"}
           />
         ) : (
-          <Table<SampleItem>
+          <Table<AssayItem>
             rowKey="id"
             size="small"
             columns={columns}
@@ -275,7 +275,7 @@ const SampleProjectPage = ({
             pageSize={pageSize}
             total={total}
             showSizeChanger
-            showTotal={(t) => `${t} samples`}
+            showTotal={(t) => `${t} assays`}
             onChange={(nextPage, nextSize) => {
               if (nextSize !== pageSize) {
                 setPageSize(nextSize);
@@ -298,4 +298,4 @@ const SampleProjectPage = ({
   );
 };
 
-export default SampleProjectPage;
+export default AssayProjectPage;

@@ -41,15 +41,13 @@ export interface DatasetFileItem {
 	role: string;
 }
 
-export interface SampleItem {
+export interface AssayItem {
 	id: string;
 	sample_id: string;
-	sample_name: string;
-	subject_id: string;
-	group_name: string;
-	phenotype: string;
+	assay_type: string;
+	platform: string;
+	library_id: string;
 	metadata: string;
-	description: string;
 	created_at: string;
 	updated_at: string;
 	dataset_id: string;
@@ -80,16 +78,14 @@ export interface DatasetFilePageQuery {
 	role?: string[];
 }
 
-export interface SamplePageQuery {
+export interface AssayPageQuery {
 	// project_id: string;
 	id?: string;
 	sample_id?: string;
-	sample_name?: string;
-	subject_id?: string;
-	group_name?: string;
-	phenotype?: string;
+	assay_type?: string;
+	platform?: string;
+	library_id?: string;
 	metadata?: string;
-	description?: string;
 	dataset_id?: string;
 	dataset_name?: string;
 }
@@ -171,8 +167,8 @@ export const pageFileByProjectApi = (payload: PageRequest<DatasetFilePageQuery>)
 	return http.post<PageResponse<DatasetFileItem>>("/data/file/list-by-project-page", payload);
 };
 
-export const pageSampleByProjectApi = (payload: PageRequest<SamplePageQuery>) => {
-	return http.post<PageResponse<SampleItem>>("/data/sample/list-by-project-page", payload);
+export const pageAssayByProjectApi = (payload: PageRequest<AssayPageQuery>) => {
+	return http.post<PageResponse<AssayItem>>("/data/assay/list-by-project-page", payload);
 };
 
 export const addFileToDatasetApi = (payload: AddFileToDatasetRequest) => {

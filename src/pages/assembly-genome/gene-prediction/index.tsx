@@ -19,7 +19,7 @@ const GenePrediction: FC<any> = () => {
                                 label: "基因组组装文件",
                                 inputKey: ["ngs-individual-assembly", 'tgs_individual_assembly'],
                                 mode: "multiple",
-                                type: "GroupSelectSampleButton",
+                                type: "GroupSelectAssayButton",
                                 groupField:"sample_group",
                                 rules: [{ required: true, message: '该字段不能为空!' }],
                             }

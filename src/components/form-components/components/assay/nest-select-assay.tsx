@@ -1,13 +1,13 @@
-// src/components/form-components/components/sample/nest-select-sample.tsx
-// Repeatable (`Form.List`) sample picker. Each row is a `SelectSample` plus the
+// src/components/form-components/components/assay/nest-select-assay.tsx
+// Repeatable (`Form.List`) assay picker. Each row is a `SelectAssay` plus the
 // nested sub-fields declared in `append`.
 import { Button, Card, Form } from "antd";
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
 import { FC } from "react";
 import { AppendFields } from "../append/append-fields";
-import { SelectSample } from "./select-sample";
+import { SelectAssay } from "./select-assay";
 
-export const NestSelectSample: FC<any> = ({ name, append, ...rest }) => (
+export const NestSelectAssay: FC<any> = ({ name, append, ...rest }) => (
   <>
     {rest?.label}
     <Form.List name={name}>
@@ -19,7 +19,7 @@ export const NestSelectSample: FC<any> = ({ name, append, ...rest }) => (
                 style={{ flex: 1, marginBottom: "0.5rem", marginRight: "0.5rem" }}
                 size="small"
               >
-                <SelectSample name={[name, listIndex]} {...rest} />
+                <SelectAssay name={[name, listIndex]} {...rest} />
                 <AppendFields append={append} prefix={[listIndex]} />
               </Card>
               <MinusCircleOutlined onClick={() => remove(listIndex)} />
@@ -36,4 +36,4 @@ export const NestSelectSample: FC<any> = ({ name, append, ...rest }) => (
   </>
 );
 
-export default NestSelectSample;
+export default NestSelectAssay;

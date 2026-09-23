@@ -4,7 +4,7 @@
 //
 // A form-json item is a loose JSON object. Different `type`s accept completely
 // different properties (a `BaseInput` has no `columns`, a
-// `CollectedSampleSelect` has no `text`, ...). `ComponentMeta` is the single
+// `CollectedAssaySelect` has no `text`, ...). `ComponentMeta` is the single
 // place where that knowledge lives: the renderer uses it to pick the component
 // implementation, the editor uses it to decide *which property groups* to show.
 
@@ -16,7 +16,7 @@ export type ComponentCategory =
   | "basic"
   | "layout"
   | "select"
-  | "sample"
+  | "assay"
   | "collected"
   | "params";
 

@@ -15,10 +15,10 @@ import SplitWorkspace from './components/SplitWorkspace.tsx';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
-type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList'| 'analysisNodeList' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'sampleProjectPage' | 'datasetFilePage';
+type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList'| 'analysisNodeList' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'assayProjectPage' | 'datasetFilePage';
 
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
-  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'sampleProjectPage' || key === 'datasetFilePage';
+  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'assayProjectPage' || key === 'datasetFilePage';
 
 const App: React.FC = () => {
   const { locale } = useI18n();
@@ -79,8 +79,8 @@ const App: React.FC = () => {
       //   icon: <FolderOpenOutlined />,
       // },
      {
-        key: 'sampleProjectPage',
-        label: locale === 'en_US' ? 'Samples' : '样本',
+        key: 'assayProjectPage',
+        label: locale === 'en_US' ? 'Assays' : 'Assay',
         icon: <ExperimentOutlined />,
       },
       {

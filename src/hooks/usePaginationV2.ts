@@ -2,14 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, type QueryKey, type UseQueryOptions, type UseQueryResult } from "react-query";
 import { http } from "@/api/client/http";
 import type { AxiosError } from "axios";
-import { pageDatasetByProjectApi, pageFileByProjectApi, pageSampleByProjectApi } from "@/api/data";
+import { pageDatasetByProjectApi, pageFileByProjectApi, pageAssayByProjectApi } from "@/api/data";
 import type {
 	DatasetFileItem,
 	DatasetFilePageQuery,
 	DatasetItem,
 	DatasetPageQuery,
-	SampleItem,
-	SamplePageQuery,
+	AssayItem,
+	AssayPageQuery,
 	PageRequest,
 	PageResponse,
 } from "@/api/data";
@@ -292,15 +292,15 @@ export const useDatasetFilePageQuery = (
 	});
 };
 
-export const useSampleProjectPageQuery = (
-	query: SamplePageQuery,
-	options?: Omit<UsePageQueryOptions<SampleItem, SamplePageQuery>, "queryKey" | "query" | "endpoint" | "queryFn">
+export const useAssayProjectPageQuery = (
+	query: AssayPageQuery,
+	options?: Omit<UsePageQueryOptions<AssayItem, AssayPageQuery>, "queryKey" | "query" | "endpoint" | "queryFn">
 ) => {
-	return usePageQuery<SampleItem, SamplePageQuery>({
-		queryKey: ["sample-project-page"],
+	return usePageQuery<AssayItem, AssayPageQuery>({
+		queryKey: ["assay-project-page"],
 		query,
 		queryFn: async (payload) => {
-			const response = await pageSampleByProjectApi(payload);
+			const response = await pageAssayByProjectApi(payload);
 			return response.data;
 		},
 		initialPageSize: 10,

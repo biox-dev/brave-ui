@@ -16,7 +16,7 @@ const Assembly: FC<any> = () => {
                                 label: "V1_single_genome_NGS_DNA",
                                 inputKey: ["V1_single_genome_NGS_DNA"],
                                 mode: "multiple",
-                                type: "GroupSelectSampleButton",
+                                type: "GroupSelectAssayButton",
                                 groupField:"sample_group",
                                 rules: [{ required: true, message: '该字段不能为空!' }],
                             }
@@ -41,7 +41,7 @@ const Assembly: FC<any> = () => {
                             label: "V1_single_genome_PACBIO_HIFI_DNA",
                             inputKey: ["V1_single_genome_PACBIO_HIFI_DNA"],
                             mode: "multiple",
-                            type: "GroupSelectSampleButton",
+                            type: "GroupSelectAssayButton",
                             groupField:"sample_group",
                             rules: [{ required: true, message: '该字段不能为空!' }],
                         }

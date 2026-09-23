@@ -39,7 +39,7 @@ const ReadsBasedAbundanceAnalysis: FC<any> = () => {
                                 label: "reads",
                                 inputKey: ["V1_meta_genome_NGS_DNA","V1_single_genome_NGS_DNA"],
                                 mode: "multiple",
-                                type: "GroupSelectSampleButton",
+                                type: "GroupSelectAssayButton",
                                 groupField:"sample_group",
                                 rules: [{ required: true, message: '该字段不能为空!' }],
                             }
