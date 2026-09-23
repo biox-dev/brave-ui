@@ -65,7 +65,7 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
     // Static tab list, mirroring workflow-panel: every script shows the same tabs.
     const views: { label: string; value: ScriptViewKey }[] = [
         { label: zh ? "分析节点" : "Analysis Nodes", value: "analysisNodePage" },
-        { label: zh ? "结构" : "Structure", value: "createOrUpdateScript" },
+        { label: zh ? "编辑" : "Edit", value: "createOrUpdateScript" },
         { label: zh ? "代码" : "Code", value: "scriptCode" },
         { label: "README", value: "scriptReadme" },
         { label: zh ? "发布" : "Publish", value: "PublishToolsV2" },
@@ -97,11 +97,11 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
                                         ) : null}
                                         <GitStateActions entity="script" item={script} onReload={reload} />
                                     </div>
-                                    {script.script_path ? (
+                                    {/* {script.script_path ? (
                                         <Tooltip title={script.script_path}>
                                             <span className="script-panel-path">{script.script_path}</span>
                                         </Tooltip>
-                                    ) : null}
+                                    ) : null} */}
                                 </div>
 
                                 <div className="script-panel-actions">

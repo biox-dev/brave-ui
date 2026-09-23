@@ -374,7 +374,7 @@ const Pipeline: FC<any> = ({ }) => {
         { label: zh ? "输出" : "Output", value: "outputFileComponent" },
         { label: zh ? "流程" : "Workflow", value: "workflowVisCard" },
         { label: "README", value: "workflowReadme" },
-        { label: zh ? "编辑工具" : "Edit Tools", value: "createOrUpdateWorkflow" },
+        { label: zh ? "编辑" : "Edit", value: "createOrUpdateWorkflow" },
         { label: zh ? "发布" : "Publish", value: "PublishToolsV2" },
     ]
 
@@ -419,11 +419,11 @@ const Pipeline: FC<any> = ({ }) => {
                                     onReload={loadData}
                                 />
                             </div>
-                            {component?.workflow_path ? (
+                            {/* {component?.workflow_path ? (
                                 <Tooltip title={component.workflow_path}>
                                     <span className="workflow-panel-path">{component.workflow_path}</span>
                                 </Tooltip>
-                            ) : null}
+                            ) : null} */}
                         </div>
 
                         <div className="workflow-panel-actions">
