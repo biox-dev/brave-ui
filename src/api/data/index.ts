@@ -102,10 +102,14 @@ export interface SampleWithSubjectItem extends SampleItem {
 }
 
 // DatasetAssayItem binds an Assay into a Dataset (go_dataset_assay).
+// `role` is the assay's role inside the binding; analysis form inputs with
+// input_type=assay match it against their resolver.accept_formats (same
+// convention as DatasetFile.role for files).
 export interface DatasetAssayItem {
 	id: string;
 	dataset_id: string;
 	assay_id: string;
+	role: string;
 	created_at: string;
 }
 
@@ -196,14 +200,15 @@ export interface SaveAssayRequest {
 
 // CreateFileRequest payload for /data/file/create. assay_id binds the file to its
 // owning assay (a file belongs to at most one assay); omit it for files that are
-// only attached to a dataset.
+// only attached to a dataset. file_key is the key an analysis form input maps
+// onto its resolver.accept_formats.
 export interface CreateFileRequest {
 	file_id?: string;
 	file_name?: string;
 	path: string;
 	format?: string;
 	assay_id?: string;
-	role?: string;
+	file_key?: string;
 	analysis_node_id?: string;
 	description?: string;
 }
@@ -235,7 +240,7 @@ export interface UpdateFileRequest {
 	format?: string;
 	storage?: string;
 	assay_id?: string;
-	role?: string;
+	file_key?: string;
 }
 
 export interface DeleteFileRequest {
@@ -333,7 +338,11 @@ export const createFileApi = (payload: CreateFileRequest) => {
 // DatasetAssay (Assay -> Dataset binding)
 // ---------------------------------------------------------------------------
 
-export const createDatasetAssayApi = (payload: { dataset_id: string; assay_id: string }) => {
+export const createDatasetAssayApi = (payload: {
+	dataset_id: string;
+	assay_id: string;
+	role?: string;
+}) => {
 	return http.post<DatasetAssayItem>("/data/dataset-assay/create", payload);
 };
 
@@ -341,6 +350,7 @@ export const updateDatasetAssayApi = (payload: {
 	id: string;
 	dataset_id: string;
 	assay_id: string;
+	role?: string;
 }) => {
 	return http.post<{ message: string }>("/data/dataset-assay/update", payload);
 };
@@ -441,7 +451,9 @@ export interface DataFileItem {
 	// assay_id is the owning assay's PK; empty when the file is not owned by any
 	// assay (dataset-only attachment).
 	assay_id: string;
-	role: string;
+	// file_key (go_file.file_key) is the key this file fills inside its assay;
+	// analysis form inputs map it onto their resolver.accept_formats keys.
+	file_key: string;
 	size: number;
 	md5: string;
 	storage: string;

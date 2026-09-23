@@ -15,10 +15,10 @@ export interface EditAssayFilePageProps {
   close?: () => void;
 }
 
-// go_file.role is the key an analysis form input matches against its
-// accept_formats, so both conventions in use are suggested (assay roles such as
-// FASTQ_R1 and format names such as fasta) but any value is allowed.
-const ROLE_OPTIONS = [
+// go_file.file_key is the key an analysis form input maps onto its
+// resolver.accept_formats, so both conventions in use are suggested (assay keys
+// such as FASTQ_R1 and format names such as fasta) but any value is allowed.
+const FILE_KEY_OPTIONS = [
   "FASTQ",
   "FASTQ_R1",
   "FASTQ_R2",
@@ -69,7 +69,7 @@ const EditAssayFilePage = ({
       path,
       file_name: file.file_name || baseName(path),
       format: file.format || extensionOf(path),
-      role: file.role,
+      file_key: file.file_key,
       description: file.description,
     });
   }, [file, form]);
@@ -85,15 +85,15 @@ const EditAssayFilePage = ({
     const path = String(values.path ?? "").trim();
     const fileName = String(values.file_name ?? "").trim() || baseName(path);
     const format = String(values.format ?? "").trim() || extensionOf(path);
-    const role = String(values.role ?? "").trim();
+    const fileKey = String(values.file_key ?? "").trim();
     const description = String(values.description ?? "").trim();
 
     try {
       setSaving(true);
       // The HTTP layer toasts API failures globally, so no error toast here.
       const result = isEdit
-        ? await updateFileApi({ id: file!.id, path, file_name: fileName, format, role, description })
-        : await createFileApi({ assay_id, path, file_name: fileName, format, role, description });
+        ? await updateFileApi({ id: file!.id, path, file_name: fileName, format, file_key: fileKey, description })
+        : await createFileApi({ assay_id, path, file_name: fileName, format, file_key: fileKey, description });
       onOk?.(result);
     } catch {
       // already reported by the global interceptor; keep the drawer open
@@ -137,13 +137,13 @@ const EditAssayFilePage = ({
       </Form.Item>
 
       <Form.Item
-        name="role"
-        label="Role"
-        rules={[{ required: true, message: "Please input the file role" }]}
-        tooltip="Role of the file inside this assay. Analysis form inputs match it against their accept formats."
+        name="file_key"
+        label="File Key"
+        rules={[{ required: true, message: "Please input the file key" }]}
+        tooltip="Key of the file inside this assay. Analysis form inputs map it onto their accept formats."
       >
         <AutoComplete
-          options={ROLE_OPTIONS}
+          options={FILE_KEY_OPTIONS}
           placeholder="e.g. FASTQ, BAM, VCF"
           filterOption={(input, option) =>
             String(option?.value ?? "").toLowerCase().includes(input.toLowerCase())

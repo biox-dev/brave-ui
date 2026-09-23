@@ -76,8 +76,8 @@ const formatBytes = (size?: number) => {
 };
 
 // Files owned by one assay (go_file.assay_id). A file is assay-private: it is
-// created for this assay and carries the role an analysis form input matches
-// against its accept formats.
+// created for this assay and carries the key (go_file.file_key) an analysis form
+// input maps onto its accept formats.
 const assayFileColumns = (
   onEdit: (record: DataFileItem) => void,
   onDelete: (record: DataFileItem) => void
@@ -108,9 +108,9 @@ const assayFileColumns = (
     },
   },
   {
-    title: "Role",
-    dataIndex: "role",
-    key: "role",
+    title: "File Key",
+    dataIndex: "file_key",
+    key: "file_key",
     width: 130,
     render: (value: string) => (value ? <Tag color="geekblue">{value}</Tag> : "-"),
   },

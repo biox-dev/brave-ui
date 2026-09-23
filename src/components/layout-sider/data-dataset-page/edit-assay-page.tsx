@@ -1,8 +1,21 @@
 import { useEffect, useState } from "react";
-import { Button, Flex, Form, Input, Space, Tooltip } from "antd";
+import { Button, Flex, Form, Input, Space, Tooltip, AutoComplete } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
-import { createAssayApi, createDatasetAssayApi, getSampleApi, updateAssayApi } from "@/api/data";
-import type { AssayDetailItem, AssayItem, DatasetItem, SampleItem } from "@/api/data";
+import {
+  createAssayApi,
+  createDatasetAssayApi,
+  getDatasetAssayByAssayApi,
+  getSampleApi,
+  updateAssayApi,
+  updateDatasetAssayApi,
+} from "@/api/data";
+import type {
+  AssayDetailItem,
+  AssayItem,
+  DatasetAssayItem,
+  DatasetItem,
+  SampleItem,
+} from "@/api/data";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 
@@ -26,6 +39,11 @@ const datasetLabel = (dataset?: Pick<DatasetItem, "id" | "dataset_name">) =>
 
 const sampleLabel = (sample?: SampleItem) =>
   sample ? sample.sample_name || sample.sample_id || sample.id : "";
+
+// Role of the assay inside its dataset binding (go_dataset_assay.role).
+// Analysis form inputs with input_type=assay match it against their
+// resolver.accept_formats — same convention as DatasetFile.role for files.
+const ROLE_OPTIONS = ["DEFAULT", "TABLE", "ASSAY", "PHENOTYPE", "EXP"].map((value) => ({ value }));
 
 /**
  * Assay create & edit form.
@@ -51,6 +69,9 @@ const EditAssayPage = ({ assay, dataset, onOk, onCancel, close }: EditAssayPageP
 
   const [selectedDataset, setSelectedDataset] = useState<Pick<DatasetItem, "id" | "dataset_name">>();
   const [selectedSample, setSelectedSample] = useState<SampleItem>();
+  // DatasetAssay binding of the assay being edited (create mode leaves it
+  // undefined; the binding is written right after the assay is created).
+  const [binding, setBinding] = useState<DatasetAssayItem>();
 
   const isEdit = Boolean(assay?.id);
 
@@ -69,6 +90,8 @@ const EditAssayPage = ({ assay, dataset, onOk, onCancel, close }: EditAssayPageP
       );
 
       // The assay only stores sample_id, so fetch the sample for its label.
+      // The dataset binding is fetched separately because EditAssayPage only
+      // touches the assay's own columns otherwise; the binding carries the role.
       let cancelled = false;
       const loadSample = async () => {
         if (!assay.sample_id) {
@@ -79,8 +102,16 @@ const EditAssayPage = ({ assay, dataset, onOk, onCancel, close }: EditAssayPageP
           setSelectedSample(response.data);
         }
       };
+      const loadBinding = async () => {
+        const response = await getDatasetAssayByAssayApi(assay.id).catch(() => undefined);
+        if (!cancelled && response?.data) {
+          setBinding(response.data);
+          form.setFieldsValue({ role: response.data.role ?? "" });
+        }
+      };
 
       void loadSample();
+      void loadBinding();
       return () => {
         cancelled = true;
       };
@@ -89,6 +120,7 @@ const EditAssayPage = ({ assay, dataset, onOk, onCancel, close }: EditAssayPageP
     form.resetFields();
     setSelectedDataset(dataset ? { id: dataset.id, dataset_name: dataset.dataset_name } : undefined);
     setSelectedSample(undefined);
+    setBinding(undefined);
   }, [assay, dataset, isEdit, form]);
 
   const handleSelectDataset = async () => {
@@ -161,6 +193,8 @@ const EditAssayPage = ({ assay, dataset, onOk, onCancel, close }: EditAssayPageP
       const values = await form.validateFields();
       setSaving(true);
 
+      const role = trimOrUndefined(values.role);
+
       const assayPayload = {
         sample_id: String(selectedSample.id),
         assay_type: trimOrUndefined(values.assay_type),
@@ -171,6 +205,16 @@ const EditAssayPage = ({ assay, dataset, onOk, onCancel, close }: EditAssayPageP
 
       if (isEdit) {
         await updateAssayApi({ id: assay!.id, ...assayPayload });
+        // The dataset binding carries the role an assay form input matches
+        // against its accept_formats, so keep it in sync when it exists.
+        if (binding?.id) {
+          await updateDatasetAssayApi({
+            id: binding.id,
+            dataset_id: selectedDataset.id,
+            assay_id: assay!.id,
+            role: role ?? "",
+          });
+        }
         message.success("Assay updated successfully");
         onOk?.({ assay: assay as AssayDetailItem, dataset_id: selectedDataset.id });
         return;
@@ -178,10 +222,12 @@ const EditAssayPage = ({ assay, dataset, onOk, onCancel, close }: EditAssayPageP
 
       const created = await createAssayApi(assayPayload);
       // The assay list is read through go_dataset_assay, so the binding has to
-      // be written too — otherwise the new assay would never show up.
+      // be written too — otherwise the new assay would never show up. `role` is
+      // what analysis form inputs match against their accept_formats.
       await createDatasetAssayApi({
         dataset_id: selectedDataset.id,
         assay_id: String(created.data.id),
+        role,
       });
 
       message.success("Assay created successfully");
@@ -268,6 +314,20 @@ const EditAssayPage = ({ assay, dataset, onOk, onCancel, close }: EditAssayPageP
 
         <Form.Item name="library_id" label="Library ID">
           <Input placeholder="Library identifier" />
+        </Form.Item>
+
+        <Form.Item
+          name="role"
+          label="Role"
+          tooltip="Role of the assay inside its dataset. Analysis form inputs with input_type=assay match it against their accept formats (same convention as a file's role)."
+        >
+          <AutoComplete
+            options={ROLE_OPTIONS}
+            placeholder="e.g. DEFAULT, TABLE"
+            filterOption={(input, option) =>
+              String(option?.value ?? "").toLowerCase().includes(input.toLowerCase())
+            }
+          />
         </Form.Item>
 
         <Form.Item name="metadata" label="Metadata">
