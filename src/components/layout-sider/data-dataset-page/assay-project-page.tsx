@@ -1,18 +1,19 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Empty, Flex, Pagination, Popconfirm, Table, Tag, Tooltip } from "antd";
-import type { ColumnsType, TableProps } from "antd/es/table";
+import { useEffect, useMemo, useState } from "react";
+import type { HTMLAttributes } from "react";
+import { Button, Descriptions, Empty, Flex, Pagination, Popconfirm, Popover, Table, Tooltip } from "antd";
+import type { ColumnsType } from "antd/es/table";
 import {
   DeleteOutlined,
   EditOutlined,
   ExperimentOutlined,
   FileAddOutlined,
-  FileOutlined,
+  FolderOpenOutlined,
   PlusOutlined,
   ReloadOutlined,
 } from "@ant-design/icons";
 import { useAssayProjectPageQuery } from "@/hooks/usePaginationV2";
-import { deleteAssayApi, deleteFileApi, listFileByAssayApi } from "@/api/data";
-import type { AssayItem, DataFileItem } from "@/api/data";
+import { deleteAssayApi } from "@/api/data";
+import type { AssayItem } from "@/api/data";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useSelector } from "react-redux";
@@ -58,48 +59,34 @@ const normalizePageSize = (value?: number | string) => {
 const assayLabel = (record: AssayItem) =>
   record.library_id || record.assay_type || record.id;
 
-const formatBytes = (size?: number) => {
-  if (typeof size !== "number" || !Number.isFinite(size) || size <= 0) {
-    return "-";
-  }
+// Files owned by one assay (go_file.assay_id) are rendered by the dedicated
+// drawer view `assayFileListPage`, so the narrow left panel only ever shows
+// this compact single-column list.
 
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let value = size;
-  let unitIndex = 0;
-
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-
-  return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
-};
-
-// Files owned by one assay (go_file.assay_id). A file is assay-private: it is
-// created for this assay and carries the key (go_file.file_key) an analysis form
-// input maps onto its accept formats.
-const assayFileColumns = (
-  onEdit: (record: DataFileItem) => void,
-  onDelete: (record: DataFileItem) => void
-): ColumnsType<DataFileItem> => [
+// The left panel is only ~320px wide, so the list keeps a single text column
+// (title + meta lines) and reveals the remaining fields in a hover popover.
+const listColumns: ColumnsType<AssayItem> = [
   {
-    title: "File",
-    dataIndex: "file_name",
-    key: "file_name",
+    title: "Assay",
+    dataIndex: "library_id",
+    key: "library_id",
     ellipsis: { showTitle: false },
-    render: (name: string, record) => {
-      const label = name || record.file_id || `File-${record.id}`;
+    render: (_value: string, record) => {
+      const label = assayLabel(record);
+      const meta = [record.sample_name || record.sample_id, record.platform, record.assay_type]
+        .filter(Boolean)
+        .join(" · ");
 
       return (
         <div className="project-report-item">
-          <FileOutlined className="project-report-item-icon" />
+          <ExperimentOutlined className="project-report-item-icon" />
           <div className="project-report-item-text">
             <Tooltip placement="topLeft" title={label}>
               <span className="project-report-item-title">{label}</span>
             </Tooltip>
-            {record.path && (
-              <span className="project-report-item-meta" title={record.path}>
-                {record.path}
+            {meta && (
+              <span className="project-report-item-meta" title={meta}>
+                {meta}
               </span>
             )}
           </div>
@@ -107,95 +94,36 @@ const assayFileColumns = (
       );
     },
   },
-  {
-    title: "File Key",
-    dataIndex: "file_key",
-    key: "file_key",
-    width: 130,
-    render: (value: string) => (value ? <Tag color="geekblue">{value}</Tag> : "-"),
-  },
-  {
-    title: "Format",
-    dataIndex: "format",
-    key: "format",
-    width: 100,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Size",
-    dataIndex: "size",
-    key: "size",
-    width: 100,
-    render: (value: number) => formatBytes(value),
-  },
-  {
-    title: "Actions",
-    key: "actions",
-    width: 80,
-    align: "right",
-    render: (_: unknown, record) => (
-      <span
-        className="project-report-item-actions project-report-item-actions-static"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <Tooltip title="Edit">
-          <Button type="text" size="small" icon={<EditOutlined />} onClick={() => onEdit(record)} />
-        </Tooltip>
-        <Popconfirm
-          title="Remove this file?"
-          description="The file is deleted from the assay."
-          onConfirm={() => onDelete(record)}
-        >
-          <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-        </Popconfirm>
-      </span>
-    ),
-  },
 ];
 
-const listColumns: ColumnsType<AssayItem> = [
-  {
-    title: "Assay",
-    dataIndex: "library_id",
-    key: "library_id",
-    render: (_value: string, record) => (
-      <div className="project-report-item">
-        <ExperimentOutlined className="project-report-item-icon" />
-        <div className="project-report-item-text">
-          <span className="project-report-item-title">{assayLabel(record)}</span>
-          {[record.assay_type, record.dataset_name].filter(Boolean).length > 0 && (
-            <span className="project-report-item-meta">
-              {[record.assay_type, record.dataset_name].filter(Boolean).join(" · ")}
-            </span>
-          )}
-        </div>
-      </div>
-    ),
-  },
-  {
-    title: "Sample",
-    dataIndex: "sample_name",
-    key: "sample_name",
-    width: 160,
-    ellipsis: true,
-    render: (value: string, record) => value || record.sample_id || "-",
-  },
-  {
-    title: "Subject",
-    dataIndex: "subject_name",
-    key: "subject_name",
-    width: 150,
-    ellipsis: true,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Platform",
-    dataIndex: "platform",
-    key: "platform",
-    width: 110,
-    render: (value: string) => (value ? <Tag color="blue">{value}</Tag> : "-"),
-  },
-];
+const AssayDetailCard = ({ item }: { item: AssayItem }) => (
+  <div style={{ width: 360 }}>
+    <Descriptions
+      size="small"
+      column={1}
+      bordered
+      items={[
+        { key: "id", label: "Assay ID", children: item.id || "-" },
+        { key: "library_id", label: "Library ID", children: item.library_id || "-" },
+        { key: "assay_type", label: "Assay Type", children: item.assay_type || "-" },
+        { key: "platform", label: "Platform", children: item.platform || "-" },
+        { key: "sample", label: "Sample", children: item.sample_name || item.sample_id || "-" },
+        { key: "subject", label: "Subject", children: item.subject_name || "-" },
+        { key: "dataset", label: "Dataset", children: item.dataset_name || "-" },
+        {
+          key: "created_at",
+          label: "Created At",
+          children: item.created_at ? new Date(item.created_at).toLocaleString() : "-",
+        },
+        {
+          key: "updated_at",
+          label: "Updated At",
+          children: item.updated_at ? new Date(item.updated_at).toLocaleString() : "-",
+        },
+      ]}
+    />
+  </div>
+);
 
 const detailColumns: ColumnsType<AssayItem> = [
   {
@@ -318,30 +246,14 @@ const AssayProjectPage = ({
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 
   const message = useGlobalMessage();
-  const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
-  const [filesByAssay, setFilesByAssay] = useState<Record<string, DataFileItem[]>>({});
-  const [filesLoading, setFilesLoading] = useState<Record<string, boolean>>({});
 
-  const loadAssayFiles = useCallback(async (assayId: string) => {
-    setFilesLoading((prev) => ({ ...prev, [assayId]: true }));
-    try {
-      const response = await listFileByAssayApi(assayId);
-      const files = (response.data ?? []) as DataFileItem[];
-      setFilesByAssay((prev) => ({ ...prev, [assayId]: files }));
-    } catch {
-      // already reported by the global interceptor; keep the previous rows
-    } finally {
-      setFilesLoading((prev) => ({ ...prev, [assayId]: false }));
-    }
-  }, []);
-
-  const handleToggleExpand = (expanded: boolean, record: AssayItem) => {
-    setExpandedKeys((prev) =>
-      expanded ? [...new Set([...prev, record.id])] : prev.filter((key) => key !== record.id)
+  // Assay files live in their own drawer view (`assayFileListPage`) so this
+  // page stays a thin list; the row actions only open drawers.
+  const handleOpenFiles = (record: AssayItem) => {
+    invoke.assayFileListPage.drawer(
+      { assay_id: record.id, assay_label: assayLabel(record) },
+      { width: 880, title: `Assay Files: ${assayLabel(record)}` }
     );
-    if (expanded) {
-      void loadAssayFiles(record.id);
-    }
   };
 
   const handleAddFile = async (record: AssayItem) => {
@@ -350,81 +262,47 @@ const AssayProjectPage = ({
         { assay_id: record.id, assay_label: assayLabel(record) },
         { width: 520, title: `Add File: ${assayLabel(record)}` }
       );
-      await loadAssayFiles(record.id);
     } catch {
       // user cancelled
     }
   };
 
-  const handleEditFile = async (record: AssayItem, file: DataFileItem) => {
-    try {
-      await invoke.editAssayFilePage.openDrawerAsync(
-        { assay_id: record.id, assay_label: assayLabel(record), file },
-        { width: 520, title: `Edit File: ${file.file_name || file.file_id || file.id}` }
-      );
-      await loadAssayFiles(record.id);
-    } catch {
-      // user cancelled
-    }
-  };
+  // Hovering a row previews the whole record; clicking it opens the owned
+  // files drawer instead of expanding an unusable row inside the narrow panel.
+  const bodyRow = useMemo(() => {
+    type PanelRowProps = HTMLAttributes<HTMLTableRowElement> & { "data-row-key"?: string };
 
-  const handleDeleteFile = async (record: AssayItem, file: DataFileItem) => {
-    try {
-      await deleteFileApi({ id: file.id });
-      message.success("File deleted successfully");
-      await loadAssayFiles(record.id);
-    } catch {
-      // already reported by the global interceptor
-    }
-  };
+    const Row = (props: PanelRowProps) => {
+      const rowKey = props["data-row-key"];
+      const record = data.find((item) => String(item.id) === String(rowKey));
+      const rowElement = <tr {...props} />;
 
-  const expandable: TableProps<AssayItem>["expandable"] = {
-    expandedRowKeys: expandedKeys,
-    onExpand: handleToggleExpand,
-    expandedRowRender: (record: AssayItem) => {
-      const files = filesByAssay[record.id] ?? [];
+      if (!record) {
+        return rowElement;
+      }
 
       return (
-        <div style={{ padding: "4px 8px" }}>
-          <Flex justify="space-between" align="center" gap="small" wrap style={{ marginBottom: 6 }}>
-            <span className="project-report-item-meta">
-              {files.length === 0
-                ? "No files owned by this assay"
-                : `${files.length} file(s) owned by this assay`}
+        // The panel sits at the left edge, so the card opens to the right and
+        // floats over the main content area instead of off-screen.
+        <Popover
+          placement="right"
+          mouseEnterDelay={0.2}
+          mouseLeaveDelay={0.1}
+          title={
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <ExperimentOutlined />
+              {assayLabel(record)}
             </span>
-            <Flex gap="small">
-              <Button
-                size="small"
-                type="primary"
-                ghost
-                icon={<FileAddOutlined />}
-                onClick={() => handleAddFile(record)}
-              >
-                Add File
-              </Button>
-              <Button
-                size="small"
-                icon={<ReloadOutlined />}
-                onClick={() => loadAssayFiles(record.id)}
-              />
-            </Flex>
-          </Flex>
-          <Table<DataFileItem>
-            rowKey="id"
-            size="small"
-            columns={assayFileColumns(
-              (file) => void handleEditFile(record, file),
-              (file) => void handleDeleteFile(record, file)
-            )}
-            dataSource={files}
-            loading={Boolean(filesLoading[record.id])}
-            pagination={false}
-            locale={{ emptyText: "No files" }}
-          />
-        </div>
+          }
+          content={<AssayDetailCard item={record} />}
+        >
+          {rowElement}
+        </Popover>
       );
-    },
-  };
+    };
+
+    return Row;
+  }, [data]);
 
   // Creating an assay always goes through the dataset-first form: pick a
   // dataset, then select/create the sample (and its subject). Files are added
@@ -467,14 +345,21 @@ const AssayProjectPage = ({
   const actionsColumn: ColumnsType<AssayItem>[number] = {
     title: "Actions",
     key: "actions",
-    width: 150,
+    width: 130,
     align: "right",
-    fixed: "right",
     render: (_: unknown, record) => (
       <span
         className="project-report-item-actions project-report-item-actions-static"
         onClick={(event) => event.stopPropagation()}
       >
+        <Tooltip title="Owned Files">
+          <Button
+            type="text"
+            size="small"
+            icon={<FolderOpenOutlined />}
+            onClick={() => handleOpenFiles(record)}
+          />
+        </Tooltip>
         <Tooltip title="Add File">
           <Button type="text" size="small" icon={<FileAddOutlined />} onClick={() => handleAddFile(record)} />
         </Tooltip>
@@ -509,7 +394,7 @@ const AssayProjectPage = ({
   };
 
   const columns: ColumnsType<AssayItem> = selectable
-    ? [...detailColumns, actionsColumn, selectColumn]
+    ? [...detailColumns, { ...actionsColumn, fixed: "right" }, selectColumn]
     : [...listColumns, actionsColumn];
 
   const handleConfirm = () => {
@@ -534,9 +419,12 @@ const AssayProjectPage = ({
       <div className="project-report-panel-header">
         <span className="project-report-panel-title">{title || "Assays"}</span>
         <div className="project-report-panel-actions">
-          <Button type="text" size="small" icon={<PlusOutlined />} onClick={handleCreate}>
-          </Button>
-          <Button type="text" size="small" icon={<ReloadOutlined />} onClick={() => refetch()} />
+          <Tooltip title="New Assay">
+            <Button type="text" size="small" icon={<PlusOutlined />} onClick={handleCreate} />
+          </Tooltip>
+          <Tooltip title="Refresh">
+            <Button type="text" size="small" icon={<ReloadOutlined />} onClick={() => refetch()} />
+          </Tooltip>
         </div>
       </div>
 
@@ -554,9 +442,9 @@ const AssayProjectPage = ({
             dataSource={data}
             loading={isLoading || isFetching}
             pagination={false}
-            expandable={expandable}
             showHeader={selectable}
             scroll={selectable ? { x: 1500 } : undefined}
+            components={selectable ? undefined : { body: { row: bodyRow } }}
             rowClassName={(record) =>
               record.id === selectedId ? "project-report-row-selected" : ""
             }
@@ -571,13 +459,15 @@ const AssayProjectPage = ({
                   }
                 : undefined
             }
-            onRow={
-              selectable
-                ? (record) => ({
-                    onClick: () => setSelectedID(record.id),
-                  })
-                : undefined
-            }
+            onRow={(record) => ({
+              onClick: () => {
+                if (selectable) {
+                  setSelectedID(record.id);
+                  return;
+                }
+                handleOpenFiles(record);
+              },
+            })}
           />
         )}
       </div>

@@ -16,6 +16,7 @@ const viewLoaders = {
     sampleProjectPage: () => import("./data-dataset-page/sample-project-page"),
     editAssayPage: () => import("./data-dataset-page/edit-assay-page"),
     editAssayFilePage: () => import("./data-dataset-page/edit-assay-file-page"),
+    assayFileListPage: () => import("./data-dataset-page/assay-file-list-page"),
     editSamplePage: () => import("./data-dataset-page/edit-sample-page"),
     editSubjectPage: () => import("./data-dataset-page/edit-subject-page"),
     editDatasetPage: () => import("./data-dataset-page/edit-dataset-page"),
