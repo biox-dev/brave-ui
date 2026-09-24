@@ -38,7 +38,7 @@ const datasetLabel = (dataset?: Pick<DatasetItem, "id" | "dataset_name">) =>
   dataset ? dataset.dataset_name || dataset.id : "";
 
 const sampleLabel = (sample?: SampleItem) =>
-  sample ? sample.sample_name || sample.sample_id || sample.id : "";
+  sample ? sample.sample_name || sample.sample_key || sample.id : "";
 
 // Role of the assay inside its dataset binding (go_dataset_assay.role).
 // Analysis form inputs with input_type=assay match it against their

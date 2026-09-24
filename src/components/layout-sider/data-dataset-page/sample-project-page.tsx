@@ -11,7 +11,7 @@ import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 const { Text } = Typography;
 
 export interface SampleProjectPageProps {
-  sample_id?: string;
+  sample_key?: string;
   sample_name?: string;
   subject_id?: string;
   tissue?: string;
@@ -49,12 +49,12 @@ const columns: ColumnsType<SampleWithSubjectItem> = [
     dataIndex: "sample_name",
     key: "sample_name",
     ellipsis: true,
-    render: (value: string, record) => value || record.sample_id || `Sample-${record.id}`,
+    render: (value: string, record) => value || record.sample_key || `Sample-${record.id}`,
   },
   {
-    title: "Sample ID",
-    dataIndex: "sample_id",
-    key: "sample_id",
+    title: "Sample Key",
+    dataIndex: "sample_key",
+    key: "sample_key",
     width: 150,
     ellipsis: true,
     render: (value: string) => value || "-",
@@ -105,7 +105,7 @@ const columns: ColumnsType<SampleWithSubjectItem> = [
  * is injected) it also acts as a single-select picker.
  */
 const SampleProjectPage = ({
-  sample_id,
+  sample_key,
   sample_name,
   subject_id,
   tissue,
@@ -146,13 +146,13 @@ const SampleProjectPage = ({
 
   useEffect(() => {
     setQuery({
-      sample_id: normalizeText(sample_id),
+      sample_key: normalizeText(sample_key),
       sample_name: normalizeText(sample_name),
       subject_id: normalizeText(subject_id),
       tissue: normalizeText(tissue),
       cell_type: normalizeText(cell_type),
     });
-  }, [sample_id, sample_name, subject_id, tissue, cell_type, setQuery]);
+  }, [sample_key, sample_name, subject_id, tissue, cell_type, setQuery]);
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 
@@ -169,7 +169,7 @@ const SampleProjectPage = ({
     try {
       await invoke.editSamplePage.openDrawerAsync(
         { sample: record },
-        { width: 560, title: `Edit Sample: ${record.sample_name || record.sample_id || record.id}` }
+        { width: 560, title: `Edit Sample: ${record.sample_name || record.sample_key || record.id}` }
       );
       refetch();
     } catch {

@@ -11,6 +11,7 @@ import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 const { Text } = Typography;
 
 export interface SubjectProjectPageProps {
+  subject_key?: string;
   subject_name?: string;
   species?: string;
   strain?: string;
@@ -44,11 +45,19 @@ const normalizePageSize = (value?: number | string) => {
 
 const columns: ColumnsType<SubjectItem> = [
   {
+    title: "Subject Key",
+    dataIndex: "subject_key",
+    key: "subject_key",
+    width: 180,
+    ellipsis: true,
+    render: (value: string, record) => value || `Subject-${record.id}`,
+  },
+  {
     title: "Subject Name",
     dataIndex: "subject_name",
     key: "subject_name",
     ellipsis: true,
-    render: (value: string, record) => value || `Subject-${record.id}`,
+    render: (value: string) => value || "-",
   },
   {
     title: "Species",
@@ -94,6 +103,7 @@ const columns: ColumnsType<SubjectItem> = [
  * `onOk` is injected) it also acts as a single-select picker.
  */
 const SubjectProjectPage = ({
+  subject_key,
   subject_name,
   species,
   strain,
@@ -134,12 +144,13 @@ const SubjectProjectPage = ({
 
   useEffect(() => {
     setQuery({
+      subject_key: normalizeText(subject_key),
       subject_name: normalizeText(subject_name),
       species: normalizeText(species),
       strain: normalizeText(strain),
       sex: normalizeText(sex),
     });
-  }, [subject_name, species, strain, sex, setQuery]);
+  }, [subject_key, subject_name, species, strain, sex, setQuery]);
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 
@@ -156,7 +167,7 @@ const SubjectProjectPage = ({
     try {
       await invoke.editSubjectPage.openDrawerAsync(
         { subject: record },
-        { width: 480, title: `Edit Subject: ${record.subject_name || record.id}` }
+        { width: 480, title: `Edit Subject: ${record.subject_key || record.subject_name || record.id}` }
       );
       refetch();
     } catch {

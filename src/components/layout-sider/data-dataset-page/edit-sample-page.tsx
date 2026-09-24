@@ -19,8 +19,9 @@ export interface EditSamplePageProps {
   close?: () => void;
 }
 
+/** Picker label: prefer the machine-readable business key (go_subject.subject_key). */
 const subjectLabel = (subject?: SubjectItem) =>
-  subject ? subject.subject_name || subject.id : "";
+  subject ? subject.subject_key || subject.subject_name || subject.id : "";
 
 const trimOrUndefined = (value?: string) => {
   const trimmed = value?.trim();
@@ -62,7 +63,7 @@ const EditSamplePage = ({ sample, subject, onOk, onCancel, close }: EditSamplePa
   useEffect(() => {
     if (isEdit && sample) {
       form.setFieldsValue({
-        sample_id: sample.sample_id ?? "",
+        sample_key: sample.sample_key ?? "",
         sample_name: sample.sample_name ?? "",
         tissue: sample.tissue ?? "",
         cell_type: sample.cell_type ?? "",
@@ -121,7 +122,7 @@ const EditSamplePage = ({ sample, subject, onOk, onCancel, close }: EditSamplePa
       setLoading(true);
 
       const payload = {
-        sample_id: String(values.sample_id ?? "").trim(),
+        sample_key: String(values.sample_key ?? "").trim(),
         sample_name: trimOrUndefined(values.sample_name),
         subject_id: String(selectedSubject.id),
         tissue: trimOrUndefined(values.tissue),
@@ -180,10 +181,10 @@ const EditSamplePage = ({ sample, subject, onOk, onCancel, close }: EditSamplePa
       </Form.Item>
 
       <Form.Item
-        name="sample_id"
-        label="Sample ID"
+        name="sample_key"
+        label="Sample Key"
         tooltip="Business number, unique across all samples"
-        rules={[{ required: true, message: "Please input the sample id" }]}
+        rules={[{ required: true, message: "Please input the sample key" }]}
       >
         <Input placeholder="e.g. S-001" />
       </Form.Item>
