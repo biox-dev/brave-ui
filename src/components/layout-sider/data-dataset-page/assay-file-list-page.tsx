@@ -190,6 +190,7 @@ const AssayFileListPage = ({ assay_id, assay_label }: AssayFileListPageProps) =>
 
   return (
     <Flex vertical gap="small">
+      
       <Flex justify="space-between" align="center" gap="small" wrap>
         <span style={{ fontSize: 12, color: "var(--sharp-text-soft)" }}>
           {files.length === 0

@@ -257,6 +257,7 @@ const SampleProjectPage = ({
       title={title || "Samples"}
       extra={
         <Space>
+          
           <Text type="secondary">Total: {total}</Text>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
             New
@@ -267,6 +268,7 @@ const SampleProjectPage = ({
         </Space>
       }
     >
+     
       <Table<SampleWithSubjectItem>
         rowKey="id"
         columns={tableColumns}

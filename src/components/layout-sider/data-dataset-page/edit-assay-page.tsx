@@ -29,14 +29,15 @@ const sampleLabel = (sample?: SampleItem) =>
  *
  * An assay belongs to a Sample and carries nothing else: it has no dataset
  * binding of its own (go_dataset_assay is gone), so the dataset is only
- * involved when the sample is created/picked — the Sample -> Dataset binding
- * lives on DatasetSample. That is why this form only asks for a sample.
+ * involved when the sample is created/picked — the Subject -> Dataset binding
+ * lives on DatasetSubject. That is why this form only asks for a sample.
  *
  * Files are NOT part of this form: `go_file.assay_id` owns the assay -> file
  * relation, and files are added from the assay's file actions.
  *
  * "Select" opens the sample picker drawer (sampleProjectPage) and "New" opens
- * the sample form (editSamplePage), which in turn handles subject and dataset.
+ * the sample form (editSamplePage), which in turn handles the subject (the
+ * subject form handles the dataset).
  */
 const EditAssayPage = ({ assay, sample, onOk, onCancel, close }: EditAssayPageProps) => {
   const [form] = Form.useForm();
@@ -157,7 +158,7 @@ const EditAssayPage = ({ assay, sample, onOk, onCancel, close }: EditAssayPagePr
         <Form.Item
           label="Sample"
           required
-          tooltip="The assay belongs to this sample; the sample in turn is bound to a project dataset (DatasetSample)"
+          tooltip="The assay belongs to this sample; the sample's subject is in turn bound to a project dataset (DatasetSubject)"
         >
           <Space.Compact style={{ width: "100%" }}>
             <Tooltip title={sampleLabel(selectedSample)}>

@@ -57,8 +57,8 @@ export interface AssayDetailItem {
 
 // AssayItem is the read model of the assay APIs: the plain assay entity plus the
 // owning sample/subject labels joined in by the backend. An assay carries no
-// dataset binding of its own — it is reached through its sample, and only
-// DatasetSample (sample -> dataset) holds `dataset_id`.
+// dataset binding of its own — it is reached through its sample, which belongs
+// to a subject, and only DatasetSubject (subject -> dataset) holds `dataset_id`.
 export interface AssayItem extends AssayDetailItem {
 	sample_name: string;
 	// subject_name is the owning Subject's human-readable display name
@@ -106,20 +106,28 @@ export interface SampleWithSubjectItem extends SampleItem {
 	species: string;
 }
 
-// DatasetSampleItem binds a Sample into a Dataset (go_dataset_sample). It is the
-// only project binding on the Sample -> Assay -> File branch: a project's
-// samples (and therefore its assays) are resolved through it, so this is the
-// only place `dataset_id` lives.
-export interface DatasetSampleItem {
+// SubjectWithDatasetItem is what the active-project subject list returns: a
+// Subject joined with the dataset it is bound to through go_dataset_subject.
+// This is the entry point of the Subject -> Sample -> Assay -> File tree.
+export interface SubjectWithDatasetItem extends SubjectItem {
+	dataset_id: string;
+	dataset_name: string;
+}
+
+// DatasetSubjectItem binds a Subject into a Dataset (go_dataset_subject). It is
+// the only project binding on the Subject -> Sample -> Assay -> File branch: a
+// dataset binds to the top-level Subject, and its samples/assays are resolved
+// through that subject, so this is the only place `dataset_id` lives.
+export interface DatasetSubjectItem {
 	id: string;
 	dataset_id: string;
-	sample_id: string;
+	subject_id: string;
 	created_at: string;
 }
 
 // SampleWithDatasetItem is what the active-project sample list returns: a Sample
-// joined with its Subject and the dataset it is bound to through
-// go_dataset_sample (the same columns as /data/sample/list-by-project).
+// joined with its Subject and the dataset that subject is bound to through
+// go_dataset_subject (the same columns as /data/sample/list-by-project).
 export interface SampleWithDatasetItem extends SampleItem {
 	subject_name: string;
 	species: string;
@@ -320,15 +328,21 @@ export const pageAssayByProjectApi = (payload: PageRequest<AssayPageQuery>) => {
 
 // The active project is resolved from the current user on the backend, so no
 // project_id has to be sent. `listAssayByProjectApi` returns every assay of the
-// project (unpaged) with its owning sample_id, which the sample page groups per
-// sample; `listSampleByProjectApi` returns the project's samples together with
-// the dataset they are bound to (go_dataset_sample).
+// project (unpaged) with its owning sample_id, which the subject page groups per
+// sample; `listSampleByProjectApi` returns the project's samples (with their
+// subject and the subject's dataset); `listSubjectByProjectApi` returns the
+// project's subjects together with the dataset they are bound to
+// (go_dataset_subject).
 export const listAssayByProjectApi = () => {
 	return http.get<AssayItem[]>("/data/assay/list-by-project");
 };
 
 export const listSampleByProjectApi = () => {
 	return http.get<SampleWithDatasetItem[]>("/data/sample/list-by-project");
+};
+
+export const listSubjectByProjectApi = () => {
+	return http.get<SubjectWithDatasetItem[]>("/data/subject/list-by-project");
 };
 
 // ---------------------------------------------------------------------------
@@ -367,26 +381,26 @@ export const createFileApi = (payload: CreateFileRequest) => {
 };
 
 // ---------------------------------------------------------------------------
-// DatasetSample (Sample -> Dataset binding)
+// DatasetSubject (Subject -> Dataset binding)
 // ---------------------------------------------------------------------------
 
-export const createDatasetSampleApi = (payload: { dataset_id: string; sample_id: string }) => {
-	return http.post<DatasetSampleItem>("/data/dataset-sample/create", payload);
+export const createDatasetSubjectApi = (payload: { dataset_id: string; subject_id: string }) => {
+	return http.post<DatasetSubjectItem>("/data/dataset-subject/create", payload);
 };
 
-// Returns null when the sample is not bound to any dataset yet.
-export const getDatasetSampleBySampleApi = (sampleId: string) => {
-	return http.get<DatasetSampleItem | null>(
-		`/data/dataset-sample/get-by-sample?sample_id=${encodeURIComponent(sampleId)}`
+// Returns null when the subject is not bound to any dataset yet.
+export const getDatasetSubjectBySubjectApi = (subjectId: string) => {
+	return http.get<DatasetSubjectItem | null>(
+		`/data/dataset-subject/get-by-subject?subject_id=${encodeURIComponent(subjectId)}`
 	);
 };
 
-export const updateDatasetSampleApi = (payload: {
+export const updateDatasetSubjectApi = (payload: {
 	id: string;
 	dataset_id: string;
-	sample_id: string;
+	subject_id: string;
 }) => {
-	return http.post<{ message: string }>("/data/dataset-sample/update", payload);
+	return http.post<{ message: string }>("/data/dataset-subject/update", payload);
 };
 
 // ---------------------------------------------------------------------------
