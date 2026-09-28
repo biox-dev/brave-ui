@@ -27,7 +27,10 @@ const acceptedFormatKeys = (resolver: any, dataMap: any): string[] => {
  * falls back to the first role when the values are not lists (objects/scalars
  * cannot be merged).
  */
-const collectAcceptedFormatsData = (resolver: any, dataMap: any): any => {
+const collectAcceptedFormatsData = (inputType: any, resolver: any, dataMap: any): any => {
+  if (inputType === "sample") {
+    return dataMap["sample"] ? dataMap["sample"]:[];
+  }
   const values = acceptedFormatKeys(resolver, dataMap).map((key) => dataMap[key]);
 
   if (values.length === 0) return undefined;
@@ -92,7 +95,7 @@ export const ComponentsRender = ({
     // 上游分析结果的 key：后端 build*FormData 就是按 resolver.accept_formats
     // 里的角色名（TABLE / DEFAULT ...）分组 analysis_result 的。多个角色是
     // “任选其一”的候选格式，所以全部命中的角色合并成一个候选列表。
-    const collected = collectAcceptedFormatsData(resolver, dataMap);
+    const collected = collectAcceptedFormatsData(rest?.input_type,resolver, dataMap);
     if (collected !== undefined) {
       data = collected;
     } else if ("first_data_key" in dataMap) {
@@ -100,7 +103,10 @@ export const ComponentsRender = ({
     }
   }
 
-  return <Component {...crest} {...rest} data={data} name={name} />;
+  return <>
+  {/* {rest?.input_type} */}
+  <Component {...crest} {...rest} data={data} name={name} />
+  </>
 };
 
 export default ComponentsRender;

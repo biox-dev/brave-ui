@@ -1,5 +1,9 @@
 // src/components/form-components/components/assay/group-select-assay-button.tsx
-// Assay picker + group shortcut buttons + optional group name / colour.
+// Assay/sample picker + group shortcut buttons + optional group name / colour.
+// The value is written to `<name>.<input_type>` (`assay` when the form item does
+// not declare one), so the same component serves both `input_type=assay` and
+// `input_type=sample` items; the sibling `<name>.group` field decides how the
+// options are grouped.
 import { Flex, Form, Input } from "antd";
 import { FC, useEffect, useState } from "react";
 import { ColorPickerComp } from "../shared/color-picker";
@@ -15,7 +19,11 @@ export const GroupSelectAssayButton: FC<any> = ({
   filter,
   group,
   groupField: groupField_,
+  input_type,
 }) => {
+  // The form field holding the selection is named after the item's `input_type`
+  // (assay / sample); items written before `input_type` existed keep `assay`.
+  const inputType = input_type || "assay";
   const [sampleGrouped, setSampleGrouped] = useState<any>();
   const [options, setOptions] = useState<any>([]);
 
@@ -74,7 +82,7 @@ export const GroupSelectAssayButton: FC<any> = ({
 
   return (
     <>
-      <Form.Item label={label} name={[name, "assay"]} rules={rules}>
+      <Form.Item label={label} name={[name, inputType]} rules={rules}>
         <GroupSelectAssay
           mode="multiple"
           sampleGrouped={sampleGrouped}
@@ -86,7 +94,7 @@ export const GroupSelectAssayButton: FC<any> = ({
         <Form.Item label={label} name={[name, "group"]} noStyle>
           <GroupSelectButton
             sampleGrouped={sampleGrouped}
-            field={[name, "assay"]}
+            field={[name, inputType]}
           ></GroupSelectButton>
         </Form.Item>
         <Form.Item name={[name, "group_name"]}>

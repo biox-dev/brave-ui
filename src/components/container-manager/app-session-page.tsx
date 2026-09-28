@@ -67,8 +67,9 @@ const buildAppUrl = (containerURL: string, appSession?: AppSessionItem) => {
     return "";
   }
   //如果containerURL后有/ 去掉
-  const normalizedContainerURL = containerURL.endsWith("/") ? containerURL.slice(0, -1) : containerURL;
-  return `${normalizedContainerURL}${appSession.path_prefix}/`;
+  // const normalizedContainerURL = containerURL.endsWith("/") ? containerURL.slice(0, -1) : containerURL;
+  // return `${normalizedContainerURL}${appSession.path_prefix}/`;
+  return '${appSession.path_prefix}/'
 };
 
 const isRunningStatus = (status?: string) => /running|started|active/i.test(status || "");

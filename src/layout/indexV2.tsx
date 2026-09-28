@@ -80,7 +80,7 @@ const App: React.FC = () => {
       // },
      {
         key: 'assayProjectPage',
-        label: locale === 'en_US' ? 'Assays' : 'Assay',
+        label: locale === 'en_US' ? 'Samples' : '样本',
         icon: <ExperimentOutlined />,
       },
       {

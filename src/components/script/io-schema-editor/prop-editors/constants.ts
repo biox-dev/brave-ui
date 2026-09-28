@@ -7,6 +7,7 @@
 export const INPUT_TYPE_OPTIONS = [
   "file",
   "assay",
+  "sample",
 //   "dir",
 //   "value",
 //   "string",
