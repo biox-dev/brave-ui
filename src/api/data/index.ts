@@ -201,7 +201,8 @@ export interface SaveSubjectRequest {
 }
 
 // SaveSampleRequest payload for /data/sample/create and /data/sample/update.
-// sample_key is the unique business number; subject_id is the owning subject's
+// sample_key is the business number, unique within a dataset (not globally);
+// subject_id is the owning subject's
 // PK (sent as a string, backend int64).
 export interface SaveSampleRequest {
 	sample_key: string;
@@ -316,6 +317,34 @@ export interface EnsureDatasetDirResponse {
 
 export const ensureDatasetDirApi = (payload: { id: string }) => {
 	return http.post<EnsureDatasetDirResponse>("/data/dataset/ensure-dir", payload);
+};
+
+// ImportAssayTSVRequest payload for /data/import/assay-tsv. `content` is the raw
+// TSV text (an uploaded file or pasted content). The header names the columns:
+// subject_key/subject_name map to Subject, sample_key/sample_name to Sample,
+// assay_type/assay_role to Assay, and every other column becomes a File whose
+// file_key is the column name (e.g. FASTQ_R1) and whose path is the cell value.
+// Each level is upserted by its natural key, so re-importing the same table
+// updates instead of duplicating.
+export interface ImportAssayTSVRequest {
+	dataset_id: string;
+	content: string;
+}
+
+export interface ImportAssayTSVResult {
+	rows: number;
+	subjects_created: number;
+	subjects_updated: number;
+	samples_created: number;
+	samples_updated: number;
+	assays_created: number;
+	assays_updated: number;
+	files_created: number;
+	files_updated: number;
+}
+
+export const importAssayTSVApi = (payload: ImportAssayTSVRequest) => {
+	return http.post<ImportAssayTSVResult>("/data/import/assay-tsv", payload);
 };
 
 export const pageFileByProjectApi = (payload: PageRequest<DatasetFilePageQuery>) => {

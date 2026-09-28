@@ -8,6 +8,7 @@ import {
   FileAddOutlined,
   FileOutlined,
   FolderOpenOutlined,
+  ImportOutlined,
   PlusOutlined,
   ReloadOutlined,
   UserOutlined,
@@ -234,6 +235,18 @@ const SubjectSampleAssayProjectPage = ({
   );
 
   // ---- Subject CRUD -------------------------------------------------------
+
+  const handleImport = async () => {
+    try {
+      await invoke.importAssayTsvPage.openDrawerAsync(
+        {},
+        { width: 760, title: "Import TSV" }
+      );
+      await load();
+    } catch {
+      // user cancelled
+    }
+  };
 
   const handleCreateSubject = async () => {
     try {
@@ -754,6 +767,14 @@ const SubjectSampleAssayProjectPage = ({
       <div className="project-report-panel-header">
         <span className="project-report-panel-title">{title || "Subjects"}</span>
         <div className="project-report-panel-actions">
+          <Tooltip title="Import TSV">
+            <Button
+              type="text"
+              size="small"
+              icon={<ImportOutlined />}
+              onClick={() => void handleImport()}
+            />
+          </Tooltip>
           <Tooltip title="New Subject">
             <Button
               type="text"

@@ -226,7 +226,7 @@ const EditSubjectPage = ({ subject, dataset, onOk, onCancel, close }: EditSubjec
       <Form.Item
         name="subject_key"
         label="Subject Key"
-        tooltip="Machine-readable business key (e.g. mouse-001); duplicates are allowed"
+        tooltip="Machine-readable business key (e.g. mouse-001); unique within a dataset, may repeat in another dataset"
         rules={[{ required: true, message: "Please input the subject key" }]}
       >
         <Input placeholder="e.g. mouse-001" />

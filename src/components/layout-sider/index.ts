@@ -22,6 +22,7 @@ const viewLoaders = {
     editDatasetPage: () => import("./data-dataset-page/edit-dataset-page"),
     editFilePage: () => import("./data-dataset-page/edit-file-page"),
     editDatasetFileRole: () => import("./data-dataset-page/edit-datasetfile-role"),
+    importAssayTsvPage: () => import("./data-dataset-page/import-assay-tsv-page"),
 };
 
 declare module "@/core/component-registry/registry-types" {

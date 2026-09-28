@@ -193,7 +193,7 @@ const EditSamplePage = ({ sample, subject, onOk, onCancel, close }: EditSamplePa
       <Form.Item
         name="sample_key"
         label="Sample Key"
-        tooltip="Business number, unique across all samples"
+        tooltip="Business number, unique within a dataset (the same key may repeat in another dataset)"
         rules={[{ required: true, message: "Please input the sample key" }]}
       >
         <Input placeholder="e.g. S-001" />
