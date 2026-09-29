@@ -24,9 +24,9 @@ export interface EditSamplePageProps {
   close?: () => void;
 }
 
-/** Picker label: prefer the machine-readable business key (go_subject.subject_key). */
+/** Picker label: the subject's business name (go_subject.subject_name). */
 const subjectLabel = (subject?: SubjectItem) =>
-  subject ? subject.subject_key || subject.subject_name || subject.id : "";
+  subject ? subject.subject_name || subject.id : "";
 
 const trimOrUndefined = (value?: string) => {
   const trimmed = value?.trim();
@@ -73,7 +73,6 @@ const EditSamplePage = ({ sample, subject, onOk, onCancel, close }: EditSamplePa
   useEffect(() => {
     if (isEdit && sample) {
       form.setFieldsValue({
-        sample_key: sample.sample_key ?? "",
         sample_name: sample.sample_name ?? "",
         tissue: sample.tissue ?? "",
         cell_type: sample.cell_type ?? "",
@@ -132,8 +131,7 @@ const EditSamplePage = ({ sample, subject, onOk, onCancel, close }: EditSamplePa
       setLoading(true);
 
       const payload = {
-        sample_key: String(values.sample_key ?? "").trim(),
-        sample_name: trimOrUndefined(values.sample_name),
+        sample_name: String(values.sample_name ?? "").trim(),
         subject_id: String(selectedSubject.id),
         tissue: trimOrUndefined(values.tissue),
         cell_type: trimOrUndefined(values.cell_type),
@@ -191,16 +189,12 @@ const EditSamplePage = ({ sample, subject, onOk, onCancel, close }: EditSamplePa
       </Form.Item>
 
       <Form.Item
-        name="sample_key"
-        label="Sample Key"
-        tooltip="Business number, unique within a dataset (the same key may repeat in another dataset)"
-        rules={[{ required: true, message: "Please input the sample key" }]}
+        name="sample_name"
+        label="Sample Name"
+        tooltip="Business number / display name, required and unique within a dataset (the same name may repeat in another dataset)"
+        rules={[{ required: true, message: "Please input the sample name" }]}
       >
         <Input placeholder="e.g. S-001" />
-      </Form.Item>
-
-      <Form.Item name="sample_name" label="Sample Name">
-        <Input placeholder="Display name" />
       </Form.Item>
 
       <Flex gap="small">

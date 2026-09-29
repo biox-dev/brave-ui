@@ -36,7 +36,6 @@ const { Text } = Typography;
 export interface SubjectSampleAssayProjectPageProps {
   /** Optional client-side subject filters; the list is already scoped to the active project. */
   id?: string;
-  subject_key?: string;
   subject_name?: string;
   species?: string;
   strain?: string;
@@ -83,16 +82,17 @@ const groupBy = <T,>(items: T[], keyOf: (item: T) => string) => {
   return grouped;
 };
 
-/** Subject label: display name -> business key -> primary key. */
+/** Subject label: business name -> primary key. */
 const subjectLabel = (record: SubjectWithDatasetItem) =>
-  record.subject_name || record.subject_key || `Subject-${record.id}`;
+  record.subject_name || `Subject-${record.id}`;
 
-/** Sample label: display name -> business key -> primary key. */
+/** Sample label: business name -> primary key. */
 const sampleLabel = (record: SampleWithDatasetItem) =>
-  record.sample_name || record.sample_key || `Sample-${record.id}`;
+  record.sample_name || `Sample-${record.id}`;
 
-/** Assay has no name column, so the label derives from library_id -> assay_type -> PK. */
-const assayLabel = (record: AssayItem) => record.library_id || record.assay_type || record.id;
+/** Assay label: assay_name -> library_id -> assay_type -> PK. */
+const assayLabel = (record: AssayItem) =>
+  record.assay_name || record.library_id || record.assay_type || record.id;
 
 const assayMeta = (record: AssayItem) =>
   [record.assay_type, record.platform, record.library_id].filter(Boolean).join(" · ");
@@ -121,7 +121,6 @@ const fileMeta = (record: DataFileItem) =>
  */
 const SubjectSampleAssayProjectPage = ({
   id,
-  subject_key,
   subject_name,
   species,
   strain,
@@ -201,7 +200,6 @@ const SubjectSampleAssayProjectPage = ({
 
   const filteredSubjects = useMemo(() => {
     const idFilter = normalizeText(id);
-    const keyFilter = normalizeText(subject_key)?.toLowerCase();
     const nameFilter = normalizeText(subject_name)?.toLowerCase();
     const speciesFilter = normalizeText(species)?.toLowerCase();
     const strainFilter = normalizeText(strain)?.toLowerCase();
@@ -209,7 +207,6 @@ const SubjectSampleAssayProjectPage = ({
 
     return subjects.filter((subject) => {
       if (idFilter && String(subject.id) !== idFilter) return false;
-      if (keyFilter && !(subject.subject_key ?? "").toLowerCase().includes(keyFilter)) return false;
       if (nameFilter && !(subject.subject_name ?? "").toLowerCase().includes(nameFilter)) {
         return false;
       }
@@ -222,7 +219,7 @@ const SubjectSampleAssayProjectPage = ({
       if (sexFilter && !(subject.sex ?? "").toLowerCase().includes(sexFilter)) return false;
       return true;
     });
-  }, [subjects, id, subject_key, subject_name, species, strain, sex]);
+  }, [subjects, id, subject_name, species, strain, sex]);
 
   const pagedSubjects = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -723,7 +720,7 @@ const SubjectSampleAssayProjectPage = ({
       ellipsis: { showTitle: false },
       render: (_value: string, record) => {
         const label = subjectLabel(record);
-        const meta = [record.subject_key, record.species, record.dataset_name]
+        const meta = [record.species, record.dataset_name]
           .filter(Boolean)
           .join(" · ");
 

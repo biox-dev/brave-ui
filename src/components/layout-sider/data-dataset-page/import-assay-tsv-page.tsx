@@ -22,16 +22,16 @@ const datasetLabel = (dataset?: Pick<DatasetItem, "id" | "dataset_name">) =>
   dataset ? dataset.dataset_name || dataset.id : "";
 
 const SAMPLE_TSV = [
-  "sample_name\tsample_key\tFASTQ_R1\tFASTQ_R2\tassay_type\tassay_role\tsubject_key\tsubject_name",
-  "脾脏-6\tOSP-6\t/data/metagenomics/leipu_singlebac/V350200084_L03_167_1.fq.gz\t/data/metagenomics/leipu_singlebac/V350200084_L03_167_2.fq.gz\tWGS\tWGS\tOSP-6\t脾脏-6",
+  "sample_name\tFASTQ_R1\tFASTQ_R2\tassay_type\tassay_role\tsubject_name",
+  "脾脏-6\t/data/metagenomics/leipu_singlebac/V350200084_L03_167_1.fq.gz\t/data/metagenomics/leipu_singlebac/V350200084_L03_167_2.fq.gz\tWGS\tWGS\t脾脏-6",
 ].join("\n");
 
 /**
  * Import a TSV table into a dataset.
  *
  * The header row names the columns; the backend upserts the whole
- * Subject -> Sample -> Assay -> File tree per row (subject_key/subject_name,
- * sample_key/sample_name, assay_type/assay_role, and one File per remaining
+ * Subject -> Sample -> Assay -> File tree per row (subject_name,
+ * sample_name, assay_type/assay_role/assay_name, and one File per remaining
  * column, whose file_key is the column name). Content can be uploaded as a file
  * or pasted into the text box; nothing is parsed on the client so new columns
  * need no frontend change.
@@ -191,7 +191,7 @@ const ImportAssayTsvPage = ({
           spellCheck={false}
         />
         <Text type="secondary" style={{ fontSize: 12 }}>
-          subject_key / sample_key are required. Unmapped columns become files whose key is the
+          subject_name / sample_name are required. Unmapped columns become files whose key is the
           column name (e.g. FASTQ_R1); their cell value is the file path.
         </Text>
       </Flex>

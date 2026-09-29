@@ -23,7 +23,7 @@ const trimOrUndefined = (value?: string) => {
 };
 
 const sampleLabel = (sample?: SampleItem) =>
-  sample ? sample.sample_name || sample.sample_key || sample.id : "";
+  sample ? sample.sample_name || sample.id : "";
 
 /**
  * Assay create & edit form.
@@ -55,8 +55,10 @@ const EditAssayPage = ({ assay, sample, onOk, onCancel, close }: EditAssayPagePr
         assay_type: assay.assay_type ?? "",
         platform: assay.platform ?? "",
         library_id: assay.library_id ?? "",
+        assay_name: assay.assay_name ?? "",
         role: assay.role ?? "",
         metadata: assay.metadata ?? "",
+        description: assay.description ?? "",
       });
 
       // The assay only stores sample_id, so fetch the sample for its label.
@@ -124,8 +126,10 @@ const EditAssayPage = ({ assay, sample, onOk, onCancel, close }: EditAssayPagePr
         assay_type: trimOrUndefined(values.assay_type),
         platform: trimOrUndefined(values.platform),
         library_id: trimOrUndefined(values.library_id),
+        assay_name: trimOrUndefined(values.assay_name),
         role: trimOrUndefined(values.role),
         metadata: trimOrUndefined(values.metadata),
+        description: trimOrUndefined(values.description),
       };
 
       if (isEdit) {
@@ -193,6 +197,14 @@ const EditAssayPage = ({ assay, sample, onOk, onCancel, close }: EditAssayPagePr
         </Form.Item>
 
         <Form.Item
+          name="assay_name"
+          label="Assay Name"
+          tooltip="Display name; leave empty to fall back to Library ID → Assay Type → id"
+        >
+          <Input placeholder="e.g. WGS-1" />
+        </Form.Item>
+
+        <Form.Item
           name="role"
           label="Role"
           tooltip="Matched against an analysis form input's resolver.accept_formats, e.g. WGS_SHORT_READ or DEFAULT/TABLE (same convention as a dataset file's role). Leave empty for no role filtering."
@@ -206,6 +218,10 @@ const EditAssayPage = ({ assay, sample, onOk, onCancel, close }: EditAssayPagePr
 
         <Form.Item name="metadata" label="Metadata">
           <Input.TextArea rows={3} placeholder="Free-form metadata" />
+        </Form.Item>
+
+        <Form.Item name="description" label="Description">
+          <Input.TextArea rows={2} placeholder="Description" />
         </Form.Item>
       </Form>
 
