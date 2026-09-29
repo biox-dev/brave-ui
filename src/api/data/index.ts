@@ -43,13 +43,12 @@ export interface DatasetFileItem {
 
 export interface AssayDetailItem {
 	id: string;
-	sample_id: string;
+	// sample_name is the biological sample's business identifier, carried directly on
+	// the assay (go_assay.sample_name); it is only unique within a dataset.
+	sample_name: string;
 	assay_type: string;
 	platform: string;
 	library_id: string;
-	// assay_name is the assay's display name (go_assay.assay_name); empty means the
-	// UI falls back to library_id -> assay_type -> id.
-	assay_name: string;
 	// role is matched against an analysis form input's resolver.accept_formats
 	// (the same convention as a dataset file's role); empty means "no role".
 	role: string;
@@ -60,43 +59,20 @@ export interface AssayDetailItem {
 }
 
 // AssayItem is the read model of the assay APIs: the plain assay entity plus the
-// owning sample label joined in by the backend. An assay carries no dataset
-// binding of its own — it is reached through its sample, and only DatasetSample
-// (dataset -> sample) holds `dataset_id`.
+// dataset it is bound to through go_dataset_assay.
 export interface AssayItem extends AssayDetailItem {
-	sample_name: string;
-}
-
-// SampleItem is one biological sample (go_sample). sample_name is the business
-// number; the owning dataset is modelled by the DatasetSample join row.
-export interface SampleItem {
-	id: string;
-	sample_name: string;
-	tissue: string;
-	cell_type: string;
-	collection_time?: string | null;
-	metadata: string;
-	description: string;
-	created_at: string;
-	updated_at: string;
-}
-
-// DatasetSampleItem binds a Sample into a Dataset (go_dataset_sample). It is the
-// only project binding on the Sample -> Assay -> File branch: a dataset binds to
-// the Sample, and its assays/files are resolved through that sample.
-export interface DatasetSampleItem {
-	id: string;
-	dataset_id: string;
-	sample_id: string;
-	created_at: string;
-}
-
-// SampleWithDatasetItem is what the active-project sample list returns: a Sample
-// joined with the dataset it is bound to through go_dataset_sample (the same
-// columns as /data/sample/list-by-project).
-export interface SampleWithDatasetItem extends SampleItem {
 	dataset_id: string;
 	dataset_name: string;
+}
+
+// DatasetAssayItem binds an Assay into a Dataset (go_dataset_assay). It is the
+// project binding on the Dataset -> Assay -> File branch: a dataset binds to the
+// Assay, and the assay's files follow it (go_file.assay_id).
+export interface DatasetAssayItem {
+	id: string;
+	dataset_id: string;
+	assay_id: string;
+	created_at: string;
 }
 
 export interface DatasetPageQuery {
@@ -126,41 +102,24 @@ export interface DatasetFilePageQuery {
 export interface AssayPageQuery {
 	// project_id: string;
 	id?: string;
-	sample_id?: string;
+	sample_name?: string;
 	assay_type?: string;
 	platform?: string;
 	library_id?: string;
+	role?: string;
 	metadata?: string;
-}
-
-export interface SamplePageQuery {
-	sample_name?: string;
-	tissue?: string;
-	cell_type?: string;
-}
-
-// SaveSampleRequest payload for /data/sample/create and /data/sample/update.
-// sample_name is the business number, unique within a dataset (not globally).
-// The dataset the sample belongs to is established separately through
-// createDatasetSampleApi / updateDatasetSampleApi.
-export interface SaveSampleRequest {
-	sample_name: string;
-	tissue?: string;
-	cell_type?: string;
-	collection_time?: string | null;
-	metadata?: string;
-	description?: string;
 }
 
 // SaveAssayRequest payload for /data/assay/create and /data/assay/update.
+// sample_name is the biological sample's business identifier, carried directly on
+// the assay; it is required and only unique within a dataset. The dataset the
+// assay belongs to is established separately through createDatasetAssayApi /
+// updateDatasetAssayApi.
 export interface SaveAssayRequest {
-	sample_id: string;
+	sample_name: string;
 	assay_type?: string;
 	platform?: string;
 	library_id?: string;
-	// assay_name is the assay's display name; empty means the UI falls back to
-	// library_id -> assay_type -> id.
-	assay_name?: string;
 	// role is matched against an analysis form input's resolver.accept_formats.
 	role?: string;
 	metadata?: string;
@@ -262,9 +221,9 @@ export const ensureDatasetDirApi = (payload: { id: string }) => {
 
 // ImportAssayTSVRequest payload for /data/import/assay-tsv. `content` is the raw
 // TSV text (an uploaded file or pasted content). The header names the columns:
-// sample_name maps to Sample (and creates its DatasetSample binding),
-// assay_type/assay_role/assay_name to Assay, and every other column becomes a File
-// whose file_key is the column name (e.g. FASTQ_R1) and whose path is the cell value.
+// sample_name + assay_role (+ assay_type) map to Assay (the assay is bound to the
+// dataset through go_dataset_assay), and every other column becomes a File whose
+// file_key is the column name (e.g. FASTQ_R1) and whose path is the cell value.
 // Each level is upserted by its natural key, so re-importing the same table
 // updates instead of duplicating.
 export interface ImportAssayTSVRequest {
@@ -274,8 +233,6 @@ export interface ImportAssayTSVRequest {
 
 export interface ImportAssayTSVResult {
 	rows: number;
-	samples_created: number;
-	samples_updated: number;
 	assays_created: number;
 	assays_updated: number;
 	files_created: number;
@@ -296,15 +253,9 @@ export const pageAssayByProjectApi = (payload: PageRequest<AssayPageQuery>) => {
 
 // The active project is resolved from the current user on the backend, so no
 // project_id has to be sent. `listAssayByProjectApi` returns every assay of the
-// project (unpaged) with its owning sample_id, which the sample page groups per
-// sample; `listSampleByProjectApi` returns the project's samples together with the
-// dataset they are bound to (go_dataset_sample).
+// project (unpaged) together with the dataset it is bound to (go_dataset_assay).
 export const listAssayByProjectApi = () => {
 	return http.get<AssayItem[]>("/data/assay/list-by-project");
-};
-
-export const listSampleByProjectApi = () => {
-	return http.get<SampleWithDatasetItem[]>("/data/sample/list-by-project");
 };
 
 // ---------------------------------------------------------------------------
@@ -343,55 +294,26 @@ export const createFileApi = (payload: CreateFileRequest) => {
 };
 
 // ---------------------------------------------------------------------------
-// DatasetSample (Dataset -> Sample binding)
+// DatasetAssay (Dataset -> Assay binding)
 // ---------------------------------------------------------------------------
 
-export const createDatasetSampleApi = (payload: { dataset_id: string; sample_id: string }) => {
-	return http.post<DatasetSampleItem>("/data/dataset-sample/create", payload);
+export const createDatasetAssayApi = (payload: { dataset_id: string; assay_id: string }) => {
+	return http.post<DatasetAssayItem>("/data/dataset-assay/create", payload);
 };
 
-// Returns null when the sample is not bound to any dataset yet.
-export const getDatasetSampleBySampleApi = (sampleId: string) => {
-	return http.get<DatasetSampleItem | null>(
-		`/data/dataset-sample/get-by-sample?sample_id=${encodeURIComponent(sampleId)}`
+// Returns null when the assay is not bound to any dataset yet.
+export const getDatasetAssayByAssayApi = (assayId: string) => {
+	return http.get<DatasetAssayItem | null>(
+		`/data/dataset-assay/get-by-assay?assay_id=${encodeURIComponent(assayId)}`
 	);
 };
 
-export const updateDatasetSampleApi = (payload: {
+export const updateDatasetAssayApi = (payload: {
 	id: string;
 	dataset_id: string;
-	sample_id: string;
+	assay_id: string;
 }) => {
-	return http.post<{ message: string }>("/data/dataset-sample/update", payload);
-};
-
-// ---------------------------------------------------------------------------
-// Sample
-// ---------------------------------------------------------------------------
-
-export const pageSampleApi = (payload: PageRequest<SamplePageQuery>) => {
-	return http.post<PageResponse<SampleItem>>("/data/sample/page", payload);
-};
-
-export const listSampleApi = () => {
-	return http.get<SampleItem[]>("/data/sample/list");
-};
-
-export const getSampleApi = (id: string) => {
-	return http.get<SampleItem>(`/data/sample/get?id=${encodeURIComponent(id)}`);
-};
-
-export const createSampleApi = (payload: SaveSampleRequest) => {
-	return http.post<SampleItem>("/data/sample/create", payload);
-};
-
-export const updateSampleApi = (payload: SaveSampleRequest & { id: string }) => {
-	return http.post<SampleItem>("/data/sample/update", payload);
-};
-
-// Deleting a sample also removes the assays/files it owns and its dataset binding.
-export const deleteSampleApi = (payload: { id: string }) => {
-	return http.post<{ message: string }>("/data/sample/delete", payload);
+	return http.post<{ message: string }>("/data/dataset-assay/update", payload);
 };
 
 export const addFileToDatasetApi = (payload: AddFileToDatasetRequest) => {

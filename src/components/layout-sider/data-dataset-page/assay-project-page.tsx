@@ -14,26 +14,24 @@ import {
 } from "@ant-design/icons";
 import {
   deleteAssayApi,
-  deleteSampleApi,
   listAssayByProjectApi,
   listFileByAssayApi,
-  listSampleByProjectApi,
 } from "@/api/data";
-import type { AssayItem, DataFileItem, SampleWithDatasetItem } from "@/api/data";
+import type { AssayItem, DataFileItem, DatasetItem } from "@/api/data";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 
 const { Text } = Typography;
 
-export interface SampleAssayProjectPageProps {
-  /** Optional client-side sample filters; the list is already scoped to the active project. */
+export interface AssayProjectPageProps {
+  /** Optional client-side filters; the list is already scoped to the active project. */
   id?: string;
   sample_name?: string;
-  tissue?: string;
-  cell_type?: string;
+  assay_type?: string;
+  role?: string;
   page_size?: number | string;
   title?: string;
-  onOk?: (sample: SampleWithDatasetItem) => void;
+  onOk?: (assay: AssayItem) => void;
   onCancel?: () => void;
   close?: () => void;
 }
@@ -58,31 +56,14 @@ const normalizePageSize = (value?: number | string) => {
   return 10;
 };
 
-/** Group a flat list by a string key (e.g. assays by sample_id). */
-const groupBy = <T,>(items: T[], keyOf: (item: T) => string) => {
-  const grouped = new Map<string, T[]>();
-  for (const item of items) {
-    const key = keyOf(item);
-    const list = grouped.get(key);
-    if (list) {
-      list.push(item);
-    } else {
-      grouped.set(key, [item]);
-    }
-  }
-  return grouped;
-};
-
-/** Sample label: business name -> primary key. */
-const sampleLabel = (record: SampleWithDatasetItem) =>
-  record.sample_name || `Sample-${record.id}`;
-
-/** Assay label: assay_name -> library_id -> assay_type -> PK. */
+/** Assay label: sample_name -> library_id -> assay_type -> PK. */
 const assayLabel = (record: AssayItem) =>
-  record.assay_name || record.library_id || record.assay_type || record.id;
+  record.sample_name || record.library_id || record.assay_type || record.id;
 
 const assayMeta = (record: AssayItem) =>
-  [record.assay_type, record.platform, record.library_id].filter(Boolean).join(" · ");
+  [record.assay_type, record.platform, record.library_id, record.dataset_name]
+    .filter(Boolean)
+    .join(" · ");
 
 /** File label: file_name -> file_id -> primary key. */
 const fileLabel = (record: DataFileItem) =>
@@ -92,56 +73,49 @@ const fileMeta = (record: DataFileItem) =>
   [record.format, record.file_key].filter(Boolean).join(" · ");
 
 /**
- * Sample -> Assay -> File data page.
+ * Dataset -> Assay -> File data page.
  *
- * A dataset binds to a Sample through go_dataset_sample, so the project's
- * samples are the entry point; their assays are resolved through that binding
- * (go_project_dataset -> go_dataset_sample -> go_sample -> go_assay). Expanding
- * a sample reveals its assays, and expanding an assay lazily loads its files
- * (go_file.assay_id owns the assay -> file relation).
+ * A dataset binds directly to an Assay through go_dataset_assay, so the project's
+ * assays are the entry point (go_project_dataset -> go_dataset_assay -> go_assay).
+ * Expanding an assay lazily loads its files (go_file.assay_id owns the assay ->
+ * file relation).
  *
- * CRUD is delegated to the existing drawers: `editSamplePage` (which also writes
- * the DatasetSample binding), `editAssayPage` (sample-scoped, no dataset), and
+ * The assay itself carries its biological sample name (go_assay.sample_name), so
+ * there is no separate Sample entity. CRUD is delegated to the existing drawers:
+ * `editAssayPage` (which also writes the DatasetAssay binding on create) and
  * `editAssayFilePage` / `assayFileListPage` for the files of one assay.
  */
-const SampleAssayProjectPage = ({
+const AssayProjectPage = ({
   id,
   sample_name,
-  tissue,
-  cell_type,
+  assay_type,
+  role,
   page_size,
   title,
   onOk,
   onCancel,
   close,
-}: SampleAssayProjectPageProps) => {
+}: AssayProjectPageProps) => {
   const message = useGlobalMessage();
 
-  const [samples, setSamples] = useState<SampleWithDatasetItem[]>([]);
   const [assays, setAssays] = useState<AssayItem[]>([]);
   const [filesByAssay, setFilesByAssay] = useState<Record<string, DataFileItem[]>>({});
   const [filesLoading, setFilesLoading] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const [selectedId, setSelectedId] = useState<string>();
-  const [expandedSamples, setExpandedSamples] = useState<string[]>([]);
   const [expandedAssays, setExpandedAssays] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(() => normalizePageSize(page_size));
 
   const selectable = Boolean(onOk || onCancel);
 
-  // Both lists are scoped to the current user's active project by the backend,
-  // so one round trip is enough and the hierarchy is grouped here.
+  // The list is scoped to the current user's active project by the backend.
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [sampleResponse, assayResponse] = await Promise.all([
-        listSampleByProjectApi(),
-        listAssayByProjectApi(),
-      ]);
-      setSamples((sampleResponse.data ?? []) as SampleWithDatasetItem[]);
-      setAssays((assayResponse.data ?? []) as AssayItem[]);
+      const response = await listAssayByProjectApi();
+      setAssays((response.data ?? []) as AssayItem[]);
       setFailed(false);
     } catch {
       // already reported by the global interceptor
@@ -168,103 +142,65 @@ const SampleAssayProjectPage = ({
     }
   }, []);
 
-  const assaysBySample = useMemo(
-    () => groupBy(assays, (assay) => String(assay.sample_id ?? "")),
-    [assays]
-  );
-
-  const filteredSamples = useMemo(() => {
+  const filteredAssays = useMemo(() => {
     const idFilter = normalizeText(id);
     const nameFilter = normalizeText(sample_name)?.toLowerCase();
-    const tissueFilter = normalizeText(tissue)?.toLowerCase();
-    const cellTypeFilter = normalizeText(cell_type)?.toLowerCase();
+    const typeFilter = normalizeText(assay_type)?.toLowerCase();
+    const roleFilter = normalizeText(role)?.toLowerCase();
 
-    return samples.filter((sample) => {
-      if (idFilter && String(sample.id) !== idFilter) return false;
-      if (nameFilter && !(sample.sample_name ?? "").toLowerCase().includes(nameFilter)) {
+    return assays.filter((assay) => {
+      if (idFilter && String(assay.id) !== idFilter) return false;
+      if (nameFilter && !(assay.sample_name ?? "").toLowerCase().includes(nameFilter)) {
         return false;
       }
-      if (tissueFilter && !(sample.tissue ?? "").toLowerCase().includes(tissueFilter)) {
+      if (typeFilter && !(assay.assay_type ?? "").toLowerCase().includes(typeFilter)) {
         return false;
       }
-      if (cellTypeFilter && !(sample.cell_type ?? "").toLowerCase().includes(cellTypeFilter)) {
+      if (roleFilter && !(assay.role ?? "").toLowerCase().includes(roleFilter)) {
         return false;
       }
       return true;
     });
-  }, [samples, id, sample_name, tissue, cell_type]);
+  }, [assays, id, sample_name, assay_type, role]);
 
-  const pagedSamples = useMemo(() => {
+  const pagedAssays = useMemo(() => {
     const start = (page - 1) * pageSize;
-    return filteredSamples.slice(start, start + pageSize);
-  }, [filteredSamples, page, pageSize]);
+    return filteredAssays.slice(start, start + pageSize);
+  }, [filteredAssays, page, pageSize]);
 
   const selectedItem = useMemo(
-    () => samples.find((item) => item.id === selectedId),
-    [samples, selectedId]
+    () => assays.find((item) => item.id === selectedId),
+    [assays, selectedId]
   );
 
-  // ---- Sample CRUD --------------------------------------------------------
+  // ---- CRUD ---------------------------------------------------------------
 
   const handleImport = async () => {
     try {
-      await invoke.importAssayTsvPage.openDrawerAsync(
+      await invoke.importAssayTsvPage.openDrawerAsync({}, { width: 760, title: "Import TSV" });
+      await load();
+    } catch {
+      // user cancelled
+    }
+  };
+
+  const handleCreateAssay = async () => {
+    try {
+      // An assay joins a project through go_dataset_assay, so pick the owning
+      // dataset first; editAssayPage writes the binding after creating the assay.
+      const dataset = await invoke.datasetProjectPage.openDrawerAsync(
         {},
-        { width: 760, title: "Import TSV" }
+        { width: 900, title: "Select Dataset" }
       );
-      await load();
-    } catch {
-      // user cancelled
-    }
-  };
-
-  const handleCreateSample = async () => {
-    try {
-      // The form also writes the DatasetSample binding, which is what makes
-      // the sample (and its assays) belong to the active project.
-      await invoke.editSamplePage.openDrawerAsync({}, { width: 560, title: "New Sample" });
-      await load();
-    } catch {
-      // user cancelled
-    }
-  };
-
-  const handleEditSample = async (record: SampleWithDatasetItem) => {
-    try {
-      await invoke.editSamplePage.openDrawerAsync(
-        { sample: record },
-        { width: 560, title: `Edit Sample: ${sampleLabel(record)}` }
-      );
-      await load();
-    } catch {
-      // user cancelled
-    }
-  };
-
-  // Deleting a sample cascades to the assays/files it owns.
-  const handleDeleteSample = async (record: SampleWithDatasetItem) => {
-    try {
-      await deleteSampleApi({ id: record.id });
-      message.success("Sample deleted successfully");
-      if (selectedId === record.id) {
-        setSelectedId(undefined);
+      if (!dataset?.id) {
+        return;
       }
-      await load();
-    } catch {
-      // already reported by the global interceptor
-    }
-  };
 
-  // ---- Assay CRUD ---------------------------------------------------------
-
-  const handleCreateAssay = async (sample: SampleWithDatasetItem) => {
-    try {
       await invoke.editAssayPage.openDrawerAsync(
-        { sample },
-        { width: 560, title: `New Assay: ${sampleLabel(sample)}` }
+        { dataset: dataset as DatasetItem },
+        { width: 560, title: `New Assay: ${dataset.dataset_name || dataset.id}` }
       );
       await load();
-      setExpandedSamples((keys) => (keys.includes(sample.id) ? keys : [...keys, sample.id]));
     } catch {
       // user cancelled
     }
@@ -282,11 +218,14 @@ const SampleAssayProjectPage = ({
     }
   };
 
-  // Deleting an assay also removes the files it owns.
+  // Deleting an assay also removes the files it owns and its dataset bindings.
   const handleDeleteAssay = async (assay: AssayItem) => {
     try {
       await deleteAssayApi({ id: assay.id });
       message.success("Assay deleted successfully");
+      if (selectedId === assay.id) {
+        setSelectedId(undefined);
+      }
       await load();
     } catch {
       // already reported by the global interceptor
@@ -296,9 +235,8 @@ const SampleAssayProjectPage = ({
   // ---- Assay files --------------------------------------------------------
 
   const handleOpenFiles = (assay: AssayItem) => {
-    // Fire-and-forget: the file list drawer is a list, not a form, so it does
-    // not resolve openDrawerAsync. Files are refreshed the next time the assay
-    // expands.
+    // Fire-and-forget: the file list drawer is a list, not a form, so it does not
+    // resolve openDrawerAsync. Files are refreshed the next time the assay expands.
     invoke.assayFileListPage.drawer(
       { assay_id: assay.id, assay_label: assayLabel(assay) },
       { width: 880, title: `Assay Files: ${assayLabel(assay)}` }
@@ -449,121 +387,6 @@ const SampleAssayProjectPage = ({
     },
   ];
 
-  const renderAssays = (sample: SampleWithDatasetItem) => {
-    const rows = assaysBySample.get(String(sample.id)) ?? [];
-
-    return (
-      <div style={{ padding: "2px 0 8px 26px" }}>
-        <Flex justify="space-between" align="center" gap="small" wrap style={{ marginBottom: 4 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {rows.length === 0 ? "No assays" : `${rows.length} assay(s)`}
-          </Text>
-          <Button
-            size="small"
-            type="primary"
-            ghost
-            icon={<PlusOutlined />}
-            onClick={(event) => {
-              event.stopPropagation();
-              void handleCreateAssay(sample);
-            }}
-          >
-            Add Assay
-          </Button>
-        </Flex>
-
-        {rows.length === 0 ? (
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            This sample has no assay yet.
-          </Text>
-        ) : (
-          <Table<AssayItem>
-            rowKey="id"
-            size="small"
-            showHeader={false}
-            columns={assayColumns}
-            dataSource={rows}
-            pagination={false}
-            expandable={{
-              expandedRowKeys: expandedAssays,
-              onExpandedRowsChange: (keys) => {
-                const next = keys.map(String);
-                setExpandedAssays(next);
-                // Refresh files for every expanded assay so the inline list
-                // reflects changes made through the Manage drawer.
-                for (const key of next) {
-                  void loadFiles(key);
-                }
-              },
-              expandedRowRender: renderFiles,
-            }}
-          />
-        )}
-      </div>
-    );
-  };
-
-  const sampleColumns: ColumnsType<SampleWithDatasetItem> = [
-    {
-      key: "sample",
-      render: (_value: unknown, record) => {
-        const label = sampleLabel(record);
-        const meta = [record.tissue, record.cell_type].filter(Boolean).join(" · ");
-        return (
-          <div className="project-report-item">
-            <ExperimentOutlined className="project-report-item-icon" />
-            <div className="project-report-item-text">
-              <Tooltip placement="topLeft" title={label}>
-                <span className="project-report-item-title">{label}</span>
-              </Tooltip>
-              {meta && (
-                <span className="project-report-item-meta" title={meta}>
-                  {meta}
-                </span>
-              )}
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      width: 120,
-      align: "right",
-      render: (_value: unknown, record) => (
-        <span
-          className="project-report-item-actions project-report-item-actions-static"
-          onClick={(event) => event.stopPropagation()}
-        >
-          <Tooltip title="Add Assay">
-            <Button
-              type="text"
-              size="small"
-              icon={<PlusOutlined />}
-              onClick={() => void handleCreateAssay(record)}
-            />
-          </Tooltip>
-          <Tooltip title="Edit Sample">
-            <Button
-              type="text"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => void handleEditSample(record)}
-            />
-          </Tooltip>
-          <Popconfirm
-            title="Delete this sample?"
-            description="Its assays and files are deleted too."
-            onConfirm={() => void handleDeleteSample(record)}
-          >
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </span>
-      ),
-    },
-  ];
-
   const handleConfirm = () => {
     if (!selectedItem || !onOk) {
       return;
@@ -582,7 +405,7 @@ const SampleAssayProjectPage = ({
   return (
     <div className="project-report-panel">
       <div className="project-report-panel-header">
-        <span className="project-report-panel-title">{title || "Samples"}</span>
+        <span className="project-report-panel-title">{title || "Assays"}</span>
         <div className="project-report-panel-actions">
           <Tooltip title="Import TSV">
             <Button
@@ -592,12 +415,12 @@ const SampleAssayProjectPage = ({
               onClick={() => void handleImport()}
             />
           </Tooltip>
-          <Tooltip title="New Sample">
+          <Tooltip title="New Assay">
             <Button
               type="text"
               size="small"
               icon={<PlusOutlined />}
-              onClick={() => void handleCreateSample()}
+              onClick={() => void handleCreateAssay()}
             />
           </Tooltip>
           <Tooltip title="Refresh">
@@ -607,24 +430,32 @@ const SampleAssayProjectPage = ({
       </div>
 
       <div className="project-report-panel-body">
-        {pagedSamples.length === 0 && !loading ? (
+        {pagedAssays.length === 0 && !loading ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={failed ? "Failed to load samples" : "No samples"}
+            description={failed ? "Failed to load assays" : "No assays"}
           />
         ) : (
-          <Table<SampleWithDatasetItem>
+          <Table<AssayItem>
             rowKey="id"
             size="small"
-            columns={sampleColumns}
-            dataSource={pagedSamples}
+            columns={assayColumns}
+            dataSource={pagedAssays}
             loading={loading}
             pagination={false}
             showHeader={selectable}
             expandable={{
-              expandedRowKeys: expandedSamples,
-              onExpandedRowsChange: (keys) => setExpandedSamples(keys.map(String)),
-              expandedRowRender: renderAssays,
+              expandedRowKeys: expandedAssays,
+              onExpandedRowsChange: (keys) => {
+                const next = keys.map(String);
+                setExpandedAssays(next);
+                // Refresh files for every expanded assay so the inline list
+                // reflects changes made through the Manage drawer.
+                for (const key of next) {
+                  void loadFiles(key);
+                }
+              },
+              expandedRowRender: renderFiles,
             }}
             rowClassName={(record) =>
               record.id === selectedId ? "project-report-row-selected" : ""
@@ -646,7 +477,7 @@ const SampleAssayProjectPage = ({
                   setSelectedId(record.id);
                   return;
                 }
-                setExpandedSamples((keys) =>
+                setExpandedAssays((keys) =>
                   keys.includes(record.id)
                     ? keys.filter((key) => key !== record.id)
                     : [...keys, record.id]
@@ -663,7 +494,7 @@ const SampleAssayProjectPage = ({
             size="small"
             current={page}
             pageSize={pageSize}
-            total={filteredSamples.length}
+            total={filteredAssays.length}
             showSizeChanger
             pageSizeOptions={[10, 20, 50, 100]}
             onChange={(nextPage, nextPageSize) => {
@@ -690,4 +521,4 @@ const SampleAssayProjectPage = ({
   );
 };
 
-export default SampleAssayProjectPage;
+export default AssayProjectPage;

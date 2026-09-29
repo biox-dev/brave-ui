@@ -6,7 +6,6 @@ import {
 	pageDatasetByProjectApi,
 	pageFileByProjectApi,
 	pageAssayByProjectApi,
-	pageSampleApi,
 } from "@/api/data";
 import type {
 	DatasetFileItem,
@@ -15,8 +14,6 @@ import type {
 	DatasetPageQuery,
 	AssayItem,
 	AssayPageQuery,
-	SampleItem,
-	SamplePageQuery,
 	PageRequest,
 	PageResponse,
 } from "@/api/data";
@@ -308,25 +305,6 @@ export const useAssayProjectPageQuery = (
 		query,
 		queryFn: async (payload) => {
 			const response = await pageAssayByProjectApi(payload);
-			return response.data;
-		},
-		initialPageSize: 10,
-		...options,
-	});
-};
-
-export const useSamplePageQuery = (
-	query: SamplePageQuery,
-	options?: Omit<
-		UsePageQueryOptions<SampleItem, SamplePageQuery>,
-		"queryKey" | "query" | "endpoint" | "queryFn"
-	>
-) => {
-	return usePageQuery<SampleItem, SamplePageQuery>({
-		queryKey: ["sample-page"],
-		query,
-		queryFn: async (payload) => {
-			const response = await pageSampleApi(payload);
 			return response.data;
 		},
 		initialPageSize: 10,

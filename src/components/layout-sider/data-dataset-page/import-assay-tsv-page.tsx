@@ -22,20 +22,19 @@ const datasetLabel = (dataset?: Pick<DatasetItem, "id" | "dataset_name">) =>
   dataset ? dataset.dataset_name || dataset.id : "";
 
 const SAMPLE_TSV = [
-  "sample_name\tFASTQ_R1\tFASTQ_R2\tassay_type\tassay_role\tsample_desc\tassay_desc",
-  "sample-1\t/data/V350200084_L03_167_1.fq.gz\t/data/V350200084_L03_167_2.fq.gz\tWGS\tWGS\tsample-1 description\tassay description",
+  "sample_name\tFASTQ_R1\tFASTQ_R2\tassay_type\tassay_role\tassay_desc",
+  "sample-1\t/data/V350200084_L03_167_1.fq.gz\t/data/V350200084_L03_167_2.fq.gz\tWGS\tWGS\tassay description",
 ].join("\n");
 
 /**
  * Import a TSV table into a dataset.
  *
  * The header row names the columns; the backend upserts the whole
- * Sample -> Assay -> File tree per row (sample_name,
- * assay_type/assay_role/assay_name, the optional sample_desc / assay_desc
- * descriptions, and one File per remaining column,
- * whose file_key is the column name). Content can be uploaded as a file or
- * pasted into the text box; nothing is parsed on the client so new columns need
- * no frontend change.
+ * Assay -> File tree per row (sample_name + assay_type/assay_role, the optional
+ * assay_desc description, and one File per remaining column, whose file_key is
+ * the column name). Each assay is bound to the dataset through go_dataset_assay.
+ * Content can be uploaded as a file or pasted into the text box; nothing is
+ * parsed on the client so new columns need no frontend change.
  */
 const ImportAssayTsvPage = ({
   dataset_id,
@@ -113,7 +112,6 @@ const ImportAssayTsvPage = ({
       const result = response.data;
       message.success(
         `Imported ${result.rows} row(s): ` +
-          `samples +${result.samples_created}/~${result.samples_updated}, ` +
           `assays +${result.assays_created}/~${result.assays_updated}, ` +
           `files +${result.files_created}/~${result.files_updated}`
       );
@@ -193,7 +191,7 @@ const ImportAssayTsvPage = ({
         <Text type="secondary" style={{ fontSize: 12 }}>
           sample_name is required. Unmapped columns become files whose key is the
           column name (e.g. FASTQ_R1); their cell value is the file path. The
-          sample_desc / assay_desc columns are optional.
+          assay_desc column is optional.
         </Text>
       </Flex>
 

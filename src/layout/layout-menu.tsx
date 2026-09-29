@@ -103,14 +103,6 @@ export const layoutMenuTree: LayoutMenuItem[] = [
     },
   },
   {
-    key: '/sample-project',
-    icon: 'files',
-    label: {
-      zh_CN: '样本',
-      en_US: 'Samples',
-    },
-  },
-  {
     key: '/assay-project',
     icon: 'files',
     label: {

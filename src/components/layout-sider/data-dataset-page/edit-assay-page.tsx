@@ -1,17 +1,22 @@
 import { useEffect, useState } from "react";
-import { Button, Flex, Form, Input, Select, Space, Tooltip } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
-import { createAssayApi, getSampleApi, updateAssayApi } from "@/api/data";
-import type { AssayDetailItem, AssayItem, SampleItem } from "@/api/data";
-import { invoke } from "@/core/ui-system/invokeV2";
+import { Button, Flex, Form, Input, Select } from "antd";
+import {
+  createAssayApi,
+  createDatasetAssayApi,
+  updateAssayApi,
+} from "@/api/data";
+import type { AssayDetailItem, AssayItem, DatasetItem } from "@/api/data";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { ASSAY_ROLE_OPTIONS } from "@/utils/assay-roles";
 
 export interface EditAssayPageProps {
-  /** Edit mode: the assay as returned by the sample page. */
+  /** Edit mode: the assay as returned by the assay page. */
   assay?: AssayItem;
-  /** Create mode: the owning sample (usually the expanded sample row). */
-  sample?: SampleItem;
+  /**
+   * Create mode: the dataset the new assay is bound to (go_dataset_assay). The
+   * binding is written right after the assay is created.
+   */
+  dataset?: Pick<DatasetItem, "id" | "dataset_name">;
   onOk?: (result: AssayDetailItem) => void;
   onCancel?: () => void;
   close?: () => void;
@@ -22,111 +27,52 @@ const trimOrUndefined = (value?: string) => {
   return trimmed ? trimmed : undefined;
 };
 
-const sampleLabel = (sample?: SampleItem) =>
-  sample ? sample.sample_name || sample.id : "";
-
 /**
  * Assay create & edit form.
  *
- * An assay belongs to a Sample and carries nothing else: it has no dataset
- * binding of its own, so the dataset is only involved when the sample is
- * created/picked — the Dataset -> Sample binding lives on DatasetSample. That is
- * why this form only asks for a sample.
+ * An assay carries its own biological sample name (go_assay.sample_name); there is
+ * no separate Sample entity any more. A dataset binds to the assay through
+ * go_dataset_assay, so when the form is opened with a `dataset` the create flow
+ * also writes that binding.
  *
  * Files are NOT part of this form: `go_file.assay_id` owns the assay -> file
  * relation, and files are added from the assay's file actions.
- *
- * "Select" opens the sample picker drawer (sampleProjectPage) and "New" opens
- * the sample form (editSamplePage), which in turn handles the dataset binding
- * (DatasetSample).
  */
-const EditAssayPage = ({ assay, sample, onOk, onCancel, close }: EditAssayPageProps) => {
+const EditAssayPage = ({ assay, dataset, onOk, onCancel, close }: EditAssayPageProps) => {
   const [form] = Form.useForm();
   const message = useGlobalMessage();
 
   const [saving, setSaving] = useState(false);
-  const [selectedSample, setSelectedSample] = useState<SampleItem>();
 
   const isEdit = Boolean(assay?.id);
 
   useEffect(() => {
     if (isEdit && assay) {
       form.setFieldsValue({
+        sample_name: assay.sample_name ?? "",
         assay_type: assay.assay_type ?? "",
         platform: assay.platform ?? "",
         library_id: assay.library_id ?? "",
-        assay_name: assay.assay_name ?? "",
         role: assay.role ?? "",
         metadata: assay.metadata ?? "",
         description: assay.description ?? "",
       });
-
-      // The assay only stores sample_id, so fetch the sample for its label.
-      let cancelled = false;
-      const loadSample = async () => {
-        if (!assay.sample_id) {
-          return;
-        }
-        const response = await getSampleApi(assay.sample_id).catch(() => undefined);
-        if (!cancelled && response?.data) {
-          setSelectedSample(response.data);
-        }
-      };
-
-      void loadSample();
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    form.resetFields();
-    setSelectedSample(sample);
-  }, [assay, sample, isEdit, form]);
-
-  const handleSelectSample = async () => {
-    try {
-      const picked = await invoke.sampleProjectPage.openDrawerAsync(
-        {},
-        { width: 900, title: "Select Sample" }
-      );
-      if (picked?.id) {
-        setSelectedSample(picked as SampleItem);
-      }
-    } catch {
-      // user cancelled
-    }
-  };
-
-  const handleCreateSample = async () => {
-    try {
-      const created = await invoke.editSamplePage.openDrawerAsync(
-        {},
-        { width: 560, title: "New Sample" }
-      );
-      if (created?.id) {
-        setSelectedSample(created as SampleItem);
-      }
-    } catch {
-      // user cancelled
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!selectedSample?.id) {
-      message.error("Please select or create a sample");
       return;
     }
 
+    form.resetFields();
+  }, [assay, isEdit, form]);
+
+  const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
       setSaving(true);
 
       const payload = {
-        sample_id: String(selectedSample.id),
+        sample_name: String(values.sample_name ?? "").trim(),
         assay_type: trimOrUndefined(values.assay_type),
         platform: trimOrUndefined(values.platform),
         library_id: trimOrUndefined(values.library_id),
-        assay_name: trimOrUndefined(values.assay_name),
         role: trimOrUndefined(values.role),
         metadata: trimOrUndefined(values.metadata),
         description: trimOrUndefined(values.description),
@@ -138,9 +84,17 @@ const EditAssayPage = ({ assay, sample, onOk, onCancel, close }: EditAssayPagePr
         onOk?.(assay as AssayItem);
         return;
       }
+
       const created = await createAssayApi(payload);
+      const saved = created.data as AssayDetailItem;
+      if (dataset?.id && saved?.id) {
+        await createDatasetAssayApi({
+          dataset_id: String(dataset.id),
+          assay_id: String(saved.id),
+        });
+      }
       message.success("Assay created successfully");
-      onOk?.(created.data);
+      onOk?.(saved);
     } catch (error: any) {
       if (error?.errorFields) return; // validation error, keep the drawer open
       message.error(isEdit ? "Failed to update assay" : "Failed to create assay");
@@ -161,27 +115,12 @@ const EditAssayPage = ({ assay, sample, onOk, onCancel, close }: EditAssayPagePr
     <>
       <Form form={form} layout="vertical">
         <Form.Item
-          label="Sample"
-          required
-          tooltip="The assay belongs to this sample; the sample is in turn bound to a project dataset (DatasetSample)"
+          name="sample_name"
+          label="Sample Name"
+          tooltip="Business identifier of the biological sample this assay was built from; it only has to be unique inside a dataset."
+          rules={[{ required: true, message: "Please input the sample name" }]}
         >
-          <Space.Compact style={{ width: "100%" }}>
-            <Tooltip title={sampleLabel(selectedSample)}>
-              <Input
-                readOnly
-                value={sampleLabel(selectedSample)}
-                placeholder="Click to select a sample"
-                onClick={handleSelectSample}
-                style={{ cursor: "pointer", flex: 1 }}
-              />
-            </Tooltip>
-            <Button onClick={handleSelectSample}>
-              {selectedSample ? "Change" : "Select"}
-            </Button>
-            <Button type="primary" ghost icon={<PlusOutlined />} onClick={handleCreateSample}>
-              New
-            </Button>
-          </Space.Compact>
+          <Input placeholder="e.g. S-001" />
         </Form.Item>
 
         <Form.Item name="assay_type" label="Assay Type">
@@ -197,23 +136,11 @@ const EditAssayPage = ({ assay, sample, onOk, onCancel, close }: EditAssayPagePr
         </Form.Item>
 
         <Form.Item
-          name="assay_name"
-          label="Assay Name"
-          tooltip="Display name; leave empty to fall back to Library ID → Assay Type → id"
-        >
-          <Input placeholder="e.g. WGS-1" />
-        </Form.Item>
-
-        <Form.Item
           name="role"
           label="Role"
           tooltip="Matched against an analysis form input's resolver.accept_formats, e.g. WGS_SHORT_READ or DEFAULT/TABLE (same convention as a dataset file's role). Leave empty for no role filtering."
         >
-          <Select
-            allowClear
-            options={ASSAY_ROLE_OPTIONS}
-            placeholder="e.g. WGS_SHORT_READ"
-          />
+          <Select allowClear options={ASSAY_ROLE_OPTIONS} placeholder="e.g. WGS_SHORT_READ" />
         </Form.Item>
 
         <Form.Item name="metadata" label="Metadata">

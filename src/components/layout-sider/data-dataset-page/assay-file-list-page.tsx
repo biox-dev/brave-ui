@@ -118,7 +118,9 @@ const fileColumns = (
 
 // Files owned by one assay (go_file.assay_id). A file is assay-private: it is
 // created for this assay and carries the key (go_file.file_key) an analysis form
-// input maps onto its accept formats. Opened as a drawer from the assay list, so
+// input maps onto its accept formats. The assay itself carries the biological
+// sample name (go_assay.sample_name), which the parent passes down as
+// `assay_label` for the drawer titles. Opened as a drawer from the assay list, so
 // the narrow left panel never has to host this table.
 const AssayFileListPage = ({ assay_id, assay_label }: AssayFileListPageProps) => {
   const message = useGlobalMessage();
