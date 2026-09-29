@@ -47,7 +47,7 @@ export const IoEditor: PropEditor = ({ item, set, patch }) => {
             mode="tags"
             style={{ width: "100%" }}
             tokenSeparators={[","]}
-            placeholder="DEFAULT / TABLE"
+            placeholder="WGS_SHORT_READ / DEFAULT"
             value={item?.resolver?.accept_formats ?? []}
             options={FORMAT_OPTIONS}
             onChange={setAcceptFormats}

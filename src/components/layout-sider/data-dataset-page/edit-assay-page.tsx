@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Button, Flex, Form, Input, Space, Tooltip } from "antd";
+import { Button, Flex, Form, Input, Select, Space, Tooltip } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { createAssayApi, getSampleApi, updateAssayApi } from "@/api/data";
 import type { AssayDetailItem, AssayItem, SampleItem } from "@/api/data";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
+import { ASSAY_ROLE_OPTIONS } from "@/utils/assay-roles";
 
 export interface EditAssayPageProps {
   /** Edit mode: the assay as returned by the sample page. */
@@ -194,9 +195,13 @@ const EditAssayPage = ({ assay, sample, onOk, onCancel, close }: EditAssayPagePr
         <Form.Item
           name="role"
           label="Role"
-          tooltip="Matched against an analysis form input's resolver.accept_formats, e.g. DEFAULT or TABLE (same convention as a dataset file's role). Leave empty for no role filtering."
+          tooltip="Matched against an analysis form input's resolver.accept_formats, e.g. WGS_SHORT_READ or DEFAULT/TABLE (same convention as a dataset file's role). Leave empty for no role filtering."
         >
-          <Input placeholder="e.g. DEFAULT, TABLE" />
+          <Select
+            allowClear
+            options={ASSAY_ROLE_OPTIONS}
+            placeholder="e.g. WGS_SHORT_READ"
+          />
         </Form.Item>
 
         <Form.Item name="metadata" label="Metadata">

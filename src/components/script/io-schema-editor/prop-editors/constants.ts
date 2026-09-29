@@ -2,6 +2,7 @@
 // Option lists for the structured property editors. Hoisted to module scope so
 // memoized rows keep referential equality and antd never re-diffs its dropdowns
 // just because a parent re-rendered.
+import { ASSAY_ROLE_OPTIONS } from "@/utils/assay-roles";
 
 /** `input_type` values understood by the backend / resolvers. */
 export const INPUT_TYPE_OPTIONS = [
@@ -18,8 +19,15 @@ export const INPUT_TYPE_OPTIONS = [
 /** `mode` of a select component. */
 export const MODE_OPTIONS = [{ value: "none" }, { value: "multiple" }];
 
-/** `resolver.accept_formats`. */
-export const FORMAT_OPTIONS = [{ value: "DEFAULT" }, { value: "TABLE" }];
+/**
+ * `resolver.accept_formats`: the shared assay roles (an assay's role is matched
+ * against these) plus the generic DEFAULT / TABLE roles.
+ */
+export const FORMAT_OPTIONS = [
+  ...ASSAY_ROLE_OPTIONS,
+  { value: "DEFAULT" },
+  { value: "TABLE" },
+];
 
 /** `group` — name of the form field holding the selected metadata field. */
 export const GROUP_OPTIONS = [
