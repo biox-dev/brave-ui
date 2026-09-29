@@ -1,32 +1,40 @@
 import { useEffect, useState } from "react";
 import { Button, Flex, Form, Input, Space, Tooltip } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
-import { createSampleApi, updateSampleApi } from "@/api/data";
-import type { SampleItem, SubjectItem } from "@/api/data";
+import {
+  createDatasetSampleApi,
+  createSampleApi,
+  getDatasetSampleBySampleApi,
+  updateDatasetSampleApi,
+  updateSampleApi,
+} from "@/api/data";
+import type { DatasetItem, SampleItem } from "@/api/data";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 
 /**
- * Sample as edited here. `subject_name` only exists on the project read model
- * (SampleWithSubjectInfo).
+ * Sample as edited here. `dataset_id` / `dataset_name` only exist on the project
+ * read model (SampleWithDatasetInfo); the owning dataset itself is stored in the
+ * DatasetSample join row.
  */
 export type SampleFormSource = SampleItem & {
-  subject_name?: string;
+  dataset_id?: string;
+  dataset_name?: string;
 };
 
 export interface EditSamplePageProps {
   /** When provided the form updates the sample, otherwise it creates a new one. */
   sample?: SampleFormSource;
-  /** Optional pre-selected owning subject (used when creating from the assay form). */
-  subject?: SubjectItem;
+  /** Optional pre-selected owning dataset (used when creating from the assay form). */
+  dataset?: DatasetItem;
   onOk?: (result: SampleItem) => void;
   onCancel?: () => void;
   close?: () => void;
 }
 
-/** Picker label: the subject's business name (go_subject.subject_name). */
-const subjectLabel = (subject?: SubjectItem) =>
-  subject ? subject.subject_name || subject.id : "";
+/** Picker label: the dataset's display name (go_dataset.dataset_name). */
+const datasetLabel = (dataset?: Pick<DatasetItem, "id" | "dataset_name">) =>
+  dataset ? dataset.dataset_name || dataset.id : "";
 
 const trimOrUndefined = (value?: string) => {
   const trimmed = value?.trim();
@@ -54,18 +62,15 @@ const localInputToIso = (value?: string) => {
 /**
  * Sample create & edit form.
  *
- * A Sample always belongs to a Subject, so the subject can be picked from the
- * Subject page drawer or created on the fly through the Subject form drawer.
- *
- * A Sample joins a project through its Subject: the dataset binds to the
- * top-level Subject (go_dataset_subject), so the dataset is picked on the
- * Subject form, not here. Creating a Subject on the fly therefore also asks for
- * its dataset.
+ * A Sample joins a project through DatasetSample (dataset -> sample): the form
+ * picks the owning dataset and, on submit, creates/updates the sample and then
+ * creates/updates the DatasetSample binding that anchors it to that dataset.
  */
-const EditSamplePage = ({ sample, subject, onOk, onCancel, close }: EditSamplePageProps) => {
+const EditSamplePage = ({ sample, dataset, onOk, onCancel, close }: EditSamplePageProps) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [selectedSubject, setSelectedSubject] = useState<SubjectItem | undefined>();
+  const [selectedDataset, setSelectedDataset] = useState<DatasetItem | undefined>();
+  const [bindingId, setBindingId] = useState<string | undefined>();
   const message = useGlobalMessage();
 
   const isEdit = Boolean(sample?.id);
@@ -80,40 +85,58 @@ const EditSamplePage = ({ sample, subject, onOk, onCancel, close }: EditSamplePa
         metadata: sample.metadata ?? "",
         description: sample.description ?? "",
       });
-      // Editing: the read model carries the subject name, reuse it as the label.
-      setSelectedSubject({
-        id: sample.subject_id,
-        subject_name: sample.subject_name ?? "",
-      } as SubjectItem);
+      // Editing: the read model carries the dataset label; reuse it, then load
+      // the binding (its id is needed to update rather than re-create it).
+      setSelectedDataset(
+        sample.dataset_id
+          ? ({ id: sample.dataset_id, dataset_name: sample.dataset_name ?? "" } as DatasetItem)
+          : undefined
+      );
+      setBindingId(undefined);
+      void (async () => {
+        try {
+          const response = await getDatasetSampleBySampleApi(sample.id);
+          if (response.data) {
+            setBindingId(response.data.id);
+            setSelectedDataset({
+              id: response.data.dataset_id,
+              dataset_name: sample.dataset_name ?? "",
+            } as DatasetItem);
+          }
+        } catch {
+          // already reported by the global interceptor
+        }
+      })();
       return;
     }
 
     form.resetFields();
-    setSelectedSubject(subject);
-  }, [sample, subject, isEdit, form]);
+    setSelectedDataset(dataset);
+    setBindingId(undefined);
+  }, [sample, dataset, isEdit, form]);
 
-  const handleSelectSubject = async () => {
+  const handleSelectDataset = async () => {
     try {
-      const picked = await invoke.subjectProjectPage.openDrawerAsync(
+      const picked = await invoke.datasetProjectPage.openDrawerAsync(
         {},
-        { width: 760, title: "Select Subject" }
+        { width: 760, title: "Select Dataset" }
       );
       if (picked?.id) {
-        setSelectedSubject(picked as SubjectItem);
+        setSelectedDataset(picked as DatasetItem);
       }
     } catch {
       // user cancelled
     }
   };
 
-  const handleCreateSubject = async () => {
+  const handleCreateDataset = async () => {
     try {
-      const created = await invoke.editSubjectPage.openDrawerAsync(
+      const created = await invoke.editDatasetPage.openDrawerAsync(
         {},
-        { width: 480, title: "New Subject" }
+        { width: 480, title: "New Dataset" }
       );
       if (created?.id) {
-        setSelectedSubject(created as SubjectItem);
+        setSelectedDataset(created as DatasetItem);
       }
     } catch {
       // user cancelled
@@ -121,8 +144,8 @@ const EditSamplePage = ({ sample, subject, onOk, onCancel, close }: EditSamplePa
   };
 
   const handleSubmit = async () => {
-    if (!selectedSubject?.id) {
-      message.error("Please select a subject");
+    if (!selectedDataset?.id) {
+      message.error("Please select a dataset");
       return;
     }
 
@@ -132,7 +155,6 @@ const EditSamplePage = ({ sample, subject, onOk, onCancel, close }: EditSamplePa
 
       const payload = {
         sample_name: String(values.sample_name ?? "").trim(),
-        subject_id: String(selectedSubject.id),
         tissue: trimOrUndefined(values.tissue),
         cell_type: trimOrUndefined(values.cell_type),
         collection_time: localInputToIso(values.collection_time),
@@ -143,9 +165,25 @@ const EditSamplePage = ({ sample, subject, onOk, onCancel, close }: EditSamplePa
       const result = isEdit
         ? await updateSampleApi({ id: sample!.id, ...payload })
         : await createSampleApi(payload);
+      const saved = result.data as SampleItem;
+
+      // Keep the sample <-> dataset binding in sync.
+      if (bindingId) {
+        await updateDatasetSampleApi({
+          id: bindingId,
+          dataset_id: selectedDataset.id,
+          sample_id: saved.id,
+        });
+      } else {
+        const created = await createDatasetSampleApi({
+          dataset_id: selectedDataset.id,
+          sample_id: saved.id,
+        });
+        setBindingId(created.data.id);
+      }
 
       message.success(isEdit ? "Sample updated successfully" : "Sample created successfully");
-      onOk?.(result.data);
+      onOk?.(saved);
     } catch (error: any) {
       if (error?.errorFields) return; // validation error, keep the drawer open
       message.error(isEdit ? "Failed to update sample" : "Failed to create sample");
@@ -165,24 +203,24 @@ const EditSamplePage = ({ sample, subject, onOk, onCancel, close }: EditSamplePa
   return (
     <Form form={form} layout="vertical">
       <Form.Item
-        label="Subject"
+        label="Dataset"
         required
-        tooltip="Every sample belongs to a subject; pick an existing one or create a new one. The dataset binds to the subject."
+        tooltip="Every sample belongs to a dataset; pick an existing one or create a new one. The sample is bound to it through DatasetSample."
       >
         <Space.Compact style={{ width: "100%" }}>
-          <Tooltip title={subjectLabel(selectedSubject)}>
+          <Tooltip title={datasetLabel(selectedDataset)}>
             <Input
               readOnly
-              value={subjectLabel(selectedSubject)}
-              placeholder="Click to select a subject"
-              onClick={handleSelectSubject}
+              value={datasetLabel(selectedDataset)}
+              placeholder="Click to select a dataset"
+              onClick={handleSelectDataset}
               style={{ cursor: "pointer", flex: 1 }}
             />
           </Tooltip>
-          <Button onClick={handleSelectSubject}>
-            {selectedSubject ? "Change" : "Select"}
+          <Button onClick={handleSelectDataset}>
+            {selectedDataset ? "Change" : "Select"}
           </Button>
-          <Button type="primary" ghost icon={<PlusOutlined />} onClick={handleCreateSubject}>
+          <Button type="primary" ghost icon={<PlusOutlined />} onClick={handleCreateDataset}>
             New
           </Button>
         </Space.Compact>

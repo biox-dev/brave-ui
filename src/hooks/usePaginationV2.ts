@@ -6,7 +6,6 @@ import {
 	pageDatasetByProjectApi,
 	pageFileByProjectApi,
 	pageAssayByProjectApi,
-	pageSubjectApi,
 	pageSampleApi,
 } from "@/api/data";
 import type {
@@ -16,9 +15,7 @@ import type {
 	DatasetPageQuery,
 	AssayItem,
 	AssayPageQuery,
-	SubjectItem,
-	SubjectPageQuery,
-	SampleWithSubjectItem,
+	SampleItem,
 	SamplePageQuery,
 	PageRequest,
 	PageResponse,
@@ -318,30 +315,14 @@ export const useAssayProjectPageQuery = (
 	});
 };
 
-export const useSubjectPageQuery = (
-	query: SubjectPageQuery,
-	options?: Omit<UsePageQueryOptions<SubjectItem, SubjectPageQuery>, "queryKey" | "query" | "endpoint" | "queryFn">
-) => {
-	return usePageQuery<SubjectItem, SubjectPageQuery>({
-		queryKey: ["subject-page"],
-		query,
-		queryFn: async (payload) => {
-			const response = await pageSubjectApi(payload);
-			return response.data;
-		},
-		initialPageSize: 10,
-		...options,
-	});
-};
-
 export const useSamplePageQuery = (
 	query: SamplePageQuery,
 	options?: Omit<
-		UsePageQueryOptions<SampleWithSubjectItem, SamplePageQuery>,
+		UsePageQueryOptions<SampleItem, SamplePageQuery>,
 		"queryKey" | "query" | "endpoint" | "queryFn"
 	>
 ) => {
-	return usePageQuery<SampleWithSubjectItem, SamplePageQuery>({
+	return usePageQuery<SampleItem, SamplePageQuery>({
 		queryKey: ["sample-page"],
 		query,
 		queryFn: async (payload) => {

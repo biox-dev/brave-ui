@@ -4,7 +4,7 @@ import type { ColumnsType } from "antd/es/table";
 import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useSamplePageQuery } from "@/hooks/usePaginationV2";
 import { deleteSampleApi } from "@/api/data";
-import type { SampleWithSubjectItem } from "@/api/data";
+import type { SampleItem } from "@/api/data";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 
@@ -12,12 +12,11 @@ const { Text } = Typography;
 
 export interface SampleProjectPageProps {
   sample_name?: string;
-  subject_id?: string;
   tissue?: string;
   cell_type?: string;
   page_size?: number | string;
   title?: string;
-  onOk?: (sample: SampleWithSubjectItem) => void;
+  onOk?: (sample: SampleItem) => void;
   onCancel?: () => void;
   close?: () => void;
 }
@@ -42,29 +41,13 @@ const normalizePageSize = (value?: number | string) => {
   return 10;
 };
 
-const columns: ColumnsType<SampleWithSubjectItem> = [
+const columns: ColumnsType<SampleItem> = [
   {
     title: "Sample",
     dataIndex: "sample_name",
     key: "sample_name",
     ellipsis: true,
     render: (value: string, record) => value || `Sample-${record.id}`,
-  },
-  {
-    title: "Subject",
-    dataIndex: "subject_name",
-    key: "subject_name",
-    width: 150,
-    ellipsis: true,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Species",
-    dataIndex: "species",
-    key: "species",
-    width: 150,
-    ellipsis: true,
-    render: (value: string) => value || "-",
   },
   {
     title: "Tissue",
@@ -97,7 +80,6 @@ const columns: ColumnsType<SampleWithSubjectItem> = [
  */
 const SampleProjectPage = ({
   sample_name,
-  subject_id,
   tissue,
   cell_type,
   page_size,
@@ -137,11 +119,10 @@ const SampleProjectPage = ({
   useEffect(() => {
     setQuery({
       sample_name: normalizeText(sample_name),
-      subject_id: normalizeText(subject_id),
       tissue: normalizeText(tissue),
       cell_type: normalizeText(cell_type),
     });
-  }, [sample_name, subject_id, tissue, cell_type, setQuery]);
+  }, [sample_name, tissue, cell_type, setQuery]);
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 
@@ -154,7 +135,7 @@ const SampleProjectPage = ({
     }
   };
 
-  const handleEdit = async (record: SampleWithSubjectItem) => {
+  const handleEdit = async (record: SampleItem) => {
     try {
       await invoke.editSamplePage.openDrawerAsync(
         { sample: record },
@@ -166,8 +147,8 @@ const SampleProjectPage = ({
     }
   };
 
-  // The backend refuses (409) while the sample still owns assays.
-  const handleDelete = async (record: SampleWithSubjectItem) => {
+  // Deleting a sample cascades to the assays/files it owns.
+  const handleDelete = async (record: SampleItem) => {
     try {
       await deleteSampleApi({ id: record.id });
       message.success("Sample deleted successfully");
@@ -180,7 +161,7 @@ const SampleProjectPage = ({
     }
   };
 
-  const actionsColumn: ColumnsType<SampleWithSubjectItem>[number] = {
+  const actionsColumn: ColumnsType<SampleItem>[number] = {
     title: "Actions",
     key: "actions",
     width: 120,
@@ -196,7 +177,7 @@ const SampleProjectPage = ({
         </Tooltip>
         <Popconfirm
           title="Delete this sample?"
-          description="Samples that still own assays cannot be deleted."
+          description="Its assays and files are deleted too."
           onConfirm={() => handleDelete(record)}
         >
           <Button type="text" size="small" danger icon={<DeleteOutlined />} />
@@ -205,7 +186,7 @@ const SampleProjectPage = ({
     ),
   };
 
-  const selectColumn: ColumnsType<SampleWithSubjectItem>[number] = {
+  const selectColumn: ColumnsType<SampleItem>[number] = {
     title: "Action",
     key: "action",
     width: 110,
@@ -221,7 +202,7 @@ const SampleProjectPage = ({
     ),
   };
 
-  const tableColumns: ColumnsType<SampleWithSubjectItem> = selectable
+  const tableColumns: ColumnsType<SampleItem> = selectable
     ? [...columns, actionsColumn, selectColumn]
     : [...columns, actionsColumn];
 
@@ -258,13 +239,13 @@ const SampleProjectPage = ({
       }
     >
      
-      <Table<SampleWithSubjectItem>
+      <Table<SampleItem>
         rowKey="id"
         columns={tableColumns}
         dataSource={data}
         loading={isLoading || isFetching}
         size="small"
-        scroll={{ x: 1100 }}
+        scroll={{ x: 900 }}
         locale={{ emptyText: error ? "Failed to load samples" : "No samples" }}
         rowSelection={
           selectable
