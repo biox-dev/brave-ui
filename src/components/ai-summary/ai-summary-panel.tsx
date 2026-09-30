@@ -20,6 +20,7 @@ import {
 } from "@ant-design/icons";
 import { FC, useCallback, useEffect, useState } from "react";
 import { http } from "@/api/client/http";
+import type { AgentProfileItem } from "@/api/agent";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useComponentStore } from "@/event-bus/stores/components";
@@ -37,6 +38,8 @@ export interface AISummaryItem {
   owner_id: string;
   owner_type: string;
   task_id?: string;
+  /** 生成该摘要使用的 Agent Profile 名称（为空表示使用内置 summary Profile）。 */
+  profile?: string;
   title: string;
   content: string;
   status: AISummaryStatus;
@@ -129,9 +132,21 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
 
     setCreating(true);
     try {
+      // 创建前由用户选择生成摘要使用的 Agent Profile（取消则放弃创建）。
+      let selected: AgentProfileItem | undefined;
+      try {
+        selected = (await invoke.agentProfileSelect.openAsync(
+          { selectable: true },
+          { title: "Select Agent Profile", width: 1100, footer: null }
+        )) as AgentProfileItem | undefined;
+      } catch {
+        return;
+      }
+
       await http.post("/ai-summary/create", {
         owner_id: String(ownerId),
         owner_type: ownerType,
+        profile: selected?.name ?? "",
       });
       message.success("AI summary created");
       await load();
@@ -165,7 +180,12 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
   const handleUpdate = async (item: AISummaryItem) => {
     try {
       await invoke.aiSummaryUpdate.openAsync(
-        { id: item.id, title: item.title, content: item.content },
+        {
+          id: item.id,
+          title: item.title,
+          content: item.content,
+          profile: item.profile,
+        },
         { title: "Update AI Summary", width: 520, footer: null }
       );
       await load();
@@ -248,6 +268,11 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
                       <Tag color={STATUS_COLOR_MAP[item.status] ?? "default"}>
                         {item.status}
                       </Tag>
+                      {item.profile && (
+                        <Tooltip title="Agent Profile">
+                          <Tag color="geekblue">{item.profile}</Tag>
+                        </Tooltip>
+                      )}
                       <Typography.Text
                         type="secondary"
                         style={{ fontSize: 12 }}
@@ -257,38 +282,49 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
                     </Space>
                     <Space size={8} onClick={(e) => e.stopPropagation()}>
                       {item.task_id && item.task_id != "0" && (
+                        <Tooltip title="Task">
+                          <Button
+                            size="small"
+                            icon={<HistoryOutlined />}
+                            aria-label="Task"
+                            onClick={() =>
+                              invoke.aiSummaryTask.open({ taskId: item.task_id }, { width: 720, title: "AI Summary Task", footer: null })
+                            }
+                          />
+                        </Tooltip>
+                      )}
+                      <Tooltip title="Update">
                         <Button
                           size="small"
-                          icon={<HistoryOutlined />}
-                          onClick={() =>
-                            invoke.aiSummaryTask.open({ taskId: item.task_id }, { width: 720, title: "AI Summary Task", footer: null })
-                          }
-                        >
-                          Task
-                        </Button>
-                      )}
-                      <Button
-                        size="small"
-                        icon={<EditOutlined />}
-                        onClick={() => handleUpdate(item)}
-                      >
-                        Update
-                      </Button>
+                          icon={<EditOutlined />}
+                          aria-label="Update"
+                          onClick={() => handleUpdate(item)}
+                        />
+                      </Tooltip>
                       <Popconfirm
                         title="Regenerate this summary?"
                         onConfirm={() => handleRegenerate(item.id)}
                       >
-                        <Button size="small" icon={<RedoOutlined />}>
-                          Regenerate
-                        </Button>
+                        <Tooltip title="Regenerate">
+                          <Button
+                            size="small"
+                            icon={<RedoOutlined />}
+                            aria-label="Regenerate"
+                          />
+                        </Tooltip>
                       </Popconfirm>
                       <Popconfirm
                         title="Delete this summary?"
                         onConfirm={() => handleDelete(item.id)}
                       >
-                        <Button size="small" danger icon={<DeleteOutlined />}>
-                          Delete
-                        </Button>
+                        <Tooltip title="Delete">
+                          <Button
+                            size="small"
+                            danger
+                            icon={<DeleteOutlined />}
+                            aria-label="Delete"
+                          />
+                        </Tooltip>
                       </Popconfirm>
                     </Space>
                   </Flex>

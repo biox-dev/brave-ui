@@ -54,7 +54,30 @@ const contextTags = (context?: AgentProfileContext) => (
   </Space>
 );
 
-const AgentProfilePage = () => {
+/**
+ * AgentProfilePage 既可作为路由页面（/agent/profile）渲染，
+ * 也可通过 invoke.agentProfileSelect.openAsync(...) 弹出作为 Profile 选择器。
+ *
+ * 选择模式下（selectable 为 true）操作列会出现 Select 按钮，
+ * 点击后通过 onOk 回传所选 AgentProfileItem（openAsync 会用它 resolve）。
+ */
+export interface AgentProfilePageProps {
+  /** 是否为选择模式：显示 Select 按钮并通过 onOk 回传所选 Profile。 */
+  selectable?: boolean;
+  /** 选中 Profile 后回调（由 invoke.openAsync 注入）。 */
+  onOk?: (profile: AgentProfileItem) => void;
+  /** 取消/关闭回调（由 invoke.openAsync 注入；未注入时回退到 close）。 */
+  onCancel?: () => void;
+  /** UIContainer 注入的关闭函数。 */
+  close?: () => void;
+}
+
+const AgentProfilePage = ({
+  selectable = false,
+  onOk,
+  onCancel,
+  close,
+}: AgentProfilePageProps) => {
   const [data, setData] = useState<AgentProfileItem[]>([]);
   const [skills, setSkills] = useState<AgentSkillItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -151,6 +174,20 @@ const AgentProfilePage = () => {
     }
   };
 
+  // handleSelect 在选择模式下回传选中的 Profile。
+  const handleSelect = (record: AgentProfileItem) => {
+    onOk?.(record);
+  };
+
+  // handleClose 兼容两种打开方式：openAsync（注入 onCancel）与 UIContainer（注入 close）。
+  const handleClose = () => {
+    if (onCancel) {
+      onCancel();
+      return;
+    }
+    close?.();
+  };
+
   const columns: ColumnsType<AgentProfileItem> = [
     {
       title: "Name",
@@ -232,6 +269,15 @@ const AgentProfilePage = () => {
       fixed: "right",
       render: (_, record) => (
         <Space size={4}>
+          {selectable && (
+            <Button
+              size="small"
+              type="primary"
+              onClick={() => handleSelect(record)}
+            >
+              Select
+            </Button>
+          )}
           <Button size="small" onClick={() => openEdit(record)}>
             Edit
           </Button>
@@ -263,9 +309,13 @@ const AgentProfilePage = () => {
           <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
             Refresh
           </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            New Profile
-          </Button>
+          {selectable ? (
+            <Button onClick={handleClose}>Cancel</Button>
+          ) : (
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+              New Profile
+            </Button>
+          )}
         </Space>
       }
     >

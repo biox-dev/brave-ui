@@ -47,7 +47,11 @@ const App: React.FC = () => {
         label: locale === 'en_US' ? 'Dataset Files' : '数据集文件',
         icon: <FolderOpenOutlined />,
       },
-     
+      {
+        key: 'assayProjectPage',
+        label: locale === 'en_US' ? 'Assays' : '实验/建库',
+        icon: <ExperimentOutlined />,
+      },
        {
         key: 'scriptPage',
         label: locale === 'en_US' ? 'Script Page' : '脚本页',
@@ -78,11 +82,7 @@ const App: React.FC = () => {
       //   label: locale === 'en_US' ? 'System Files' : '系统文件',
       //   icon: <FolderOpenOutlined />,
       // },
-     {
-        key: 'assayProjectPage',
-        label: locale === 'en_US' ? 'Assays' : '实验/建库',
-        icon: <ExperimentOutlined />,
-      },
+    
       {
         key: 'projectLiterature',
         label: locale === 'en_US' ? 'Literature' : '参考文献',

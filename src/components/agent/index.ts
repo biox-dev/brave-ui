@@ -9,6 +9,8 @@ const viewLoaders = {
     agentChat: () => import("./agent-chat"),
     agentMemoryEditModal: () => import("./agent-memory-edit-modal"),
     agentConfigModal: () => import("./agent-config-modal"),
+    // 复用 Agent Profile 页面作为 Profile 选择器（selectable=true 时显示 Select 按钮）。
+    agentProfileSelect: () => import("@/pages/agent/agent-profile-page"),
 };
 
 declare module "@/core/component-registry/registry-types" {
