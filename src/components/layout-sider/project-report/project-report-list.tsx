@@ -28,11 +28,9 @@ const OWNER_TYPE_COLORS: Record<ProjectReportItemOwnerType, string> = {
   analysis: "blue",
   analysis_node: "geekblue",
   ai_summary: "purple",
-  file: "green",
 };
 
 const OWNER_TYPE_OPTIONS: { key: ProjectReportItemOwnerType; label: string }[] = [
-  { key: "file", label: "File" },
   { key: "analysis", label: "Analysis" },
   { key: "analysis_node", label: "Analysis Node" },
   { key: "ai_summary", label: "AI Summary" },
@@ -68,7 +66,7 @@ const AddReportItemModal: FC<AddReportItemModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!open || !ownerType || ownerType === "file") {
+    if (!open || !ownerType) {
       setOptions([]);
       setOwnerId(undefined);
       return;
@@ -170,21 +168,8 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
   const [addOwnerType, setAddOwnerType] = useState<ProjectReportItemOwnerType>();
   const [modalOpen, setModalOpen] = useState(false);
 
-  const handleAddMenuClick: MenuProps["onClick"] = async ({ key }) => {
-    const ownerType = key as ProjectReportItemOwnerType;
-    if (ownerType === "file") {
-      await addProjectReportItemApi({
-        project_report_id: reportId,
-        owner_type: "file",
-        sort_order: items.length,
-      });
-      message.success("Added file item");
-      await refetch();
-      onChanged?.();
-      return;
-    }
-
-    setAddOwnerType(ownerType);
+  const handleAddMenuClick: MenuProps["onClick"] = ({ key }) => {
+    setAddOwnerType(key as ProjectReportItemOwnerType);
     setModalOpen(true);
   };
 
@@ -227,7 +212,7 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
             <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {item.title || item.id}
             </span>
-            {item.owner_type !== "file" && item.owner_id && (
+            {item.owner_id && (
               <span style={{ fontSize: 12, color: "var(--sharp-text-secondary, #888)" }}>#{item.owner_id}</span>
             )}
             <Popconfirm

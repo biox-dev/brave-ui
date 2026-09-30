@@ -77,7 +77,7 @@ export interface ProjectReport {
 export type ProjectReportDetail = ProjectReport;
 
 // ProjectReportItemOwnerType 标识条目内容来源类型。
-export type ProjectReportItemOwnerType = "analysis" | "analysis_node" | "ai_summary" | "file";
+export type ProjectReportItemOwnerType = "analysis" | "analysis_node" | "ai_summary";
 
 // ProjectReportItem 是报告下的一个内容条目。
 export interface ProjectReportItem {
@@ -87,7 +87,6 @@ export interface ProjectReportItem {
 	owner_id: string;
 	sort_order: number;
 	title: string;
-	content?: string;
 	created_at: string;
 	updated_at: string;
 }
@@ -123,11 +122,6 @@ export interface UpdateProjectReportItemRequest {
 
 export interface DeleteProjectReportItemRequest {
 	id: string;
-}
-
-export interface UpdateProjectReportItemContentRequest {
-	id: string;
-	content: string;
 }
 
 export interface ProjectReportContentResponse {
@@ -191,8 +185,6 @@ export const getProjectReportItemDetailApi = (id: string) =>
 	http.get<ProjectReportItem>(`/project/project-report-item-detail?id=${encodeURIComponent(id)}`)
 export const getProjectReportItemContentApi = (id: string) =>
 	http.get<ProjectReportItemContentResponse>(`/project/project-report-item-content?id=${encodeURIComponent(id)}`)
-export const updateProjectReportItemContentApi = (payload: UpdateProjectReportItemContentRequest) =>
-	http.post<{ message: string }>("/project/update-project-report-item-content", payload)
 export const uploadProjectReportImageApi = (file: File) => {
 	const formData = new FormData()
 	formData.append("file", file, file.name || "clipboard-image.png")
