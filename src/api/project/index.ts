@@ -64,42 +64,81 @@ export interface ActivateProjectResponse {
 	message: string;
 }
 
-export interface ProjectReportItem {
+// ProjectReport 是报告容器，只承载标题等元信息；正文由其下的 ProjectReportItem 拼接而成。
+export interface ProjectReport {
 	id: string;
 	project_id: string;
 	title: string;
-	sort_order: number;
 	created_at: string;
 	updated_at: string;
 }
 
-export interface ProjectReportDetailItem extends ProjectReportItem {
-	content: string;
-	content_source?: string;
-	filename?: string;
+// ProjectReportDetail 目前与 ProjectReport 字段一致，保留别名方便后续扩展。
+export type ProjectReportDetail = ProjectReport;
+
+// ProjectReportItemOwnerType 标识条目内容来源类型。
+export type ProjectReportItemOwnerType = "analysis" | "analysis_node" | "ai_summary" | "file";
+
+// ProjectReportItem 是报告下的一个内容条目。
+export interface ProjectReportItem {
+	id: string;
+	project_report_id: string;
+	owner_type: ProjectReportItemOwnerType;
+	owner_id: string;
+	sort_order: number;
+	title: string;
+	content?: string;
+	created_at: string;
+	updated_at: string;
 }
 
 export interface AddProjectReportRequest {
 	project_id: string;
 	title: string;
-	content?: string;
-	content_source?: string;
-	filename?: string;
-	sort_order?: number;
 }
 
 export interface UpdateProjectReportRequest {
 	id: string;
 	project_id: string;
 	title: string;
-	content?: string;
-	content_source?: string;
-	filename?: string;
-	sort_order?: number;
 }
 
 export interface DeleteProjectReportRequest {
 	id: string;
+}
+
+export interface AddProjectReportItemRequest {
+	project_report_id: string;
+	owner_type: ProjectReportItemOwnerType;
+	owner_id?: string;
+	sort_order?: number;
+}
+
+export interface UpdateProjectReportItemRequest {
+	id: string;
+	owner_type?: ProjectReportItemOwnerType;
+	owner_id?: string;
+	sort_order?: number;
+}
+
+export interface DeleteProjectReportItemRequest {
+	id: string;
+}
+
+export interface UpdateProjectReportItemContentRequest {
+	id: string;
+	content: string;
+}
+
+export interface ProjectReportContentResponse {
+	report: ProjectReportDetail;
+	items: ProjectReportItem[];
+	content: string;
+}
+
+export interface ProjectReportItemContentResponse {
+	item: ProjectReportItem;
+	content: string;
 }
 
 export interface ProjectReportPageQuery {
@@ -134,12 +173,26 @@ export const deleteProjectApi = (project_id: string) => axios.delete(`/project/d
 export const deleteUserProjectApi = (payload: DeleteUserProjectRequest) => http.post<{ message: string }>("/project/delete-user-project", payload)
 export const updateProjectSharingApi = (payload: UpdateProjectSharingRequest) => http.post<UpdateProjectSharingResponse>("/project/update-project-sharing", payload)
 export const getActiveProjectApi = () => http.get<ActiveProject>("/project/active-project")
-export const addProjectReportApi = (payload: AddProjectReportRequest) => http.post<ProjectReportDetailItem>("/project/add-project-report", payload)
+export const addProjectReportApi = (payload: AddProjectReportRequest) => http.post<ProjectReportDetail>("/project/add-project-report", payload)
 export const updateProjectReportApi = (payload: UpdateProjectReportRequest) => http.post<{ message: string }>("/project/update-project-report", payload)
 export const deleteProjectReportApi = (payload: DeleteProjectReportRequest) => http.post<{ message: string }>("/project/delete-project-report", payload)
-export const listProjectReportApi = () => http.get<ProjectReportItem[]>(`/project/list-project-report`)
-export const pageProjectReportApi = (payload: ProjectReportPageRequest) => http.post<PageResponse<ProjectReportItem>>("/project/list-project-report-page", payload)
-export const getProjectReportDetailApi = (id: string) => http.get<ProjectReportDetailItem>(`/project/project-report-detail?id=${encodeURIComponent(id)}`)
+export const listProjectReportApi = () => http.get<ProjectReport[]>(`/project/list-project-report`)
+export const pageProjectReportApi = (payload: ProjectReportPageRequest) => http.post<PageResponse<ProjectReport>>("/project/list-project-report-page", payload)
+export const getProjectReportDetailApi = (id: string) => http.get<ProjectReportDetail>(`/project/project-report-detail?id=${encodeURIComponent(id)}`)
+export const getProjectReportContentApi = (reportId: string) =>
+	http.get<ProjectReportContentResponse>(`/project/project-report-content?report_id=${encodeURIComponent(reportId)}`)
+
+export const listProjectReportItemApi = (reportId: string) =>
+	http.get<ProjectReportItem[]>(`/project/list-project-report-item?report_id=${encodeURIComponent(reportId)}`)
+export const addProjectReportItemApi = (payload: AddProjectReportItemRequest) => http.post<ProjectReportItem>("/project/add-project-report-item", payload)
+export const updateProjectReportItemApi = (payload: UpdateProjectReportItemRequest) => http.post<{ message: string }>("/project/update-project-report-item", payload)
+export const deleteProjectReportItemApi = (payload: DeleteProjectReportItemRequest) => http.post<{ message: string }>("/project/delete-project-report-item", payload)
+export const getProjectReportItemDetailApi = (id: string) =>
+	http.get<ProjectReportItem>(`/project/project-report-item-detail?id=${encodeURIComponent(id)}`)
+export const getProjectReportItemContentApi = (id: string) =>
+	http.get<ProjectReportItemContentResponse>(`/project/project-report-item-content?id=${encodeURIComponent(id)}`)
+export const updateProjectReportItemContentApi = (payload: UpdateProjectReportItemContentRequest) =>
+	http.post<{ message: string }>("/project/update-project-report-item-content", payload)
 export const uploadProjectReportImageApi = (file: File) => {
 	const formData = new FormData()
 	formData.append("file", file, file.name || "clipboard-image.png")

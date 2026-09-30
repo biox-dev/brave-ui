@@ -192,6 +192,9 @@ if (appType == "index") {
         },{
             path: "/report-writing/:project-report-id",
             element: <ReportWriting />        },{
+            path: "/report-writing/:project-report-id/item/:item-id",
+            element: <ReportWriting />
+        },{
             path: "/literature-writing/:literature-id",
             element: <LiteratureWriting />        },
         // {

@@ -1,4 +1,4 @@
-import { updateProjectReportApi, uploadProjectReportImageApi } from "@/api/project";
+import { updateProjectReportItemContentApi, uploadProjectReportImageApi } from "@/api/project";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { UploadOutlined } from "@ant-design/icons";
 import { Button, Collapse, Flex, Form, Typography } from "antd";
@@ -6,7 +6,7 @@ import type { editor as MonacoEditorNS } from "monaco-editor";
 import { FC, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { MonacoEditor } from "../react-monaco-editor";
 
-const AnalysisDocEditor: FC<any> = ({ report, onSaved }) => {
+const AnalysisDocEditor: FC<any> = ({ item, onSaved }) => {
   const [form] = Form.useForm()
   const message = useGlobalMessage();
   const editorRef = useRef<MonacoEditorNS.IStandaloneCodeEditor | null>(null)
@@ -15,21 +15,18 @@ const AnalysisDocEditor: FC<any> = ({ report, onSaved }) => {
   const [isUploading, setIsUploading] = useState(false)
 
   useEffect(() => {
-    form.setFieldsValue({ content: report?.content || "" })
-  }, [form, report?.content])
+    form.setFieldsValue({ content: item?.content || "" })
+  }, [form, item?.content])
 
   const addOrUpdateProject = async () => {
-    if (!report?.id || !report?.project_id) {
+    if (!item?.id) {
       message.error("Please select report item first")
       return
     }
 
     const values = await form.validateFields()
-    await updateProjectReportApi({
-      id: report.id,
-      project_id: report.project_id,
-      title: report.title,
-      sort_order: report.sort_order,
+    await updateProjectReportItemContentApi({
+      id: item.id,
       content: values.content || "",
     })
     message.success("更新成功")
@@ -164,10 +161,11 @@ const AnalysisDocEditor: FC<any> = ({ report, onSaved }) => {
               {() => (
                 <Typography>
                   <pre>{JSON.stringify({
-                    id: report?.id,
-                    project_id: report?.project_id,
-                    title: report?.title,
-                    sort_order: report?.sort_order,
+                    id: item?.id,
+                    project_report_id: item?.project_report_id,
+                    owner_type: item?.owner_type,
+                    owner_id: item?.owner_id,
+                    sort_order: item?.sort_order,
                     content: form.getFieldValue("content"),
                   }, null, 2)}</pre>
                 </Typography>

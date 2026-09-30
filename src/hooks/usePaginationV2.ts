@@ -35,7 +35,7 @@ import {
 } from "@/api/workflow";
 import {
 	pageProjectReportApi,
-	type ProjectReportItem,
+	type ProjectReport,
 	type ProjectReportPageQuery,
 	pageLiteratureApi,
 	pageLiteraturePoolApi,
@@ -393,9 +393,9 @@ export const useWorkflowPageQuery = (
 
 export const useProjectReportPageQuery = (
 	query: ProjectReportPageQuery,
-	options?: Omit<UsePageQueryOptions<ProjectReportItem, ProjectReportPageQuery>, "queryKey" | "query" | "endpoint" | "queryFn">
+	options?: Omit<UsePageQueryOptions<ProjectReport, ProjectReportPageQuery>, "queryKey" | "query" | "endpoint" | "queryFn">
 ) => {
-	return usePageQuery<ProjectReportItem, ProjectReportPageQuery>({
+	return usePageQuery<ProjectReport, ProjectReportPageQuery>({
 		queryKey: ["project-report-page"],
 		query,
 		queryFn: async (payload) => {

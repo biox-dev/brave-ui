@@ -1,6 +1,6 @@
-import { addProjectReportApi, updateProjectReportApi, type ProjectReportDetailItem } from "@/api/project";
+import { addProjectReportApi, updateProjectReportApi, type ProjectReportDetail } from "@/api/project";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
-import { Button, Form, Input, InputNumber, Select, Space } from "antd";
+import { Button, Form, Input, Space } from "antd";
 import { FC, useEffect, useMemo } from "react";
 
 type Mode = "create" | "update";
@@ -8,7 +8,7 @@ type Mode = "create" | "update";
 interface ProjectReportItemFormProps {
   mode?: Mode;
   project_id?: string;
-  report?: ProjectReportDetailItem;
+  report?: ProjectReportDetail;
   onOk?: (data?: any) => void;
   onCancel?: () => void;
 }
@@ -29,21 +29,11 @@ const ProjectReportItemForm: FC<ProjectReportItemFormProps> = ({
 
   useEffect(() => {
     if (currentMode === "update" && report) {
-      form.setFieldsValue({
-        title: report.title,
-        sort_order: report.sort_order,
-        content_source: report.content_source || "file",
-        filename: report.filename || "output.md",
-      });
+      form.setFieldsValue({ title: report.title });
       return;
     }
 
-    form.setFieldsValue({
-      title: "",
-      sort_order: 0,
-      content_source: "file",
-      filename: "output.md",
-    });
+    form.setFieldsValue({ title: "" });
   }, [currentMode, form, report]);
 
   const submit = async () => {
@@ -58,10 +48,6 @@ const ProjectReportItemForm: FC<ProjectReportItemFormProps> = ({
       const resp = await addProjectReportApi({
         project_id: pid,
         title: values.title,
-        sort_order: values.sort_order ?? 0,
-        content: "",
-        content_source: values.content_source,
-        filename: values.filename,
       });
       message.success("Created successfully");
       onOk?.(resp.data);
@@ -77,10 +63,6 @@ const ProjectReportItemForm: FC<ProjectReportItemFormProps> = ({
       id: report.id,
       project_id: pid,
       title: values.title,
-      sort_order: values.sort_order ?? 0,
-      content: report.content || "",
-      content_source: values.content_source,
-      filename: values.filename,
     });
     message.success("Updated successfully");
     onOk?.(true);
@@ -91,23 +73,6 @@ const ProjectReportItemForm: FC<ProjectReportItemFormProps> = ({
       <Form form={form} layout="vertical">
         <Form.Item label="Title" name="title" rules={[{ required: true, message: "Please input title" }]}>
           <Input placeholder="Input report title" />
-        </Form.Item>
-
-        <Form.Item label="Content Source" name="content_source" rules={[{ required: true, message: "Please select content source" }]}>
-          <Select
-            options={[
-              { label: "File", value: "file" },
-              { label: "Database", value: "database" },
-            ]}
-          />
-        </Form.Item>
-
-        <Form.Item label="Filename" name="filename" rules={[{ required: true, message: "Please input filename" }]}>
-          <Input placeholder="output.md" />
-        </Form.Item>
-
-        <Form.Item label="Sort Order" name="sort_order" rules={[{ required: true, message: "Please input sort order" }]}>
-          <InputNumber style={{ width: "100%" }} />
         </Form.Item>
       </Form>
 

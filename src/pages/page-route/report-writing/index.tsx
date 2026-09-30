@@ -6,9 +6,14 @@ import { useSelector } from "react-redux";
 import ComponentsDetailsRender from "@/core/ui-renderer/ViewResolver";
 import { renderViewButton } from "@/utils/render-view-btn";
 import { invoke } from "@/core/ui-system/invokeV2";
-import { getProjectReportDetailApi, publishProjectReportToDocApi, type ProjectReportDetailItem } from "@/api/project";
+import {
+  getProjectReportContentApi,
+  getProjectReportItemContentApi,
+  publishProjectReportToDocApi,
+  type ProjectReportContentResponse,
+  type ProjectReportItemContentResponse,
+} from "@/api/project";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
-import { useStoreRender } from "@/context/render/RenderProvider";
 import { setLLMEnv } from "@/utils/llm-env";
 
 const ReportWriting: FC<any> = () => {
@@ -16,28 +21,36 @@ const ReportWriting: FC<any> = () => {
   const message = useGlobalMessage();
   const { project } = useSelector((state: any) => state.user);
   const projectId = typeof project === "string" ? project : project?.project_id;
-  // const { setLLMEnv } = useStoreRender()
 
-  const { "project-report-id": projectReportId } = useParams<{
+  const { "project-report-id": projectReportId, "item-id": itemId } = useParams<{
     "project-report-id": string;
+    "item-id": string;
   }>();
-
 
   const [view, setView] = useState<any>("analysisDocView");
   const [loading, setLoading] = useState(false);
   const [publishing, setPublishing] = useState(false);
-  const [activeReport, setActiveReport] = useState<ProjectReportDetailItem>();
+  // 报告容器视图：报告元信息 + 所有条目拼接后的正文。
+  const [content, setContent] = useState<ProjectReportContentResponse>();
+  // 单个条目视图：入参为 ProjectReportItem ID，显示该条目的 markdown。
+  const [itemContent, setItemContent] = useState<ProjectReportItemContentResponse>();
 
-  const loadReportDetail = async (id?: string) => {
-    if (!id) {
-      setActiveReport(undefined);
+  const loadContent = async (reportId?: string, currentItemId?: string) => {
+    if (!reportId) {
+      setContent(undefined);
+      setItemContent(undefined);
       return;
     }
 
     setLoading(true);
     try {
-      const resp = await getProjectReportDetailApi(id);
-      setActiveReport(resp.data);
+      if (currentItemId) {
+        const resp = await getProjectReportItemContentApi(currentItemId);
+        setItemContent(resp.data);
+        return;
+      }
+      const resp = await getProjectReportContentApi(reportId);
+      setContent(resp.data);
     } finally {
       setLoading(false);
     }
@@ -45,18 +58,18 @@ const ReportWriting: FC<any> = () => {
 
   useEffect(() => {
     setLLMEnv(projectReportId, "projectReport");
-    loadReportDetail(projectReportId);
-  }, [projectReportId]);
+    loadContent(projectReportId, itemId);
+  }, [projectReportId, itemId]);
 
   const handlePublishToDoc = async () => {
-    if (!activeReport) {
+    if (!content?.report) {
       message.warning("No report loaded");
       return;
     }
 
     setPublishing(true);
     try {
-      await publishProjectReportToDocApi(activeReport.id);
+      await publishProjectReportToDocApi(content.report.id);
       message.success("Report published to project doc");
     } catch {
       // Error is surfaced globally by the http client interceptor.
@@ -66,7 +79,7 @@ const ReportWriting: FC<any> = () => {
   };
 
   const openUpdateReportModal = async () => {
-    if (!activeReport) {
+    if (!content?.report) {
       message.warning("No report loaded");
       return;
     }
@@ -76,19 +89,22 @@ const ReportWriting: FC<any> = () => {
         {
           mode: "update",
           project_id: projectId,
-          report: activeReport,
+          report: content.report,
         },
         {
-          title: "Update Project Report Item",
+          title: "Update Project Report",
           footer: null,
           width: 560,
         }
       );
-      await loadReportDetail(activeReport.id);
+      await loadContent(content.report.id);
     } catch {
       // User canceled the update modal.
     }
   };
+
+  const title = itemContent?.item?.title || content?.report?.title || "Report Writing";
+  const activeContent = itemContent?.content ?? content?.content;
 
   return (
     <Card
@@ -112,20 +128,21 @@ const ReportWriting: FC<any> = () => {
       size="small"
       title={
         <Flex align="center" gap="small">
-          {/* <Button
-            size="small"
-            type="text"
-            icon={<ArrowLeftOutlined />}
-            onClick={() => navigate("/")}
-          /> */}
-          <span>{activeReport?.title || "Report Writing"}</span> ({activeReport?.id})
+          {itemId && (
+            <Button
+              size="small"
+              type="text"
+              icon={<ArrowLeftOutlined />}
+              onClick={() => navigate(`/report-writing/${projectReportId}`)}
+            />
+          )}
+          <span>{title}</span>
         </Flex>
       }
       extra={
         <Flex gap="small">
           {renderViewButton(view, setView, "analysisDocView", "View")}
-          {renderViewButton(view, setView, "analysisDocEditor", "Edit")}
-          {activeReport && (
+          {!itemId && content?.report && (
             <Button
               size="small"
               color="cyan"
@@ -133,10 +150,10 @@ const ReportWriting: FC<any> = () => {
               icon={<EditOutlined />}
               onClick={openUpdateReportModal}
             >
-              Edit Item
+              Edit Report
             </Button>
           )}
-          {activeReport && activeReport.content_source === "file" && (
+          {!itemId && content?.report && (
             <Button
               size="small"
               color="green"
@@ -153,7 +170,7 @@ const ReportWriting: FC<any> = () => {
             size="small"
             color="cyan"
             variant="solid"
-            onClick={() => loadReportDetail(projectReportId)}
+            onClick={() => loadContent(projectReportId, itemId)}
           />
         </Flex>
       }
@@ -161,13 +178,25 @@ const ReportWriting: FC<any> = () => {
       <Spin spinning={loading}>
         {loading ? (
           <Skeleton active />
-        ) : activeReport ? (
+        ) : itemId ? (
+          itemContent?.item ? (
+            <ComponentsDetailsRender
+              view={view}
+              project_id={projectId}
+              report={itemContent.item}
+              content={activeContent}
+            />
+          ) : (
+            <Tag color="orange">Report item not found</Tag>
+          )
+        ) : content?.report ? (
           <ComponentsDetailsRender
             view={view}
             project_id={projectId}
-            report={activeReport}
-            content={activeReport?.content}
-            onSaved={() => loadReportDetail(activeReport?.id)}
+            report={content.report}
+            items={content.items}
+            content={activeContent}
+            onSaved={() => loadContent(content.report?.id)}
           />
         ) : (
           <Tag color="orange">Report not found</Tag>
