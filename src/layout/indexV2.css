@@ -176,6 +176,32 @@
   color: var(--sharp-text-soft);
 }
 
+/* AI Summary project panel (reuses Project Report sidebar chrome) */
+.ai-summary-project-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--sharp-panel-bg);
+}
+
+.ai-summary-project-panel .ant-collapse {
+  background: transparent;
+}
+
+.ai-summary-project-panel .ant-collapse-header {
+  align-items: flex-start !important;
+  padding: 6px 6px !important;
+}
+
+.ai-summary-project-panel .ant-collapse-content-box {
+  padding: 0 6px 8px 6px !important;
+}
+
+.ai-summary-project-panel .ant-empty-description {
+  color: var(--sharp-text-soft);
+}
+
 .layout-sharp.layout-sharp-light {
   --sharp-divider: #d7dbe2;
   --sharp-divider-strong: #c7cdd8;

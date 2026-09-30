@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ApartmentOutlined, BookOutlined, FileTextOutlined, SettingOutlined, FileSearchOutlined, FolderOpenOutlined, FileDoneOutlined, NodeIndexOutlined, UnorderedListOutlined, BarChartOutlined, ExperimentOutlined, FileOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, BookOutlined, FileTextOutlined, SettingOutlined, FileSearchOutlined, FolderOpenOutlined, FileDoneOutlined, NodeIndexOutlined, UnorderedListOutlined, BarChartOutlined, ExperimentOutlined, FileOutlined, RobotOutlined } from '@ant-design/icons';
 import { Dropdown, Layout, Segmented, theme } from 'antd';
 import { Outlet, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
@@ -15,10 +15,10 @@ import SplitWorkspace from './components/SplitWorkspace.tsx';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
-type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList'| 'analysisNodeList' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'assayProjectPage' | 'datasetFilePage';
+type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList'| 'analysisNodeList' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'aiSummaryProject' | 'assayProjectPage' | 'datasetFilePage';
 
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
-  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'assayProjectPage' || key === 'datasetFilePage';
+  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'aiSummaryProject' || key === 'assayProjectPage' || key === 'datasetFilePage';
 
 const App: React.FC = () => {
   const { locale } = useI18n();
@@ -77,6 +77,11 @@ const App: React.FC = () => {
         label: locale === 'en_US' ? 'Project Report' : '项目报告',
         icon: <BarChartOutlined />,
       }, 
+      {
+        key: 'aiSummaryProject',
+        label: locale === 'en_US' ? 'AI Summary' : 'AI 摘要',
+        icon: <RobotOutlined />,
+      },
        // {
       //   key: 'sysFileBrowser',
       //   label: locale === 'en_US' ? 'System Files' : '系统文件',
