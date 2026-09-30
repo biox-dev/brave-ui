@@ -546,6 +546,7 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
                     <AISummaryPanel
                         ownerType="analysis_node"
                         ownerId={analysis_node_id}
+                        prefix={selectedSampleDetail?.url_prefix || ""}
                     />
                     {selectedSampleDetail?.result?.output_files && <FilesRender analysis_node_id={analysis_node_id} name="Output Files" files={selectedSampleDetail.result.output_files}></FilesRender>}
                     {selectedSampleDetail?.result?.cache_files && <FilesRender analysis_node_id={analysis_node_id} name="Cache Files" files={selectedSampleDetail?.result?.cache_files}></FilesRender>}

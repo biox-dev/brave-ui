@@ -40,6 +40,11 @@ export interface AISummaryItem {
   task_id?: string;
   /** 生成该摘要使用的 Agent Profile 名称（为空表示使用内置 summary Profile）。 */
   profile?: string;
+  /**
+   * 摘要所属对象输出目录对应的 URL 前缀（后端 ListAISummary 填充）。
+   * 用于解析 content 中相对图片/链接的地址。
+   */
+  prefix?: string;
   title: string;
   content: string;
   status: AISummaryStatus;
@@ -334,7 +339,7 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
                     Summary is being generated…
                   </Typography.Text>
                 ) : item.content ? (
-                  <Markdown data={item.content} prefix={prefix} />
+                  <Markdown data={item.content} prefix={item.prefix || prefix} />
                 ) : (
                   <Typography.Text type="secondary">No content</Typography.Text>
                 ),
