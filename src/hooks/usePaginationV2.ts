@@ -80,6 +80,11 @@ import {
 	type AgentTaskItem,
 	type AgentTaskPageQuery,
 } from "@/api/agent";
+import {
+	pageAISummaryByProjectApi,
+	type AISummaryListItem,
+	type AISummaryPageQuery,
+} from "@/api/ai-summary";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 20;
@@ -384,6 +389,22 @@ export const useWorkflowPageQuery = (
 				page_size,
 				query: queryPayload,
 			});
+			return response.data;
+		},
+		initialPageSize: 10,
+		...options,
+	});
+};
+
+export const useAISummaryPageQuery = (
+	query: AISummaryPageQuery,
+	options?: Omit<UsePageQueryOptions<AISummaryListItem, AISummaryPageQuery>, "queryKey" | "query" | "endpoint" | "queryFn">
+) => {
+	return usePageQuery<AISummaryListItem, AISummaryPageQuery>({
+		queryKey: ["ai-summary-page"],
+		query,
+		queryFn: async (payload) => {
+			const response = await pageAISummaryByProjectApi(payload);
 			return response.data;
 		},
 		initialPageSize: 10,

@@ -9,7 +9,7 @@ import {
   type ProjectReportItemOwnerType,
 } from "@/api/project";
 import { pageAnalysisByProjectApi, pageAnalysisNodeByProjectApi } from "@/api/analysis";
-import { http } from "@/api/client/http";
+import { pageAISummaryByProjectApi } from "@/api/ai-summary";
 import { useProjectReportPageQuery } from "@/hooks/usePaginationV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
@@ -84,8 +84,8 @@ const AddReportItemModal: FC<AddReportItemModalProps> = ({
           const resp = await pageAnalysisNodeByProjectApi({ page: 1, page_size: 200 });
           opts = (resp.data?.data || []).map((n) => ({ label: n.node_name || n.id, value: n.id }));
         } else if (ownerType === "ai_summary") {
-          const resp = await http.get<any[]>("/ai-summary/list-by-project");
-          opts = (resp.data || []).map((s) => ({ label: s.title || s.id, value: s.id }));
+          const resp = await pageAISummaryByProjectApi({ page: 1, page_size: 200 });
+          opts = (resp.data?.data || []).map((s) => ({ label: s.title || s.id, value: s.id }));
         }
         if (!cancelled) {
           setOptions(opts);

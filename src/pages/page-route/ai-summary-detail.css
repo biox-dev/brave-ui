@@ -1,0 +1,80 @@
+/* AI summary detail (rendered in the layout <Outlet /> main pane). */
+.ai-summary-detail {
+  min-height: 100%;
+}
+
+.ai-summary-detail-card {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.ai-summary-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--sharp-divider, #eceff4);
+}
+
+.ai-summary-detail-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 220px;
+  flex: 1 1 auto;
+}
+
+.ai-summary-detail-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ai-summary-detail-icon {
+  color: #1677ff;
+  font-size: 16px;
+}
+
+.ai-summary-detail-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--sharp-text, rgba(0, 0, 0, 0.88));
+  max-width: 520px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-summary-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ai-summary-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+}
+
+.ai-summary-detail-body {
+  padding: 14px 16px 16px;
+}
+
+.ai-summary-detail-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 16px;
+}
+
+.ai-summary-detail-placeholder .ant-skeleton {
+  width: 100%;
+}

@@ -74,6 +74,7 @@ const ToolsCard = lazy(() => import("../pages/pipeline-components-card-v2/index-
 const WorkflowPanel = lazy(() => import("../pages/page-route/workflow-panel"));
 
 const ComponentsV3 = lazy(() => import("../pages/page-route/script-panel"));
+const AISummaryDetail = lazy(() => import("../pages/page-route/ai-summary-detail"));
 const Login = lazy(() => import("@/pages/users/login"));
 const Register = lazy(() => import("@/pages/users/register"));
 const DatasetProjectPage = lazy(() => import("@/components/layout-sider/data-dataset-page/dataset-project-page"))
@@ -209,6 +210,10 @@ if (appType == "index") {
         }, {
             path: "/c/scripts/:script_id",
             element: <ComponentsV3 component_type={"script"} />
+        },
+        {
+            path: "/c/ai-summaries/:summary_id",
+            element: <AISummaryDetail />
         }, {
             path: "/c/file",
             element: <ComponentsV3 component_type={"file"} />

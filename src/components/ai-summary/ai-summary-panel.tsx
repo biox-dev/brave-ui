@@ -19,38 +19,23 @@ import {
   RobotOutlined,
 } from "@ant-design/icons";
 import { FC, useCallback, useEffect, useState } from "react";
-import { http } from "@/api/client/http";
+import {
+  createAISummaryApi,
+  deleteAISummaryApi,
+  listAISummaryByOwnerApi,
+  regenerateAISummaryApi,
+  type AISummaryItem,
+  type AISummaryOwnerType,
+  type AISummaryStatus,
+} from "@/api/ai-summary";
 import type { AgentProfileItem } from "@/api/agent";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useComponentStore } from "@/event-bus/stores/components";
 import Markdown from "@/components/markdown";
 
-/** AI 摘要生成状态。 */
-export type AISummaryStatus = "pending" | "generating" | "success" | "failed";
-
-/** AI 摘要所属对象类型。 */
-export type AISummaryOwnerType = "analysis" | "analysis_node";
-
-/** 后端 types.AISummary 对应的前端模型。 */
-export interface AISummaryItem {
-  id: string;
-  owner_id: string;
-  owner_type: string;
-  task_id?: string;
-  /** 生成该摘要使用的 Agent Profile 名称（为空表示使用内置 summary Profile）。 */
-  profile?: string;
-  /**
-   * 摘要所属对象输出目录对应的 URL 前缀（后端 ListAISummary 填充）。
-   * 用于解析 content 中相对图片/链接的地址。
-   */
-  prefix?: string;
-  title: string;
-  content: string;
-  status: AISummaryStatus;
-  created_at: string;
-  updated_at: string;
-}
+// 类型统一在 @/api/ai-summary 中定义，这里再导出以兼容既有引用。
+export type { AISummaryItem, AISummaryOwnerType, AISummaryStatus };
 
 const STATUS_COLOR_MAP: Record<AISummaryStatus, string> = {
   pending: "default",
@@ -103,9 +88,7 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
 
     setLoading(true);
     try {
-      const res = await http.get<AISummaryItem[]>("/ai-summary/list", {
-        params: { owner_type: ownerType, owner_id: ownerId },
-      });
+      const res = await listAISummaryByOwnerApi(ownerType, ownerId);
       setItems(res.data ?? []);
     } catch {
       // 错误提示已由 http 响应拦截器统一处理。
@@ -148,7 +131,7 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
         return;
       }
 
-      await http.post("/ai-summary/create", {
+      await createAISummaryApi({
         owner_id: String(ownerId),
         owner_type: ownerType,
         profile: selected?.name ?? "",
@@ -164,7 +147,7 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
 
   const handleRegenerate = async (id: string) => {
     try {
-      await http.post("/ai-summary/regenerate", { id: String(id) });
+      await regenerateAISummaryApi(id);
       message.success("AI summary regenerated");
       await load();
     } catch {
@@ -174,7 +157,7 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
 
   const handleDelete = async (id: string) => {
     try {
-      await http.post("/ai-summary/delete", { id: String(id) });
+      await deleteAISummaryApi(id);
       message.success("AI summary deleted");
       await load();
     } catch {
