@@ -4,6 +4,8 @@ import {
   deleteProjectReportItemApi,
   getProjectReportDetailApi,
   listProjectReportItemApi,
+  publishProjectReportItemToDocApi,
+  publishProjectReportToDocApi,
   type ProjectReport,
   type ProjectReportItem,
   type ProjectReportItemOwnerType,
@@ -14,7 +16,7 @@ import { useProjectReportPageQuery } from "@/hooks/usePaginationV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { formatRelativeTime } from "@/utils/time";
-import { DeleteOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined, SendOutlined } from "@ant-design/icons";
 import { Button, Dropdown, Empty, Modal, Pagination, Popconfirm, Select, Spin, Table, Tag } from "antd";
 import type { MenuProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -167,6 +169,7 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
   );
   const [addOwnerType, setAddOwnerType] = useState<ProjectReportItemOwnerType>();
   const [modalOpen, setModalOpen] = useState(false);
+  const [publishingId, setPublishingId] = useState<string>();
 
   const handleAddMenuClick: MenuProps["onClick"] = ({ key }) => {
     setAddOwnerType(key as ProjectReportItemOwnerType);
@@ -178,6 +181,17 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
     message.success("Deleted successfully");
     await refetch();
     onChanged?.();
+  };
+
+  // handlePublishItem 按条目 ID 发布（后端会根据 OwnerType 解析 OwnerID）。
+  const handlePublishItem = async (item: ProjectReportItem) => {
+    setPublishingId(item.id);
+    try {
+      await publishProjectReportItemToDocApi(item.id);
+      message.success("Published to project doc");
+    } finally {
+      setPublishingId(undefined);
+    }
   };
 
   return (
@@ -215,6 +229,17 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
             {item.owner_id && (
               <span style={{ fontSize: 12, color: "var(--sharp-text-secondary, #888)" }}>#{item.owner_id}</span>
             )}
+            <Button
+              type="text"
+              size="small"
+              icon={<SendOutlined />}
+              loading={publishingId === item.id}
+              title="Publish to doc"
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePublishItem(item);
+              }}
+            />
             <Popconfirm
               title="Delete selected report item?"
               onConfirm={() => handleDeleteItem(item)}
@@ -254,6 +279,7 @@ const ProjectReportList: FC<any> = () => {
   const { project } = useSelector((state: any) => state.user);
   const projectId = typeof project === "string" ? project : project?.project_id;
   const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([]);
+  const [publishingReportId, setPublishingReportId] = useState<string>();
 
   // Derive the selected report id from the current route so the selection
   // survives a full page refresh.
@@ -328,6 +354,17 @@ const ProjectReportList: FC<any> = () => {
     await refetch();
   };
 
+  // handlePublishReport 一次发布报告下所有条目。
+  const handlePublishReport = async (report: ProjectReport) => {
+    setPublishingReportId(report.id);
+    try {
+      await publishProjectReportToDocApi(report.id);
+      message.success("Report published to project doc");
+    } finally {
+      setPublishingReportId(undefined);
+    }
+  };
+
   const columns = useMemo<ColumnsType<ProjectReport>>(
     () => [
       {
@@ -353,13 +390,21 @@ const ProjectReportList: FC<any> = () => {
       {
         title: "Actions",
         key: "actions",
-        width: 56,
+        width: 88,
         align: "right",
       render: (_, record) => (
         <span
           className="project-report-item-actions"
           onClick={(e) => e.stopPropagation()}
         >
+          <Button
+            type="text"
+            size="small"
+            icon={<SendOutlined />}
+            title="Publish to doc"
+            loading={publishingReportId === record.id}
+            onClick={() => handlePublishReport(record)}
+          />
           <Button
             type="text"
             size="small"
@@ -376,7 +421,7 @@ const ProjectReportList: FC<any> = () => {
       ),
     },
   ],
-    [locale]
+    [locale, publishingReportId]
   );
 
   return (

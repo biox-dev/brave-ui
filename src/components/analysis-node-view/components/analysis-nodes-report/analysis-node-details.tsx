@@ -149,17 +149,6 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
                                 size="small"
                                 color="cyan"
                                 variant="solid"
-                                onClick={async () => {
-                                    await http.post(`/analysis-node/${selectedSampleDetail.node?.id}/publish-to-doc`)
-                                    message.success("copy success!")
-                                }}
-                            >
-                                Publish Doc
-                            </Button>
-                            <Button
-                                size="small"
-                                color="cyan"
-                                variant="solid"
                                 onClick={() => {
                                     invoke.nodeParams.open(
                                         { analysis_node_id: selectedSampleDetail.node?.id },

@@ -9,7 +9,7 @@ import { invoke } from "@/core/ui-system/invokeV2";
 import {
   getProjectReportContentApi,
   getProjectReportItemContentApi,
-  publishProjectReportToDocApi,
+  publishProjectReportItemToDocApi,
   type ProjectReportContentResponse,
   type ProjectReportItemContentResponse,
 } from "@/api/project";
@@ -45,10 +45,16 @@ const ReportWriting: FC<any> = () => {
     setLoading(true);
     try {
       if (currentItemId) {
+        // Switching to an item view: drop stale report container content so the
+        // title/body are always driven by the active route branch.
+        setContent(undefined);
         const resp = await getProjectReportItemContentApi(currentItemId);
         setItemContent(resp.data);
         return;
       }
+      // Switching back to the report view: drop the previously opened item,
+      // otherwise the stale itemContent keeps overriding title/content.
+      setItemContent(undefined);
       const resp = await getProjectReportContentApi(reportId);
       setContent(resp.data);
     } finally {
@@ -62,15 +68,15 @@ const ReportWriting: FC<any> = () => {
   }, [projectReportId, itemId]);
 
   const handlePublishToDoc = async () => {
-    if (!projectReportId) {
-      message.warning("No report loaded");
+    if (!itemId) {
+      message.warning("No report item loaded");
       return;
     }
 
     setPublishing(true);
     try {
-      await publishProjectReportToDocApi(projectReportId);
-      message.success("Report published to project doc");
+      await publishProjectReportItemToDocApi(itemId);
+      message.success("Report item published to project doc");
     } catch {
       // Error is surfaced globally by the http client interceptor.
     } finally {
@@ -153,7 +159,7 @@ const ReportWriting: FC<any> = () => {
               Edit Report
             </Button>
           )}
-          {!itemId && projectReportId && (
+          {itemId && (
             <Button
               size="small"
               color="green"

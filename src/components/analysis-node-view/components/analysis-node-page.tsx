@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, App, Button, Card, Flex, Popconfirm, Space, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { DeleteOutlined, ReloadOutlined, FileTextOutlined, PlayCircleOutlined } from "@ant-design/icons";
+import { DeleteOutlined, ReloadOutlined, PlayCircleOutlined } from "@ant-design/icons";
 import { useAnalysisNodePageQuery } from "@/hooks/usePaginationV2";
 import type { AnalysisNodeItem } from "@/api/analysis";
 import { deleteAnalysisNodeApi } from "@/api/analysis";
@@ -192,7 +192,6 @@ const AnalysisNodePage = ({
 		}
 	};
 
-	const [publishing, setPublishing] = useState(false);
 	const [runningAll, setRunningAll] = useState(false);
 
 	const activeNodeCount = useMemo(() => {
@@ -213,23 +212,6 @@ const AnalysisNodePage = ({
 			message.error("Failed to start batch run");
 		} finally {
 			setRunningAll(false);
-		}
-	};
-
-	const handlePublishToDoc = async () => {
-		if (!script_id) {
-			message.warning("No script_id available");
-			return;
-		}
-		setPublishing(true);
-		try {
-			await http.post(`/script/${script_id}/publish-to-doc`);
-			message.success("Published to doc successfully");
-			refetch();
-		} catch {
-			message.error("Failed to publish to doc");
-		} finally {
-			setPublishing(false);
 		}
 	};
 
@@ -323,14 +305,6 @@ const AnalysisNodePage = ({
 							title={activeNodeCount > 0 ? `${activeNodeCount} node(s) already running` : undefined}
 						>
 							Run All{activeNodeCount > 0 ? ` (${activeNodeCount} running)` : ""}
-						</Button>
-						<Button
-							icon={<FileTextOutlined />}
-							onClick={handlePublishToDoc}
-							loading={publishing}
-							disabled={!script_id}
-						>
-							Publish to Doc
 						</Button>
 						<Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
 							Refresh

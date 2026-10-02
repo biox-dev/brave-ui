@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Button, Card, Flex, Popconfirm, Space, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { DeleteOutlined, FileTextOutlined, ReloadOutlined } from "@ant-design/icons";
+import { DeleteOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useAnalysisPageQuery } from "@/hooks/usePaginationV2";
 import type { AnalysisItem } from "@/api/analysis";
 import { useComponentStore } from "@/event-bus/stores/components";
@@ -288,8 +288,6 @@ const AnalysisPage = ({
 		};
 	}, [register, unregister, instance]);
 
-	const [publishing, setPublishing] = useState(false);
-
 	const handleDelete = async (id: string) => {
 		try {
 			await http.post(`/analysis/delete/${encodeURIComponent(id)}`);
@@ -312,24 +310,6 @@ const AnalysisPage = ({
 			message.error("Failed to toggle report");
 		}
 	};
-
-	const handlePublishToDoc = async () => {
-		if (!relation_id) {
-			message.warning("No script_id available");
-			return;
-		}
-		setPublishing(true);
-		try {
-			// TODO
-			await http.post(`/workflow/publish-to-doc/${relation_id}`);
-			message.success("Published to doc successfully");
-			refetch();
-		} catch {
-			message.error("Failed to publish to doc");
-		} finally {
-			setPublishing(false);
-		}
-	};
 	return (
 		<>
 			<Card
@@ -339,14 +319,6 @@ const AnalysisPage = ({
 					<Space>
 
 						<Text type="secondary">Total: {total}</Text>
-						<Button
-							icon={<FileTextOutlined />}
-							onClick={handlePublishToDoc}
-							loading={publishing}
-							disabled={!relation_id}
-						>
-							Publish to Doc
-						</Button>
 						<Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
 							Refresh
 						</Button>

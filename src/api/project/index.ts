@@ -131,6 +131,7 @@ export interface ProjectReportContentResponse {
 
 export interface ProjectReportItemContentResponse {
 	title: string;
+	prefix: string;
 	content: string;
 }
 
@@ -194,7 +195,13 @@ export const uploadProjectReportImageApi = (file: File) => {
 	})
 }
 
-export const publishProjectReportToDocApi = (reportId: string) => http.post<{ message: string }>(`/project-report/${encodeURIComponent(reportId)}/publish-to-doc`)
+// publishProjectReportItemToDocApi 按 ProjectReportItem 的 OwnerID 将内容发布到报告文档目录。
+export const publishProjectReportItemToDocApi = (itemId: string) =>
+	http.post<{ message: string }>(`/project-report-item/${encodeURIComponent(itemId)}/publish-to-doc`)
+
+// publishProjectReportToDocApi 遍历报告下所有条目，逐个发布到报告文档目录。
+export const publishProjectReportToDocApi = (reportId: string) =>
+	http.post<{ message: string }>(`/project-report/${encodeURIComponent(reportId)}/publish-to-doc`)
 
 // ---------- Literature (参考文献) ----------
 
