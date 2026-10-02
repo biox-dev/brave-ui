@@ -89,7 +89,7 @@ const ReportWriting: FC<any> = () => {
         {
           mode: "update",
           project_id: projectId,
-          report: { id: projectReportId, project_id: projectId, title: content?.title },
+          report: { id: projectReportId, project_id: projectId ?? "", title: content?.title ?? "", created_at: "", updated_at: "" },
         },
         {
           title: "Update Project Report",
