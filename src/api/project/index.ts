@@ -125,13 +125,12 @@ export interface DeleteProjectReportItemRequest {
 }
 
 export interface ProjectReportContentResponse {
-	report: ProjectReportDetail;
-	items: ProjectReportItem[];
+	title: string;
 	content: string;
 }
 
 export interface ProjectReportItemContentResponse {
-	item: ProjectReportItem;
+	title: string;
 	content: string;
 }
 

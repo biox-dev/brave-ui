@@ -30,7 +30,7 @@ const ReportWriting: FC<any> = () => {
   const [view, setView] = useState<any>("analysisDocView");
   const [loading, setLoading] = useState(false);
   const [publishing, setPublishing] = useState(false);
-  // 报告容器视图：报告元信息 + 所有条目拼接后的正文。
+  // 报告容器视图：报告标题 + 所有条目拼接后的正文。
   const [content, setContent] = useState<ProjectReportContentResponse>();
   // 单个条目视图：入参为 ProjectReportItem ID，显示该条目的 markdown。
   const [itemContent, setItemContent] = useState<ProjectReportItemContentResponse>();
@@ -62,14 +62,14 @@ const ReportWriting: FC<any> = () => {
   }, [projectReportId, itemId]);
 
   const handlePublishToDoc = async () => {
-    if (!content?.report) {
+    if (!projectReportId) {
       message.warning("No report loaded");
       return;
     }
 
     setPublishing(true);
     try {
-      await publishProjectReportToDocApi(content.report.id);
+      await publishProjectReportToDocApi(projectReportId);
       message.success("Report published to project doc");
     } catch {
       // Error is surfaced globally by the http client interceptor.
@@ -79,7 +79,7 @@ const ReportWriting: FC<any> = () => {
   };
 
   const openUpdateReportModal = async () => {
-    if (!content?.report) {
+    if (!projectReportId) {
       message.warning("No report loaded");
       return;
     }
@@ -89,7 +89,7 @@ const ReportWriting: FC<any> = () => {
         {
           mode: "update",
           project_id: projectId,
-          report: content.report,
+          report: { id: projectReportId, project_id: projectId, title: content?.title },
         },
         {
           title: "Update Project Report",
@@ -97,13 +97,13 @@ const ReportWriting: FC<any> = () => {
           width: 560,
         }
       );
-      await loadContent(content.report.id);
+      await loadContent(projectReportId);
     } catch {
       // User canceled the update modal.
     }
   };
 
-  const title = itemContent?.item?.title || content?.report?.title || "Report Writing";
+  const title = itemContent?.title || content?.title || "Report Writing";
   const activeContent = itemContent?.content ?? content?.content;
 
   return (
@@ -142,7 +142,7 @@ const ReportWriting: FC<any> = () => {
       extra={
         <Flex gap="small">
           {renderViewButton(view, setView, "analysisDocView", "View")}
-          {!itemId && content?.report && (
+          {!itemId && projectReportId && (
             <Button
               size="small"
               color="cyan"
@@ -153,7 +153,7 @@ const ReportWriting: FC<any> = () => {
               Edit Report
             </Button>
           )}
-          {!itemId && content?.report && (
+          {!itemId && projectReportId && (
             <Button
               size="small"
               color="green"
@@ -179,24 +179,21 @@ const ReportWriting: FC<any> = () => {
         {loading ? (
           <Skeleton active />
         ) : itemId ? (
-          itemContent?.item ? (
+          itemContent ? (
             <ComponentsDetailsRender
               view={view}
               project_id={projectId}
-              report={itemContent.item}
               content={activeContent}
             />
           ) : (
             <Tag color="orange">Report item not found</Tag>
           )
-        ) : content?.report ? (
+        ) : content ? (
           <ComponentsDetailsRender
             view={view}
             project_id={projectId}
-            report={content.report}
-            items={content.items}
             content={activeContent}
-            onSaved={() => loadContent(content.report?.id)}
+            onSaved={() => loadContent(projectReportId)}
           />
         ) : (
           <Tag color="orange">Report not found</Tag>
