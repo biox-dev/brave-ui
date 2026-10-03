@@ -176,6 +176,14 @@ export const getProjectReportDetailApi = (id: string) => http.get<ProjectReportD
 export const getProjectReportContentApi = (reportId: string) =>
 	http.get<ProjectReportContentResponse>(`/project/project-report-content?report_id=${encodeURIComponent(reportId)}`)
 
+// getProjectReportHtmlApi 返回报告聚合后的独立 HTML 文档字符串。
+// inlineImages=true 时图片以 base64 内嵌（自包含），false 时保留原始 URL。
+export const getProjectReportHtmlApi = (reportId: string, inlineImages = true) =>
+	http.get<string>("/project/project-report-html", {
+		params: { report_id: reportId, inline_images: inlineImages },
+		responseType: "text",
+	})
+
 export const listProjectReportItemApi = (reportId: string) =>
 	http.get<ProjectReportItem[]>(`/project/list-project-report-item?report_id=${encodeURIComponent(reportId)}`)
 export const addProjectReportItemApi = (payload: AddProjectReportItemRequest) => http.post<ProjectReportItem>("/project/add-project-report-item", payload)

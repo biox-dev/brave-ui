@@ -1,6 +1,6 @@
 import { FC, useEffect, useState } from "react";
-import { Button, Card, Flex, Skeleton, Spin, Tag } from "antd";
-import { ArrowLeftOutlined, EditOutlined, ReloadOutlined, SendOutlined } from "@ant-design/icons";
+import { Button, Card, Flex, Modal, Segmented, Skeleton, Spin, Tag } from "antd";
+import { ArrowLeftOutlined, DownloadOutlined, EditOutlined, FilePdfOutlined, FileTextOutlined, ReloadOutlined, SendOutlined } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router";
 import { useSelector } from "react-redux";
 import ComponentsDetailsRender from "@/core/ui-renderer/ViewResolver";
@@ -8,6 +8,7 @@ import { renderViewButton } from "@/utils/render-view-btn";
 import { invoke } from "@/core/ui-system/invokeV2";
 import {
   getProjectReportContentApi,
+  getProjectReportHtmlApi,
   getProjectReportItemContentApi,
   publishProjectReportItemToDocApi,
   type ProjectReportContentResponse,
@@ -15,6 +16,7 @@ import {
 } from "@/api/project";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { setLLMEnv } from "@/utils/llm-env";
+import { printHtmlDocument } from "@/utils/print-html";
 
 const ReportWriting: FC<any> = () => {
   const navigate = useNavigate();
@@ -34,6 +36,15 @@ const ReportWriting: FC<any> = () => {
   const [content, setContent] = useState<ProjectReportContentResponse>();
   // 单个条目视图：入参为 ProjectReportItem ID，显示该条目的 markdown。
   const [itemContent, setItemContent] = useState<ProjectReportItemContentResponse>();
+  // HTML 预览弹窗：支持「内嵌图片（base64）」与「原始链接」两种模式。
+  const [htmlPreview, setHtmlPreview] = useState<{
+    open: boolean;
+    loading: boolean;
+    inlineImages: boolean;
+    content: string;
+  }>({ open: false, loading: false, inlineImages: true, content: "" });
+  // 导出 PDF：复用 HTML 导出能力（内嵌图片）后送入浏览器打印流程。
+  const [pdfExporting, setPdfExporting] = useState(false);
 
   const loadContent = async (reportId?: string, currentItemId?: string) => {
     if (!reportId) {
@@ -81,6 +92,51 @@ const ReportWriting: FC<any> = () => {
       // Error is surfaced globally by the http client interceptor.
     } finally {
       setPublishing(false);
+    }
+  };
+
+  const loadHtmlPreview = async (inlineImages: boolean) => {
+    if (!projectReportId) {
+      message.warning("No report loaded");
+      return;
+    }
+    setHtmlPreview((prev) => ({ ...prev, open: true, loading: true }));
+    try {
+      const resp = await getProjectReportHtmlApi(projectReportId, inlineImages);
+      setHtmlPreview({ open: true, loading: false, inlineImages, content: resp.data });
+    } catch {
+      // Error is surfaced globally by the http client interceptor.
+      setHtmlPreview((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
+  const downloadHtmlPreview = () => {
+    if (!htmlPreview.content) {
+      return;
+    }
+    const blob = new Blob([htmlPreview.content], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${content?.title || "report"}.html`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportPdf = async () => {
+    if (!projectReportId) {
+      message.warning("No report loaded");
+      return;
+    }
+    setPdfExporting(true);
+    try {
+      // 使用内嵌图片版本，导出时无需网络、图片不缺失。
+      const resp = await getProjectReportHtmlApi(projectReportId, true);
+      printHtmlDocument(resp.data);
+    } catch {
+      // Error is surfaced globally by the http client interceptor.
+    } finally {
+      setPdfExporting(false);
     }
   };
 
@@ -148,6 +204,26 @@ const ReportWriting: FC<any> = () => {
       extra={
         <Flex gap="small">
           {renderViewButton(view, setView, "analysisDocView", "View")}
+          {projectReportId && (
+            <Button
+              size="small"
+              icon={<FileTextOutlined />}
+              loading={htmlPreview.loading}
+              onClick={() => loadHtmlPreview(htmlPreview.inlineImages)}
+            >
+              HTML
+            </Button>
+          )}
+          {projectReportId && (
+            <Button
+              size="small"
+              icon={<FilePdfOutlined />}
+              loading={pdfExporting}
+              onClick={handleExportPdf}
+            >
+              PDF
+            </Button>
+          )}
           {!itemId && projectReportId && (
             <Button
               size="small"
@@ -205,6 +281,42 @@ const ReportWriting: FC<any> = () => {
           <Tag color="orange">Report not found</Tag>
         )}
       </Spin>
+
+      <Modal
+        open={htmlPreview.open}
+        title="Report HTML"
+        width={960}
+        footer={null}
+        onCancel={() => setHtmlPreview((prev) => ({ ...prev, open: false }))}
+        styles={{ body: { height: "70vh", padding: 0 } }}
+      >
+        <Flex align="center" justify="space-between" style={{ padding: "8px 16px" }}>
+          <Segmented
+            value={htmlPreview.inlineImages ? "inline" : "url"}
+            options={[
+              { label: "内嵌图片", value: "inline" },
+              { label: "原始链接", value: "url" },
+            ]}
+            onChange={(value) => loadHtmlPreview(value === "inline")}
+          />
+          <Button
+            size="small"
+            icon={<DownloadOutlined />}
+            disabled={!htmlPreview.content}
+            onClick={downloadHtmlPreview}
+          >
+            下载
+          </Button>
+        </Flex>
+        <Spin spinning={htmlPreview.loading}>
+          <iframe
+            title="report-html"
+            srcDoc={htmlPreview.content}
+            sandbox="allow-same-origin"
+            style={{ width: "100%", height: "calc(70vh - 49px)", border: "none" }}
+          />
+        </Spin>
+      </Modal>
     </Card>
   );
 };
