@@ -11,6 +11,7 @@ import {
   getProjectReportHtmlApi,
   getProjectReportItemContentApi,
   publishProjectReportItemToDocApi,
+  publishProjectReportToDocApi,
   type ProjectReportContentResponse,
   type ProjectReportItemContentResponse,
 } from "@/api/project";
@@ -32,6 +33,7 @@ const ReportWriting: FC<any> = () => {
   const [view, setView] = useState<any>("analysisDocView");
   const [loading, setLoading] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [publishingReport, setPublishingReport] = useState(false);
   // 报告容器视图：报告标题 + 所有条目拼接后的正文。
   const [content, setContent] = useState<ProjectReportContentResponse>();
   // 单个条目视图：入参为 ProjectReportItem ID，显示该条目的 markdown。
@@ -47,7 +49,7 @@ const ReportWriting: FC<any> = () => {
   const [pdfExporting, setPdfExporting] = useState(false);
 
   const loadContent = async (reportId?: string, currentItemId?: string) => {
-    if (!reportId) {
+    if (!reportId && !currentItemId) {
       setContent(undefined);
       setItemContent(undefined);
       return;
@@ -56,17 +58,17 @@ const ReportWriting: FC<any> = () => {
     setLoading(true);
     try {
       if (currentItemId) {
-        // Switching to an item view: drop stale report container content so the
+        // Item detail view: drop stale report container content so the
         // title/body are always driven by the active route branch.
         setContent(undefined);
         const resp = await getProjectReportItemContentApi(currentItemId);
         setItemContent(resp.data);
         return;
       }
-      // Switching back to the report view: drop the previously opened item,
-      // otherwise the stale itemContent keeps overriding title/content.
+      // Report container view: drop the previously opened item, otherwise the
+      // stale itemContent keeps overriding title/content.
       setItemContent(undefined);
-      const resp = await getProjectReportContentApi(reportId);
+      const resp = await getProjectReportContentApi(reportId!);
       setContent(resp.data);
     } finally {
       setLoading(false);
@@ -92,6 +94,24 @@ const ReportWriting: FC<any> = () => {
       // Error is surfaced globally by the http client interceptor.
     } finally {
       setPublishing(false);
+    }
+  };
+
+  // handlePublishReportToDoc 将报告下所有条目批量发布到报告文档目录。
+  const handlePublishReportToDoc = async () => {
+    if (!projectReportId) {
+      message.warning("No report loaded");
+      return;
+    }
+
+    setPublishingReport(true);
+    try {
+      await publishProjectReportToDocApi(projectReportId);
+      message.success("Report published to project doc");
+    } catch {
+      // Error is surfaced globally by the http client interceptor.
+    } finally {
+      setPublishingReport(false);
     }
   };
 
@@ -195,7 +215,7 @@ const ReportWriting: FC<any> = () => {
               size="small"
               type="text"
               icon={<ArrowLeftOutlined />}
-              onClick={() => navigate(`/report-writing/${projectReportId}`)}
+              onClick={() => navigate(-1)}
             />
           )}
           <span>{title}</span>
@@ -204,7 +224,7 @@ const ReportWriting: FC<any> = () => {
       extra={
         <Flex gap="small">
           {renderViewButton(view, setView, "analysisDocView", "View")}
-          {projectReportId && (
+          {!itemId && projectReportId && (
             <Button
               size="small"
               icon={<FileTextOutlined />}
@@ -214,7 +234,7 @@ const ReportWriting: FC<any> = () => {
               HTML
             </Button>
           )}
-          {projectReportId && (
+          {!itemId && projectReportId && (
             <Button
               size="small"
               icon={<FilePdfOutlined />}
@@ -233,6 +253,18 @@ const ReportWriting: FC<any> = () => {
               onClick={openUpdateReportModal}
             >
               Edit Report
+            </Button>
+          )}
+          {!itemId && projectReportId && (
+            <Button
+              size="small"
+              color="green"
+              variant="solid"
+              icon={<SendOutlined />}
+              loading={publishingReport}
+              onClick={handlePublishReportToDoc}
+            >
+              Publish to Doc
             </Button>
           )}
           {itemId && (

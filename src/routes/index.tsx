@@ -191,9 +191,9 @@ if (appType == "index") {
             path: "/analsyis-node-report/:analysisNodeId",
             element: <AnalysisNodeReport />
         },{
-            path: "/report-writing/:project-report-id",
+            path: "/report/:project-report-id",
             element: <ReportWriting />        },{
-            path: "/report-writing/:project-report-id/item/:item-id",
+            path: "/report-item/:item-id",
             element: <ReportWriting />
         },{
             path: "/literature-writing/:literature-id",

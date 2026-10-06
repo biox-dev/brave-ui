@@ -284,7 +284,7 @@ const ProjectReportList: FC<any> = () => {
   // Derive the selected report id from the current route so the selection
   // survives a full page refresh.
   const selectedId = useMemo(() => {
-    const match = location.pathname.match(/\/report-writing\/([^/]+)/);
+    const match = location.pathname.match(/\/report\/([^/]+)/);
     return match ? decodeURIComponent(match[1]) : undefined;
   }, [location.pathname]);
 
@@ -320,7 +320,7 @@ const ProjectReportList: FC<any> = () => {
       );
       await refetch();
       if (created?.id) {
-        navigate(`/report-writing/${created.id}`);
+        navigate(`/report/${created.id}`);
       }
     } catch {
       // User canceled the create modal.
@@ -455,7 +455,7 @@ const ProjectReportList: FC<any> = () => {
               expandedRowRender: (record) => (
                 <ProjectReportItemsPanel
                   reportId={record.id}
-                  onOpenItem={(item) => navigate(`/report-writing/${record.id}/item/${item.id}`)}
+                  onOpenItem={(item) => navigate(`/report-item/${item.id}`)}
                   onChanged={refetch}
                 />
               ),
@@ -464,7 +464,7 @@ const ProjectReportList: FC<any> = () => {
               record.id === selectedId ? "project-report-row-selected" : ""
             }
             onRow={(record) => ({
-              onClick: () => navigate(`/report-writing/${record.id}`),
+              onClick: () => navigate(`/report/${record.id}`),
             })}
           />
         )}
