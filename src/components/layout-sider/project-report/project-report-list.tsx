@@ -6,6 +6,7 @@ import {
   listProjectReportItemApi,
   publishProjectReportItemToDocApi,
   publishProjectReportToDocApi,
+  updateProjectReportItemApi,
   type ProjectReport,
   type ProjectReportItem,
   type ProjectReportItemOwnerType,
@@ -16,7 +17,7 @@ import { useProjectReportPageQuery } from "@/hooks/usePaginationV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { formatRelativeTime } from "@/utils/time";
-import { DeleteOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined, SendOutlined } from "@ant-design/icons";
+import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined, SendOutlined } from "@ant-design/icons";
 import { Button, Dropdown, Empty, Modal, Pagination, Popconfirm, Select, Spin, Table, Tag } from "antd";
 import type { MenuProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -170,6 +171,13 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
   const [addOwnerType, setAddOwnerType] = useState<ProjectReportItemOwnerType>();
   const [modalOpen, setModalOpen] = useState(false);
   const [publishingId, setPublishingId] = useState<string>();
+  const [reordering, setReordering] = useState(false);
+
+  // nextSortOrder 取现有最大 sort_order + 1，避免重排/删除后新增条目产生重复序号。
+  const nextSortOrder = useMemo(
+    () => items.reduce((max, item) => Math.max(max, item.sort_order ?? 0), -1) + 1,
+    [items]
+  );
 
   const handleAddMenuClick: MenuProps["onClick"] = ({ key }) => {
     setAddOwnerType(key as ProjectReportItemOwnerType);
@@ -194,6 +202,31 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
     }
   };
 
+  // handleMoveItem 交换相邻条目并重写全部条目的 sort_order，
+  // 使 GetProjectReportContent / GetProjectReportHTML 等接口按新顺序拼接。
+  const handleMoveItem = async (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= items.length) {
+      return;
+    }
+
+    const reordered = [...items];
+    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+
+    setReordering(true);
+    try {
+      await Promise.all(
+        reordered.map((item, idx) =>
+          updateProjectReportItemApi({ id: item.id, sort_order: idx })
+        )
+      );
+      await refetch();
+      onChanged?.();
+    } finally {
+      setReordering(false);
+    }
+  };
+
   return (
     <div style={{ padding: "4px 8px 8px 32px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
@@ -214,7 +247,7 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
       ) : items.length === 0 ? (
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No report item" />
       ) : (
-        items.map((item) => (
+        items.map((item, index) => (
           <div
             key={item.id}
             onClick={() => onOpenItem(item)}
@@ -229,6 +262,28 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
             {item.owner_id && (
               <span style={{ fontSize: 12, color: "var(--sharp-text-secondary, #888)" }}>#{item.owner_id}</span>
             )}
+            <Button
+              type="text"
+              size="small"
+              icon={<ArrowUpOutlined />}
+              disabled={index === 0 || reordering}
+              title="Move up"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleMoveItem(index, -1);
+              }}
+            />
+            <Button
+              type="text"
+              size="small"
+              icon={<ArrowDownOutlined />}
+              disabled={index === items.length - 1 || reordering}
+              title="Move down"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleMoveItem(index, 1);
+              }}
+            />
             <Button
               type="text"
               size="small"
@@ -259,7 +314,7 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
       <AddReportItemModal
         reportId={reportId}
         ownerType={addOwnerType}
-        sortOrder={items.length}
+        sortOrder={nextSortOrder}
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onAdded={async () => {
