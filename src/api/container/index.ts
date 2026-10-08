@@ -44,9 +44,6 @@ export interface ContainerTemplateItem {
     labels: Record<string, unknown> | null;
     change_uid: boolean;
     schedule_constraint: Record<string, unknown> | null;
-    r_library_path: string;
-    python_library_path: string;
-    conda_library_path: string;
     created_at: string;
     updated_at: string;
 }
@@ -101,9 +98,6 @@ export interface ContainerTemplateExportItem {
     scheduling_constraint: Record<string, unknown> | null;
     labels: Record<string, unknown> | null;
     change_uid: boolean;
-    r_library_path: string;
-    python_library_path: string;
-    conda_library_path: string;
 }
 
 export interface AppSessionItem {

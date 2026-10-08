@@ -268,18 +268,6 @@ const ContainerTemplateForm = ({
                 <Input placeholder="Optional display name for this image binding" />
             </Form.Item>
 
-            <Form.Item name="r_library_path" label="R Library Path">
-                <Input placeholder="e.g. /package/R/4.4" />
-            </Form.Item>
-
-            <Form.Item name="python_library_path" label="Python Library Path">
-                <Input placeholder="e.g. /package/python/3.11" />
-            </Form.Item>
-
-            <Form.Item name="conda_library_path" label="Conda Library Path">
-                <Input placeholder="e.g. /package/conda/envs/base" />
-            </Form.Item>
-
             {!hideRuntimeFields && (
                 <>
                     <Form.Item

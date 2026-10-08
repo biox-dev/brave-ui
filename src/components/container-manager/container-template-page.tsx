@@ -87,22 +87,6 @@ const createColumns = (locale: string): ColumnsType<ContainerTemplateItem> => [
     render: (_: unknown, record) => record.image?.full_name || record.image_id || "-",
   },
   {
-    title: "R Lib",
-    dataIndex: "r_library_path",
-    key: "r_library_path",
-    width: 140,
-    ellipsis: true,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Python Lib",
-    dataIndex: "python_library_path",
-    key: "python_library_path",
-    width: 140,
-    ellipsis: true,
-    render: (value: string) => value || "-",
-  },
-  {
     title: "Command",
     dataIndex: "command",
     key: "command",
