@@ -18,7 +18,7 @@ import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { formatRelativeTime } from "@/utils/time";
 import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined, SendOutlined } from "@ant-design/icons";
-import { Button, Dropdown, Empty, Modal, Pagination, Popconfirm, Select, Spin, Table, Tag } from "antd";
+import { Button, Dropdown, Empty, Modal, Pagination, Popconfirm, Select, Spin, Table, Tooltip } from "antd";
 import type { MenuProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useEffect, useMemo, useState } from "react";
@@ -26,12 +26,6 @@ import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 import { useQuery } from "react-query";
 import { invoke } from "@/core/ui-system/invokeV2";
-
-const OWNER_TYPE_COLORS: Record<ProjectReportItemOwnerType, string> = {
-  analysis: "blue",
-  analysis_node: "geekblue",
-  ai_summary: "purple",
-};
 
 const OWNER_TYPE_OPTIONS: { key: ProjectReportItemOwnerType; label: string }[] = [
   { key: "analysis", label: "Analysis" },
@@ -250,63 +244,52 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
         items.map((item, index) => (
           <div
             key={item.id}
+            className="project-report-subitem-row"
             onClick={() => onOpenItem(item)}
-            style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 0", cursor: "pointer" }}
           >
-            <Tag color={OWNER_TYPE_COLORS[item.owner_type] || "default"} style={{ marginInlineEnd: 0 }}>
-              {item.owner_type}
-            </Tag>
-            <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {item.title || item.id}
-            </span>
-            {item.owner_id && (
-              <span style={{ fontSize: 12, color: "var(--sharp-text-secondary, #888)" }}>#{item.owner_id}</span>
-            )}
-            <Button
-              type="text"
-              size="small"
-              icon={<ArrowUpOutlined />}
-              disabled={index === 0 || reordering}
-              title="Move up"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleMoveItem(index, -1);
-              }}
-            />
-            <Button
-              type="text"
-              size="small"
-              icon={<ArrowDownOutlined />}
-              disabled={index === items.length - 1 || reordering}
-              title="Move down"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleMoveItem(index, 1);
-              }}
-            />
-            <Button
-              type="text"
-              size="small"
-              icon={<SendOutlined />}
-              loading={publishingId === item.id}
-              title="Publish to doc"
-              onClick={(e) => {
-                e.stopPropagation();
-                handlePublishItem(item);
-              }}
-            />
-            <Popconfirm
-              title="Delete selected report item?"
-              onConfirm={() => handleDeleteItem(item)}
+            <FileTextOutlined className="project-report-item-icon" />
+            <div className="project-report-item-text" style={{ flex: 1 }}>
+              <Tooltip placement="topLeft" title={item.title || item.id}>
+                <span className="project-report-item-title">{item.title || item.id}</span>
+              </Tooltip>
+              {/* owner_type 移到标题下方，与 ProjectReportList 的 meta 行保持一致。 */}
+              <span className="project-report-item-meta">{item.owner_type}</span>
+            </div>
+            <span
+              className="project-report-item-actions"
+              onClick={(e) => e.stopPropagation()}
             >
               <Button
                 type="text"
                 size="small"
-                danger
-                icon={<DeleteOutlined />}
-                onClick={(e) => e.stopPropagation()}
+                icon={<ArrowUpOutlined />}
+                disabled={index === 0 || reordering}
+                title="Move up"
+                onClick={() => handleMoveItem(index, -1)}
               />
-            </Popconfirm>
+              <Button
+                type="text"
+                size="small"
+                icon={<ArrowDownOutlined />}
+                disabled={index === items.length - 1 || reordering}
+                title="Move down"
+                onClick={() => handleMoveItem(index, 1)}
+              />
+              <Button
+                type="text"
+                size="small"
+                icon={<SendOutlined />}
+                loading={publishingId === item.id}
+                title="Publish to doc"
+                onClick={() => handlePublishItem(item)}
+              />
+              <Popconfirm
+                title="Delete selected report item?"
+                onConfirm={() => handleDeleteItem(item)}
+              >
+                <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+              </Popconfirm>
+            </span>
           </div>
         ))
       )}
@@ -426,21 +409,27 @@ const ProjectReportList: FC<any> = () => {
         title: "Title",
         dataIndex: "title",
         key: "title",
-        render: (title: string, record) => (
-          <div className="project-report-item">
-            <FileTextOutlined className="project-report-item-icon" />
-            <div className="project-report-item-text">
-              <span className="project-report-item-title">
-                {title || `Untitled-${record.id}`}
-              </span>
-              {record.updated_at && (
-                <span className="project-report-item-meta">
-                  {formatRelativeTime(record.updated_at, locale)}
-                </span>
-              )}
+        // 与 ScriptPageList 的 Title 列一致：单元格内省略号截断，悬浮显示全称。
+        ellipsis: { showTitle: false },
+        render: (title: string, record) => {
+          const name = title || `Untitled-${record.id}`;
+
+          return (
+            <div className="project-report-item">
+              <FileTextOutlined className="project-report-item-icon" />
+              <div className="project-report-item-text">
+                <Tooltip placement="topLeft" title={name}>
+                  <span className="project-report-item-title">{name}</span>
+                </Tooltip>
+                {record.updated_at && (
+                  <span className="project-report-item-meta">
+                    {formatRelativeTime(record.updated_at, locale)}
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
-        ),
+          );
+        },
       },
       {
         title: "Actions",

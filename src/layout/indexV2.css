@@ -156,6 +156,25 @@
   opacity: 1;
 }
 
+/* Nested rows (e.g. report items inside an expanded report row) mirror the
+   `.ant-table-tbody` row styling of the parent ProjectReportList. */
+.project-report-panel .project-report-subitem-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.project-report-panel .project-report-subitem-row:hover {
+  background: color-mix(in srgb, var(--sharp-panel-muted) 65%, transparent);
+}
+
+.project-report-panel .project-report-subitem-row:hover .project-report-item-actions {
+  opacity: 1;
+}
+
 .project-report-panel .ant-list-item {
   transition: background 0.15s ease;
 }

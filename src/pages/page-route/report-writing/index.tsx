@@ -1,6 +1,6 @@
 import { FC, useEffect, useState } from "react";
 import { Button, Card, Flex, Modal, Segmented, Skeleton, Spin, Tag } from "antd";
-import { ArrowLeftOutlined, DownloadOutlined, EditOutlined, FilePdfOutlined, FileTextOutlined, ReloadOutlined, SendOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, DownloadOutlined, EditOutlined, FileMarkdownOutlined, FilePdfOutlined, FileTextOutlined, ReloadOutlined, SendOutlined } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router";
 import { useSelector } from "react-redux";
 import ComponentsDetailsRender from "@/core/ui-renderer/ViewResolver";
@@ -18,6 +18,12 @@ import {
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { setLLMEnv } from "@/utils/llm-env";
 import { printHtmlDocument } from "@/utils/print-html";
+
+// sanitizeFileName 移除文件名中的非法字符，空标题时回退到默认名。
+const sanitizeFileName = (name: string, fallback: string) => {
+  const cleaned = (name || "").replace(/[\\/:*?"<>|]/g, "_").trim();
+  return cleaned || fallback;
+};
 
 const ReportWriting: FC<any> = () => {
   const navigate = useNavigate();
@@ -47,6 +53,8 @@ const ReportWriting: FC<any> = () => {
   }>({ open: false, loading: false, inlineImages: true, content: "" });
   // 导出 PDF：复用 HTML 导出能力（内嵌图片）后送入浏览器打印流程。
   const [pdfExporting, setPdfExporting] = useState(false);
+  // 下载原始 Markdown：将报告聚合后的 markdown 文本保存为 .md 文件。
+  const [mdDownloading, setMdDownloading] = useState(false);
 
   const loadContent = async (reportId?: string, currentItemId?: string) => {
     if (!reportId && !currentItemId) {
@@ -160,6 +168,36 @@ const ReportWriting: FC<any> = () => {
     }
   };
 
+  // handleDownloadMarkdown 拉取最新的报告聚合内容并保存为原始 Markdown 文件。
+  const handleDownloadMarkdown = async () => {
+    if (!projectReportId) {
+      message.warning("No report loaded");
+      return;
+    }
+
+    setMdDownloading(true);
+    try {
+      const resp = await getProjectReportContentApi(projectReportId);
+      const markdown = resp.data?.content ?? "";
+      if (!markdown) {
+        message.warning("Report is empty");
+        return;
+      }
+      const title = resp.data?.title || content?.title || "report";
+      const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${sanitizeFileName(title, "report")}.md`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // Error is surfaced globally by the http client interceptor.
+    } finally {
+      setMdDownloading(false);
+    }
+  };
+
   const openUpdateReportModal = async () => {
     if (!projectReportId) {
       message.warning("No report loaded");
@@ -224,6 +262,16 @@ const ReportWriting: FC<any> = () => {
       extra={
         <Flex gap="small">
           {renderViewButton(view, setView, "analysisDocView", "View")}
+          {!itemId && projectReportId && (
+            <Button
+              size="small"
+              icon={<FileMarkdownOutlined />}
+              loading={mdDownloading}
+              onClick={handleDownloadMarkdown}
+            >
+              MD
+            </Button>
+          )}
           {!itemId && projectReportId && (
             <Button
               size="small"
