@@ -1,5 +1,5 @@
 import { FC, useEffect, useState } from "react";
-import { Button, Card, Flex, Modal, Segmented, Skeleton, Spin, Tag } from "antd";
+import { Button, Card, Flex, Input, Modal, Segmented, Skeleton, Spin, Tag } from "antd";
 import { ArrowLeftOutlined, BookOutlined, DownloadOutlined, EditOutlined, FileMarkdownOutlined, FilePdfOutlined, FileTextOutlined, ReloadOutlined, SendOutlined } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router";
 import { useSelector } from "react-redux";
@@ -10,9 +10,12 @@ import {
   getProjectReportContentApi,
   getProjectReportHtmlApi,
   getProjectReportItemContentApi,
+  getProjectReportItemDetailApi,
   publishProjectReportItemToDocApi,
   publishProjectReportToDocApi,
+  updateProjectReportItemApi,
   type ProjectReportContentResponse,
+  type ProjectReportItem,
   type ProjectReportItemContentResponse,
 } from "@/api/project";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
@@ -45,6 +48,11 @@ const ReportWriting: FC<any> = () => {
   const [content, setContent] = useState<ProjectReportContentResponse>();
   // 单个条目视图：入参为 ProjectReportItem ID，显示该条目的 markdown。
   const [itemContent, setItemContent] = useState<ProjectReportItemContentResponse>();
+  // 当前条目的原始数据（仅 custom 类型用于顶部编辑标题与正文）。
+  const [itemDetail, setItemDetail] = useState<ProjectReportItem>();
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [savingItem, setSavingItem] = useState(false);
   // HTML 预览弹窗：支持「内嵌图片（base64）」与「原始链接」两种模式。
   const [htmlPreview, setHtmlPreview] = useState<{
     open: boolean;
@@ -72,11 +80,21 @@ const ReportWriting: FC<any> = () => {
         setContent(undefined);
         const resp = await getProjectReportItemContentApi(currentItemId);
         setItemContent(resp.data);
+        // 自定义内容条目：额外拉取原始数据，供顶部编辑标题与正文。
+        if (resp.data?.owner_type === "custom") {
+          const detailResp = await getProjectReportItemDetailApi(currentItemId);
+          setItemDetail(detailResp.data);
+          setEditTitle(detailResp.data.title ?? "");
+          setEditContent(detailResp.data.content ?? "");
+        } else {
+          setItemDetail(undefined);
+        }
         return;
       }
       // Report container view: drop the previously opened item, otherwise the
       // stale itemContent keeps overriding title/content.
       setItemContent(undefined);
+      setItemDetail(undefined);
       const resp = await getProjectReportContentApi(reportId!);
       setContent(resp.data);
     } finally {
@@ -88,6 +106,31 @@ const ReportWriting: FC<any> = () => {
     setLLMEnv(projectReportId, "projectReport");
     loadContent(projectReportId, itemId);
   }, [projectReportId, itemId]);
+
+  // handleSaveItem 保存自定义内容条目的标题与正文，然后重新加载。
+  const handleSaveItem = async () => {
+    if (!itemId || !itemDetail) {
+      return;
+    }
+
+    setSavingItem(true);
+    try {
+      await updateProjectReportItemApi({
+        id: itemId,
+        parent_id: itemDetail.parent_id,
+        owner_type: "custom",
+        sort_order: itemDetail.sort_order,
+        title: editTitle,
+        content: editContent,
+      });
+      message.success("Saved successfully");
+      await loadContent(projectReportId, itemId);
+    } catch {
+      // Error is surfaced globally by the http client interceptor.
+    } finally {
+      setSavingItem(false);
+    }
+  };
 
   const handlePublishToDoc = async () => {
     if (!itemId) {
@@ -363,11 +406,36 @@ const ReportWriting: FC<any> = () => {
           <Skeleton active />
         ) : itemId ? (
           itemContent ? (
-            <ComponentsDetailsRender
-              view={view}
-              project_id={projectId}
-              content={activeContent}
-            />
+            <>
+              {itemContent.owner_type === "custom" && itemDetail && (
+                <Card size="small" style={{ marginBottom: 12 }} title="Edit Section">
+                  <Flex vertical gap="small">
+                    <Input
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      placeholder="Title"
+                      maxLength={255}
+                    />
+                    <Input.TextArea
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      placeholder="Markdown content"
+                      autoSize={{ minRows: 6, maxRows: 20 }}
+                    />
+                    <Flex justify="flex-end">
+                      <Button type="primary" size="small" loading={savingItem} onClick={handleSaveItem}>
+                        Save
+                      </Button>
+                    </Flex>
+                  </Flex>
+                </Card>
+              )}
+              <ComponentsDetailsRender
+                view={view}
+                project_id={projectId}
+                content={activeContent}
+              />
+            </>
           ) : (
             <Tag color="orange">Report item not found</Tag>
           )

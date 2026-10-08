@@ -10,7 +10,7 @@ import { pageAnalysisByProjectApi, pageAnalysisNodeByProjectApi } from "@/api/an
 import { pageAISummaryByProjectApi } from "@/api/ai-summary";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { DeleteOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
-import { Button, Dropdown, Empty, Modal, Popconfirm, Select, Spin, Tree } from "antd";
+import { Button, Dropdown, Empty, Input, Modal, Popconfirm, Select, Spin, Tree } from "antd";
 import type { MenuProps, TreeProps } from "antd";
 import { FC, useEffect, useMemo, useState } from "react";
 import { useQuery } from "react-query";
@@ -26,6 +26,7 @@ const OWNER_TYPE_OPTIONS: { key: ProjectReportItemOwnerType; label: string }[] =
 	{ key: "analysis", label: "Analysis" },
 	{ key: "analysis_node", label: "Analysis Node" },
 	{ key: "ai_summary", label: "AI Summary" },
+	{ key: "custom", label: "Section / Custom" },
 ];
 
 interface OwnerOption {
@@ -42,7 +43,8 @@ interface AddReportItemModalProps {
 	onAdded?: () => void;
 }
 
-// AddReportItemModal 为 analysis / analysis_node / ai_summary 类型条目选择 OwnerID。
+// AddReportItemModal 为 analysis / analysis_node / ai_summary 类型条目选择 OwnerID；
+// custom 类型只需输入标题即可新增章节占位/自定义内容条目。
 const AddReportItemModal: FC<AddReportItemModalProps> = ({
 	reportId,
 	ownerType,
@@ -55,12 +57,22 @@ const AddReportItemModal: FC<AddReportItemModalProps> = ({
 	const [options, setOptions] = useState<OwnerOption[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [ownerId, setOwnerId] = useState<string>();
+	const [title, setTitle] = useState("");
 	const [submitting, setSubmitting] = useState(false);
 
 	useEffect(() => {
 		if (!open || !ownerType) {
 			setOptions([]);
 			setOwnerId(undefined);
+			setTitle("");
+			return;
+		}
+
+		// 自定义内容条目只需输入标题，无需选择 owner。
+		if (ownerType === "custom") {
+			setOptions([]);
+			setOwnerId(undefined);
+			setTitle("");
 			return;
 		}
 
@@ -95,20 +107,37 @@ const AddReportItemModal: FC<AddReportItemModalProps> = ({
 	}, [open, ownerType]);
 
 	const handleOk = async () => {
-		if (!ownerType || !ownerId) {
-			message.warning("Please select an owner");
+		if (!ownerType) {
 			return;
 		}
 
 		setSubmitting(true);
 		try {
-			await addProjectReportItemApi({
-				project_report_id: reportId,
-				parent_id: "0",
-				owner_type: ownerType,
-				owner_id: ownerId,
-				sort_order: sortOrder,
-			});
+			if (ownerType === "custom") {
+				if (!title.trim()) {
+					message.warning("Please input a title");
+					return;
+				}
+				await addProjectReportItemApi({
+					project_report_id: reportId,
+					parent_id: "0",
+					owner_type: "custom",
+					sort_order: sortOrder,
+					title: title.trim(),
+				});
+			} else {
+				if (!ownerId) {
+					message.warning("Please select an owner");
+					return;
+				}
+				await addProjectReportItemApi({
+					project_report_id: reportId,
+					parent_id: "0",
+					owner_type: ownerType,
+					owner_id: ownerId,
+					sort_order: sortOrder,
+				});
+			}
 			message.success("Added successfully");
 			onAdded?.();
 			onClose();
@@ -126,16 +155,27 @@ const AddReportItemModal: FC<AddReportItemModalProps> = ({
 			confirmLoading={submitting}
 			destroyOnClose
 		>
-			<Select
-				style={{ width: "100%" }}
-				loading={loading}
-				value={ownerId}
-				onChange={setOwnerId}
-				options={options}
-				placeholder="Select owner"
-				showSearch
-				optionFilterProp="label"
-			/>
+			{ownerType === "custom" ? (
+				<Input
+					style={{ width: "100%" }}
+					value={title}
+					onChange={(e) => setTitle(e.target.value)}
+					placeholder="Title"
+					maxLength={255}
+					onPressEnter={handleOk}
+				/>
+			) : (
+				<Select
+					style={{ width: "100%" }}
+					loading={loading}
+					value={ownerId}
+					onChange={setOwnerId}
+					options={options}
+					placeholder="Select owner"
+					showSearch
+					optionFilterProp="label"
+				/>
+			)}
 		</Modal>
 	);
 };

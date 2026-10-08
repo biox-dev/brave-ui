@@ -76,8 +76,8 @@ export interface ProjectReport {
 // ProjectReportDetail 目前与 ProjectReport 字段一致，保留别名方便后续扩展。
 export type ProjectReportDetail = ProjectReport;
 
-// ProjectReportItemOwnerType 标识条目内容来源类型。
-export type ProjectReportItemOwnerType = "analysis" | "analysis_node" | "ai_summary";
+// ProjectReportItemOwnerType 标识条目内容来源类型。custom 为自定义内容/章节占位条目。
+export type ProjectReportItemOwnerType = "analysis" | "analysis_node" | "ai_summary" | "custom";
 
 // ProjectReportItem 是报告下的一个内容条目。
 export interface ProjectReportItem {
@@ -88,6 +88,7 @@ export interface ProjectReportItem {
 	owner_id: string;
 	sort_order: number;
 	title: string;
+	content: string;
 	created_at: string;
 	updated_at: string;
 }
@@ -118,6 +119,8 @@ export interface AddProjectReportItemRequest {
 	owner_type: ProjectReportItemOwnerType;
 	owner_id?: string;
 	sort_order?: number;
+	title?: string;
+	content?: string;
 }
 
 export interface UpdateProjectReportItemRequest {
@@ -126,6 +129,8 @@ export interface UpdateProjectReportItemRequest {
 	owner_type?: ProjectReportItemOwnerType;
 	owner_id?: string;
 	sort_order?: number;
+	title?: string;
+	content?: string;
 }
 
 // ReorderProjectReportItemEntry 描述拖拽后单个条目的目标位置。
@@ -153,6 +158,7 @@ export interface ProjectReportItemContentResponse {
 	title: string;
 	prefix: string;
 	content: string;
+	owner_type?: ProjectReportItemOwnerType;
 }
 
 export interface ProjectReportPageQuery {
