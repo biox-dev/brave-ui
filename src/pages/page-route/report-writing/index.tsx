@@ -1,6 +1,6 @@
 import { FC, useEffect, useState } from "react";
 import { Button, Card, Flex, Modal, Segmented, Skeleton, Spin, Tag } from "antd";
-import { ArrowLeftOutlined, DownloadOutlined, EditOutlined, FileMarkdownOutlined, FilePdfOutlined, FileTextOutlined, ReloadOutlined, SendOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, BookOutlined, DownloadOutlined, EditOutlined, FileMarkdownOutlined, FilePdfOutlined, FileTextOutlined, ReloadOutlined, SendOutlined } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router";
 import { useSelector } from "react-redux";
 import ComponentsDetailsRender from "@/core/ui-renderer/ViewResolver";
@@ -18,6 +18,7 @@ import {
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { setLLMEnv } from "@/utils/llm-env";
 import { printHtmlDocument } from "@/utils/print-html";
+import { getPathname } from "@/utils/utils";
 
 // sanitizeFileName 移除文件名中的非法字符，空标题时回退到默认名。
 const sanitizeFileName = (name: string, fallback: string) => {
@@ -121,6 +122,15 @@ const ReportWriting: FC<any> = () => {
     } finally {
       setPublishingReport(false);
     }
+  };
+
+  // handleOpenDoc 在新标签页打开该报告的文档（后端按 ProjectReport ID 解析文档目录）。
+  const handleOpenDoc = () => {
+    if (!projectReportId) {
+      message.warning("No report loaded");
+      return;
+    }
+    window.open(`${getPathname()}/docs/${projectReportId}/`, "_blank");
   };
 
   const loadHtmlPreview = async (inlineImages: boolean) => {
@@ -313,6 +323,17 @@ const ReportWriting: FC<any> = () => {
               onClick={handlePublishReportToDoc}
             >
               Publish to Doc
+            </Button>
+          )}
+          {!itemId && projectReportId && (
+            <Button
+              size="small"
+              color="purple"
+              variant="solid"
+              icon={<BookOutlined />}
+              onClick={handleOpenDoc}
+            >
+              Open Doc
             </Button>
           )}
           {itemId && (

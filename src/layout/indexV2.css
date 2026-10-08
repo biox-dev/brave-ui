@@ -156,22 +156,133 @@
   opacity: 1;
 }
 
-/* Nested rows (e.g. report items inside an expanded report row) mirror the
-   `.ant-table-tbody` row styling of the parent ProjectReportList. */
-.project-report-panel .project-report-subitem-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 8px;
-  cursor: pointer;
-  transition: background 0.15s ease;
+/* Report item tree (rendered inside an expanded report row in the sidebar). */
+.project-report-items-panel {
+  padding: 2px 6px 8px 18px;
 }
 
-.project-report-panel .project-report-subitem-row:hover {
+.project-report-items-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 20px;
+  margin-bottom: 2px;
+}
+
+.project-report-items-panel-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sharp-text-soft);
+}
+
+.project-report-items-panel-count {
+  padding: 0 6px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--sharp-panel-muted) 80%, transparent);
+  font-size: 10px;
+  line-height: 16px;
+  letter-spacing: 0;
+}
+
+.project-report-items-panel-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+
+.project-report-items-panel-actions .ant-btn {
+  color: var(--sharp-text-soft);
+}
+
+.project-report-items-panel-actions .ant-btn:hover {
+  color: var(--sharp-text);
   background: color-mix(in srgb, var(--sharp-panel-muted) 65%, transparent);
 }
 
-.project-report-panel .project-report-subitem-row:hover .project-report-item-actions {
+/* Compact tree tuned for the narrow sidebar column. */
+.project-report-panel .project-report-tree {
+  background: transparent;
+  color: var(--sharp-text);
+  font-size: 12px;
+}
+
+.project-report-panel .project-report-tree .ant-tree-switcher {
+  width: 16px;
+  line-height: 24px;
+  color: var(--sharp-text-soft);
+}
+
+.project-report-panel .project-report-tree .ant-tree-indent-unit {
+  width: 12px;
+}
+
+.project-report-panel .project-report-tree .ant-tree-treenode {
+  width: 100%;
+  align-items: center;
+  padding: 1px 0;
+}
+
+.project-report-panel .project-report-tree .ant-tree-node-content-wrapper {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  height: 24px;
+  line-height: 24px;
+  padding: 0 6px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.project-report-panel .project-report-tree .ant-tree-node-content-wrapper:hover {
+  background: color-mix(in srgb, var(--sharp-panel-muted) 60%, transparent);
+}
+
+.project-report-panel .project-report-tree .ant-tree-node-content-wrapper.ant-tree-node-selected {
+  background: var(--project-report-selected-bg, color-mix(in srgb, #1890ff 14%, transparent));
+  box-shadow: inset 2px 0 0 0 #1890ff;
+}
+
+.project-report-tree .project-report-tree-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.project-report-tree .project-report-tree-title .project-report-item-icon {
+  font-size: 12px;
+}
+
+.project-report-tree .project-report-tree-title .project-report-item-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 24px;
+}
+
+.project-report-tree .project-report-tree-title .project-report-item-meta {
+  flex: 0 0 auto;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--sharp-panel-muted) 80%, transparent);
+  font-size: 10px;
+  line-height: 16px;
+  opacity: 0.85;
+}
+
+.project-report-tree .project-report-tree-title .project-report-item-actions {
+  flex: 0 0 auto;
+}
+
+.project-report-tree .ant-tree-node-content-wrapper:hover .project-report-item-actions,
+.project-report-tree .project-report-item-actions:focus-within {
   opacity: 1;
 }
 

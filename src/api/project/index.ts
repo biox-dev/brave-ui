@@ -83,12 +83,18 @@ export type ProjectReportItemOwnerType = "analysis" | "analysis_node" | "ai_summ
 export interface ProjectReportItem {
 	id: string;
 	project_report_id: string;
+	parent_id: string;
 	owner_type: ProjectReportItemOwnerType;
 	owner_id: string;
 	sort_order: number;
 	title: string;
 	created_at: string;
 	updated_at: string;
+}
+
+// ProjectReportItemNode 是列表接口返回的树节点，携带同层子节点。
+export interface ProjectReportItemNode extends ProjectReportItem {
+	children?: ProjectReportItemNode[];
 }
 
 export interface AddProjectReportRequest {
@@ -108,6 +114,7 @@ export interface DeleteProjectReportRequest {
 
 export interface AddProjectReportItemRequest {
 	project_report_id: string;
+	parent_id?: string;
 	owner_type: ProjectReportItemOwnerType;
 	owner_id?: string;
 	sort_order?: number;
@@ -115,9 +122,22 @@ export interface AddProjectReportItemRequest {
 
 export interface UpdateProjectReportItemRequest {
 	id: string;
+	parent_id?: string;
 	owner_type?: ProjectReportItemOwnerType;
 	owner_id?: string;
 	sort_order?: number;
+}
+
+// ReorderProjectReportItemEntry 描述拖拽后单个条目的目标位置。
+export interface ReorderProjectReportItemEntry {
+	id: string;
+	parent_id: string;
+	sort_order: number;
+}
+
+export interface ReorderProjectReportItemRequest {
+	report_id: string;
+	items: ReorderProjectReportItemEntry[];
 }
 
 export interface DeleteProjectReportItemRequest {
@@ -185,9 +205,10 @@ export const getProjectReportHtmlApi = (reportId: string, inlineImages = true) =
 	})
 
 export const listProjectReportItemApi = (reportId: string) =>
-	http.get<ProjectReportItem[]>(`/project/list-project-report-item?report_id=${encodeURIComponent(reportId)}`)
+	http.get<ProjectReportItemNode[]>(`/project/list-project-report-item?report_id=${encodeURIComponent(reportId)}`)
 export const addProjectReportItemApi = (payload: AddProjectReportItemRequest) => http.post<ProjectReportItem>("/project/add-project-report-item", payload)
 export const updateProjectReportItemApi = (payload: UpdateProjectReportItemRequest) => http.post<{ message: string }>("/project/update-project-report-item", payload)
+export const reorderProjectReportItemApi = (payload: ReorderProjectReportItemRequest) => http.post<{ message: string }>("/project/reorder-project-report-item", payload)
 export const deleteProjectReportItemApi = (payload: DeleteProjectReportItemRequest) => http.post<{ message: string }>("/project/delete-project-report-item", payload)
 export const getProjectReportItemDetailApi = (id: string) =>
 	http.get<ProjectReportItem>(`/project/project-report-item-detail?id=${encodeURIComponent(id)}`)
