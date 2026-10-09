@@ -14,7 +14,7 @@ const { Text } = Typography;
 
 export interface AnalysisPageProps {
 	analysis_name?: string;
-	relation_id?: string;
+	workflow_id?: string;
 	job_status?: string;
 	server_status?: string;
 	page_size?: number | string;
@@ -70,7 +70,7 @@ const cacheTypeLabel = (cacheType?: number) => {
 
 const AnalysisPage = ({
 	analysis_name,
-	relation_id,
+	workflow_id,
 	job_status,
 	server_status,
 	page_size,
@@ -220,11 +220,11 @@ const AnalysisPage = ({
 	useEffect(() => {
 		setQuery({
 			analysis_name: normalizeText(analysis_name),
-			workflow_id: normalizeText(relation_id),
+			workflow_id: normalizeText(workflow_id),
 			job_status: normalizeText(job_status),
 			server_status: normalizeText(server_status),
 		});
-	}, [analysis_name, relation_id, job_status, server_status, setQuery]);
+	}, [analysis_name, workflow_id, job_status, server_status, setQuery]);
 
 	const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 
