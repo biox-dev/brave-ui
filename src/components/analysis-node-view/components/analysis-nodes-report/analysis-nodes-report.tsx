@@ -1,3 +1,7 @@
+/**
+ * @deprecated 已弃用：AnalysisNodePanel 不再展示该报告视图，请改用按 analysis_id 过滤的
+ * `analysis-node-page`（AnalysisNodePage）。该组件已从组件注册表移除，保留仅供历史参考。
+ */
 import { Button, Card, Col, Empty, Flex, Menu, Row, Skeleton, Space, Tooltip, Typography } from "antd";
 import { FC, useEffect, useMemo, useState } from "react";
 import { RedoOutlined } from '@ant-design/icons'

@@ -7,11 +7,11 @@ import axios from "axios";
 import { FC, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 
-type AnalysisNodePanelView = "analysisNodesReport" | "analysisNodes" | "analysisEdges";
+type AnalysisNodePanelView = "analysisNodePage" | "analysisNodes" | "analysisEdges";
 
 const AnalysisNodePanel: FC<any> = () => {
     const { openAnalysis, relation, analysisId, setAnalysisId, clear, setRelation, closeAnalysis, setFormParam } = useStoreRender()
-    const [view, setView] = useState<AnalysisNodePanelView>("analysisNodesReport");
+    const [view, setView] = useState<AnalysisNodePanelView>("analysisNodePage");
     const setPanelView = (nextView: string) => setView(nextView as AnalysisNodePanelView);
     const navigate = useNavigate()
 
@@ -28,9 +28,9 @@ const AnalysisNodePanel: FC<any> = () => {
             {/* {relation?.relation_id && <Button size="small" color="primary" variant="solid" onClick={() =>
                 navigate(`/c/tools/${relation?.relation_id}`)
             }>Go tools</Button>} */}
-            {renderViewButton(view, setPanelView, "analysisNodesReport", "Report")}
+            {renderViewButton(view, setPanelView, "analysisNodePage", "Nodes")}
 
-            {renderViewButton(view, setPanelView, "analysisNodes", "Nodes")}
+            {renderViewButton(view, setPanelView, "analysisNodes", "DAG")}
 
             {renderViewButton(view, setPanelView, "analysisEdges", "Edges")}
         </Space>}

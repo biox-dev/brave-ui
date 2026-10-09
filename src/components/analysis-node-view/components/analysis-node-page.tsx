@@ -15,6 +15,7 @@ const { Text } = Typography;
 
 export interface AnalysisNodePageProps {
 	script_id?: string;
+	analysis_id?: string | number;
 	page_size?: number | string;
 	title?: string;
 	onOk?: (node: AnalysisNodeItem) => void;
@@ -54,6 +55,7 @@ const statusColor = (status?: string) => {
 
 const AnalysisNodePage = ({
 	script_id,
+	analysis_id,
 	page_size,
 	title,
 	onOk,
@@ -218,8 +220,11 @@ const AnalysisNodePage = ({
 	useEffect(() => {
 		setQuery({
 			script_id: normalizeText(script_id),
+			analysis_id: normalizeText(
+				analysis_id === undefined || analysis_id === null ? undefined : String(analysis_id)
+			),
 		});
-	}, [script_id, setQuery]);
+	}, [script_id, analysis_id, setQuery]);
 
 	const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 

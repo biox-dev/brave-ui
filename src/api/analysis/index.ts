@@ -57,6 +57,7 @@ export interface AnalysisNodeItem {
 
 export interface AnalysisNodePageQuery {
 	script_id?: string;
+	analysis_id?: string;
 }
 
 export const pageAnalysisNodeByProjectApi = (payload: PageRequest<AnalysisNodePageQuery>) => {
