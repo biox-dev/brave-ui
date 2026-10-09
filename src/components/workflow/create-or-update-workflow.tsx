@@ -13,6 +13,7 @@ import { Button, Card, Collapse, Form, Input, InputNumber, Select, Space, Spin, 
 import { FC, useEffect, useState } from "react";
 import { http } from "@/api/client/http";
 import { ComponentImageUpload } from "@/components/common/component-image";
+import IOSchemaEditor, { normalizeIOSchema } from "@/components/script/io-schema-editor";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 
 // ---------- small helpers ----------
@@ -44,6 +45,9 @@ const toPrettyString = (value: any): string | undefined => {
 const toFormValues = (relation: any) => ({
   name: relation?.name,
   dag_definition: toPrettyString(relation?.dag_definition),
+  // normalized to an object so <IOSchemaEditor /> can edit it visually;
+  // getParams() re-serializes it back to a JSON string on save.
+  io_schema: normalizeIOSchema(relation?.io_schema),
   tags: normalizeTags(relation?.tags),
   category: relation?.category,
   img: relation?.img,
@@ -121,6 +125,9 @@ const CreateOrUpdateWorkflow: FC<CreateOrUpdateWorkflowProps> = (params) => {
     if (payload.dag_definition && typeof payload.dag_definition !== "string") {
       payload.dag_definition = serializeJSON(payload.dag_definition);
     }
+    if (payload.io_schema && typeof payload.io_schema !== "string") {
+      payload.io_schema = serializeJSON(payload.io_schema, "");
+    }
     if (relation) {
       // update existing workflow: id selects the DB row, workflow_id keeps its uuid
       payload.id = relation?.id != null ? String(relation.id) : undefined;
@@ -191,6 +198,10 @@ const CreateOrUpdateWorkflow: FC<CreateOrUpdateWorkflowProps> = (params) => {
 
           <Form.Item name="dag_definition" label="DAG Definition">
             <Input.TextArea rows={4} spellCheck={false} />
+          </Form.Item>
+
+          <Form.Item name="io_schema" label="IO Schema (workflow inputs)">
+            <IOSchemaEditor />
           </Form.Item>
 
           <Form.Item name="tags" label="Tags">

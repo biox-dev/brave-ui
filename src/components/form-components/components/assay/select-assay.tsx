@@ -78,7 +78,7 @@ export const SelectAssay: FC<any> = ({
   }, [data, groupField, customFilterValue]);
 
   return (
-    <Form.Item label={label} name={[name, "assay"]} rules={rules}>
+    <Form.Item label={label} name={[name, "files"]} rules={rules}>
       <GroupSelectAssay
         mode={mode}
         sampleGrouped={sampleGrouped}
