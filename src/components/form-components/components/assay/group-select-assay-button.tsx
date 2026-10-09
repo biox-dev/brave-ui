@@ -23,7 +23,7 @@ export const GroupSelectAssayButton: FC<any> = ({
 }) => {
   // The form field holding the selection is named after the item's `input_type`
   // (assay / sample); items written before `input_type` existed keep `assay`.
-  const inputType = input_type || "assay";
+  // const inputType = input_type || "assay";
   const [sampleGrouped, setSampleGrouped] = useState<any>();
   const [options, setOptions] = useState<any>([]);
 
@@ -82,7 +82,7 @@ export const GroupSelectAssayButton: FC<any> = ({
 
   return (
     <>
-      <Form.Item label={label} name={[name, inputType]} rules={rules}>
+      <Form.Item label={label} name={[name, "files"]} rules={rules}>
         <GroupSelectAssay
           mode="multiple"
           sampleGrouped={sampleGrouped}
@@ -94,7 +94,7 @@ export const GroupSelectAssayButton: FC<any> = ({
         <Form.Item label={label} name={[name, "group"]} noStyle>
           <GroupSelectButton
             sampleGrouped={sampleGrouped}
-            field={[name, inputType]}
+            field={[name, "files"]}
           ></GroupSelectButton>
         </Form.Item>
         <Form.Item name={[name, "group_name"]}>
