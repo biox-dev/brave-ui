@@ -371,7 +371,7 @@ const Pipeline: FC<any> = ({ }) => {
 
     const views = [
         { label: zh ? "分析" : "Analysis", value: "analysisPage" },
-        { label: zh ? "输出" : "Output", value: "outputFileComponent" },
+        // { label: zh ? "输出" : "Output", value: "outputFileComponent" },
         { label: zh ? "流程" : "Workflow", value: "workflowVisCard" },
         { label: "README", value: "workflowReadme" },
         { label: zh ? "编辑" : "Edit", value: "createOrUpdateWorkflow" },

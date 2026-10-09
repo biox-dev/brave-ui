@@ -18,6 +18,7 @@ import { BaseSelect } from "../base/base-select";
 import { BaseTextAreaNum } from "../base/base-textarea-num";
 import { CollectedAssaySelectV2 } from "../collected/collected-assay-select-v2";
 import type { JSONMap } from "@/components/form-components/registry";
+import SelectAssay from "../assay/select-assay";
 
 export const AppendFields: FC<{
   /** The parent's `append` array. */
@@ -42,6 +43,7 @@ export const AppendFields: FC<{
         const childName = [...prefix, name];
         return (
           <div key={index}>
+            {/* {JSON.stringify(inherited)} */}
             {variant === "v2" && type == "CollectedAssaySelectV2" && (
               <CollectedAssaySelectV2 {...inherited} {...rest} name={childName} />
             )}
@@ -49,6 +51,7 @@ export const AppendFields: FC<{
             {type == "BaseSelect" && <BaseSelect name={childName} {...rest} />}
             {type == "BaseInput" && <BaseInput name={childName} {...rest} />}
             {type == "BaseInputNumber" && <BaseInputNumber name={childName} {...rest} />}
+            {type == "SelectAssay" && <SelectAssay {...inherited}  name={childName} {...rest} />}
           </div>
         );
       })}
