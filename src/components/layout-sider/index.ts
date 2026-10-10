@@ -12,6 +12,7 @@ const viewLoaders = {
     sysFileBrowser: () => import("./sys-file/sys-file"),
     datasetProjectPage: () => import("./data-dataset-page/dataset-project-page"),
     datasetFilePage: () => import("./data-dataset-page/dataset-file-page"),
+    analysisNodeFilePage: () => import("./data-dataset-page/analysis-node-file-page"),
     assayProjectPage: () => import("./data-dataset-page/assay-project-page"),
     editAssayPage: () => import("./data-dataset-page/edit-assay-page"),
     editAssayFilePage: () => import("./data-dataset-page/edit-assay-file-page"),

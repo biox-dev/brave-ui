@@ -15,10 +15,10 @@ import SplitWorkspace from './components/SplitWorkspace.tsx';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
-type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList'| 'analysisNodeList' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'aiSummaryProject' | 'assayProjectPage' | 'datasetFilePage';
+type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList'| 'analysisNodeList' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'aiSummaryProject' | 'assayProjectPage' | 'datasetFilePage' | 'analysisNodeFilePage';
 
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
-  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'aiSummaryProject' || key === 'assayProjectPage' || key === 'datasetFilePage';
+  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'aiSummaryProject' || key === 'assayProjectPage' || key === 'datasetFilePage' || key === 'analysisNodeFilePage';
 
 const App: React.FC = () => {
   const { locale } = useI18n();
@@ -46,6 +46,11 @@ const App: React.FC = () => {
         key: 'datasetFilePage',
         label: locale === 'en_US' ? 'Dataset Files' : '数据集文件',
         icon: <FolderOpenOutlined />,
+      },
+      {
+        key: 'analysisNodeFilePage',
+        label: locale === 'en_US' ? 'Analysis Node Files' : '分析节点文件',
+        icon: <FileSearchOutlined />,
       },
       {
         key: 'assayProjectPage',

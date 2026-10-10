@@ -247,6 +247,16 @@ export const pageFileByProjectApi = (payload: PageRequest<DatasetFilePageQuery>)
 	return http.post<PageResponse<DatasetFileItem>>("/data/file/list-by-project-page", payload);
 };
 
+// Files produced by the active project's analysis nodes (bound via
+// go_file.analysis_node_id). The active project is resolved from the current
+// user on the backend, so no project_id has to be sent.
+export const pageFileByProjectViaAnalysisNodeApi = (payload: PageRequest<DatasetFilePageQuery>) => {
+	return http.post<PageResponse<DatasetFileItem>>(
+		"/data/file/list-by-project-analysis-node-page",
+		payload
+	);
+};
+
 export const pageAssayByProjectApi = (payload: PageRequest<AssayPageQuery>) => {
 	return http.post<PageResponse<AssayItem>>("/data/assay/list-by-project-page", payload);
 };

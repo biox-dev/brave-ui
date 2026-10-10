@@ -5,6 +5,7 @@ import type { AxiosError } from "axios";
 import {
 	pageDatasetByProjectApi,
 	pageFileByProjectApi,
+	pageFileByProjectViaAnalysisNodeApi,
 	pageAssayByProjectApi,
 } from "@/api/data";
 import type {
@@ -294,6 +295,22 @@ export const useDatasetFilePageQuery = (
 		query,
 		queryFn: async (payload) => {
 			const response = await pageFileByProjectApi(payload);
+			return response.data;
+		},
+		initialPageSize: 10,
+		...options,
+	});
+};
+
+export const useAnalysisNodeFilePageQuery = (
+	query: DatasetFilePageQuery,
+	options?: Omit<UsePageQueryOptions<DatasetFileItem, DatasetFilePageQuery>, "queryKey" | "query" | "endpoint" | "queryFn">
+) => {
+	return usePageQuery<DatasetFileItem, DatasetFilePageQuery>({
+		queryKey: ["analysis-node-file-page"],
+		query,
+		queryFn: async (payload) => {
+			const response = await pageFileByProjectViaAnalysisNodeApi(payload);
 			return response.data;
 		},
 		initialPageSize: 10,
