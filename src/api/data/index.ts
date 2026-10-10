@@ -41,6 +41,26 @@ export interface DatasetFileItem {
 	role: string;
 }
 
+// AnalysisNodeFileItem is the read model of /data/file/list-by-analysis-node:
+// a plain File row produced by an analysis node (go_file.analysis_node_id).
+export interface AnalysisNodeFileItem {
+	id: string;
+	file_id: string;
+	file_name: string;
+	path: string;
+	format: string;
+	assay_id: string;
+	// file_key is the file's key inside its owning assay, e.g. FASTQ_R1 or BAM.
+	file_key: string;
+	analysis_node_id: string;
+	size: number;
+	md5: string;
+	storage: string;
+	description: string;
+	created_at: string;
+	updated_at: string;
+}
+
 export interface AssayDetailItem {
 	id: string;
 	// sample_name is the biological sample's business identifier, carried directly on
@@ -254,6 +274,15 @@ export const pageFileByProjectViaAnalysisNodeApi = (payload: PageRequest<Dataset
 	return http.post<PageResponse<DatasetFileItem>>(
 		"/data/file/list-by-project-analysis-node-page",
 		payload
+	);
+};
+
+// Files produced by one analysis node (go_file.analysis_node_id ->
+// analysis_nodes.id). `analysisNodeId` is the analysis node's numeric PK
+// (analysis_nodes.id). Returns every file owned by the node, unpaged.
+export const listFileByAnalysisNodeApi = (analysisNodeId: string) => {
+	return http.get<AnalysisNodeFileItem[]>(
+		`/data/file/list-by-analysis-node?analysis_node_id=${encodeURIComponent(analysisNodeId)}`
 	);
 };
 
