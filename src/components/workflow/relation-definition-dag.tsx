@@ -22,7 +22,7 @@ const RelationDefinitionDAG = forwardRef<any, any>(
         const save = async () => {
             console.log("save called structure")
             const resp = await http.post("/workflow/save-workflow-dag",{
-                relation_id: workflow_id,
+                workflow_id: workflow_id,
                 dag_definition: content
             })
             message.success("Structure saved")
