@@ -25,9 +25,9 @@ const RenderFromJson: FC<any> = ({ formJson, dataMap, databases, analysisResultI
     return <>
         <FormProvider>
             <FormJsonComp analysisResultId={analysisResultId} formJson={[...formJson]} dataMap={dataMap} ></FormJsonComp>
-            {(databases && Array.isArray(databases) && databases.length > 0) && <BioDatabaseForm openModal={() => {
+            {/* {(databases && Array.isArray(databases) && databases.length > 0) && <BioDatabaseForm openModal={() => {
                 openModals("bioDatabases", databases)
-            }} formJson={databases}></BioDatabaseForm>}
+            }} formJson={databases}></BioDatabaseForm>} */}
             {/* <Tabs
 
                 items={[

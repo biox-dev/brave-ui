@@ -29,7 +29,7 @@ const acceptedFormatKeys = (resolver: any, dataMap: any): string[] => {
  */
 const collectAcceptedFormatsData = (inputType: any, resolver: any, dataMap: any): any => {
   if (inputType === "sample") {
-    return dataMap["sample"] ? dataMap["sample"]:[];
+    return dataMap["sample"] ? dataMap["sample"] : [];
   }
   const values = acceptedFormatKeys(resolver, dataMap).map((key) => dataMap[key]);
 
@@ -66,9 +66,8 @@ export const ComponentsRender = ({
   inputKey,
   ...rest
 }: any) => {
-  if (!dataMap) return <div></div>;
 
-  dataMap = { ...dataMap, ...constDataMap };
+
   const componentObj = componentMap[type];
 
   if (!componentObj) {
@@ -77,35 +76,43 @@ export const ComponentsRender = ({
 
   const { Component, dataKey, ...crest } = componentObj;
 
+
+
   let data: any = [];
-  if (data_) {
-    data = data_;
-    // 下游分析从数据库加载其它数据
-  } else if (inputAnalysisMethod) {
-    data = dataMap[inputAnalysisMethod];
-  } else if (dataKey_) {
-    if (dataKey_ in dataMap) {
-      data = dataMap[dataKey_];
-    }
-  } else if (dataKey) {
-    if (dataKey in dataMap) {
-      data = dataMap[dataKey];
-    }
-  } else {
-    // 上游分析结果的 key：后端 build*FormData 就是按 resolver.accept_formats
-    // 里的角色名（TABLE / DEFAULT ...）分组 analysis_result 的。多个角色是
-    // “任选其一”的候选格式，所以全部命中的角色合并成一个候选列表。
-    const collected = collectAcceptedFormatsData(rest?.input_type,resolver, dataMap);
-    if (collected !== undefined) {
-      data = collected;
-    } else if ("first_data_key" in dataMap) {
-      data = dataMap[dataMap["first_data_key"]];
+
+  if (dataMap) {
+    dataMap = { ...dataMap, ...constDataMap };
+    if (data_) {
+      data = data_;
+      // 下游分析从数据库加载其它数据
+    } else if (inputAnalysisMethod) {
+      data = dataMap[inputAnalysisMethod];
+    } else if (dataKey_) {
+      if (dataKey_ in dataMap) {
+        data = dataMap[dataKey_];
+      }
+    } else if (dataKey) {
+      if (dataKey in dataMap) {
+        data = dataMap[dataKey];
+      }
+    } else {
+      // 上游分析结果的 key：后端 build*FormData 就是按 resolver.accept_formats
+      // 里的角色名（TABLE / DEFAULT ...）分组 analysis_result 的。多个角色是
+      // “任选其一”的候选格式，所以全部命中的角色合并成一个候选列表。
+      const collected = collectAcceptedFormatsData(rest?.input_type, resolver, dataMap);
+      if (collected !== undefined) {
+        data = collected;
+      } else if ("first_data_key" in dataMap) {
+        data = dataMap[dataMap["first_data_key"]];
+      }
     }
   }
 
+
+
   return <>
-  {/* {rest?.input_type} */}
-  <Component {...crest} {...rest} data={data} name={name} />
+    {/* {rest?.input_type} */}
+    <Component {...crest} {...rest} data={data} name={name} />
   </>
 };
 
