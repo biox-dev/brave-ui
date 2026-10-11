@@ -49,7 +49,7 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
         const requestParams = {
             ...requestParam,
             ...values,
-            project: project,
+            // project: project,
         }
         return requestParams
     }

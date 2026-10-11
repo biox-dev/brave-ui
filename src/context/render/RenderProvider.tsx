@@ -106,15 +106,15 @@ export const RenderProvider: FC<any> = ({ children }) => {
         setAnalysisNodeId(null)
     }
     const buildRequestParams = () => {
-        let dataComponentIds: any = []
-        if (relation.inputFile) {
-            dataComponentIds = relation.inputFile.map((item: any) => item.component_id)
+        // let dataComponentIds: any = []
+        // if (relation.inputFile) {
+        //     dataComponentIds = relation.inputFile.map((item: any) => item.component_id)
 
-        }
+        // }
         const requestParams = {
-            analysis_type: "workflow",
-            component_id: relation.component_id,
-            data_component_ids: JSON.stringify(dataComponentIds),
+            // analysis_type: "workflow",
+            // component_id: relation.component_id,
+            // data_component_ids: JSON.stringify(dataComponentIds),
             // component_parent_ids_map: componentParentIdsMap,
             workflow_id: relation.id,
         }
