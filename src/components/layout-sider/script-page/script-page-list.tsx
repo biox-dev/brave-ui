@@ -205,7 +205,7 @@ const ScriptPageList: FC<any> = () => {
         className="project-report-item-actions"
         onClick={(e) => e.stopPropagation()}
       >
-        <Tooltip title="Edit">
+        {/* <Tooltip title="Edit">
           <Button
             type="text"
             size="small"
@@ -225,7 +225,7 @@ const ScriptPageList: FC<any> = () => {
               }
             }}
           />
-        </Tooltip>
+        </Tooltip> */}
         <Popconfirm
           title="Delete this script?"
           description="Cannot delete if analysis nodes exist or this script is referenced in a workflow."

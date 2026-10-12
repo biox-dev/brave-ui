@@ -106,6 +106,7 @@ const ListEditorInner: FC<{
 
   return (
     <Flex vertical gap={8}>
+      
       <Flex justify="space-between" align="center" wrap gap={8}>
         <Flex gap={8} align="center" wrap>
           <Typography.Text type="secondary">{list.length} item(s)</Typography.Text>

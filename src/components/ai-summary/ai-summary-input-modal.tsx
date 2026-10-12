@@ -79,7 +79,7 @@ const AISummaryInputModal = ({ ownerType, ownerId }: AISummaryInputModalProps) =
           </div>
           <div>
             <Typography.Text strong>User Input</Typography.Text>
-            <pre style={PRE_STYLE}>{input.text || "-"}</pre>
+            <pre style={PRE_STYLE}>{input.system_prompt || "-"}</pre>
           </div>
         </Flex>
       ) : (

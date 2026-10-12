@@ -208,7 +208,7 @@ const WorkflowPageList: FC<any> = () => {
         className="project-report-item-actions"
         onClick={(e) => e.stopPropagation()}
       >
-        <Tooltip title="Edit">
+        {/* <Tooltip title="Edit">
           <Button
             type="text"
             size="small"
@@ -228,7 +228,7 @@ const WorkflowPageList: FC<any> = () => {
               }
             }}
           />
-        </Tooltip>
+        </Tooltip> */}
         <Popconfirm
           title="Delete this workflow?"
           description="This workflow cannot be deleted if there are associated analysis records."

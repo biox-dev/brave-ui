@@ -29,6 +29,30 @@ export const FORMAT_OPTIONS = [
   { value: "TABLE" },
 ];
 
+/**
+ * `type` of an output descriptor (`io_schema.outputs[i].type`) — how the
+ * produced handle is materialised. Only `file` entries are mirrored into
+ * `go_file` (see NodeCompletionCoordinator.recordNodeOutputFiles). Free-form:
+ * the editor offers these but the backend reads it as a raw string.
+ */
+export const OUTPUT_TYPE_OPTIONS = [
+  { value: "file" },
+  { value: "dir" },
+  { value: "table" },
+];
+
+/**
+ * `role` of an output descriptor: the `analysis_result` key the produced file is
+ * published under (backend `nodeOutputRole`, defaulting to "DEFAULT"). It speaks
+ * the same vocabulary as the input side's `resolver.accept_formats`, so both
+ * option lists are kept next to each other.
+ */
+export const OUTPUT_ROLE_OPTIONS = [
+  { label: "DEFAULT", value: "DEFAULT" },
+  { label: "TABLE", value: "TABLE" },
+  ...ASSAY_ROLE_OPTIONS,
+];
+
 /** `group` — name of the form field holding the selected metadata field. */
 export const GROUP_OPTIONS = [
   { value: "group_field" },
