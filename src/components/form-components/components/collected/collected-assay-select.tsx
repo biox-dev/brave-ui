@@ -3,9 +3,12 @@
 // it projects one extra form field (`<name>.<column>`, plus `<column>_group`
 // when the matching `groups[i]` flag is set) and keeps `node_name` in sync with
 // the group names.
-import { Form, Input, Select } from "antd";
+import { Button, Form, Input, Select, Space } from "antd";
 import { FC, useEffect, useState } from "react";
+import { TableOutlined } from "@ant-design/icons";
 import { useStoreForm } from "@/context/form/FormProvider";
+import { invoke } from "@/core/ui-system/invokeV2";
+import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { AppendFields } from "../append/append-fields";
 
 export const CollectedAssaySelect: FC<any> = ({
@@ -26,6 +29,7 @@ export const CollectedAssaySelect: FC<any> = ({
   const [options, setOptions] = useState<any>([]);
   const [collectFiles, setCollectFiles] = useState<any>([]);
   const { addColumns } = useStoreForm();
+  const message = useGlobalMessage();
   let name = name_;
   if (name_ instanceof Array && name_.length > 1) {
     name = name_[1];
@@ -48,6 +52,9 @@ export const CollectedAssaySelect: FC<any> = ({
   const groupField = Form.useWatch(group, form);
   const groupFormValues = Form.useWatch(basePath, form);
   const selectCollectFile = Form.useWatch([...name_, "file"], form);
+  const selectedFile = Array.isArray(data)
+    ? data.find((it: any) => it.id == selectCollectFile)
+    : undefined;
 
   useEffect(() => {
     if (data && Array.isArray(data)) {
@@ -110,10 +117,35 @@ export const CollectedAssaySelect: FC<any> = ({
     }
   }, [columns, groupFormValues, form, basePath]);
 
+  // 使用选中的 `[name, "file"]` 打开 Univer 表格预览弹窗。select 的值是文件主键 id，
+  // Univer 需要业务 file_id，因此先回查 data 取 file_id（缺失时退回主键）。
+  const handleOpenSheet = () => {
+    const fileId = String(selectedFile?.file_id ?? selectCollectFile ?? "").trim();
+    if (!fileId) {
+      message.error("Invalid file id");
+      return;
+    }
+    invoke.univerView.open(
+      { file_id: fileId },
+      { width: "90%", title: `Sheet: ${selectedFile?.file_name ?? fileId}`, footer: null }
+    );
+  };
+
   return (
     <>
-      <Form.Item label={`${label} File`} name={[name, "file"]} rules={rules}>
-        <Select options={collectFiles}></Select>
+      <Form.Item label={`${label} File`}>
+        <Space.Compact style={{ width: "100%" }}>
+          <Form.Item name={[name, "file"]} rules={rules} noStyle>
+            <Select options={collectFiles}></Select>
+          </Form.Item>
+          <Button
+            icon={<TableOutlined />}
+            disabled={!selectCollectFile}
+            onClick={handleOpenSheet}
+          >
+            Open Sheet
+          </Button>
+        </Space.Compact>
       </Form.Item>
 
       <Form.Item style={{ display: "none" }} label={`Node Name`} name={[name, `node_name`]}>
