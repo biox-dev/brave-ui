@@ -79,7 +79,7 @@ const Login = lazy(() => import("@/pages/users/login"));
 const Register = lazy(() => import("@/pages/users/register"));
 const DatasetProjectPage = lazy(() => import("@/components/layout-sider/data-dataset-page/dataset-project-page"))
 const DatasetFilePage = lazy(() => import("@/components/layout-sider/data-dataset-page/dataset-file-page"))
-const DatasetFileDetailPage = lazy(() => import("@/pages/page-route/dataset-file-detail"))
+const UniverView = lazy(() => import("@/components/univer/univer-view"))
 const AssayProjectPage = lazy(() => import("@/components/layout-sider/data-dataset-page/assay-project-page"))
 const ContainerImagePage = lazy(() => import("@/components/container-manager/container-image-page"))
 const ContainerTemplatePage = lazy(() => import("@/components/container-manager/container-template-page"))
@@ -116,7 +116,7 @@ if (appType == "index") {
             element: <DatasetFilePage />
         }, {
             path: "/dataset-file/:id",
-            element: <DatasetFileDetailPage />
+            element: <UniverView />
         }, {
             path: "app-session",
             element: <AppSessionPage />

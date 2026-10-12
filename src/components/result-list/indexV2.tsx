@@ -457,7 +457,7 @@ const ResultList = forwardRef<any, any>((params_, ref) => {
 
         const ext = getFileExt(contentPath)
         if (SHEET_FILE_EXTENSIONS.has(ext)) {
-            invoke.univerView.open({ path: contentPath }, {
+            invoke.univerView.open({ file_id: record?.file_id }, {
                 width: "90%",
                 title: record?.file_name || "Sheet Preview",
                 footer: null,

@@ -1,6 +1,6 @@
 import { Button, Typography, Collapse, Flex, Card, Space, Skeleton } from "antd";
 import { FC, useCallback, useEffect, useState } from "react";
-import { RedoOutlined } from "@ant-design/icons";
+import { RedoOutlined, TableOutlined } from "@ant-design/icons";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { addFileToDatasetApi, listFileByAnalysisNodeApi } from "@/api/data";
@@ -102,17 +102,22 @@ export const AnalysisNodeFilesRender: FC<{
                                             <Space>
                                                 <Button
                                                     size="small"
-                                                    type="default"
+                                                    icon={<TableOutlined />}
                                                     onClick={() => {
-                                                        if (!filePath) {
-                                                            message.error("Invalid file path");
+                                                        const sheetFileId = String(item?.file_id ?? item?.id ?? "").trim();
+                                                        if (!sheetFileId) {
+                                                            message.error("Invalid file id");
                                                             return;
                                                         }
-                                                        openFileByPath({ filePath, title: fileName, url });
+                                                        invoke.univerView.open(
+                                                            { file_id: sheetFileId },
+                                                            { width: "90%", title: `Sheet: ${fileName}`, footer: null }
+                                                        );
                                                     }}
                                                 >
-                                                    Open
+                                                    Open Sheet
                                                 </Button>
+                                              
                                                 <Button
                                                     size="small"
                                                     color="cyan"

@@ -1,30 +1,36 @@
 import { http } from "@/api/client/http";
 
-export interface ReadWorkbookParams {
-	file_path: string;
-	format?: string;
+/** go_file 的核心字段，随按文件读取工作簿的响应一起返回。 */
+export interface WorkbookFileInfo {
+	id: string;
+	file_id: string;
+	file_name: string;
+	path: string;
+	format: string;
+	size: number;
+	md5: string;
+	storage: string;
+	description: string;
+	analysis_node_id: string;
+	role: string;
+	created_at: string;
+	updated_at: string;
 }
 
 export interface ReadWorkbookByFileIDParams {
 	file_id: string;
-	format?: string;
 }
 
 export interface ReadWorkbookResponse {
 	file_path: string;
 	format: string;
 	workbook_data: Record<string, unknown>;
-}
-
-export interface WriteWorkbookRequest {
-	file_path: string;
-	format?: string;
-	workbook_data: Record<string, unknown>;
+	// file 仅在按 file_id 读取时返回。
+	file?: WorkbookFileInfo;
 }
 
 export interface WriteWorkbookByFileIDRequest {
 	file_id: string;
-	format?: string;
 	workbook_data: Record<string, unknown>;
 }
 
@@ -33,16 +39,8 @@ export interface WriteWorkbookResponse {
 	format: string;
 }
 
-export const readSheetWorkbookApi = (params: ReadWorkbookParams) => {
-	return http.get<ReadWorkbookResponse>("/sheet/workbook", { params });
-};
-
 export const readSheetWorkbookByFileIDApi = (params: ReadWorkbookByFileIDParams) => {
 	return http.get<ReadWorkbookResponse>("/sheet/workbook/by-file-id", { params });
-};
-
-export const writeSheetWorkbookApi = (payload: WriteWorkbookRequest) => {
-	return http.post<WriteWorkbookResponse>("/sheet/workbook/save", payload);
 };
 
 export const writeSheetWorkbookByFileIDApi = (payload: WriteWorkbookByFileIDRequest) => {

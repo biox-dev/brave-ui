@@ -3,7 +3,6 @@ import { FC } from "react";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { addFileToDatasetApi } from "@/api/data";
-import { openFileByPath } from "@/utils/file-open";
 
 
 export const FilesRender: FC<any> = ({ name, analysis_node_id, files }) => {
@@ -40,19 +39,6 @@ export const FilesRender: FC<any> = ({ name, analysis_node_id, files }) => {
                                         </Flex>
 
                                         <Space>
-                                            <Button
-                                                size="small"
-                                                type="default"
-                                                onClick={() => {
-                                                    if (!filePath) {
-                                                        message.error("Invalid file path")
-                                                        return
-                                                    }
-                                                    openFileByPath({ filePath, title: fileName, url })
-                                                }}
-                                            >
-                                                Open
-                                            </Button>
                                             <Button
                                                 size="small"
                                                 color="cyan"

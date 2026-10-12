@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 import { Button, Descriptions, Empty, Flex, Pagination, Popconfirm, Popover, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { DeleteOutlined, EditOutlined, FileOutlined, ReloadOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, FileOutlined, ReloadOutlined, TableOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { useAnalysisNodeFilePageQuery } from "@/hooks/usePaginationV2";
 import type { DatasetFileItem } from "@/api/data";
@@ -49,6 +50,16 @@ const formatBytes = (size?: number) => {
   return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 };
 
+const isSpreadsheetFile = (item: DatasetFileItem) => {
+  const format = String(item.format ?? "").toLowerCase();
+  if (["xlsx", "xls", "csv", "tsv"].includes(format)) {
+    return true;
+  }
+
+  const path = String(item.path ?? "").toLowerCase();
+  return [".xlsx", ".xls", ".csv", ".tsv"].some((ext) => path.endsWith(ext));
+};
+
 const FileDetailCard = ({ item }: { item: DatasetFileItem }) => (
   <div style={{ width: 380 }}>
     <Descriptions
@@ -86,6 +97,7 @@ const FileDetailCard = ({ item }: { item: DatasetFileItem }) => (
 
 const AnalysisNodeFilePage = ({ page_size, title }: AnalysisNodeFilePageProps) => {
   const message = useGlobalMessage();
+  const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState<string>();
   const { projectId } = useSelector((state: any) => state.user);
 
@@ -142,6 +154,18 @@ const AnalysisNodeFilePage = ({ page_size, title }: AnalysisNodeFilePageProps) =
     return Row;
   }, [data]);
 
+  const handleOpenSheet = (item: DatasetFileItem) => {
+    if (!isSpreadsheetFile(item)) {
+      message.warning("This file format is not supported for opening");
+      return;
+    }
+
+    invoke.univerView.open(
+      { file_id: item.file_id },
+      { width: "90%", title: `Sheet: ${item.file_name || item.file_id}`, footer: null }
+    );
+  };
+
   const listColumn: ColumnsType<DatasetFileItem>[number] = {
     title: "File Name",
     dataIndex: "file_name",
@@ -178,6 +202,14 @@ const AnalysisNodeFilePage = ({ page_size, title }: AnalysisNodeFilePageProps) =
       align: "right",
       render: (_: unknown, record) => (
         <span className="project-report-item-actions" onClick={(e) => e.stopPropagation()}>
+          <Tooltip title="Open Sheet">
+            <Button
+              type="text"
+              size="small"
+              icon={<TableOutlined />}
+              onClick={() => handleOpenSheet(record)}
+            />
+          </Tooltip>
           <Tooltip title="Edit">
             <Button
               type="text"
@@ -241,7 +273,10 @@ const AnalysisNodeFilePage = ({ page_size, title }: AnalysisNodeFilePageProps) =
               record.id === selectedId ? "project-report-row-selected" : ""
             }
             onRow={(record) => ({
-              onClick: () => setSelectedId(record.id),
+              onClick: () => {
+                setSelectedId(record.id);
+                navigate(`/dataset-file/${encodeURIComponent(record.id)}`);
+              },
             })}
           />
         )}

@@ -302,7 +302,14 @@ const DatasetFilePage = ({
       return;
     }
 
-    navigate(`/dataset-file/${encodeURIComponent(item.id)}`);
+    invoke.univerView.open(
+      { file_id: item.file_id },
+      {
+        width: "90%",
+        title: `Sheet: ${item.file_name || item.file_id}`,
+        footer: null,
+      }
+    );
   };
 
   const handleOpenSysFileBrowser = () => {
@@ -337,14 +344,14 @@ const DatasetFilePage = ({
         className="project-report-item-actions"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* <Tooltip title="Open Sheet">
+        <Tooltip title="Open Sheet">
           <Button
             type="text"
             size="small"
             icon={<TableOutlined />}
             onClick={() => handleOpenSheet(record)}
           />
-        </Tooltip> */}
+        </Tooltip>
         <Tooltip title="Edit">
           <Button
             type="text"
