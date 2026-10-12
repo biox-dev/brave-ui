@@ -38,6 +38,7 @@ export interface DatasetFileItem {
 	updated_at: string;
 	dataset_id: string;
 	dataset_name: string;
+	// role is the file's own role (go_file.role), not a per-dataset binding value.
 	role: string;
 }
 
@@ -164,6 +165,8 @@ export interface CreateFileRequest {
 export interface AddFileToDatasetRequest {
 	dataset_id: string;
 	path: string;
+	// role is written onto the file itself (go_file.role); defaults to DEFAULT
+	// when omitted.
 	role?: string;
 	file_name?: string;
 	is_copy?: boolean;
@@ -189,6 +192,9 @@ export interface UpdateFileRequest {
 	storage?: string;
 	assay_id?: string;
 	file_key?: string;
+	// role is the file's role (go_file.role), e.g. DEFAULT / TABLE / EXP; it is
+	// what the workflow form's analysis_result map is keyed by.
+	role?: string;
 }
 
 export interface DeleteFileRequest {
@@ -365,16 +371,6 @@ export const updateFileApi = (payload: UpdateFileRequest) => {
 
 export const deleteFileApi = (payload: DeleteFileRequest) => {
 	return http.post<{ message: string }>("/data/file/delete", payload);
-};
-
-export interface UpdateDatasetFileRequest {
-	dataset_id: string;
-	file_id: string;
-	role: string;
-}
-
-export const updateDatasetFileApi = (payload: UpdateDatasetFileRequest) => {
-	return http.post<{ message: string }>("/data/dataset-file/update", payload);
 };
 
 export interface DataFileItem {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Flex, Form, Input } from "antd";
+import { Button, Flex, Form, Input, Select } from "antd";
 import { updateFileApi } from "@/api/data";
 import type { DatasetFileItem } from "@/api/data";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
@@ -10,6 +10,13 @@ export interface EditFilePageProps {
   onCancel?: () => void;
   close?: () => void;
 }
+
+const ROLE_OPTIONS = [
+  { label: "DEFAULT", value: "DEFAULT" },
+  { label: "TABLE", value: "TABLE" },
+  { label: "EXP", value: "EXP" },
+  { label: "PHENOTYPE", value: "PHENOTYPE" },
+];
 
 const EditFilePage = ({ file, onOk, onCancel, close }: EditFilePageProps) => {
   const [form] = Form.useForm();
@@ -24,6 +31,7 @@ const EditFilePage = ({ file, onOk, onCancel, close }: EditFilePageProps) => {
         description: file.description,
         format: file.format,
         storage: file.storage,
+        role: file.role || undefined,
       });
     }
   }, [file, form]);
@@ -82,6 +90,17 @@ const EditFilePage = ({ file, onOk, onCancel, close }: EditFilePageProps) => {
       </Form.Item>
       <Form.Item name="storage" label="Storage">
         <Input placeholder="Enter storage" />
+      </Form.Item>
+      <Form.Item
+        name="role"
+        label="Role"
+        tooltip="The file's own role (go_file.role), used as the analysis_result key in workflow forms, e.g. DEFAULT / TABLE / BAM. The stored value is kept when left empty."
+      >
+        <Select
+          allowClear
+          placeholder="Select a role"
+          options={ROLE_OPTIONS}
+        />
       </Form.Item>
       <Form.Item name="description" label="Description">
         <Input.TextArea rows={3} placeholder="Enter description" />

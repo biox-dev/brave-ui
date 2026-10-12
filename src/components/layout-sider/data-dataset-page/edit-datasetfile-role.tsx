@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button, Flex, Form, Select } from "antd";
-import { updateDatasetFileApi } from "@/api/data";
+import { updateFileApi } from "@/api/data";
 import type { DatasetFileItem } from "@/api/data";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 
@@ -34,9 +34,16 @@ const EditDatasetFileRole = ({ file, onOk, onCancel, close }: EditDatasetFileRol
     try {
       const values = await form.validateFields();
       setLoading(true);
-      const result = await updateDatasetFileApi({
-        dataset_id: file.dataset_id,
-        file_id: file.id,
+      // Role lives on the file itself (go_file.role), so persist it through the
+      // file update API. The other fields are echoed back unchanged so the
+      // backend's non-empty update convention keeps the rest of the row intact.
+      const result = await updateFileApi({
+        id: file.id,
+        path: file.path,
+        file_name: file.file_name,
+        description: file.description,
+        format: file.format,
+        storage: file.storage,
         role: values.role,
       });
       message.success("Role updated successfully");
