@@ -3,7 +3,6 @@ import { http } from "@/api/client/http";
 /** go_file 的核心字段，随按文件读取工作簿的响应一起返回。 */
 export interface WorkbookFileInfo {
 	id: string;
-	file_id: string;
 	file_name: string;
 	path: string;
 	format: string;
@@ -18,19 +17,19 @@ export interface WorkbookFileInfo {
 }
 
 export interface ReadWorkbookByFileIDParams {
-	file_id: string;
+	id: string;
 }
 
 export interface ReadWorkbookResponse {
 	file_path: string;
 	format: string;
 	workbook_data: Record<string, unknown>;
-	// file 仅在按 file_id 读取时返回。
+	// file 仅在按 id 读取时返回。
 	file?: WorkbookFileInfo;
 }
 
 export interface WriteWorkbookByFileIDRequest {
-	file_id: string;
+	id: string;
 	workbook_data: Record<string, unknown>;
 }
 

@@ -12,7 +12,6 @@ import {
   readSheetWorkbookByFileIDApi,
   writeSheetWorkbookByFileIDApi,
 } from '@/api/sheet'
-import { getFileApi } from '@/api/data'
 
 import './styles.css'
 
@@ -21,7 +20,7 @@ import { useSelector } from 'react-redux'
 import { useGlobalMessage } from '@/hooks/useGlobalMessage.ts'
 
 export interface UniverViewProps {
-  /** go_file 的业务主键（int64 雪花 ID 的字符串形式）。 */
+  /** go_file 主键 id（int64 雪花 ID 的字符串形式）。 */
   file_id?: string
 }
 
@@ -61,8 +60,8 @@ const UniverView: FC<UniverViewProps> = ({ file_id }) => {
   const message = useGlobalMessage()
 
   const routeID = String(params?.id ?? '').trim()
-  // 作为路由页面（/dataset-file/:id）渲染时 URL 携带 go_file 主键 id，需要先解析出
-  // 业务 file_id；作为抽屉渲染时由 file_id 属性直接传入。
+  // 文件主键直接来自属性（抽屉渲染）或路由 :id（/dataset-file/:id 页面）。两者都是
+  // go_file 主键，无需再回查 data 接口，只需调用按 id 读取工作簿的接口。
   const isRouteView = !file_id && routeID !== ''
   const showEditor = previewError === null
 
@@ -87,58 +86,16 @@ const UniverView: FC<UniverViewProps> = ({ file_id }) => {
     univerAPI.createWorkbook(uniqueWorkbookData)
   }, [])
 
-  // 解析 file_id：优先使用属性传入，其次由 URL 中的主键 id 查询文件获得。
+  // 文件主键：优先使用属性传入，其次使用路由 :id（二者都是 go_file 主键，无需回查）。
   useEffect(() => {
-    let cancelled = false
+    // 切换目标文件时，先把上一个文件的状态彻底重置（预览错误 / 元信息 / 已解析的
+    // file id）。否则旧文件的 previewError 会让 showEditor 一直为 false，导致下方的
+    // 加载 effect 提前 return，新文件的工作簿永远不会加载，页面停在“页面不支持预览”。
+    setPreviewError(null)
+    setFileMeta(null)
 
-    const resolveFileID = async () => {
-      // 切换目标文件时，先把上一个文件的状态彻底重置（预览错误 / 元信息 / 已解析的
-      // file_id）。否则旧文件的 previewError 会让 showEditor 一直为 false，导致下方的
-      // 加载 effect 提前 return，新文件的工作簿永远不会加载，页面停在“页面不支持预览”。
-      // 同时清空 fileId，避免在异步解析出新 id 之前误加载旧文件、再次触发该错误。
-      setPreviewError(null)
-      setFileMeta(null)
-      setFileId('')
-
-      const propFileID = String(file_id ?? '').trim()
-      if (propFileID) {
-        setFileId(propFileID)
-        return
-      }
-      if (!routeID) {
-        return
-      }
-
-      setLoading(true)
-      try {
-        const resp = await getFileApi(routeID)
-        if (cancelled) {
-          return
-        }
-        setFileMeta({
-          file_name: resp.data.file_name,
-          format: resp.data.format,
-          path: resp.data.path,
-        })
-        setFileId(resp.data.file_id)
-      } catch (error) {
-        if (cancelled) {
-          return
-        }
-        console.error(error)
-        setPreviewError(extractErrorMessage(error))
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
-      }
-    }
-
-    void resolveFileID()
-
-    return () => {
-      cancelled = true
-    }
+    const propFileID = String(file_id ?? '').trim()
+    setFileId(propFileID || routeID)
   }, [file_id, routeID])
 
   const loadWorkbook = useCallback(async (targetFileID: string) => {
@@ -156,7 +113,7 @@ const UniverView: FC<UniverViewProps> = ({ file_id }) => {
     setLoading(true)
     try {
       // 不传 format，由后端按文件路径后缀推断。
-      const resp = await readSheetWorkbookByFileIDApi({ file_id: resolvedFileID })
+      const resp = await readSheetWorkbookByFileIDApi({ id: resolvedFileID })
       setPreviewError(null)
       if (resp.data.file) {
         setFileMeta({
@@ -197,7 +154,7 @@ const UniverView: FC<UniverViewProps> = ({ file_id }) => {
     try {
       const workbookData = activeWorkbook.save()
       await writeSheetWorkbookByFileIDApi({
-        file_id: resolvedFileID,
+        id: resolvedFileID,
         workbook_data: workbookData as unknown as Record<string, unknown>,
       })
 
