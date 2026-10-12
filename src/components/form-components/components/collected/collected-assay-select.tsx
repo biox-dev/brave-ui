@@ -9,6 +9,7 @@ import { TableOutlined } from "@ant-design/icons";
 import { useStoreForm } from "@/context/form/FormProvider";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
+import { getFileColumnsApi } from "@/api/data";
 import { AppendFields } from "../append/append-fields";
 
 export const CollectedAssaySelect: FC<any> = ({
@@ -28,6 +29,12 @@ export const CollectedAssaySelect: FC<any> = ({
 }) => {
   const [options, setOptions] = useState<any>([]);
   const [collectFiles, setCollectFiles] = useState<any>([]);
+  // Raw columns of the selected file. Flat array for tsv/csv, or a
+  // { sheetName: column[] } map for Excel workbooks.
+  const [fileColumns, setFileColumns] = useState<any>(null);
+  const [sheetNames, setSheetNames] = useState<string[]>([]);
+  // 正在按需拉取列（/data/file/columns）时置为 true，供下拉框展示 loading。
+  const [columnsLoading, setColumnsLoading] = useState(false);
   const { addColumns } = useStoreForm();
   const message = useGlobalMessage();
   let name = name_;
@@ -52,6 +59,7 @@ export const CollectedAssaySelect: FC<any> = ({
   const groupField = Form.useWatch(group, form);
   const groupFormValues = Form.useWatch(basePath, form);
   const selectCollectFile = Form.useWatch([...name_, "file"], form);
+  const selectSheet = Form.useWatch([...basePath, "sheet"], form);
   const selectedFile = Array.isArray(data)
     ? data.find((it: any) => it.id == selectCollectFile)
     : undefined;
@@ -66,40 +74,95 @@ export const CollectedAssaySelect: FC<any> = ({
     }
   }, [data]);
 
+  // 后端不再在文件列表里内联 columns（buildCompatFileItem），因此选中的文件
+  // 只要 role=TABLE 就按需调用 /data/file/columns 获取列：tsv/csv 返回扁平数组，
+  // Excel 返回 { sheetName: [...] }。
   useEffect(() => {
-    if (selectCollectFile) {
-      let columnsData = data.find((it: any) => it.id == selectCollectFile);
-      if (columnsData) {
-        // 后端只给 EXP / TABLE 角色的文件生成 `columns`（buildCompatFileItem），
-        // 多个 accept_formats 合并成候选列表后可能选到没有 `columns` 的文件。
-        const columnList = Array.isArray(columnsData.columns) ? columnsData.columns : [];
-        columnsData = columnList.map((it: any) => ({
-          label: it.columns_name,
-          value: it.columns_name,
-          ...it,
-        }));
-        if (filter && customFilterValue) {
-          columnsData = filter.reduce((result: any, filterHandle: any) => {
-            return result.filter((item: any) => {
-              return filterHandle.method(item) === customFilterValue[filterHandle.name];
-            });
-          }, columnsData);
+    setFileColumns(null);
+    setSheetNames([]);
+    setColumnsLoading(false);
 
-          columnsData = columnsData.map((it: any) => {
-            const { label, id, value, ...rest } = it;
-            return {
-              label: `${it.label}(${filter[0].method(it)})`,
-              value: it.value,
-              ...rest,
-            };
-          });
-        }
+    if (!selectCollectFile || !Array.isArray(data)) return;
 
-        setOptions(columnsData);
-        addColumns(name, columnsData);
-      }
+    const fileObj = data.find((it: any) => it.id == selectCollectFile);
+    if (!fileObj) return;
+
+    if (fileObj.role !== "TABLE") {
+      // 兼容：payload 仍带内联 columns 时直接使用。
+      if (fileObj.columns) setFileColumns(fileObj.columns);
+      return;
     }
-  }, [data, selectCollectFile, groupField, customFilterValue]);
+
+    let cancelled = false;
+    setColumnsLoading(true);
+    const fileId = String(fileObj.file_id ?? fileObj.id ?? selectCollectFile);
+    getFileColumnsApi(fileId)
+      .then((resp: any) => {
+        if (cancelled) return;
+        setFileColumns(resp?.data?.columns ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setFileColumns(null);
+      })
+      .finally(() => {
+        if (!cancelled) setColumnsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [data, selectCollectFile]);
+
+  // 根据已获取的列构建下拉选项：Excel 需要先确定 sheet（保留上次选择或退回第一个）。
+  useEffect(() => {
+    if (!fileColumns) {
+      setOptions([]);
+      return;
+    }
+
+    let columnList: any[] = [];
+    if (Array.isArray(fileColumns)) {
+      // tsv / csv：扁平列数组，没有 sheet 维度。
+      setSheetNames([]);
+      columnList = fileColumns;
+    } else if (typeof fileColumns === "object") {
+      const sheets = Object.keys(fileColumns);
+      setSheetNames(sheets);
+      const activeSheet =
+        selectSheet && sheets.includes(selectSheet) ? selectSheet : sheets[0];
+      if (activeSheet && activeSheet !== selectSheet) {
+        form.setFieldValue([...basePath, "sheet"], activeSheet);
+      }
+      columnList =
+        activeSheet && Array.isArray(fileColumns[activeSheet]) ? fileColumns[activeSheet] : [];
+    }
+
+    let columnsData = columnList.map((it: any) => ({
+      label: it.columns_name,
+      value: it.columns_name,
+      ...it,
+    }));
+
+    if (filter && customFilterValue) {
+      columnsData = filter.reduce((result: any, filterHandle: any) => {
+        return result.filter((item: any) => {
+          return filterHandle.method(item) === customFilterValue[filterHandle.name];
+        });
+      }, columnsData);
+
+      columnsData = columnsData.map((it: any) => {
+        const { label, id, value, ...rest } = it;
+        return {
+          label: `${it.label}(${filter[0].method(it)})`,
+          value: it.value,
+          ...rest,
+        };
+      });
+    }
+
+    setOptions(columnsData);
+    addColumns(name, columnsData);
+  }, [fileColumns, selectSheet, filter, customFilterValue, groupField]);
 
   // `node_name` is derived from the selected group names, so downstream nodes can
   // reference this selection by a stable name.
@@ -131,6 +194,15 @@ export const CollectedAssaySelect: FC<any> = ({
     );
   };
 
+  // Excel 文件的 sheet 选择器：根据文件格式立即渲染（拉取列期间显示 loading），
+  // 避免等接口返回后 sheet 才突然出现造成布局跳动。
+  const excelSelected =
+    !!selectCollectFile &&
+    ["xlsx", "xlsm", "xls"].includes(
+      String(selectedFile?.format ?? "").toLowerCase().trim()
+    );
+  const showSheetField = excelSelected || sheetNames.length > 0;
+
   return (
     <>
       <Form.Item label={`${label} File`}>
@@ -152,6 +224,15 @@ export const CollectedAssaySelect: FC<any> = ({
         <Input placeholder="Auto generated from group names" />
       </Form.Item>
 
+      {showSheetField && (
+        <Form.Item label={`${label} Sheet`} name={[...basePath, "sheet"]}>
+          <Select
+            loading={columnsLoading}
+            options={sheetNames.map((sheet) => ({ label: sheet, value: sheet }))}
+          ></Select>
+        </Form.Item>
+      )}
+
       {columns &&
         Array.isArray(columns) &&
         columns.map((item: any, index: any) => (
@@ -169,6 +250,7 @@ export const CollectedAssaySelect: FC<any> = ({
               <Select
                 showSearch
                 allowClear
+                loading={columnsLoading}
                 mode={modes[index] ? "multiple" : undefined}
                 filterOption={(input: any, option: any) =>
                   (option?.label ?? "").toLowerCase().includes(input.toLowerCase())

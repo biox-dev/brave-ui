@@ -292,6 +292,29 @@ export const listFileByAnalysisNodeApi = (analysisNodeId: string) => {
 	);
 };
 
+// A single tabular column descriptor as returned by the backend's
+// readFileColumns (buildCompatFileItem no longer inlines these into the file
+// list, so they are fetched on demand by file id).
+export interface FileColumnItem {
+	id: string;
+	columns_name: string;
+}
+
+// tsv/csv expose a flat column array; Excel workbooks expose columns grouped by
+// sheet name, i.e. { "Sheet1": [...], "Sheet2": [...] }.
+export type FileColumns = FileColumnItem[] | Record<string, FileColumnItem[]>;
+
+export interface FileColumnsResponse {
+	file_id: string;
+	columns: FileColumns | null;
+}
+
+// Columns of one tabular file (go_file primary key). `columns` is null when the
+// file is missing or its format has no readable columns.
+export const getFileColumnsApi = (fileId: string) => {
+	return http.get<FileColumnsResponse>(`/data/file/columns?id=${encodeURIComponent(fileId)}`);
+};
+
 export const pageAssayByProjectApi = (payload: PageRequest<AssayPageQuery>) => {
 	return http.post<PageResponse<AssayItem>>("/data/assay/list-by-project-page", payload);
 };
