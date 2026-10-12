@@ -11,15 +11,20 @@ import {
   EditOutlined,
   FileOutlined,
   TableOutlined,
+  UploadOutlined,
 } from "@ant-design/icons";
 import type { DatasetFileItem } from "@/api/data";
 import { deleteFileApi, getFileApi } from "@/api/data";
 import { invoke } from "@/core/ui-system/invokeV2";
+import { useStoreRender } from "@/context/render/RenderProvider";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 
 export interface CollectedFileListProps {
   data?: DatasetFileItem[];
   title?: string;
+  // resolver.accept_formats drives the role options of the upload dialog
+  // (the roles this form item accepts).
+  resolver?: { accept_formats?: string[] };
   onOk?: (file: DatasetFileItem) => void;
   onCancel?: () => void;
   close?: () => void;
@@ -54,8 +59,16 @@ const isSpreadsheetFile = (item: DatasetFileItem) => {
   return [".xlsx", ".xls", ".csv", ".tsv"].some((ext) => path.endsWith(ext));
 };
 
-const CollectedFileList = ({ data, title, onOk, onCancel, close }: CollectedFileListProps) => {
+const CollectedFileList = ({
+  data,
+  title,
+  resolver,
+  onOk,
+  onCancel,
+  close,
+}: CollectedFileListProps) => {
   const message = useGlobalMessage();
+  const { loadParams } = useStoreRender();
   const [files, setFiles] = useState<DatasetFileItem[]>(() => normalizeFiles(data));
   const [selectedId, setSelectedId] = useState<string>();
   // The virtual table needs a concrete body height; measuring the scroll
@@ -122,12 +135,38 @@ const CollectedFileList = ({ data, title, onOk, onCancel, close }: CollectedFile
     } catch {
       // the edit itself already succeeded; a refresh failure is not fatal
     }
+
+    // 编辑后同步刷新上游表单参数，避免表单中仍使用旧的 data。
+    await loadParams?.(true);
+  };
+
+  // Upload a local file into a dataset: the dialog handles dataset/role/file
+  // selection and the multipart upload; once it resolves (upload done) refresh
+  // the upstream form params so this list and the form pick up the new file.
+  const handleUpload = async () => {
+    try {
+      await invoke.collectedFileUpload.openDrawerAsync(
+        {
+          title: `${title || "Files"} Upload`,
+          resolver,
+          defaultDatasetId: data?.[0]?.dataset_id ? String(data[0].dataset_id) : undefined,
+        },
+        { width: 520, title: `Upload to ${title || "Files"}` }
+      );
+    } catch {
+      // user cancelled
+      return;
+    }
+
+    await loadParams?.(true);
   };
 
   const handleDelete = async (record: DatasetFileItem) => {
     await deleteFileApi({ id: record.id });
     message.success("File deleted successfully");
     setFiles((prev) => prev.filter((item) => String(item.id) !== String(record.id)));
+    // 删除后同步刷新上游表单参数，避免表单中仍引用已删除的 data。
+    await loadParams?.(true);
   };
 
   const columns: ColumnsType<DatasetFileItem> = [
@@ -245,8 +284,14 @@ const CollectedFileList = ({ data, title, onOk, onCancel, close }: CollectedFile
 
   return (
     <div className="project-report-panel">
-      <div className="project-report-panel-header">
+      <div
+        className="project-report-panel-header"
+        style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+      >
         <span className="project-report-panel-title">{title || "Files"}</span>
+        <Button size="small" icon={<UploadOutlined />} onClick={handleUpload}>
+          Upload
+        </Button>
       </div>
 
       {/* The table body is the only scroll container here: keep the outer panel

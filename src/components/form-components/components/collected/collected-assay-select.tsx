@@ -24,6 +24,7 @@ export const CollectedAssaySelect: FC<any> = ({
   data,
   filter,
   group,
+  resolver,
   groupField: groupField_,
   analysisResultId,
 }) => {
@@ -199,7 +200,7 @@ export const CollectedAssaySelect: FC<any> = ({
   const handleOpenFileList = async () => {
     try {
       const selected = await invoke.collectedFileList.openDrawerAsync(
-        { data, title: `${label} Files` },
+        { data, title: `${label} Files`, resolver },
         { width: 900, title: `${label} Files` }
       );
       if (selected?.id != null) {
@@ -221,7 +222,7 @@ export const CollectedAssaySelect: FC<any> = ({
 
   return (
     <>
-    {/* {JSON.stringify(data)} */}
+    {/* {JSON.stringify(resolver)} */}
       <Form.Item label={`${label} File`}>
         <Space.Compact style={{ width: "100%" }}>
           <Form.Item name={[name, "file"]} rules={rules} noStyle>

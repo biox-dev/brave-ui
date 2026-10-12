@@ -111,8 +111,8 @@ export const ComponentsRender = ({
 
 
   return <>
-    {/* {rest?.input_type} */}
-    <Component {...crest} {...rest} data={data} name={name} />
+    {/* {JSON.stringify(resolver)} */}
+    <Component {...crest} resolver={resolver} {...rest} data={data} name={name} />
   </>
 };
 

@@ -388,6 +388,44 @@ export const addFileToDatasetApi = (payload: AddFileToDatasetRequest) => {
 	return http.post<AddFileToDatasetResponse>("/data/dataset-file/add-file", payload);
 };
 
+// UploadFileToDatasetRequest uploads a local file straight into a dataset
+// (multipart form): the backend saves it under the dataset workspace directory
+// and registers it as a dataset file with the given role (go_file.role).
+export interface UploadFileToDatasetRequest {
+	dataset_id: string;
+	role?: string;
+	file_name?: string;
+	file: File;
+}
+
+// uploadFileToDatasetApi posts the file with `onUploadProgress` so callers can
+// render a progress bar; `signal` cancels an in-flight upload.
+export const uploadFileToDatasetApi = (
+	payload: UploadFileToDatasetRequest,
+	onProgress?: (percent: number) => void,
+	signal?: AbortSignal
+) => {
+	const formData = new FormData();
+	formData.append("dataset_id", payload.dataset_id);
+	if (payload.role) formData.append("role", payload.role);
+	if (payload.file_name) formData.append("file_name", payload.file_name);
+	formData.append("file", payload.file, payload.file.name);
+
+	return http.post<AddFileToDatasetResponse>("/data/dataset-file/upload", formData, {
+		headers: {
+			"Content-Type": "multipart/form-data",
+		},
+		onUploadProgress: (event) => {
+			if (!onProgress) return;
+			const total = event.total ?? 0;
+			if (total > 0) {
+				onProgress(Math.round((event.loaded / total) * 100));
+			}
+		},
+		signal,
+	});
+};
+
 export const updateFileApi = (payload: UpdateFileRequest) => {
 	return http.post<{ message: string }>("/data/file/update", payload);
 };

@@ -370,7 +370,7 @@ const DatasetFilePage = ({
             }}
           />
         </Tooltip>
-        <Tooltip title="Edit Role">
+        {/* <Tooltip title="Edit Role">
           <Button
             type="text"
             size="small"
@@ -387,7 +387,7 @@ const DatasetFilePage = ({
               }
             }}
           />
-        </Tooltip>
+        </Tooltip> */}
         <Popconfirm
           title="Delete this file?"
           description="This will remove the file and its dataset associations."
