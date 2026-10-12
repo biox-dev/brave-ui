@@ -99,7 +99,7 @@ const AnalysisPage = ({
 			title: "Job Status",
 			dataIndex: "job_status",
 			key: "job_status",
-			width: 60,
+			width: 80,
 			render: (value: string) => <Tag color={statusColor(value)}>{value || "-"}</Tag>,
 		}, {
 			title: "Analysis Name",

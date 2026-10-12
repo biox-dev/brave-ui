@@ -1,4 +1,4 @@
-import { FC, useEffect, useRef, useState } from "react";
+import { FC, useCallback, useEffect, useRef, useState } from "react";
 import { Badge, Button, Empty, Flex, Input, Popconfirm, Select, Space, Spin, Tag, Typography } from "antd";
 import {
   CheckOutlined,
@@ -119,6 +119,8 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   const dispatch = useDispatch();
   // 解析后的人类可读上下文（类型 + 名称 + 工作目录），用于顶部展示当前对话环境。
   const [envInfo, setEnvInfo] = useState<AgentEnvInfo | null>(null);
+  // 业务上下文解析中的加载态（供刷新按钮展示）。
+  const [envLoading, setEnvLoading] = useState(false);
   // 可选 AgentProfile 列表（为空表示使用默认 Profile）。
   const [profiles, setProfiles] = useState<AgentProfileItem[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -149,20 +151,23 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, waiting, currentTaskId]);
 
-  // 当前业务上下文变化时，向后端解析人类可读的名称（如节点名/报告标题）用于展示。
-  useEffect(() => {
-    let cancelled = false;
-    describeAgentEnvApi(llmEnv ?? null)
-      .then((res) => {
-        if (!cancelled) setEnvInfo(res.data ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) setEnvInfo(null);
-      });
-    return () => {
-      cancelled = true;
-    };
+  // 向后端解析人类可读的业务上下文（如节点名/报告标题）用于顶部展示。
+  const loadEnvInfo = useCallback(async () => {
+    setEnvLoading(true);
+    try {
+      const res = await describeAgentEnvApi(llmEnv ?? null);
+      setEnvInfo(res.data ?? null);
+    } catch {
+      setEnvInfo(null);
+    } finally {
+      setEnvLoading(false);
+    }
   }, [llmEnv]);
+
+  // 当前业务上下文变化时，自动解析一次。
+  useEffect(() => {
+    void loadEnvInfo();
+  }, [loadEnvInfo]);
 
   // 加载会话列表（挂载时 + 轮次结束时刷新）。
   const loadConversations = async () => {
@@ -490,14 +495,38 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
           </Text> */}
           {envInfo?.label && (
             <Popover placement="left" title={<div style={{ fontSize: 12, width: 300 }}>
-              <div>{`Working dir: ${envInfo.working_dir || "(none)"}`}</div>
+              {/* <div>{`Working dir: ${envInfo.working_dir || "(none)"}`}</div> */}
               {envInfo.type && <div>{`Type: ${envInfo.type}`}</div>}
               {conversationId && <div>{`Conversation ID: ${conversationId}`}</div>}
               {currentTaskId && <div>{`Current task ID: ${currentTaskId}`}</div>}
               <hr />
-              {envInfo.system_prompt && <div style={{ wordBreak: "break-word" }}>{`System prompt: ${envInfo.system_prompt}`}</div>}
+              {envInfo.system_prompt && (
+                <div style={{ width: 300 }}>
+                  <div style={{ marginBottom: 4 }}>System prompt:</div>
+                  <pre
+                    style={{
+                      margin: 0,
+                      width: 300,
+                      maxHeight: 200,
+                      overflow: "auto",
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                      fontSize: 12,
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    {envInfo.system_prompt}
+                  </pre>
+                </div>
+              )}
             </div>}>
-              <Tag color="processing" style={{ marginInlineEnd: 0, cursor: "pointer" }}>
+              <Tag
+                color="processing"
+                icon={envLoading ? <LoadingOutlined spin /> : <ReloadOutlined />}
+                style={{ marginInlineEnd: 0, cursor: "pointer" }}
+                title="Click to refresh context"
+                onClick={() => void loadEnvInfo()}
+              >
                 {envInfo.label}
               </Tag>
               {/* {envInfo.type} */}

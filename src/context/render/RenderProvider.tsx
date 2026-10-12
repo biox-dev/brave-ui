@@ -6,6 +6,7 @@ import { getScriptFormApi, getWorkflowFormApi } from "@/api/workflow"
 import { useDispatch, useSelector } from "react-redux"
 import { editNodeParamsApi, editParamsV2Api } from "@/api/analysis"
 import { setUserItem } from "@/store/userSlice"
+import { LLMEnvType, setLLMEnv } from "@/utils/llm-env"
 
 export const RenderContext = createContext<any>(null)
 
@@ -91,6 +92,17 @@ export const RenderProvider: FC<any> = ({ children }) => {
         }
 
     }, [analysisNodeId]);
+
+    // 同步 LLM 业务上下文：analysisNode 优先于 analysis，两者都不存在时清空。
+    useEffect(() => {
+        if (analysisNodeId) {
+            setLLMEnv(analysisNodeId, LLMEnvType.AnalysisNode)
+        } else if (analysisId) {
+            setLLMEnv(analysisId, LLMEnvType.Analysis)
+        } else {
+            setLLMEnv(undefined, undefined)
+        }
+    }, [analysisId, analysisNodeId]);
 
     const clear = () => {
         // setComponentParentIdsMap({})

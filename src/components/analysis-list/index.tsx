@@ -691,6 +691,7 @@ const AnalysisList = forwardRef<any, any>(({
     //     );
     // }, [data, searchText]);
     return <>
+    
         {/* {JSON.stringify(location.pathname)} */}
         <Card size="small"
             variant="borderless"

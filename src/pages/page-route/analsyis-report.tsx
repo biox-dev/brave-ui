@@ -16,7 +16,6 @@ import AnalysisReportContent from "../components-relation/tools/analysis-report-
 import AnalysisToolsComp from "../components-relation/tools/anlaysis-component"
 import { useStoreRender } from "@/context/render/RenderProvider"
 import { useI18n } from "@/hooks/useI18n"
-import { setLLMEnv } from "@/utils/llm-env"
 
 const ResultParse = lazy(() => import("@/components/result-parse"))
 // import AnalysisResultPanel from '@/components/analysis-result-view/panel'
@@ -30,7 +29,7 @@ const AnalysisReport: FC<any> = () => {
 
     // useEffect(() => {
     //     setSideOptions([
-            
+
     //         { label: locale === 'en_US' ? 'Parameters' : '参数', value: 'editParamsPanel' }
 
     //     ])
@@ -68,9 +67,7 @@ const AnalysisReport: FC<any> = () => {
         if (analysisId) {
             setAnalysisId(analysisId)
         }
-        setLLMEnv(analysisId, "analysis");
         return () => {
-            // setLLMEnv(null, "analysisId");
             setAnalysisId(null)
         }
     }, [analysisId])
@@ -100,7 +97,7 @@ const AnalysisReport: FC<any> = () => {
     //         search: `?${searchParams.toString()}`
     //     });
     // };
- 
+
     // const [components,setComponents] = useState<any>()
     // const loadComponents = async (componentId:any) => {
     //     const resp = await axios.post("/find-pipeline", { component_id: componentId })
@@ -150,107 +147,10 @@ const AnalysisReport: FC<any> = () => {
 
     return <div >
 
-        {/* <div style={{ marginBottom: "1rem" }}></div> */}
-        {/* {JSON.stringify(projectObj)} */}
-        {/* {JSON.stringify(analysis)} */}
-        {/* {key} */}
-
-        {/* <div style={{ height: "1000px", background: "red" }}>
-
-        </div> */}
-
-        <div
-            style={{
-                flex: 1,
-                display: panel === "analysis_result" ? "block" : "none",
-                height: "100%",
-            }}
-        >
-            {analysisKey ? <Suspense fallback={<Skeleton active></Skeleton>}>
-
-                {/* <AnalysisReportContent
-                    analysisId={analysisKey}
-                ></AnalysisReportContent> */}
-                <Card size='small'>
-                    <AnalysisToolsComp
-                        analysisId={analysisKey}
-                        panelView={"analysisNodePanel"}
-                    ></AnalysisToolsComp>
-
-
-                </Card>
-
-                {/* <AnalysisResultView
-                    overflowY="auto"
-                    showDesc={true}
-                    openPanel={setPanel}
-                    callback={() => {
-                        // loadData(false)
-                    }} analysis_id={analysisKey}></AnalysisResultView> */}
-            </Suspense> : <>
-                <Card size="small" variant="borderless">
-                    <Empty description="Please select an analysis" image={Empty.PRESENTED_IMAGE_SIMPLE} >
-                        <Button type="primary" onClick={() => {
-                            setPanel("note")
-                        }}>Open Note</Button>
-                    </Empty>
-
-                </Card>
-
-            </>
-            }
-        </div>
-
-        {panel == "note" && <div
-        >
-            <Card
-                style={{
-                    flex: 1,
-                    display: "flex",
-                    flexDirection: "column",
-                    height: " 100%",
-                    boxShadow: "none"
-                }}
-                styles={{
-                    body: {
-                        flex: 1,
-                        display: "flex",
-                        flexDirection: "column",
-                        height: " 100%",
-                        padding: 0,
-                        overflowY: "auto"
-                    }
-                }}
-                variant="borderless" size="small" extra={
-                    <Flex gap={"small"}>
-                        <Button size="small" color="primary" variant="solid" onClick={() => {
-                            setPanel("analysis_result")
-                        }}>Back</Button>
-                        <Button size="small" color="cyan" variant="solid" onClick={() => {
-                            openModal("projectForm", { project_id: project })
-                        }}>Edit</Button>
-
-                        {/* <Button size="small" color="cyan" variant="solid" onClick={() => {
-                            loadProject()
-                            // setProjectObj(resp.data)
-                            // dispatch(setUserItem({ projectObj: resp.data }))
-                        }}>Refresh</Button> */}
-                    </Flex>
-
-                }>
-
-                {projectObj?.description ? <Markdown data={projectObj?.description}></Markdown> : <Empty />}
-            </Card>
-        </div>}
-
-
-
-
-        <FormProject
-            research={true}
-            params={modal.params}
-            visible={modal.key == "projectForm" && modal.visible}
-            onClose={closeModal} />
+        <AnalysisToolsComp
+            analysisId={analysisKey}
+            panelView={"analysisNodePanel"}
+        ></AnalysisToolsComp>
     </div>
 }
 

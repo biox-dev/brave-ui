@@ -83,7 +83,7 @@ const AnalysisNodePage = ({
 			title: "Status",
 			dataIndex: "status",
 			key: "status",
-			width: 60,
+			width: 80,
 			render: (value: string) => <Tag color={statusColor(value)}>{value || "-"}</Tag>,
 		},{
 			title: "Node Name",

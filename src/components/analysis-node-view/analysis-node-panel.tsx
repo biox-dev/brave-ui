@@ -11,53 +11,62 @@ type AnalysisNodePanelView = "analysisNodePage" | "analysisNodes" | "analysisEdg
 
 const AnalysisNodePanel: FC<any> = () => {
     const { openAnalysis, relation, analysisId, setAnalysisId, clear, setRelation, closeAnalysis, setFormParam } = useStoreRender()
-    const [view, setView] = useState<AnalysisNodePanelView>("analysisNodePage");
-    const setPanelView = (nextView: string) => setView(nextView as AnalysisNodePanelView);
-    const navigate = useNavigate()
+    // const [view, setView] = useState<AnalysisNodePanelView>("analysisNodePage");
+    // const setPanelView = (nextView: string) => setView(nextView as AnalysisNodePanelView);
+    // const navigate = useNavigate()
 
-    const [title, setTitle] = useState("")
+    // const [title, setTitle] = useState("")
     useEffect(() => {
         return () => {
             setAnalysisId(null)
         }
     }, [])
-    return <Card size="small"
-        // variant="borderless"
-        title={title}
-        extra={<Space>
-            {/* {relation?.relation_id && <Button size="small" color="primary" variant="solid" onClick={() =>
-                navigate(`/c/tools/${relation?.relation_id}`)
-            }>Go tools</Button>} */}
-            {renderViewButton(view, setPanelView, "analysisNodePage", "Nodes")}
-
-            {renderViewButton(view, setPanelView, "analysisNodes", "DAG")}
-
-            {renderViewButton(view, setPanelView, "analysisEdges", "Edges")}
-        </Space>}
-
-    >
-        {/* 
-        <ViewResolver
-            // setTitle={setTitle}
-            // analysis_id={analysisId}
-            view={"analysisNodesReport"}>
-        </ViewResolver> */}
-
-
+    return <>
         {analysisId ? (<>
-        
+
             <div style={{ marginBottom: "0.5rem" }}>
                 <ViewResolver view="analysisNodeSnapshot" analysis_id={analysisId}></ViewResolver>
             </div>
             <ViewResolver
-                setTitle={setTitle}
+                // setTitle={setTitle}
                 analysis_id={analysisId}
-                view={view}
+                view={"analysisNodePage"}
             ></ViewResolver>
         </>
 
         ) : null}
-    </Card>
+    </>
+
+
+    // <Card size="small"
+    //     // variant="borderless"
+    //     title={title}
+    //     extra={<Space>
+
+    //         {renderViewButton(view, setPanelView, "analysisNodePage", "Nodes")}
+
+    //         {renderViewButton(view, setPanelView, "analysisNodes", "DAG")}
+
+    //         {renderViewButton(view, setPanelView, "analysisEdges", "Edges")}
+    //     </Space>}
+
+    // >
+
+
+    //     {analysisId ? (<>
+
+    //         <div style={{ marginBottom: "0.5rem" }}>
+    //             <ViewResolver view="analysisNodeSnapshot" analysis_id={analysisId}></ViewResolver>
+    //         </div>
+    //         <ViewResolver
+    //             setTitle={setTitle}
+    //             analysis_id={analysisId}
+    //             view={view}
+    //         ></ViewResolver>
+    //     </>
+
+    //     ) : null}
+    // </Card>
 
 }
 

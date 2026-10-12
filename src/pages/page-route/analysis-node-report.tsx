@@ -1,7 +1,6 @@
 import { FC, useEffect } from "react";
 import { useParams } from "react-router";
 import AnalysisNodeDetails from "../../components/analysis-node-view/components/analysis-nodes-report/analysis-node-details";
-import { setLLMEnv } from "@/utils/llm-env";
 import { useSideViewContext } from "@/context/side/SideViewContext";
 import { useI18n } from "@/hooks/useI18n";
 import { useStoreRender } from "@/context/render/RenderProvider";
@@ -30,11 +29,9 @@ const AnalysisNodeReportRoute: FC = () => {
   // }, [])
   const { setAnalysisNodeId } = useStoreRender()
   useEffect(() => {
-    setLLMEnv(analysisNodeId, "analysisNode");
     setAnalysisNodeId(analysisNodeId)
-    
+
     return () => {
-      // setLLMEnv(null, "analysisNodeId");
       setAnalysisNodeId(null)
     }
 
