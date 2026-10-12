@@ -5,7 +5,7 @@
 // the group names.
 import { Button, Form, Input, Select, Space } from "antd";
 import { FC, useEffect, useState } from "react";
-import { TableOutlined } from "@ant-design/icons";
+import { TableOutlined, UnorderedListOutlined } from "@ant-design/icons";
 import { useStoreForm } from "@/context/form/FormProvider";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
@@ -194,6 +194,22 @@ export const CollectedAssaySelect: FC<any> = ({
     );
   };
 
+  // 打开收集到的全部 data 详情列表（invoke 弹窗），可只读查看并在此直接
+  // 打开 sheet / 编辑 / 删除；从列表中选择一行则回填为当前文件。
+  const handleOpenFileList = async () => {
+    try {
+      const selected = await invoke.collectedFileList.openDrawerAsync(
+        { data, title: `${label} Files` },
+        { width: 900, title: `${label} Files` }
+      );
+      if (selected?.id != null) {
+        form.setFieldValue([...basePath, "file"], selected.id);
+      }
+    } catch {
+      // user cancelled
+    }
+  };
+
   // Excel 文件的 sheet 选择器：根据文件格式立即渲染（拉取列期间显示 loading），
   // 避免等接口返回后 sheet 才突然出现造成布局跳动。
   const excelSelected =
@@ -205,6 +221,7 @@ export const CollectedAssaySelect: FC<any> = ({
 
   return (
     <>
+    {/* {JSON.stringify(data)} */}
       <Form.Item label={`${label} File`}>
         <Space.Compact style={{ width: "100%" }}>
           <Form.Item name={[name, "file"]} rules={rules} noStyle>
@@ -216,6 +233,13 @@ export const CollectedAssaySelect: FC<any> = ({
             onClick={handleOpenSheet}
           >
             Open
+          </Button>
+          <Button
+            icon={<UnorderedListOutlined />}
+            disabled={!Array.isArray(data) || data.length === 0}
+            onClick={handleOpenFileList}
+          >
+            List
           </Button>
         </Space.Compact>
       </Form.Item>
