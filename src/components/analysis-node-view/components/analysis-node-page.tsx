@@ -9,6 +9,8 @@ import { useStoreRender } from "@/context/render/RenderProvider";
 import AnalysisNodeDetails from "./analysis-nodes-report/analysis-node-details";
 import { useComponentStore } from "@/event-bus/stores/components";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
+import { useI18n } from "@/hooks/useI18n";
+import { formatRelativeTime } from "@/utils/time";
 import { http } from "@/api/client/http";
 
 const { Text } = Typography;
@@ -66,6 +68,7 @@ const AnalysisNodePage = ({
 	const selectable = Boolean(onOk || onCancel);
 	const { setAnalysisNodeId, analysisNodeId } = useStoreRender()
 	const message = useGlobalMessage()
+	const { locale } = useI18n();
 
 	// 当 analysisNodeId 有值时，同步选中对应的行
 	useEffect(() => {
@@ -77,13 +80,25 @@ const AnalysisNodePage = ({
 	// const [nodeID,setNodeId] = useState<any>()
 	const columns: ColumnsType<AnalysisNodeItem> = [
 		{
+			title: "Status",
+			dataIndex: "status",
+			key: "status",
+			width: 60,
+			render: (value: string) => <Tag color={statusColor(value)}>{value || "-"}</Tag>,
+		},{
 			title: "Node Name",
 			dataIndex: "node_name",
 			key: "node_name",
-			width: 150,
+			width: 200,
 
 			ellipsis: true,
 			render: (value: string) => value || "-",
+		},{
+			title: "Updated At",
+			dataIndex: "updated_at",
+			key: "updated_at",
+			width: 200,
+			render: (_: unknown, record: AnalysisNodeItem) => formatRelativeTime(record.updated_at, locale),
 		},
 		{
 			title: "Analysis Node ID",
@@ -95,28 +110,16 @@ const AnalysisNodePage = ({
 		},
 
 
-		{
-			title: "Status",
-			dataIndex: "status",
-			key: "status",
-			width: 120,
-			render: (value: string) => <Tag color={statusColor(value)}>{value || "-"}</Tag>,
-		},
+		
 
 		{
 			title: "Created At",
 			dataIndex: "created_at",
 			key: "created_at",
 			width: 210,
-			render: (value: string) => (value ? new Date(value).toLocaleString() : "-"),
+			render: (_: unknown, record: AnalysisNodeItem) => formatRelativeTime(record.created_at, locale),
 		},
-		{
-			title: "Updated At",
-			dataIndex: "updated_at",
-			key: "updated_at",
-			width: 210,
-			render: (value: string) => (value ? new Date(value).toLocaleString() : "-"),
-		}, {
+		 {
 			title: "Script ID",
 			dataIndex: "script_id",
 			key: "script_id",

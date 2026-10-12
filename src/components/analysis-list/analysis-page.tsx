@@ -9,6 +9,8 @@ import { useStoreRender } from "@/context/render/RenderProvider";
 import AnalysisNodePanel from "../analysis-node-view/analysis-node-panel";
 import { http } from "@/api/client/http";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
+import { useI18n } from "@/hooks/useI18n";
+import { formatRelativeTime } from "@/utils/time";
 
 const { Text } = Typography;
 
@@ -83,6 +85,7 @@ const AnalysisPage = ({
 	const selectable = Boolean(onOk || onCancel);
 	const { setAnalysisId, analysisId } = useStoreRender();
 	const { register, unregister } = useComponentStore();
+	const { locale } = useI18n();
 
 	// 当 analysisId 有值时，同步选中对应的行
 	useEffect(() => {
@@ -96,13 +99,13 @@ const AnalysisPage = ({
 			title: "Job Status",
 			dataIndex: "job_status",
 			key: "job_status",
-			width: 130,
+			width: 60,
 			render: (value: string) => <Tag color={statusColor(value)}>{value || "-"}</Tag>,
 		}, {
 			title: "Analysis Name",
 			dataIndex: "analysis_name",
 			key: "analysis_name",
-			width: 150,
+			width: 200,
 
 			ellipsis: true,
 			render: (value: string) => value || "-",
@@ -112,7 +115,7 @@ const AnalysisPage = ({
 			dataIndex: "updated_at",
 			key: "updated_at",
 			width: 210,
-			render: (value: string) => (value ? new Date(value).toLocaleString() : "-"),
+			render: (_: unknown, record: AnalysisItem) => formatRelativeTime(record.updated_at, locale),
 		}, {
 			title: "Report",
 			dataIndex: "is_report",
@@ -159,7 +162,7 @@ const AnalysisPage = ({
 			dataIndex: "created_at",
 			key: "created_at",
 			width: 210,
-			render: (value: string) => (value ? new Date(value).toLocaleString() : "-"),
+			render: (_: unknown, record: AnalysisItem) => formatRelativeTime(record.created_at, locale),
 		},
 
 		{
