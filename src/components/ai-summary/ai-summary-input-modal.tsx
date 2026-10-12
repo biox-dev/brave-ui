@@ -1,7 +1,6 @@
 import { Flex, Spin, Typography } from "antd";
 import { useEffect, useState, type CSSProperties } from "react";
 import { http } from "@/api/client/http";
-import type { AISummaryOwnerType } from "./ai-summary-panel";
 
 /** 后端 types.AISummaryInput 对应的前端模型。 */
 export interface AISummaryInput {
@@ -12,8 +11,7 @@ export interface AISummaryInput {
 }
 
 export interface AISummaryInputModalProps {
-  ownerType: AISummaryOwnerType;
-  ownerId?: string | number;
+  summaryId?: string | number;
   close?: () => void;
 }
 
@@ -27,12 +25,12 @@ const PRE_STYLE: CSSProperties = {
   fontSize: 12,
 };
 
-const AISummaryInputModal = ({ ownerType, ownerId }: AISummaryInputModalProps) => {
+const AISummaryInputModal = ({ summaryId }: AISummaryInputModalProps) => {
   const [loading, setLoading] = useState(false);
   const [input, setInput] = useState<AISummaryInput | null>(null);
 
   useEffect(() => {
-    if (ownerId === undefined || ownerId === null || ownerId === "") {
+    if (summaryId === undefined || summaryId === null || summaryId === "") {
       return;
     }
 
@@ -40,7 +38,7 @@ const AISummaryInputModal = ({ ownerType, ownerId }: AISummaryInputModalProps) =
     setLoading(true);
     http
       .get<AISummaryInput>("/ai-summary/input", {
-        params: { owner_type: ownerType, owner_id: ownerId },
+        params: { id: summaryId },
       })
       .then((res) => {
         if (!cancelled) setInput(res.data ?? null);
@@ -55,7 +53,7 @@ const AISummaryInputModal = ({ ownerType, ownerId }: AISummaryInputModalProps) =
     return () => {
       cancelled = true;
     };
-  }, [ownerType, ownerId]);
+  }, [summaryId]);
 
   return (
     <Spin spinning={loading}>

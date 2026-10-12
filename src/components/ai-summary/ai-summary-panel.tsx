@@ -182,9 +182,9 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
     }
   };
 
-  const handleViewInput = () => {
+  const handleViewInput = (id: string) => {
     invoke.aiSummaryInput.open(
-      { ownerType, ownerId },
+      { summaryId: id },
       { title: "AI Summary Input", width: 720, footer: null }
     );
   };
@@ -210,15 +210,6 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
             onClick={handleCreate}
           >
             Create
-          </Button>
-          <Button
-            size="small"
-            type="text"
-            icon={<EyeOutlined />}
-            disabled={ownerId === undefined || ownerId === null || ownerId === ""}
-            onClick={handleViewInput}
-          >
-            Input
           </Button>
           <Button
             size="small"
@@ -281,6 +272,14 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
                           />
                         </Tooltip>
                       )}
+                      <Tooltip title="Input">
+                        <Button
+                          size="small"
+                          icon={<EyeOutlined />}
+                          aria-label="Input"
+                          onClick={() => handleViewInput(item.id)}
+                        />
+                      </Tooltip>
                       <Tooltip title="Update">
                         <Button
                           size="small"
