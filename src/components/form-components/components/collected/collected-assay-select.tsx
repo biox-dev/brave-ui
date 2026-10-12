@@ -143,7 +143,7 @@ export const CollectedAssaySelect: FC<any> = ({
             disabled={!selectCollectFile}
             onClick={handleOpenSheet}
           >
-            Open Sheet
+            Open
           </Button>
         </Space.Compact>
       </Form.Item>
