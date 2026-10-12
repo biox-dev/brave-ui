@@ -225,6 +225,13 @@ export const pageDatasetByProjectApi = (payload: PageRequest<DatasetPageQuery>) 
 	return http.post<PageResponse<DatasetItem>>("/data/dataset/list-by-project-page", payload);
 };
 
+// listDatasetByProjectApi returns every dataset bound to the caller's currently
+// active project (the backend resolves the project from the current user, so no
+// project_id is sent).
+export const listDatasetByProjectApi = () => {
+	return http.get<DatasetItem[]>("/data/dataset/list-by-project");
+};
+
 export const createDatasetApi = (payload: CreateDatasetRequest) => {
 	return http.post<DatasetItem>("/data/dataset/create", payload);
 };

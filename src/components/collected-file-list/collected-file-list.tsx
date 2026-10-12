@@ -163,7 +163,7 @@ const CollectedFileList = ({
       await invoke.collectedFileUpload.openDrawerAsync(
         {
           title: `${title || "Files"} Upload`,
-          resolver,
+          role: resolver?.accept_formats,
           defaultDatasetId: data?.[0]?.dataset_id ? String(data[0].dataset_id) : undefined,
         },
         { width: 520, title: `Upload to ${title || "Files"}` }

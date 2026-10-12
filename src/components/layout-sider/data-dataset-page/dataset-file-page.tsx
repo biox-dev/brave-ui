@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { Button, Descriptions, Empty, Flex, Pagination, Popconfirm, Popover, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { DeleteOutlined, EditOutlined, FileOutlined, FolderOpenOutlined, ReloadOutlined, TableOutlined, TagsOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, FileOutlined, FolderOpenOutlined, ReloadOutlined, TableOutlined, TagsOutlined, UploadOutlined } from "@ant-design/icons";
 import { useDatasetFilePageQuery } from "@/hooks/usePaginationV2";
 import type { DatasetFileItem } from "@/api/data";
 import { deleteFileApi } from "@/api/data";
@@ -326,6 +326,26 @@ const DatasetFilePage = ({
     );
   };
 
+  // Upload a local file into a dataset through the shared collected-upload
+  // dialog; it resolves once the upload finishes, so refresh the list after.
+  const handleUpload = async () => {
+    try {
+      await invoke.collectedFileUpload.openDrawerAsync(
+        {
+          title: `${title || "Files"} Upload`,
+          role: normalizeRoles(role),
+          defaultDatasetId: normalizeText(dataset_id),
+        },
+        { width: 520, title: `Upload to ${title || "Files"}` }
+      );
+    } catch {
+      // user cancelled
+      return;
+    }
+
+    refetch();
+  };
+
   const handleRowClick = (record: DatasetFileItem) => {
     setSelectedID(record.id);
     if (selectable) {
@@ -447,6 +467,14 @@ const DatasetFilePage = ({
       <div className="project-report-panel-header">
         <span className="project-report-panel-title">{title || "Files"}</span>
         <div className="project-report-panel-actions">
+          <Tooltip title="Upload">
+            <Button
+              type="text"
+              size="small"
+              icon={<UploadOutlined />}
+              onClick={handleUpload}
+            />
+          </Tooltip>
           <Tooltip title="System Files">
             <Button
               type="text"

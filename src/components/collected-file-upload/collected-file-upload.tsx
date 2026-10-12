@@ -1,22 +1,24 @@
 // src/components/collected-file-upload/collected-file-upload.tsx
 // Upload dialog for the collected form-item data list (CollectedFileList):
-// choose a target dataset (via invoke.datasetProjectPage), a role (the item's
-// resolver.accept_formats) and a local file, then upload it into the dataset
-// workspace while showing a progress bar. Opened from CollectedFileList via
-// `invoke.collectedFileUpload.openDrawerAsync({ resolver, defaultDatasetId })`.
-import { useMemo, useState } from "react";
+// choose a target dataset (from the current project's dataset Select, or via
+// invoke.datasetProjectPage), a role (the roles this form item accepts) and a
+// local file, then upload it into the dataset workspace while showing a
+// progress bar. Opened from CollectedFileList via
+// `invoke.collectedFileUpload.openDrawerAsync({ role, defaultDatasetId })`.
+import { useEffect, useMemo, useState } from "react";
 import { Button, Flex, Form, Progress, Select, Upload } from "antd";
 import type { UploadFile } from "antd";
 import { FolderOpenOutlined, UploadOutlined } from "@ant-design/icons";
-import { uploadFileToDatasetApi } from "@/api/data";
+import { listDatasetByProjectApi, uploadFileToDatasetApi } from "@/api/data";
+import type { DatasetItem } from "@/api/data";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 
 export interface CollectedFileUploadProps {
   title?: string;
-  // resolver.accept_formats are the roles this form item accepts; they become
-  // the role options ("this input accepts TABLE or DEFAULT").
-  resolver?: { accept_formats?: string[] };
+  // role/roles this form item accepts; they become the role options
+  // ("this input accepts TABLE or DEFAULT"). Accepts a single string or a list.
+  role?: string | string[];
   // Pre-selects the dataset (e.g. the dataset of the collected data rows).
   defaultDatasetId?: string;
   defaultRole?: string;
@@ -28,7 +30,7 @@ export interface CollectedFileUploadProps {
 const DEFAULT_ROLES = ["DEFAULT", "TABLE"];
 
 const CollectedFileUpload = ({
-  resolver,
+  role,
   defaultDatasetId,
   defaultRole,
   onOk,
@@ -40,23 +42,75 @@ const CollectedFileUpload = ({
     defaultDatasetId != null ? String(defaultDatasetId) : ""
   );
   const [datasetName, setDatasetName] = useState<string>("");
+  const [datasets, setDatasets] = useState<DatasetItem[]>([]);
+  const [datasetLoading, setDatasetLoading] = useState(false);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [percent, setPercent] = useState(0);
 
-  const roleOptions = useMemo(() => {
-    const formats = resolver?.accept_formats;
-    const list = Array.isArray(formats)
-      ? formats.filter((format) => typeof format === "string" && format.trim() !== "")
-      : [];
-    return (list.length > 0 ? list : DEFAULT_ROLES).map((role) => ({
-      label: role,
-      value: role,
-    }));
-  }, [resolver]);
+  // The backend resolves the project from the current user (active project), so
+  // the picker just lists the datasets of that project.
+  useEffect(() => {
+    let cancelled = false;
+    setDatasetLoading(true);
+    listDatasetByProjectApi()
+      .then((resp) => {
+        if (!cancelled) {
+          setDatasets(Array.isArray(resp.data) ? resp.data : []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDatasets([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setDatasetLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const [role, setRole] = useState<string | undefined>(defaultRole ?? roleOptions[0]?.value);
+  const datasetOptions = useMemo(() => {
+    const options = datasets.map((dataset) => ({
+      label: dataset.dataset_name || `Dataset-${dataset.id}`,
+      value: String(dataset.id),
+    }));
+    // Keep the current selection visible when it is not in the loaded list (e.g.
+    // picked through the drawer right after it was created).
+    if (datasetId && !options.some((option) => option.value === datasetId)) {
+      options.unshift({ label: datasetName || `Dataset-${datasetId}`, value: datasetId });
+    }
+    return options;
+  }, [datasets, datasetId, datasetName]);
+
+  const handleDatasetChange = (value?: string) => {
+    if (!value) {
+      setDatasetId("");
+      setDatasetName("");
+      return;
+    }
+    const selected = datasets.find((dataset) => String(dataset.id) === value);
+    setDatasetId(value);
+    setDatasetName(selected?.dataset_name || `Dataset-${value}`);
+  };
+
+  const roleOptions = useMemo(() => {
+    const source = Array.isArray(role) ? role : role ? [role] : [];
+    const list = source.filter((item) => typeof item === "string" && item.trim() !== "");
+    return (list.length > 0 ? list : DEFAULT_ROLES).map((item) => ({
+      label: item,
+      value: item,
+    }));
+  }, [role]);
+
+  const [selectedRole, setSelectedRole] = useState<string | undefined>(
+    defaultRole ?? roleOptions[0]?.value
+  );
 
   const handleSelectDataset = async () => {
     try {
@@ -87,7 +141,7 @@ const CollectedFileUpload = ({
     setPercent(0);
     try {
       const resp = await uploadFileToDatasetApi(
-        { dataset_id: datasetId, role: role || undefined, file },
+        { dataset_id: datasetId, role: selectedRole || undefined, file },
         (value) => setPercent(value)
       );
       setPercent(100);
@@ -116,7 +170,19 @@ const CollectedFileUpload = ({
     <div>
       <Form layout="vertical">
         <Form.Item label="Dataset" required>
-          <Flex gap="small" align="center">
+          <Flex gap="small" align="center" wrap>
+            <Select
+              style={{ minWidth: 240 }}
+              value={datasetId || undefined}
+              onChange={handleDatasetChange}
+              options={datasetOptions}
+              loading={datasetLoading}
+              disabled={uploading}
+              placeholder="Select a dataset"
+              showSearch
+              allowClear
+              optionFilterProp="label"
+            />
             <Button icon={<FolderOpenOutlined />} onClick={handleSelectDataset} disabled={uploading}>
               Select Dataset
             </Button>
@@ -128,8 +194,8 @@ const CollectedFileUpload = ({
 
         <Form.Item label="Role">
           <Select
-            value={role}
-            onChange={(value) => setRole(value)}
+            value={selectedRole}
+            onChange={(value) => setSelectedRole(value)}
             options={roleOptions}
             disabled={uploading}
             placeholder="Select role"
