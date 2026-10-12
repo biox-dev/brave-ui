@@ -25,6 +25,12 @@ export interface CollectedFileListProps {
   // resolver.accept_formats drives the role options of the upload dialog
   // (the roles this form item accepts).
   resolver?: { accept_formats?: string[] };
+  // Live source for the collected data. This drawer is rendered by the global
+  // UIContainer from a params *snapshot* captured when it opens, so it keeps the
+  // `data` it was opened with and never re-renders when the upstream form
+  // refreshes (e.g. after `loadParams`). When provided, the list subscribes and
+  // re-syncs on every parent update, so edit/delete/upload stay reflected.
+  subscribeData?: (listener: (data?: DatasetFileItem[]) => void) => () => void;
   onOk?: (file: DatasetFileItem) => void;
   onCancel?: () => void;
   close?: () => void;
@@ -63,6 +69,7 @@ const CollectedFileList = ({
   data,
   title,
   resolver,
+  subscribeData,
   onOk,
   onCancel,
   close,
@@ -82,6 +89,14 @@ const CollectedFileList = ({
   useEffect(() => {
     setFiles(normalizeFiles(data));
   }, [data]);
+
+  // The `data` prop is a snapshot from open time and never changes here, so also
+  // subscribe to the live source: upstream refreshes triggered by `loadParams`
+  // (upload/edit/delete, or any external change) then push the fresh list in.
+  useEffect(() => {
+    if (!subscribeData) return;
+    return subscribeData((next) => setFiles(normalizeFiles(next)));
+  }, [subscribeData]);
 
   useEffect(() => {
     const el = bodyRef.current;
@@ -294,6 +309,7 @@ const CollectedFileList = ({
         </Button>
       </div>
 
+{/* {JSON.stringify(data)} */}
       {/* The table body is the only scroll container here: keep the outer panel
           body from scrolling so we do not stack a second scrollbar. */}
       <div className="project-report-panel-body" ref={bodyRef} style={{ overflow: "hidden" }}>

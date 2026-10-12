@@ -4,7 +4,7 @@
 // when the matching `groups[i]` flag is set) and keeps `node_name` in sync with
 // the group names.
 import { Button, Form, Input, Select, Space } from "antd";
-import { FC, useEffect, useState } from "react";
+import { FC, useEffect, useRef, useState } from "react";
 import { TableOutlined, UnorderedListOutlined } from "@ant-design/icons";
 import { useStoreForm } from "@/context/form/FormProvider";
 import { invoke } from "@/core/ui-system/invokeV2";
@@ -74,6 +74,24 @@ export const CollectedAssaySelect: FC<any> = ({
       setCollectFiles(collectedFiles);
     }
   }, [data]);
+
+  // The CollectedFileList drawer is rendered from a params snapshot, so it would
+  // otherwise keep the `data` captured when it opened and never see upstream
+  // refreshes. Keep a live copy here and expose a subscription the drawer uses
+  // to re-sync after `loadParams` (and any other data change).
+  const dataRef = useRef<any>(data);
+  const dataListenersRef = useRef<Set<(value: any) => void>>(new Set());
+  useEffect(() => {
+    dataRef.current = data;
+    dataListenersRef.current.forEach((listener) => listener(data));
+  }, [data]);
+  const subscribeData = (listener: (value: any) => void) => {
+    dataListenersRef.current.add(listener);
+    listener(dataRef.current);
+    return () => {
+      dataListenersRef.current.delete(listener);
+    };
+  };
 
   // 后端不再在文件列表里内联 columns（buildCompatFileItem），因此选中的文件
   // 只要 role=TABLE 就按需调用 /data/file/columns 获取列：tsv/csv 返回扁平数组，
@@ -200,7 +218,7 @@ export const CollectedAssaySelect: FC<any> = ({
   const handleOpenFileList = async () => {
     try {
       const selected = await invoke.collectedFileList.openDrawerAsync(
-        { data, title: `${label} Files`, resolver },
+        { data, title: `${label} Files`, resolver, subscribeData },
         { width: 900, title: `${label} Files` }
       );
       if (selected?.id != null) {
