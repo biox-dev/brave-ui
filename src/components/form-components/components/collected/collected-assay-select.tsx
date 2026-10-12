@@ -59,7 +59,7 @@ export const CollectedAssaySelect: FC<any> = ({
   useEffect(() => {
     if (data && Array.isArray(data)) {
       const collectedFiles = data.map((it: any) => ({
-        label: `${it.file_name}`,
+        label: `${it.label}`,
         value: it.id,
       }));
       setCollectFiles(collectedFiles);
