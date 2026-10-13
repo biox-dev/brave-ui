@@ -6,6 +6,7 @@ import {
   CloseOutlined,
   EditOutlined,
   LoadingOutlined,
+  QuestionCircleOutlined,
   ReloadOutlined,
   RobotOutlined,
   SendOutlined,
@@ -14,21 +15,26 @@ import {
 } from "@ant-design/icons";
 import {
   AgentPermissionStatus,
+  AgentQuestionStatus,
   AgentTaskStatus,
+  answerAgentQuestionApi,
   approveAgentPermissionApi,
   cancelAgentTaskApi,
   chatAgentApi,
   denyAgentPermissionApi,
   describeAgentEnvApi,
   getAgentPendingPermissionsApi,
+  getAgentPendingQuestionsApi,
   getAgentTaskApi,
   getAgentTaskEventsApi,
   getConversationApi,
   pageConversationApi,
+  type AgentAskUserAnswer,
   type AgentConversationItem,
   type AgentEnvInfo,
   type AgentEventItem,
   type AgentPermissionItem,
+  type AgentQuestionItem,
 } from "@/api/agent";
 import { getGlobalMessage } from "@/hooks/useGlobalMessage";
 import { sseClient } from "@/sse";
@@ -38,6 +44,7 @@ import { getCurrentUserApi, type AgentUserConfig } from "@/api/auth";
 import { setUserItem } from "@/store/userSlice";
 import { invoke } from "@/core/ui-system/invokeV2";
 import AgentTaskStream from "./agent-task-stream";
+import AgentAskUserCard from "./agent-ask-user";
 import { renderAssistantMessage } from "./agent-message-render";
 import UnifiedDiff from "@/components/common/unified-diff";
 
@@ -132,6 +139,9 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   // 当前选中会话活跃任务的待确认权限（可同时存在多个）。
   const [pendingPermissions, setPendingPermissions] = useState<AgentPermissionItem[]>([]);
   const [resolvingId, setResolvingId] = useState<string>();
+  // 当前选中会话活跃任务的待作答提问（AskUser，可同时存在多个）。
+  const [pendingQuestions, setPendingQuestions] = useState<AgentQuestionItem[]>([]);
+  const [answeringId, setAnsweringId] = useState<string>();
   // 当前进行中的任务 ID（用于 Cancel 按钮）。
   const [currentTaskId, setCurrentTaskId] = useState<string>();
   const [canceling, setCanceling] = useState(false);
@@ -240,6 +250,32 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     }
   };
 
+  // 拉取任务待作答的提问（仅保留 pending 状态）。
+  const loadQuestions = async (taskId: string) => {
+    if (!taskId) return;
+    try {
+      const res = await getAgentPendingQuestionsApi(taskId);
+      const items = res.data ?? [];
+      setPendingQuestions(items.filter((q) => q.status === AgentQuestionStatus.Pending));
+    } catch {
+      // API errors are shown globally by the http interceptor.
+    }
+  };
+
+  // 提交用户对一次提问的作答，唤醒 Agent 继续执行。
+  const handleAnswerQuestion = async (question: AgentQuestionItem, answer: AgentAskUserAnswer) => {
+    setAnsweringId(question.id);
+    try {
+      await answerAgentQuestionApi(question.id, answer);
+      getGlobalMessage()?.success("Answer submitted");
+      await loadQuestions(question.task_id);
+    } catch {
+      // API errors are shown globally by the http interceptor.
+    } finally {
+      setAnsweringId(undefined);
+    }
+  };
+
   // 取消当前进行中的任务（终态事件会通过 WS 触发 finalizeTurn 清理状态）。
   const handleCancelTask = async () => {
     if (!currentTaskId) return;
@@ -282,6 +318,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
         setSending(false);
         setWaiting(false);
         setPendingPermissions([]);
+        setPendingQuestions([]);
         return;
       }
 
@@ -304,6 +341,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
             setSending(false);
             setWaiting(false);
             setPendingPermissions([]);
+            setPendingQuestions([]);
             return;
           }
           turn.waiting = st === AgentTaskStatus.WaitingPermission;
@@ -318,6 +356,8 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
 
       // 恢复该任务待确认的权限，保证刷新后切换到会话时按钮仍在。
       loadPermissions(taskId);
+      // 恢复该任务待作答的提问，保证刷新后提问卡片仍在。
+      loadQuestions(taskId);
     } catch {
       // 错误由全局拦截器提示。
     }
@@ -348,6 +388,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       setSending(false);
       setWaiting(false);
       setPendingPermissions([]);
+      setPendingQuestions([]);
     }
     activeTurnsRef.current.delete(turn.taskId);
     // 本轮结束后刷新会话列表（标题 / 顺序 / 消息数可能变化）。
@@ -382,6 +423,11 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     if (ev.type === "permission.created" || ev.type === "permission.resolved") {
       // 权限创建 / 解决后刷新待确认权限，保证按钮实时出现 / 消失。
       if (selected) loadPermissions(ev.task_id);
+      return;
+    }
+    if (ev.type === "question.created" || ev.type === "question.resolved") {
+      // 提问创建 / 解决后刷新待作答提问，保证提问卡片实时出现 / 消失。
+      if (selected) loadQuestions(ev.task_id);
       return;
     }
     if (ev.type && TERMINAL_EVENT_TYPES.has(ev.type)) {
@@ -481,6 +527,8 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
 
       // 本轮任务可能很快进入等待权限，提前拉取待确认权限。
       loadPermissions(task_id);
+      // 本轮任务也可能很快发起提问，提前拉取待作答提问。
+      loadQuestions(task_id);
 
       // 恢复可能在 HTTP 响应前就已推送的早期事件（与实时推送按 id+sequence 去重）。
       try {
@@ -505,6 +553,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     setSending(false);
     setWaiting(false);
     setPendingPermissions([]);
+    setPendingQuestions([]);
     setInput("");
   };
 
@@ -751,6 +800,37 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
         )}
       </div>
 
+
+      {/* 待作答提问（AskUser）：固定在输入区上方，提交后 Agent 继续执行。
+          提问由后端持久化，刷新 / 切回会话后仍会恢复展示。 */}
+      {pendingQuestions.length > 0 && (
+        <Flex
+          vertical
+          gap={8}
+          style={{
+            marginTop: 12,
+            padding: "8px 12px",
+            border: "1px solid #91caff",
+            borderRadius: 8,
+            background: "#e6f4ff",
+          }}
+        >
+          <Flex align="center" gap={6}>
+            <QuestionCircleOutlined style={{ color: "#1677ff", fontSize: 13 }} />
+            <Text style={{ fontSize: 12, color: "#1677ff" }}>
+              需要你的确认 ({pendingQuestions.length})
+            </Text>
+          </Flex>
+          {pendingQuestions.map((q) => (
+            <AgentAskUserCard
+              key={q.id}
+              question={q}
+              submitting={answeringId === q.id}
+              onSubmit={(answer) => handleAnswerQuestion(q, answer)}
+            />
+          ))}
+        </Flex>
+      )}
 
       {/* 待确认权限：固定在输入区上方，便于快速 Approve / Deny。
           存在进行中的任务时，权限由 AgentTaskStream 统一展示，避免重复。 */}

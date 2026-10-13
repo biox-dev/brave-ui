@@ -21,6 +21,14 @@ export const AgentPermissionStatus = {
   Consumed: "consumed",
 } as const;
 
+// 提问状态（对应后端 agent.QuestionStatus）。
+export const AgentQuestionStatus = {
+  Pending: "pending",
+  Answered: "answered",
+  Canceled: "canceled",
+  Expired: "expired",
+} as const;
+
 // 权限操作对象（对应后端 agent.Operation）。
 export interface AgentOperation {
   id?: string;
@@ -54,6 +62,57 @@ export interface AgentPermissionItem {
   session_id?: string;
   operation: AgentOperation | null;
   status: string;
+  created_at: string;
+  updated_at: string;
+  resolved_at?: string | null;
+  resolved_by?: string | null;
+}
+
+// 问题选项（对应后端 agent.QuestionOption）。
+export interface AgentQuestionOption {
+  label: string;
+  value: string;
+  description?: string;
+}
+
+// 单个问题（对应后端 agent.Question）。
+export interface AgentQuestion {
+  id: string;
+  /** single_choice | multiple_choice | text */
+  type: string;
+  title: string;
+  description?: string;
+  required?: boolean;
+  options?: AgentQuestionOption[];
+  allow_custom?: boolean;
+  placeholder?: string;
+}
+
+// 单个问题的答案（对应后端 agent.QuestionAnswer）。
+export interface AgentQuestionAnswer {
+  id: string;
+  value?: string;
+  values?: string[];
+  custom?: string;
+}
+
+// 一次提问的全部作答（对应后端 agent.AskUserAnswer）。
+export interface AgentAskUserAnswer {
+  request_id?: string;
+  answers: AgentQuestionAnswer[];
+}
+
+// 提问请求（对应后端 agent.QuestionRequest）。
+export interface AgentQuestionItem {
+  id: string;
+  task_id: string;
+  session_id?: string;
+  request_id?: string;
+  title?: string;
+  description?: string;
+  questions: AgentQuestion[];
+  status: string;
+  answer?: AgentAskUserAnswer | null;
   created_at: string;
   updated_at: string;
   resolved_at?: string | null;
@@ -125,6 +184,11 @@ export interface AgentPermissionPageQuery {
   statuses?: string[];
 }
 
+export interface AgentQuestionPageQuery {
+  task_id?: string;
+  statuses?: string[];
+}
+
 export interface AgentEventPageQuery {
   task_id?: string;
 }
@@ -151,6 +215,22 @@ export const approveAgentPermissionApi = (id: string) => {
 
 export const denyAgentPermissionApi = (id: string) => {
   return http.post<{ ok: boolean; id: string }>("/agent/permission/deny", { id });
+};
+
+export const pageAgentQuestionApi = (payload: PageRequest<AgentQuestionPageQuery>) => {
+  return http.post<PageResponse<AgentQuestionItem>>("/agent/question/page", payload);
+};
+
+// 获取任务当前待作答的提问请求。
+export const getAgentPendingQuestionsApi = (taskId: string) => {
+  return http.get<AgentQuestionItem[]>("/agent/task/questions", {
+    params: { task_id: taskId },
+  });
+};
+
+// 提交用户对一次提问的作答。
+export const answerAgentQuestionApi = (id: string, answer: AgentAskUserAnswer) => {
+  return http.post<{ ok: boolean; id: string }>("/agent/question/answer", { id, answer });
 };
 
 // 增量拉取任务事件（返回 sequence 大于 after 的事件）。
