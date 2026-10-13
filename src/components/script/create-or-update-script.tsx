@@ -7,12 +7,15 @@
 //    `invoke.createOrUpdateScript.open/openAsync` (e.g. "Create Script",
 //    "Update Script", node edit drawers ...).
 //  - Rendered inline by <ViewResolver view="createOrUpdateScript" ... /> (e.g.
-//    script-panel "structure"). In that case the full script object is passed
-//    in as `component`/`data`, so NO extra fetch API is needed — the form is
-//    prefilled from the passed data and "Update" saves it back.
+//    script-panel "Edit" tab).
+//
+// Edit vs. create is decided solely by `script_id`:
+//  - `script_id` set  -> edit mode; the form is ALWAYS (re)loaded from
+//    `GET /find-script/:id`, so callers never pass a full object around.
+//  - `script_id` unset -> create mode; blank form.
 
 import { Button, Card, Collapse, Form, Input, InputNumber, Select, Space, Spin, Typography } from "antd";
-import { FC, useEffect, useMemo, useState } from "react";
+import { FC, useEffect, useState } from "react";
 import { http } from "@/api/client/http";
 import { ComponentImageUpload } from "@/components/common/component-image";
 import { invoke } from "@/core/ui-system/invokeV2";
@@ -72,94 +75,57 @@ const serializeJSON = (value: any, fallback = "{}") => {
 // ---------- component ----------
 
 export type CreateOrUpdateScriptProps = {
-  /** existing script object (used when rendered by script-panel via ViewResolver) */
-  data?: any;
-  /** alias used when rendered through a <ViewResolver> that passes `component` */
-  component?: any;
-  /** numeric db id of the script (script-panel passes script.id here) */
-  script_id?: any;
-  /** uuid or numeric id used by other flows (workflow-page / analysis nodes) */
-  component_id?: any;
-  structure?: any;
-  namespace?: string;
+  /** numeric script (db) id — present = edit mode, absent = create mode. */
+  script_id?: string | number;
+  /** re-invoked after a successful save (e.g. to refetch the list / panel) */
   callback?: (...args: any[]) => void;
   onOk?: (data?: any) => void;
   close?: () => void;
-  openModal?: any;
 };
 
-const CreateOrUpdateScript: FC<CreateOrUpdateScriptProps> = (params) => {
-  const {
-    data,
-    component,
-    script_id,
-    component_id,
-    callback,
-    onOk,
-    close,
-  } = params;
-
+const CreateOrUpdateScript: FC<CreateOrUpdateScriptProps> = ({
+  script_id,
+  callback,
+  onOk,
+  close,
+}) => {
   const message = useGlobalMessage();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  // stores data loaded from the server when only a numeric id is given
-  const [loaded, setLoaded] = useState<any>();
   // gates the "More" debug preview so it does not re-render on every keystroke
   const [showDebug, setShowDebug] = useState(false);
 
-  const incoming = data ?? component;
-  // script-panel and workflow-page pass numeric db ids; node flows may pass uuid
-  const numericId = useMemo(
-    () =>
-      isNumeric(incoming?.id)
-        ? String(incoming.id)
-        : isNumeric(script_id)
-          ? String(script_id)
-          : isNumeric(component_id)
-            ? String(component_id)
-            : undefined,
-    [incoming?.id, script_id, component_id]
-  );
-
-  const record = useMemo(() => {
-    if (incoming && typeof incoming === "object" && Object.keys(incoming).length > 0) {
-      return incoming;
-    }
-    return loaded;
-  }, [incoming, loaded]);
-
+  // `script_id` is the single source of truth: edit mode always reloads the
+  // record from the server, create mode just renders an empty form.
+  const numericId = isNumeric(script_id) ? String(script_id) : undefined;
   const isEdit = Boolean(numericId);
 
-  // prefill: from passed data when available, otherwise fetch by numeric id
   useEffect(() => {
     let active = true;
-    if (incoming && typeof incoming === "object" && Object.keys(incoming).length > 0) {
-      form.setFieldsValue(toFormValues(incoming));
-    } else if (numericId) {
-      setLoading(true);
-      http
-        .get(`/find-script/${numericId}`)
-        .then((resp: any) => {
-          if (!active) return;
-          setLoaded(resp.data);
-          form.setFieldsValue(toFormValues(resp.data));
-        })
-        .catch((error: any) => {
-          if (!active) return;
-          console.log(error);
-          message.error(error?.response?.data?.detail ?? error?.message ?? "Failed to load script!");
-        })
-        .finally(() => {
-          if (active) setLoading(false);
-        });
-    } else {
+    if (!numericId) {
       form.resetFields();
+      return;
     }
+    setLoading(true);
+    http
+      .get(`/find-script/${numericId}`)
+      .then((resp: any) => {
+        if (!active) return;
+        form.setFieldsValue(toFormValues(resp.data));
+      })
+      .catch((error: any) => {
+        if (!active) return;
+        console.log(error);
+        message.error(error?.response?.data?.detail ?? error?.message ?? "Failed to load script!");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
     return () => {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [numericId, incoming ? (incoming as any)?.id : undefined]);
+  }, [numericId]);
 
   const getParams = (values: any) => {
     const payload: any = { ...values, component_type: "script" };
@@ -174,9 +140,6 @@ const CreateOrUpdateScript: FC<CreateOrUpdateScriptProps> = (params) => {
     }
     if (numericId) {
       payload.id = numericId;
-    }
-    if (record?.component_id && !payload.component_id) {
-      payload.component_id = record.component_id;
     }
     return payload;
   };

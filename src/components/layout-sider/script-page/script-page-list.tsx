@@ -5,7 +5,7 @@ import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { formatRelativeTime } from "@/utils/time";
-import { CodeOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import { CodeOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Descriptions, Empty, Pagination, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo } from "react";
@@ -198,47 +198,72 @@ const ScriptPageList: FC<any> = () => {
   const actionsColumn: ColumnsType<ScriptItem>[number] = {
     title: "Actions",
     key: "actions",
-    width: 80,
+    width: 130,
     align: "right",
-    render: (_: unknown, record) => (
-      <span
-        className="project-report-item-actions"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* <Tooltip title="Edit">
-          <Button
-            type="text"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={async () => {
-              try {
-                await invoke.createOrUpdateScript.openDrawerAsync(
-                  { data: record },
-                  {
-                    width: 960,
-                    title: `Edit Script: ${record.component_name || record.component_id}`,
-                  }
-                );
-                refetch();
-              } catch {
-                // user cancelled
-              }
-            }}
-          />
-        </Tooltip> */}
-        <Popconfirm
-          title="Delete this script?"
-          description="Cannot delete if analysis nodes exist or this script is referenced in a workflow."
-          onConfirm={async () => {
-            await http.post(`/script/delete/${encodeURIComponent(record.id)}`);
-            message.success("Script deleted successfully");
-            refetch();
-          }}
+    render: (_: unknown, record) => {
+      const title = record.component_name || record.component_id || `Script-${record.id}`;
+      // Every action opens the same views the script-panel tabs use, but as a
+      // drawer via `invoke` — edit/create, main file code, and README.md.
+      const drawerProps = { width: 960, title, footer: null };
+
+      return (
+        <span
+          className="project-report-item-actions"
+          onClick={(e) => e.stopPropagation()}
         >
-          <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-        </Popconfirm>
-      </span>
-    ),
+          <Tooltip title="Edit">
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => {
+                invoke.createOrUpdateScript.drawer(
+                  { script_id: record.id, callback: () => refetch() },
+                  { ...drawerProps, title: `Edit Script: ${title}` }
+                );
+              }}
+            />
+          </Tooltip>
+          <Tooltip title="Code">
+            <Button
+              type="text"
+              size="small"
+              icon={<CodeOutlined />}
+              onClick={() => {
+                invoke.scriptCode.drawer(
+                  { script_id: record.id },
+                  { ...drawerProps, title: `Code: ${title}` }
+                );
+              }}
+            />
+          </Tooltip>
+          <Tooltip title="README">
+            <Button
+              type="text"
+              size="small"
+              icon={<FileTextOutlined />}
+              onClick={() => {
+                invoke.scriptReadme.drawer(
+                  { script_id: record.id },
+                  { ...drawerProps, title: `README: ${title}` }
+                );
+              }}
+            />
+          </Tooltip>
+          <Popconfirm
+            title="Delete this script?"
+            description="Cannot delete if analysis nodes exist or this script is referenced in a workflow."
+            onConfirm={async () => {
+              await http.post(`/script/delete/${encodeURIComponent(record.id)}`);
+              message.success("Script deleted successfully");
+              refetch();
+            }}
+          >
+            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </span>
+      );
+    },
   };
 
   return (

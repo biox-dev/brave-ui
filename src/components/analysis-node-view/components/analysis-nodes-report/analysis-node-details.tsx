@@ -186,9 +186,6 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
                                         await invoke.createOrUpdateScript.openAsync(
                                             {
                                                 script_id: selectedSampleDetail.node?.script_id,
-                                                structure: {
-                                                    component_type: "script",
-                                                },
                                             },
                                             {
                                                 width: "60%",

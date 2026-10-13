@@ -63,10 +63,7 @@ const WorkflowComponent: FC<any> = ({ workflow }) => {
                     try {
                         await invoke.createOrUpdateScript.openDrawerAsync(
                             {
-                                // component_id: data.script_id,
-                                structure: {
-                                    component_type: "script",
-                                },
+                                // script_id: data.script_id,
                             },
                             {
                                 width: 960,

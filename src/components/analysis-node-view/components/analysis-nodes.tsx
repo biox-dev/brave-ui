@@ -387,10 +387,7 @@ const AnalysisNodes: FC<any> = ({ analysis_id }) => {
                             // })
                             invoke.createOrUpdateScript.drawer(
                                 {
-                                    component_id: record?.script_id,
-                                    structure: {
-                                        component_type: "script",
-                                    }
+                                    script_id: record?.script_id,
                                 },
                                 {
                                     width: 960,

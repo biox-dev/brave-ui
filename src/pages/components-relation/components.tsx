@@ -168,6 +168,7 @@ const Components: FC<any> = () => {
                             <ComponentsDetailsRender
                                 callback={loadTable}
                                 view={panel}
+                                script_id={component?.id}
                                 component={component}
                                 openModal={openModal}
                                 component_type={component_type}

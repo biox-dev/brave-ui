@@ -526,10 +526,7 @@ export const CustomNode = memo(({ data, selected, isConnectable }: any) => {
             // console.log("Edit details for node", data.script_id);
             invoke.createOrUpdateScript.openAsync(
               {
-                component_id: data.script_db_id,
-                structure: {
-                  component_type: "script",
-                },
+                script_id: data.script_db_id,
               },
               {
                 width: "60%",
