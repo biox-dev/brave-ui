@@ -11,9 +11,21 @@
       scrollbar-gutter: stable;
     } */
 
+    /* 移动端：允许页面滚动 */
+    html,
     body {
-      overflow-y: scroll;
-      /* 永远显示垂直滚动条，占位防抖 */
+      margin: 0;
+      min-height: 100%;
+      overflow-x: hidden;
+    }
+
+    /* PC 端：禁止滚动，铺满视口 */
+    @media (hover: hover) and (pointer: fine) {
+      html,
+      body {
+        overflow: hidden;
+        height: 100%;
+      }
     }
 
     .screen {
