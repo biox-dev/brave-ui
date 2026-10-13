@@ -148,13 +148,16 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   }, [messages, waiting, currentTaskId]);
 
   // 向后端解析人类可读的业务上下文（如节点名/报告标题）用于顶部展示。
-  const loadEnvInfo = useCallback(async () => {
+  // 返回解析结果，供 Profile 编辑弹窗保存后刷新展示（vars / 渲染后的 system_prompt）。
+  const loadEnvInfo = useCallback(async (): Promise<AgentEnvInfo | null> => {
     setEnvLoading(true);
     try {
       const res = await describeAgentEnvApi(llmEnv ?? null);
       setEnvInfo(res.data ?? null);
+      return res.data ?? null;
     } catch {
       setEnvInfo(null);
+      return null;
     } finally {
       setEnvLoading(false);
     }
@@ -423,7 +426,10 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     const profileId = envInfo?.profile_id;
     if (!profileId) return;
     invoke.agentProfileEditModal
-      .openAsync({ profileId }, { title: "Edit Profile", footer: null, width: 800 })
+      .openAsync(
+        { profileId, envInfo, loadEnvInfo },
+        { title: "Edit Profile", footer: null, width: 800 }
+      )
       .then(() => {
         void loadEnvInfo();
       })

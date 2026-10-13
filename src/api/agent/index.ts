@@ -245,6 +245,8 @@ export interface AgentEnvInfo {
   label?: string;
   working_dir?: string;
   system_prompt?: string;
+  /** 渲染系统提示词模板所用的变量（业务上下文事实）。 */
+  vars?: Record<string, unknown> | null;
   /** 用于渲染系统提示词的 Profile 名称。 */
   profile_name?: string;
   /** 用于渲染系统提示词的 Profile ID（雪花 ID，后端以字符串返回）。 */
