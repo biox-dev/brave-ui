@@ -63,7 +63,7 @@ const TaskLLMRequestModal: FC<TaskLLMRequestModalProps> = ({ taskId, onCancel })
             <Descriptions size="small" column={2} bordered>
               <Descriptions.Item label="Provider">{req.provider || "-"}</Descriptions.Item>
               <Descriptions.Item label="Model">{req.model || "-"}</Descriptions.Item>
-              <Descriptions.Item label="Profile">{req.profile || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Profile ID">{req.profile_id || "-"}</Descriptions.Item>
               <Descriptions.Item label="Stream">{req.stream ? "true" : "false"}</Descriptions.Item>
               <Descriptions.Item label="Working Dir" span={2}>
                 {req.working_dir || "-"}

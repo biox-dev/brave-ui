@@ -17,7 +17,9 @@ export interface AISummaryListItem {
 	owner_type: string;
 	project_id?: string;
 	task_id?: string;
-	/** 生成该摘要使用的 Agent Profile 名称（为空表示使用内置 summary Profile）。 */
+	/** 生成该摘要使用的 Agent Profile ID（为 0 表示使用内置 summary Profile）。 */
+	profile_id?: string;
+	/** 生成该摘要使用的 Agent Profile 展示名（仅用于展示）。 */
 	profile?: string;
 	title: string;
 	status: AISummaryStatus;
@@ -65,6 +67,7 @@ export const listAISummaryByOwnerApi = (ownerType: AISummaryOwnerType, ownerId: 
 export const createAISummaryApi = (payload: {
 	owner_id: string;
 	owner_type: AISummaryOwnerType;
+	profile_id?: string;
 	profile?: string;
 }) => http.post<AISummaryItem>("/ai-summary/create", payload);
 
@@ -73,5 +76,6 @@ export const updateAISummaryApi = (payload: {
 	id: string;
 	title?: string;
 	content?: string;
+	profile_id?: string;
 	profile?: string;
 }) => http.post<AISummaryItem>("/ai-summary/update", payload);

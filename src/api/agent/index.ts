@@ -84,8 +84,8 @@ export interface AgentTaskCreateRequest {
   provider?: string;
   model?: string;
   session_id?: string;
-  /** AgentProfile 名称（为空取默认）。 */
-  profile?: string;
+  /** AgentProfile ID（为空取默认）。 */
+  profile_id?: string;
   /** 本次调用启用的技能名列表（为空使用默认全部技能）。 */
   skills?: string[];
   system_prompt?: string;
@@ -199,7 +199,7 @@ export interface AgentTaskLLMRequest {
   model?: string;
   session_id?: string;
   user_id?: string;
-  profile?: string;
+  profile_id?: string;
   skills?: string[];
   system_prompt?: string;
   messages?: { role: string; content: string }[];
@@ -221,8 +221,8 @@ export interface AgentChatRequest {
   provider?: string;
   model?: string;
   system_prompt?: string;
-  /** AgentProfile 名称（为空取默认）。 */
-  profile?: string;
+  /** AgentProfile ID（为空取默认）。 */
+  profile_id?: string;
   working_dir?: string;
   /** 业务上下文 {id,type}，由业务页面通过 setLLMEnv 设置，后端据此解析系统提示词与工作目录。 */
   env?: { id?: string; type?: string } | null;
@@ -341,8 +341,8 @@ export interface AgentProfileContext {
 // AgentProfile（对应后端 agent.Profile）。
 export interface AgentProfileItem {
   id: string;
+  /** 展示名（仅用于展示，Profile 的查询 / 引用一律使用 id）。 */
   name: string;
-  display_name?: string;
   description?: string;
   user_id?: string;
   is_default?: boolean;
@@ -362,7 +362,6 @@ export interface AgentProfileItem {
 export interface AgentProfileSaveRequest {
   id?: string;
   name: string;
-  display_name?: string;
   description?: string;
   system_prompt?: string;
   /** 本 Profile 使用的模型名（为空回退到请求级 / Provider 兜底）。 */

@@ -13,7 +13,9 @@ interface AISummaryUpdateModalProps {
   title?: string;
   /** 初始内容。 */
   content?: string;
-  /** 初始 Agent Profile 名称（为空表示使用内置 summary Profile）。 */
+  /** 初始 Agent Profile ID（为空表示使用内置 summary Profile）。 */
+  profileId?: string;
+  /** 初始 Agent Profile 展示名（仅用于展示）。 */
   profile?: string;
   onOk?: (value?: AISummaryItem) => void;
   onCancel?: () => void;
@@ -22,6 +24,7 @@ interface AISummaryUpdateModalProps {
 interface AISummaryUpdateFormValues {
   title: string;
   content: string;
+  profileId?: string;
   profile?: string;
 }
 
@@ -35,6 +38,7 @@ const AISummaryUpdateModal: FC<AISummaryUpdateModalProps> = ({
   id,
   title = "",
   content = "",
+  profileId = "",
   profile = "",
   onOk,
   onCancel,
@@ -48,7 +52,8 @@ const AISummaryUpdateModal: FC<AISummaryUpdateModalProps> = ({
         { selectable: true },
         { title: "Select Agent Profile", width: 1100, footer: null }
       )) as AgentProfileItem | undefined;
-      if (selected?.name) {
+      if (selected?.id) {
+        form.setFieldValue("profileId", selected.id);
         form.setFieldValue("profile", selected.name);
       }
     } catch {
@@ -63,6 +68,7 @@ const AISummaryUpdateModal: FC<AISummaryUpdateModalProps> = ({
         id: String(id),
         title: values.title,
         content: values.content,
+        profile_id: values.profileId ?? "",
         profile: values.profile ?? "",
       });
       getGlobalMessage()?.success("AI summary updated");
@@ -78,7 +84,7 @@ const AISummaryUpdateModal: FC<AISummaryUpdateModalProps> = ({
     <Form<AISummaryUpdateFormValues>
       form={form}
       layout="vertical"
-      initialValues={{ title, content, profile }}
+      initialValues={{ title, content, profileId, profile }}
       onFinish={handleFinish}
     >
       <Form.Item name="title" label="Title">
@@ -86,6 +92,9 @@ const AISummaryUpdateModal: FC<AISummaryUpdateModalProps> = ({
       </Form.Item>
       <Form.Item label="Agent Profile">
         <Space.Compact style={{ width: "100%" }}>
+          <Form.Item name="profileId" noStyle>
+            <Input type="hidden" />
+          </Form.Item>
           <Form.Item name="profile" noStyle>
             <Input
               readOnly
@@ -93,7 +102,12 @@ const AISummaryUpdateModal: FC<AISummaryUpdateModalProps> = ({
             />
           </Form.Item>
           <Button onClick={handleSelectProfile}>Select</Button>
-          <Button onClick={() => form.setFieldValue("profile", "")}>
+          <Button
+            onClick={() => {
+              form.setFieldValue("profileId", "");
+              form.setFieldValue("profile", "");
+            }}
+          >
             Clear
           </Button>
         </Space.Compact>

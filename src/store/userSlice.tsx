@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { getActiveProjectApi } from '@/api/project'
-import { getCurrentUserApi, type AgentUserConfig } from '@/api/auth'
+import { getCurrentUserApi, type AgentProfileInfo, type AgentUserConfig } from '@/api/auth'
 import { getPathname } from "@/utils/utils";
 
 const locale = localStorage.getItem('locale')
@@ -51,6 +51,8 @@ export interface LoginUserInfo {
     avatar: string;
     profile?: string;
     agent_config?: AgentUserConfig;
+    /** 当前 agent_config.profile_id 对应的 Profile 摘要（由 /auth/me 解析返回）。 */
+    agent_profile?: AgentProfileInfo;
     is_active: boolean;
     can_access_all_tenants: boolean;
     created_at: string;

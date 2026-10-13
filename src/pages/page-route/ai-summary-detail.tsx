@@ -94,6 +94,7 @@ const AISummaryDetail: FC = () => {
           id: summary.id,
           title: summary.title,
           content: summary.content,
+          profileId: summary.profile_id,
           profile: summary.profile,
         },
         { title: "Update AI Summary", width: 520, footer: null }

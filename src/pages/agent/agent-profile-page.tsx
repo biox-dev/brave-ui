@@ -79,7 +79,7 @@ const AgentProfilePage = ({
   // 新建 / 编辑统一走独立的 Profile 编辑弹窗（只传 profileId，内部按 ID 查询回填）。
   const openCreate = () => {
     invoke.agentProfileEditModal
-      .openAsync({}, { title: "New Profile", footer: null, width: 560 })
+      .openAsync({}, { title: "New Profile", footer: null, width: 800 })
       .then(() => load())
       .catch(() => {
         // 用户取消，无需处理。
@@ -88,7 +88,7 @@ const AgentProfilePage = ({
 
   const openEdit = (record: AgentProfileItem) => {
     invoke.agentProfileEditModal
-      .openAsync({ profileId: record.id }, { title: "Edit Profile", footer: null, width: 560 })
+      .openAsync({ profileId: record.id }, { title: "Edit Profile", footer: null, width: 800 })
       .then(() => load())
       .catch(() => {
         // 用户取消，无需处理。
@@ -132,13 +132,6 @@ const AgentProfilePage = ({
         </Space>
       ),
     }, {
-      title: "Display Name",
-      dataIndex: "display_name",
-      key: "display_name",
-      width: 160,
-      render: (value?: string) => value || "-",
-    },
-    {
       title: "Provider",
       dataIndex: "provider",
       key: "provider",

@@ -1,7 +1,7 @@
 import { Button, Flex, Form, Select, Typography } from "antd";
-import { FC, useState } from "react";
+import { FC, useEffect, useState } from "react";
 import { updateAgentConfigApi, type AgentUserConfig } from "@/api/auth";
-import { type AgentProfileItem } from "@/api/agent";
+import { listAgentProfileApi, type AgentProfileItem } from "@/api/agent";
 import { getGlobalMessage } from "@/hooks/useGlobalMessage";
 
 const { Text } = Typography;
@@ -28,33 +28,39 @@ const DECISION_OPTIONS = [
 interface AgentConfigModalProps {
   /** 当前用户的 Agent 配置（Profile + Permissions）。 */
   config?: AgentUserConfig | null;
-  /** 可选 AgentProfile 列表。 */
-  profiles?: AgentProfileItem[];
   onOk?: (config: AgentUserConfig) => void;
   onCancel?: () => void;
 }
 
 interface AgentConfigFormValues {
-  profile?: string;
+  profile_id?: string;
   permissions: Record<string, string>;
 }
 
-const AgentConfigModal: FC<AgentConfigModalProps> = ({ config, profiles, onOk, onCancel }) => {
+const AgentConfigModal: FC<AgentConfigModalProps> = ({ config, onOk, onCancel }) => {
   const [form] = Form.useForm<AgentConfigFormValues>();
   const [loading, setLoading] = useState(false);
+  // AgentProfile 列表由弹窗在打开时按需查询（调用方无需再传 profiles）。
+  const [profiles, setProfiles] = useState<AgentProfileItem[]>([]);
+
+  useEffect(() => {
+    listAgentProfileApi()
+      .then((res) => setProfiles(res.data ?? []))
+      .catch(() => setProfiles([]));
+  }, []);
 
   const handleFinish = async (values: AgentConfigFormValues) => {
     setLoading(true);
     try {
       const res = await updateAgentConfigApi({
-        profile: values.profile || "",
+        profile_id: values.profile_id || "",
         permissions: values.permissions,
       });
       getGlobalMessage()?.success("Agent config updated");
       onOk &&
         onOk(
           res.data.user?.agent_config ?? {
-            profile: values.profile,
+            profile_id: values.profile_id,
             permissions: values.permissions,
           }
         );
@@ -71,22 +77,22 @@ const AgentConfigModal: FC<AgentConfigModalProps> = ({ config, profiles, onOk, o
       layout="vertical"
       onFinish={handleFinish}
       initialValues={{
-        profile: config?.profile ?? "",
+        profile_id: config?.profile_id ?? "",
         permissions: OPERATION_TYPES.reduce((acc, op) => {
           acc[op] = config?.permissions?.[op] ?? DEFAULT_DECISIONS[op] ?? "ask";
           return acc;
         }, {} as Record<string, string>),
       }}
     >
-      <Form.Item name="profile" label="Profile">
+      <Form.Item name="profile_id" label="Profile">
         <Select
           allowClear
           showSearch
           optionFilterProp="label"
           placeholder="Select agent profile (default)"
-          options={(profiles ?? []).map((p) => ({
-            value: p.name,
-            label: `${p.display_name || p.name}${p.is_default ? " (default)" : ""}`,
+          options={profiles.map((p) => ({
+            value: p.id,
+            label: `${p.name}${p.is_default ? " (default)" : ""}`,
           }))}
         />
       </Form.Item>

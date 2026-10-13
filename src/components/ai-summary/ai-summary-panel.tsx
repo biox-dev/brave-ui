@@ -134,6 +134,7 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
       await createAISummaryApi({
         owner_id: String(ownerId),
         owner_type: ownerType,
+        profile_id: selected?.id ?? "",
         profile: selected?.name ?? "",
       });
       message.success("AI summary created");
@@ -172,6 +173,7 @@ const AISummaryPanel: FC<AISummaryPanelProps> = ({
           id: item.id,
           title: item.title,
           content: item.content,
+          profileId: item.profile_id,
           profile: item.profile,
         },
         { title: "Update AI Summary", width: 520, footer: null }

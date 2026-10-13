@@ -24,19 +24,17 @@ import {
   getAgentTaskApi,
   getAgentTaskEventsApi,
   getConversationApi,
-  listAgentProfileApi,
   pageConversationApi,
   type AgentConversationItem,
   type AgentEnvInfo,
   type AgentEventItem,
   type AgentPermissionItem,
-  type AgentProfileItem,
 } from "@/api/agent";
 import { getGlobalMessage } from "@/hooks/useGlobalMessage";
 import { sseClient } from "@/sse";
 import { useDispatch, useSelector } from "react-redux";
 import { Popover } from "antd/lib";
-import type { AgentUserConfig } from "@/api/auth";
+import { getCurrentUserApi, type AgentUserConfig } from "@/api/auth";
 import { setUserItem } from "@/store/userSlice";
 import { invoke } from "@/core/ui-system/invokeV2";
 import AgentTaskStream from "./agent-task-stream";
@@ -121,8 +119,6 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   const [envInfo, setEnvInfo] = useState<AgentEnvInfo | null>(null);
   // 业务上下文解析中的加载态（供刷新按钮展示）。
   const [envLoading, setEnvLoading] = useState(false);
-  // 可选 AgentProfile 列表（为空表示使用默认 Profile）。
-  const [profiles, setProfiles] = useState<AgentProfileItem[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   // 当前选中会话是否有一轮进行中（running / waiting_permission）。
@@ -319,10 +315,6 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
 
   useEffect(() => {
     loadConversations();
-    // 加载可选 AgentProfile（供下拉选择，为空表示使用默认）。
-    listAgentProfileApi()
-      .then((res) => setProfiles(res.data ?? []))
-      .catch(() => setProfiles([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -405,12 +397,19 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     invoke.agentConfigModal
       .openAsync({
         config: userInfo?.agent_config ?? null,
-        profiles,
       }, { footer: null })
       .then((next?: AgentUserConfig) => {
-        if (next && userInfo) {
-          dispatch(setUserItem({ userInfo: { ...userInfo, agent_config: next } }));
-        }
+        if (!next || !userInfo) return;
+        // 乐观更新 agent_config；随后从后端拉取最新的 agent_profile（DTO）。
+        dispatch(setUserItem({ userInfo: { ...userInfo, agent_config: next } }));
+        getCurrentUserApi()
+          .then((res) => {
+            const fresh = res.data?.data?.user;
+            if (fresh) dispatch(setUserItem({ userInfo: fresh }));
+          })
+          .catch(() => {
+            // 忽略：agent_config 已乐观更新。
+          });
       })
       .catch(() => {
         // 用户取消，无需处理。
@@ -424,7 +423,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     const profileId = envInfo?.profile_id;
     if (!profileId) return;
     invoke.agentProfileEditModal
-      .openAsync({ profileId }, { title: "Edit Profile", footer: null, width: 560 })
+      .openAsync({ profileId }, { title: "Edit Profile", footer: null, width: 800 })
       .then(() => {
         void loadEnvInfo();
       })
@@ -496,6 +495,10 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     setInput("");
   };
 
+  // 当前用户选中的 Profile 展示名（由 /auth/me 解析的 agent_profile DTO 提供）。
+  const currentProfileId = userInfo?.agent_config?.profile_id;
+  const currentProfileName = userInfo?.agent_profile?.name;
+
   return (
     <Flex vertical style={{ height: "100%", minHeight: 480 }}>
       {/* 头部 */}
@@ -565,12 +568,12 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
         </Flex>
         <Flex align="center" gap={8} style={{ flexShrink: 0 }}>
           <Tag
-            color={userInfo?.agent_config?.profile ? "processing" : "default"}
+            color={currentProfileId ? "processing" : "default"}
             icon={<EditOutlined />}
             style={{ cursor: "pointer", marginInlineEnd: 0 }}
             onClick={handleProfileChange}
           >
-            {userInfo?.agent_config?.profile || "Default profile"}
+            {currentProfileName || "Default profile"}
           </Tag>
           {sending && (
             <Flex align="center" gap={8}>

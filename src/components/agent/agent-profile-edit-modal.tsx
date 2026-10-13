@@ -14,7 +14,6 @@ const { TextArea } = Input;
 
 interface ProfileFormValues {
   name: string;
-  display_name?: string;
   description?: string;
   system_prompt?: string;
   model?: string;
@@ -88,7 +87,6 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
         if (record) {
           form.setFieldsValue({
             name: record.name,
-            display_name: record.display_name,
             description: record.description,
             system_prompt: record.system_prompt,
             model: record.model,
@@ -123,7 +121,6 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
     const payload: AgentProfileSaveRequest = {
       id: editing?.id,
       name: values.name,
-      display_name: values.display_name,
       description: values.description,
       system_prompt: values.system_prompt,
       model: values.model,
@@ -166,11 +163,7 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
         label="Name"
         rules={[{ required: true, message: "Name is required" }]}
       >
-        <Input placeholder="e.g. article_writer" />
-      </Form.Item>
-
-      <Form.Item name="display_name" label="Display Name">
-        <Input placeholder="Human readable name (optional)" />
+        <Input placeholder="e.g. 科研文章撰写" />
       </Form.Item>
 
       <Form.Item name="description" label="Description">
