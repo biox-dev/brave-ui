@@ -8,7 +8,10 @@ import { invoke } from "@/core/ui-system/invokeV2"
 import { ActionDispatcher } from "@/event-bus/dispatcher"
 import { http } from "@/api/client/http"
 
-const WorkflowComponent: FC<any> = ({ workflow }) => {
+const WorkflowComponent: FC<any> = ({ workflow, workflow_id, component_id }) => {
+    // workflow-panel passes the full `workflow` object; invoke callers (e.g. the
+    // workflow list drawer) only know the id — the inner views fetch their own data.
+    const wf = workflow ?? (workflow_id != null ? { id: workflow_id, component_id } : undefined)
     const defaultView = "workflow-vis"
     const [view, setView] = useState<any>(defaultView)
     // const [params, setParams] = useState<any>({})
@@ -34,18 +37,18 @@ const WorkflowComponent: FC<any> = ({ workflow }) => {
             <Button size="small" color="cyan" variant={"outlined"} onClick={async () => {
                 const script = await invoke.scriptPageCard.openAsync({}, { footer: null, width: 800, title: "Add Script to Node" })
                 console.log(script)
-                if (!workflow?.id) {
+                if (!wf?.id) {
                     console.error("workflow  不存在！")
                     return
                 }
-                const resp = await http.get(`/workflow/script-to-node?scriptId=${script?.id}&workflowId=${workflow?.id}`)
+                const resp = await http.get(`/workflow/script-to-node?scriptId=${script?.id}&workflowId=${wf?.id}`)
                 // return resp.data
                 // console.log("Response from script-to-node API", resp.data)
                 const data = {
                     action: "component.invoke",
                     payload: {
                         category: "graph",
-                        id: workflow?.id,
+                        id: wf?.id,
                         method: "addNode",
                         args: resp.data
                     }
@@ -139,9 +142,9 @@ const WorkflowComponent: FC<any> = ({ workflow }) => {
 
         <ViewResolver
             // {...params}
-            workflow_id={workflow?.id}
-            dag_definition={workflow.dag_definition}
-            component_id={workflow?.component_id}
+            workflow_id={wf?.id}
+            dag_definition={wf?.dag_definition}
+            component_id={wf?.component_id}
             view={view}
         />
     </Card >

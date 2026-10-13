@@ -378,10 +378,11 @@ const Pipeline: FC<any> = ({ }) => {
         { label: zh ? "发布" : "Publish", value: "PublishToolsV2" },
     ]
 
-    // Selecting "Edit Tools" also carries the structure params that view expects.
+    // Selecting "Edit" carries the relation_type that create/update view expects
+    // (edit mode reloads it from the record; this only matters when creating).
     const handleViewChange = (next: any) => {
         if (next === "createOrUpdateWorkflow") {
-            setParams({ structure: { relation_type } })
+            setParams({ relation_type })
         }
         setView(next)
     }

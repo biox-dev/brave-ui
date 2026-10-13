@@ -5,9 +5,12 @@
 //  - As a registered view "createOrUpdateWorkflow" (see ./index.ts), opened via
 //    `invoke.createOrUpdateWorkflow.open/openAsync` (e.g. "Create Workflow").
 //  - Rendered inline by <ViewResolver view="createOrUpdateWorkflow" ... /> (e.g.
-//    workflow-panel "Edit Tools"). In that case the full workflow object is
-//    passed in as `component` (aliased to `data`) so NO extra fetch API is called;
-//    the form is prefilled from the passed data and "Update" saves it back.
+//    workflow-panel "Edit" tab).
+//
+// Edit vs. create is decided solely by `workflow_id`:
+//  - `workflow_id` set   -> edit mode; the form is ALWAYS (re)loaded from
+//    `GET /workflow/:workflow_id/get-workflow`, so callers never pass a full object.
+//  - `workflow_id` unset -> create mode; blank form (`relation_type` defaults to "tools").
 
 import { Button, Card, Collapse, Form, Input, InputNumber, Select, Space, Spin, Typography } from "antd";
 import { FC, useEffect, useState } from "react";
@@ -65,56 +68,70 @@ const serializeJSON = (value: any, fallback = "[]") => {
   }
 };
 
+const isNumeric = (value: any) =>
+  value != null && value !== "" && /^\d+$/.test(String(value));
+
 // ---------- component ----------
 
 export type CreateOrUpdateWorkflowProps = {
-  /** existing workflow object (used when opened as a modal view) */
-  data?: any;
-  /** alias used when rendered through workflow-panel's <ViewResolver> which passes `component` */
-  component?: any;
-  /** { relation_type: string } — passed by workflow-panel "Edit Tools" */
-  structure?: any;
-  pipelineStructure?: any;
-  namespace?: string;
+  /** numeric workflow (db) id — present = edit mode, absent = create mode. */
+  workflow_id?: string | number;
+  /** relation type used when creating; ignored in edit mode (comes from the record). */
+  relation_type?: string;
+  /** re-invoked after a successful save (e.g. to refetch the list / panel) */
   callback?: (...args: any[]) => void;
   onOk?: (data?: any) => void;
   close?: () => void;
 };
 
-const CreateOrUpdateWorkflow: FC<CreateOrUpdateWorkflowProps> = (params) => {
-  const {
-    data,
-    component,
-    structure,
-    pipelineStructure,
-    callback,
-    onOk,
-    close,
-  } = params;
+/** relation_type of workflows created from the list panels. */
+const DEFAULT_RELATION_TYPE = "tools";
 
-  // Editing data may arrive under either prop name.
-  const relation = data ?? component;
-  const relationType =
-    structure?.relation_type ??
-    pipelineStructure?.relation_type ??
-    relation?.relation_type ??
-    "tools";
-
+const CreateOrUpdateWorkflow: FC<CreateOrUpdateWorkflowProps> = ({
+  workflow_id,
+  relation_type,
+  callback,
+  onOk,
+  close,
+}) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [relationType, setRelationType] = useState(relation_type ?? DEFAULT_RELATION_TYPE);
   const message = useGlobalMessage();
 
-  const relationKey = relation?.id ?? relation?.relation_id;
+  // `workflow_id` is the single source of truth: edit mode always reloads the
+  // record from the server, create mode just renders an empty form.
+  const numericId = isNumeric(workflow_id) ? String(workflow_id) : undefined;
+  const isEdit = Boolean(numericId);
 
-  // Prefill directly from the passed data — no fetch API is needed.
   useEffect(() => {
-    if (relation) {
-      form.setFieldsValue(toFormValues(relation));
-    } else {
+    let active = true;
+    if (!numericId) {
+      setRelationType(relation_type ?? DEFAULT_RELATION_TYPE);
       form.resetFields();
+      return;
     }
+    setLoading(true);
+    http
+      .get(`/workflow/${numericId}/get-workflow`)
+      .then((resp: any) => {
+        if (!active) return;
+        form.setFieldsValue(toFormValues(resp.data));
+        setRelationType(resp.data?.relation_type || relation_type || DEFAULT_RELATION_TYPE);
+      })
+      .catch((error: any) => {
+        if (!active) return;
+        console.log(error);
+        message.error(error?.response?.data?.detail ?? error?.message ?? "Failed to load workflow!");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [relationKey]);
+  }, [numericId]);
 
   const getParams = (values: any) => {
     const payload: any = { ...values };
@@ -128,13 +145,10 @@ const CreateOrUpdateWorkflow: FC<CreateOrUpdateWorkflowProps> = (params) => {
     if (payload.io_schema && typeof payload.io_schema !== "string") {
       payload.io_schema = serializeJSON(payload.io_schema, "");
     }
-    if (relation) {
-      // update existing workflow: id selects the DB row, workflow_id keeps its uuid
-      payload.id = relation?.id != null ? String(relation.id) : undefined;
-      payload.workflow_id =
-        relation?.workflow_id ??
-        relation?.relation_id ??
-        (relation?.id != null ? String(relation.id) : undefined);
+    if (numericId) {
+      // the numeric id selects the DB row; the backend keeps the existing uuid
+      // (relation_id) on update, so there is no need to send workflow_id.
+      payload.id = numericId;
     }
     return payload;
   };
@@ -150,7 +164,7 @@ const CreateOrUpdateWorkflow: FC<CreateOrUpdateWorkflowProps> = (params) => {
     try {
       const payload = getParams(values);
       const resp = await http.post("/workflow/save-workflow", payload);
-      message.success(relation ? "Update success!" : "Create success!");
+      message.success(isEdit ? "Update success!" : "Create success!");
       callback?.();
       if (typeof onOk === "function") {
         onOk(resp?.data ?? payload);
@@ -182,7 +196,7 @@ const CreateOrUpdateWorkflow: FC<CreateOrUpdateWorkflowProps> = (params) => {
               loading={loading}
               onClick={savePipeline}
             >
-              {relation ? "Update" : "Create"}
+              {isEdit ? "Update" : "Create"}
             </Button>
           </Space>
         }
@@ -212,9 +226,9 @@ const CreateOrUpdateWorkflow: FC<CreateOrUpdateWorkflowProps> = (params) => {
             <Input />
           </Form.Item>
 
-          {relation?.id != null && (
+          {numericId && (
             <Form.Item name="img" label="Upload">
-              <ComponentImageUpload kind="workflow" id={relation.id} />
+              <ComponentImageUpload kind="workflow" id={numericId} />
             </Form.Item>
           )}
 

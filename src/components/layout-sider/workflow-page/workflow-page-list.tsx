@@ -5,7 +5,7 @@ import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { formatRelativeTime } from "@/utils/time";
-import { ApartmentOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import { ApartmentOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Descriptions, Empty, Pagination, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo } from "react";
@@ -201,47 +201,72 @@ const WorkflowPageList: FC<any> = () => {
   const actionsColumn: ColumnsType<WorkflowItem>[number] = {
     title: "Actions",
     key: "actions",
-    width: 100,
+    width: 130,
     align: "right",
-    render: (_: unknown, record) => (
-      <span
-        className="project-report-item-actions"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* <Tooltip title="Edit">
-          <Button
-            type="text"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={async () => {
-              try {
-                await invoke.createOrUpdateWorkflow.openDrawerAsync(
-                  { data: record },
-                  {
-                    width: 960,
-                    title: `Edit Workflow: ${record.name || record.workflow_id}`,
-                  }
-                );
-                refetch();
-              } catch {
-                // user cancelled
-              }
-            }}
-          />
-        </Tooltip> */}
-        <Popconfirm
-          title="Delete this workflow?"
-          description="This workflow cannot be deleted if there are associated analysis records."
-          onConfirm={async () => {
-            await http.post(`/workflow/delete/${encodeURIComponent(String(record.id))}`);
-            message.success("Workflow deleted successfully");
-            refetch();
-          }}
+    render: (_: unknown, record) => {
+      const title = record.name || record.workflow_id || `Workflow-${record.id}`;
+      // Every action opens the same views the workflow-panel tabs use, but as a
+      // drawer via `invoke` — edit, workflow visualization/DAG, and README.md.
+      const drawerProps = { width: 960, title, footer: null };
+
+      return (
+        <span
+          className="project-report-item-actions"
+          onClick={(e) => e.stopPropagation()}
         >
-          <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-        </Popconfirm>
-      </span>
-    ),
+          <Tooltip title="Edit">
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => {
+                invoke.createOrUpdateWorkflow.drawer(
+                  { workflow_id: record.id, callback: () => refetch() },
+                  { ...drawerProps, title: `Edit Workflow: ${title}` }
+                );
+              }}
+            />
+          </Tooltip>
+          <Tooltip title="Workflow">
+            <Button
+              type="text"
+              size="small"
+              icon={<ApartmentOutlined />}
+              onClick={() => {
+                invoke.workflowVisCard.drawer(
+                  { workflow_id: record.id },
+                  { ...drawerProps, title: `Workflow: ${title}` }
+                );
+              }}
+            />
+          </Tooltip>
+          <Tooltip title="README">
+            <Button
+              type="text"
+              size="small"
+              icon={<FileTextOutlined />}
+              onClick={() => {
+                invoke.workflowReadme.drawer(
+                  { workflow_id: record.id },
+                  { ...drawerProps, title: `README: ${title}` }
+                );
+              }}
+            />
+          </Tooltip>
+          <Popconfirm
+            title="Delete this workflow?"
+            description="This workflow cannot be deleted if there are associated analysis records."
+            onConfirm={async () => {
+              await http.post(`/workflow/delete/${encodeURIComponent(String(record.id))}`);
+              message.success("Workflow deleted successfully");
+              refetch();
+            }}
+          >
+            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </span>
+      );
+    },
   };
 
   return (

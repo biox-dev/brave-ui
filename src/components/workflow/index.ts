@@ -2,9 +2,9 @@ import { registerLazyViews } from "@/core/component-registry";
 import type { InferViewRegistryFromLoaders } from "@/core/component-registry/registry-types";
 
 const viewLoaders = {
-    // Create/update a workflow. Rendered either in a modal via
+    // Create/update a workflow. Rendered either in a modal/drawer via
     // `invoke.createOrUpdateWorkflow.*` or inline by <ViewResolver
-    // view="createOrUpdateWorkflow" ... /> (workflow-panel "Edit Tools").
+    // view="createOrUpdateWorkflow" ... /> (workflow-panel "Edit").
     createOrUpdateWorkflow: () => import("./create-or-update-workflow"),
     relationDefinitionDAG: () => import('./relation-definition-dag'),
     'workflow-vis': () => import('./workflow-vis-component'),
