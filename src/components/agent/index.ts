@@ -8,6 +8,7 @@ const viewLoaders = {
     taskLLMRequestModal: () => import("./task-llm-request-modal"),
     agentChat: () => import("./agent-chat"),
     agentMemoryEditModal: () => import("./agent-memory-edit-modal"),
+    agentSkillEditModal: () => import("./agent-skill-edit-modal"),
     agentConfigModal: () => import("./agent-config-modal"),
     // 独立的 Profile 新建 / 编辑弹窗（只传 profileId，内部按 ID 查询回填）。
     agentProfileEditModal: () => import("./agent-profile-edit-modal"),

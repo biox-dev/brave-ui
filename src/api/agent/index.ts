@@ -70,12 +70,30 @@ export interface AgentEventItem {
   created_at: string;
 }
 
-// 技能（对应后端 skill.Manifest）。
+// 技能（对应后端 skill.Skill，即一份 SKILL.md）。
 export interface AgentSkillItem {
   name: string;
-  description?: string;
-  input_schema?: Record<string, unknown> | null;
-  version?: string;
+  description: string;
+  /** 是否允许用户主动调用（frontmatter user-invocable）。 */
+  user_invocable?: boolean;
+  /** 为 true 时不注入系统提示词的 <available_skills>（frontmatter disable-model-invocation）。 */
+  disable_model_invocation?: boolean;
+  /** 技能指令正文。 */
+  instructions?: string;
+  /** 技能目录。 */
+  path?: string;
+  /** SKILL.md 文件路径。 */
+  skill_file_path?: string;
+}
+
+// 创建 / 更新技能请求（对应后端 handler.skillSaveRequest）。
+export interface AgentSkillSaveRequest {
+  /** 原技能名；为空表示新建。 */
+  id?: string;
+  name: string;
+  description: string;
+  user_invocable?: boolean;
+  disable_model_invocation?: boolean;
   instructions?: string;
 }
 
@@ -261,6 +279,21 @@ export const describeAgentEnvApi = (env?: { id?: string; type?: string } | null)
 // 查看全部技能（内置 + 用户自定义）。
 export const listAgentSkillApi = () => {
   return http.get<AgentSkillItem[]>("/agent/skill/list");
+};
+
+// 查看单个技能（含指令正文），用于编辑回填。
+export const getAgentSkillApi = (id: string) => {
+  return http.get<AgentSkillItem>("/agent/skill/get", { params: { id } });
+};
+
+// 创建 / 更新技能：写回 SKILL.md 并热更新后端注册表，运行中即时生效。
+export const saveAgentSkillApi = (payload: AgentSkillSaveRequest) => {
+  return http.post<AgentSkillItem>("/agent/skill/save", payload);
+};
+
+// 删除用户技能（仅允许删除 .skills 目录内的技能）。
+export const deleteAgentSkillApi = (id: string) => {
+  return http.post<{ ok: boolean; id: string }>("/agent/skill/delete", { id });
 };
 
 // 当前用户的项目上下文（注入 Agent 系统提示词的背景文本块）。
