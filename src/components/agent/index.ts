@@ -9,6 +9,8 @@ const viewLoaders = {
     agentChat: () => import("./agent-chat"),
     agentMemoryEditModal: () => import("./agent-memory-edit-modal"),
     agentConfigModal: () => import("./agent-config-modal"),
+    // 独立的 Profile 新建 / 编辑弹窗（只传 profileId，内部按 ID 查询回填）。
+    agentProfileEditModal: () => import("./agent-profile-edit-modal"),
     // 复用 Agent Profile 页面作为 Profile 选择器（selectable=true 时显示 Select 按钮）。
     agentProfileSelect: () => import("@/pages/agent/agent-profile-page"),
 };

@@ -3,13 +3,8 @@ import {
   Button,
   Card,
   Flex,
-  Form,
-  Input,
-  Modal,
   Popconfirm,
-  Select,
   Space,
-  Switch,
   Table,
   Tag,
   Typography,
@@ -19,29 +14,13 @@ import { PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import {
   deleteAgentProfileApi,
   listAgentProfileApi,
-  listAgentSkillApi,
-  saveAgentProfileApi,
   type AgentProfileContext,
   type AgentProfileItem,
-  type AgentProfileSaveRequest,
-  type AgentSkillItem,
 } from "@/api/agent";
 import { getGlobalMessage } from "@/hooks/useGlobalMessage";
+import { invoke } from "@/core/ui-system/invokeV2";
 
 const { Text } = Typography;
-const { TextArea } = Input;
-
-interface ProfileFormValues {
-  name: string;
-  display_name?: string;
-  description?: string;
-  system_prompt?: string;
-  model?: string;
-  skills?: string[];
-  inject_memory?: boolean;
-  inject_project?: boolean;
-  is_default?: boolean;
-}
 
 const contextTags = (context?: AgentProfileContext) => (
   <Space size={4} wrap>
@@ -79,22 +58,13 @@ const AgentProfilePage = ({
   close,
 }: AgentProfilePageProps) => {
   const [data, setData] = useState<AgentProfileItem[]>([]);
-  const [skills, setSkills] = useState<AgentSkillItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<AgentProfileItem | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [form] = Form.useForm<ProfileFormValues>();
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [profilesRes, skillsRes] = await Promise.all([
-        listAgentProfileApi(),
-        listAgentSkillApi(),
-      ]);
-      setData(profilesRes.data ?? []);
-      setSkills(skillsRes.data ?? []);
+      const res = await listAgentProfileApi();
+      setData(res.data ?? []);
     } catch {
       // API errors are shown globally by the http interceptor.
     } finally {
@@ -106,62 +76,23 @@ const AgentProfilePage = ({
     load();
   }, [load]);
 
+  // 新建 / 编辑统一走独立的 Profile 编辑弹窗（只传 profileId，内部按 ID 查询回填）。
   const openCreate = () => {
-    setEditing(null);
-    form.resetFields();
-    form.setFieldsValue({
-      inject_memory: true,
-      inject_project: false,
-      is_default: false,
-    });
-    setModalOpen(true);
+    invoke.agentProfileEditModal
+      .openAsync({}, { title: "New Profile", footer: null, width: 560 })
+      .then(() => load())
+      .catch(() => {
+        // 用户取消，无需处理。
+      });
   };
 
   const openEdit = (record: AgentProfileItem) => {
-    setEditing(record);
-    form.setFieldsValue({
-      name: record.name,
-      display_name: record.display_name,
-      description: record.description,
-      system_prompt: record.system_prompt,
-      model: record.model,
-      skills: record.skills ?? [],
-      inject_memory: record.context?.inject_memory ?? true,
-      inject_project: record.context?.inject_project ?? false,
-      is_default: record.is_default ?? false,
-    });
-    setModalOpen(true);
-  };
-
-  const handleSubmit = async (values: ProfileFormValues) => {
-    const payload: AgentProfileSaveRequest = {
-      id: editing?.id,
-      name: values.name,
-      display_name: values.display_name,
-      description: values.description,
-      system_prompt: values.system_prompt,
-      model: values.model,
-      skills: values.skills ?? [],
-      context: {
-        inject_memory: values.inject_memory ?? true,
-        inject_project: values.inject_project ?? false,
-      },
-      is_default: values.is_default ?? false,
-    };
-
-    setSaving(true);
-    try {
-      await saveAgentProfileApi(payload);
-      getGlobalMessage()?.success(
-        editing ? "Profile updated successfully" : "Profile created successfully"
-      );
-      setModalOpen(false);
-      load();
-    } catch {
-      // API errors are shown globally by the http interceptor.
-    } finally {
-      setSaving(false);
-    }
+    invoke.agentProfileEditModal
+      .openAsync({ profileId: record.id }, { title: "Edit Profile", footer: null, width: 560 })
+      .then(() => load())
+      .catch(() => {
+        // 用户取消，无需处理。
+      });
   };
 
   const handleDelete = async (record: AgentProfileItem) => {
@@ -353,83 +284,6 @@ const AgentProfilePage = ({
           rowExpandable: (record) => Boolean(record.system_prompt),
         }}
       />
-
-      <Modal
-        title={editing ? "Edit Profile" : "New Profile"}
-        open={modalOpen}
-        onCancel={() => setModalOpen(false)}
-        onOk={() => form.submit()}
-        confirmLoading={saving}
-        okText="Save"
-        destroyOnClose
-      >
-        <Form<ProfileFormValues>
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-          style={{ marginTop: 12 }}
-        >
-          <Form.Item
-            name="name"
-            label="Name"
-            rules={[{ required: true, message: "Name is required" }]}
-          >
-            <Input placeholder="e.g. article_writer" />
-          </Form.Item>
-
-          <Form.Item name="display_name" label="Display Name">
-            <Input placeholder="Human readable name (optional)" />
-          </Form.Item>
-
-          <Form.Item name="description" label="Description">
-            <Input placeholder="Short description (optional)" />
-          </Form.Item>
-
-          <Form.Item name="model" label="Model">
-            <Input placeholder="Model name, e.g. deepseek-v4-flash (optional)" />
-          </Form.Item>
-
-          <Form.Item name="system_prompt" label="System Prompt">
-            <TextArea rows={4} placeholder="Base system prompt (optional)" />
-          </Form.Item>
-
-          <Form.Item name="skills" label="Skills">
-            <Select
-              mode="multiple"
-              allowClear
-              placeholder="Select skills to enable (empty = all)"
-              options={skills.map((s) => ({ label: s.name, value: s.name }))}
-            />
-          </Form.Item>
-
-          <Space size="large" wrap>
-            <Form.Item
-              name="inject_memory"
-              label="Inject Memory"
-              valuePropName="checked"
-              style={{ marginBottom: 8 }}
-            >
-              <Switch />
-            </Form.Item>
-            <Form.Item
-              name="inject_project"
-              label="Inject Project Context"
-              valuePropName="checked"
-              style={{ marginBottom: 8 }}
-            >
-              <Switch />
-            </Form.Item>
-            <Form.Item
-              name="is_default"
-              label="Set as Default"
-              valuePropName="checked"
-              style={{ marginBottom: 8 }}
-            >
-              <Switch />
-            </Form.Item>
-          </Space>
-        </Form>
-      </Modal>
     </Card>
   );
 };

@@ -245,6 +245,10 @@ export interface AgentEnvInfo {
   label?: string;
   working_dir?: string;
   system_prompt?: string;
+  /** 用于渲染系统提示词的 Profile 名称。 */
+  profile_name?: string;
+  /** 用于渲染系统提示词的 Profile ID（雪花 ID，后端以字符串返回）。 */
+  profile_id?: string;
 }
 
 // 解析当前对话的业务上下文，返回人类可读的名称与工作目录。
@@ -370,6 +374,11 @@ export interface AgentProfileSaveRequest {
 
 export const listAgentProfileApi = () => {
   return http.get<AgentProfileItem[]>("/agent/profile/list");
+};
+
+// 按 ID 查询单个 Agent Profile（内置 Profile 任意用户可读，自定义 Profile 仅限本人）。
+export const getAgentProfileApi = (id: string) => {
+  return http.get<AgentProfileItem>("/agent/profile/get", { params: { id } });
 };
 
 export const saveAgentProfileApi = (payload: AgentProfileSaveRequest) => {

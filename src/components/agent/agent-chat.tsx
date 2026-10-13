@@ -417,6 +417,22 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       });
   };
 
+  // 编辑当前上下文解析出的 Profile：通过 invoke 打开独立的 Profile 编辑弹窗，
+  // 只传 profile_id（弹窗内部按 ID 查询回填）。保存成功后刷新上下文，
+  // 因为 Profile 变化会影响系统提示词渲染。
+  const handleEditProfile = () => {
+    const profileId = envInfo?.profile_id;
+    if (!profileId) return;
+    invoke.agentProfileEditModal
+      .openAsync({ profileId }, { title: "Edit Profile", footer: null, width: 560 })
+      .then(() => {
+        void loadEnvInfo();
+      })
+      .catch(() => {
+        // 用户取消，无需处理。
+      });
+  };
+
   const handleSend = async () => {
     const text = input.trim();
     if (!text || sending) return;
@@ -494,7 +510,8 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
             {conversationId ? `Conversation: ${conversationId}` : "New conversation"}
           </Text> */}
           {envInfo?.label && (
-            <Popover placement="left" title={<div style={{ fontSize: 12, width: 300 }}>
+            <Space.Compact>
+              <Popover placement="left" title={<div style={{ fontSize: 12, width: 300 }}>
               {/* <div>{`Working dir: ${envInfo.working_dir || "(none)"}`}</div> */}
               {envInfo.type && <div>{`Type: ${envInfo.type}`}</div>}
               {conversationId && <div>{`Conversation ID: ${conversationId}`}</div>}
@@ -520,17 +537,30 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
                 </div>
               )}
             </div>}>
-              <Tag
-                color="processing"
-                icon={envLoading ? <LoadingOutlined spin /> : <ReloadOutlined />}
-                style={{ marginInlineEnd: 0, cursor: "pointer" }}
-                title="Click to refresh context"
+                <Tag
+                  color="processing"
+                  style={{ marginInlineEnd: 0, cursor: "pointer" }}
+                  title="Click to refresh context"
+                  onClick={() => void loadEnvInfo()}
+                >
+                  {envInfo.label}
+                </Tag>
+              </Popover>
+              <Button
+                size="small"
+                icon={<ReloadOutlined />}
+                loading={envLoading}
+                title="Refresh context"
                 onClick={() => void loadEnvInfo()}
-              >
-                {envInfo.label}
-              </Tag>
-              {/* {envInfo.type} */}
-            </Popover>
+              />
+              <Button
+                size="small"
+                icon={<EditOutlined />}
+                disabled={!envInfo.profile_id}
+                title={envInfo.profile_id ? "Edit profile" : "No profile bound"}
+                onClick={handleEditProfile}
+              />
+            </Space.Compact>
           )}
         </Flex>
         <Flex align="center" gap={8} style={{ flexShrink: 0 }}>
