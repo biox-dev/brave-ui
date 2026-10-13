@@ -696,7 +696,9 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
                         whiteSpace: "pre-wrap",
                         wordBreak: "break-word",
                       }
-                      : undefined
+                      // 助手气泡按百分比取宽，需要一个确定的可用宽度作参照，否则折叠
+                      // 时的 nowrap 预览会把容器撑宽。
+                      : { flex: 1, minWidth: 0 }
                   }
                 >
                   {m.role === "assistant" ? (
