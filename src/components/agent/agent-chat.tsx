@@ -39,6 +39,7 @@ import { setUserItem } from "@/store/userSlice";
 import { invoke } from "@/core/ui-system/invokeV2";
 import AgentTaskStream from "./agent-task-stream";
 import { renderAssistantMessage } from "./agent-message-render";
+import UnifiedDiff from "@/components/common/unified-diff";
 
 const { Text } = Typography;
 
@@ -256,6 +257,12 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   const renderOperation = (op: AgentPermissionItem["operation"]) => {
     if (!op) return "-";
     return op.path || op.command || op.content || "-";
+  };
+
+  // 从 Operation.Metadata 提取 diff（opencode edit / write 权限请求透传，供批准前查看）。
+  const operationDiff = (op: AgentPermissionItem["operation"]): string => {
+    const value = op?.metadata?.diff;
+    return typeof value === "string" ? value : "";
   };
 
   // 切换会话：加载对应消息；若存在活跃轮次则恢复实时流。
@@ -768,12 +775,12 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
           </Flex>
           {pendingPermissions.map((perm) => {
             const pendingLoading = resolvingId === perm.id;
+            const diff = operationDiff(perm.operation);
             return (
               <Flex
                 key={perm.id}
-                align="center"
-                justify="space-between"
-                gap={8}
+                vertical
+                gap={6}
                 style={{
                   background: "#ffffff",
                   border: "1px solid #ffe58f",
@@ -781,37 +788,41 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
                   padding: "6px 10px",
                 }}
               >
-                <Flex vertical gap={2} style={{ minWidth: 0, flex: 1 }}>
-                  <Text strong style={{ fontSize: 13 }}>
-                    {perm.operation?.type || "Permission"}
-                  </Text>
-                  <Text
-                    type="secondary"
-                    style={{ fontSize: 12, wordBreak: "break-all" }}
-                  >
-                    {renderOperation(perm.operation)}
-                  </Text>
+                <Flex align="center" justify="space-between" gap={8}>
+                  <Flex vertical gap={2} style={{ minWidth: 0, flex: 1 }}>
+                    <Text strong style={{ fontSize: 13 }}>
+                      {perm.operation?.type || "Permission"}
+                    </Text>
+                    <Text
+                      type="secondary"
+                      style={{ fontSize: 12, wordBreak: "break-all" }}
+                    >
+                      {renderOperation(perm.operation)}
+                    </Text>
+                  </Flex>
+                  <Space size={4}>
+                    <Button
+                      type="primary"
+                      size="small"
+                      onClick={() => handleApprove(perm)}
+                      icon={<CheckOutlined />}
+                      loading={pendingLoading}
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      danger
+                      size="small"
+                      onClick={() => handleDeny(perm)}
+                      icon={<CloseOutlined />}
+                      loading={pendingLoading}
+                    >
+                      Deny
+                    </Button>
+                  </Space>
                 </Flex>
-                <Space size={4}>
-                  <Button
-                    type="primary"
-                    size="small"
-                    onClick={() => handleApprove(perm)}
-                    icon={<CheckOutlined />}
-                    loading={pendingLoading}
-                  >
-                    Approve
-                  </Button>
-                  <Button
-                    danger
-                    size="small"
-                    onClick={() => handleDeny(perm)}
-                    icon={<CloseOutlined />}
-                    loading={pendingLoading}
-                  >
-                    Deny
-                  </Button>
-                </Space>
+                {/* 有 diff 时在批准前展示改动，便于用户据 diff 决策。 */}
+                {diff && <UnifiedDiff diff={diff} maxHeight={240} />}
               </Flex>
             );
           })}

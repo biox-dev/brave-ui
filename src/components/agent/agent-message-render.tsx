@@ -2,6 +2,7 @@ import { CSSProperties, ReactNode, useState } from "react";
 import { Tag, Typography } from "antd";
 import { CaretRightOutlined } from "@ant-design/icons";
 import XMarkdown from "@ant-design/x-markdown";
+import UnifiedDiff from "@/components/common/unified-diff";
 
 const { Text } = Typography;
 
@@ -44,6 +45,38 @@ function pretty(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+/**
+ * opencode 的 edit / write 工具会把 diff 放进工具结果的 metadata 里
+ * （`EditResponseMetadata` / `WriteResponseMetadata` 序列化后的 JSON 字符串）。
+ * 后端 custom provider 已原样透传，前端只需解析展示。
+ */
+interface ToolDiffMetadata {
+  diff: string;
+  additions?: number;
+  removals?: number;
+}
+
+function parseToolDiff(metadata: unknown): ToolDiffMetadata | null {
+  if (typeof metadata !== "string" || metadata.trim() === "") return null;
+  try {
+    const parsed = JSON.parse(metadata) as Record<string, unknown>;
+    if (typeof parsed.diff !== "string" || parsed.diff === "") return null;
+    return {
+      diff: parsed.diff,
+      additions: typeof parsed.additions === "number" ? parsed.additions : undefined,
+      removals: typeof parsed.removals === "number" ? parsed.removals : undefined,
+    };
+  } catch {
+    // metadata 不是 JSON（如原生工具），退化为纯文本展示。
+    return null;
+  }
+}
+
+function formatDiffStat(meta: ToolDiffMetadata): string {
+  if (meta.additions === undefined && meta.removals === undefined) return "";
+  return `+${meta.additions ?? 0} -${meta.removals ?? 0}`;
 }
 
 /** 统一的气泡容器，避免各分支重复内联样式。 */
@@ -103,15 +136,18 @@ function CollapsibleBubble({
   content,
   tone,
   isError = false,
+  body,
 }: {
   label: string;
   name: string;
   content: string;
   tone: Tone;
   isError?: boolean;
+  /** 展开时渲染的自定义正文；缺省时回退为 content 纯文本。 */
+  body?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const collapsible = content.length > 0;
+  const collapsible = content.length > 0 || !!body;
   const accent = isError ? "#ff4d4f" : "#8c8c8c";
 
   return (
@@ -143,7 +179,15 @@ function CollapsibleBubble({
 
       {collapsible &&
         (open ? (
-          <div style={{ ...PANEL_BODY_STYLE, color: isError ? "#ff4d4f" : "#595959" }}>{content}</div>
+          <div
+            style={
+              body
+                ? { ...PANEL_BODY_STYLE, padding: 0 }
+                : { ...PANEL_BODY_STYLE, color: isError ? "#ff4d4f" : "#595959" }
+            }
+          >
+            {body ?? content}
+          </div>
         ) : (
           <Text type="secondary" ellipsis style={{ display: "block", marginTop: 4, fontSize: 12 }}>
             {content}
@@ -189,11 +233,28 @@ export function renderAssistantMessage(message: AgentRenderableMessage): ReactNo
   if (kind === "tool_result" || kind === "skill_result") {
     const data = asRecord(message.data);
     const isError = !!data?.is_error;
+    const diffMeta = isError ? null : parseToolDiff(data?.metadata);
+    const rawContent = typeof data?.content === "string" ? data.content : message.content;
+
+    // 带 diff 的工具结果（edit / write）：展开后用 diff 样式渲染。
+    if (diffMeta) {
+      const stat = formatDiffStat(diffMeta);
+      return (
+        <CollapsibleBubble
+          label={kind === "tool_result" ? "Tool Result" : "Skill Result"}
+          name={typeof data?.name === "string" ? data.name : kind}
+          content={stat ? `${stat}  ${rawContent}`.trim() : rawContent}
+          body={<UnifiedDiff diff={diffMeta.diff} bordered={false} />}
+          tone="result"
+        />
+      );
+    }
+
     return (
       <CollapsibleBubble
         label={kind === "tool_result" ? "Tool Result" : "Skill Result"}
         name={typeof data?.name === "string" ? data.name : kind}
-        content={typeof data?.content === "string" ? data.content : message.content}
+        content={rawContent}
         tone={isError ? "error" : "result"}
         isError={isError}
       />

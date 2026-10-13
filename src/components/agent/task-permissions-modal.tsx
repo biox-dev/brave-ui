@@ -8,10 +8,18 @@ import {
   denyAgentPermissionApi,
   getAgentPendingPermissionsApi,
   type AgentPermissionItem,
+  type AgentOperation,
 } from "@/api/agent";
 import { getGlobalMessage } from "@/hooks/useGlobalMessage";
+import UnifiedDiff from "@/components/common/unified-diff";
 
 const { Text } = Typography;
+
+// 从 Operation.Metadata 提取 diff（opencode edit / write 权限请求透传）。
+const operationDiff = (op?: AgentOperation | null): string => {
+  const value = op?.metadata?.diff;
+  return typeof value === "string" ? value : "";
+};
 
 const formatTime = (value?: string | null) => (value ? new Date(value).toLocaleString() : "-");
 
@@ -61,6 +69,15 @@ const createColumns = ({ onApprove, onDeny, resolvingId }: ActionHandlers): Colu
       const op = record.operation;
       if (!op) return "-";
       return op.path || op.command || op.content || "-";
+    },
+  },
+  {
+    title: "Diff",
+    key: "diff",
+    width: 360,
+    render: (_: unknown, record) => {
+      const diff = operationDiff(record.operation);
+      return diff ? <UnifiedDiff diff={diff} maxHeight={200} /> : "-";
     },
   },
   {
@@ -193,7 +210,7 @@ const TaskPermissionsModal: FC<TaskPermissionsModalProps> = ({ taskId, onCancel 
         dataSource={perms}
         loading={loading}
         size="small"
-        scroll={{ x: 800, y: 320 }}
+        scroll={{ x: 1100, y: 320 }}
         locale={{ emptyText: error ? "Failed to load permissions" : "No pending permissions" }}
         pagination={false}
       />
