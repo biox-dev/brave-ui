@@ -214,6 +214,11 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
     return <Skeleton active paragraph={{ rows: 8 }} />;
   }
 
+  // 预览区是否有可见内容（渲染后的 system_prompt 或 vars）。
+  const hasPreview =
+    !!renderInfo?.system_prompt ||
+    (!!renderInfo?.vars && Object.keys(renderInfo.vars).length > 0);
+
   return (
     <Form<ProfileFormValues>
       form={form}
@@ -237,17 +242,39 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
         <Input placeholder="Model name, e.g. deepseek-v4-flash (optional)" />
       </Form.Item>
 
-      <Form.Item name="system_prompt" label="System Prompt">
-        <TextArea rows={4} placeholder="Base system prompt (optional)" />
+      <Form.Item
+        name="system_prompt"
+        label="System Prompt"
+        tooltip={{
+          title: (
+            <span>
+              pongo2 模板，可用变量如 <code>{"{{ workspace_directory }}"}</code>、
+              <code>{"{{ workspace_label }}"}</code>；下方预览为渲染后的真实提示词。
+            </span>
+          ),
+        }}
+        style={{ marginBottom: 28 }}
+      >
+        <TextArea
+          placeholder={"Base system prompt (pongo2 template, optional)\ne.g. 当前工作目录：{{ workspace_directory }}"}
+          autoSize={{ minRows: 6, maxRows: 18 }}
+          showCount
+          spellCheck={false}
+          style={{
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+            fontSize: 13,
+            lineHeight: 1.6,
+            whiteSpace: "pre-wrap",
+          }}
+        />
       </Form.Item>
 
       {/* 业务上下文预览（只读）：展示渲染系统提示词所用的 vars 与渲染后的 system_prompt。 */}
-      {(renderInfo?.system_prompt ||
-        (renderInfo?.vars && Object.keys(renderInfo.vars).length > 0)) && (
+      {hasPreview && (
         <div
           style={{
             marginBottom: 16,
-            padding: "8px 12px",
+            padding: "10px 12px",
             border: "1px solid #f0f0f0",
             borderRadius: 8,
             background: "#fafafa",
@@ -257,12 +284,24 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
             <Text strong style={{ fontSize: 13 }}>
               Context Preview
             </Text>
-            <Button size="small" type="link" onClick={handleRefreshEnv} loading={refreshingEnv}>
-              Refresh
-            </Button>
+            <Space size="small">
+              {/* 仅保存 system_prompt 并刷新上下文预览，不关闭弹窗。 */}
+              <Button
+                size="small"
+                type="link"
+                onClick={handleSavePrompt}
+                loading={savingPrompt}
+                disabled={!editing?.id}
+              >
+                Save Prompt
+              </Button>
+              <Button size="small" type="link" onClick={handleRefreshEnv} loading={refreshingEnv}>
+                Refresh
+              </Button>
+            </Space>
           </Flex>
 
-          {renderInfo?.vars && Object.keys(renderInfo.vars).length > 0 && (
+          {!!renderInfo?.vars && Object.keys(renderInfo.vars).length > 0 && (
             <div style={{ marginTop: 6 }}>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 Vars
@@ -275,7 +314,8 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
                   whiteSpace: "pre-wrap",
                   wordBreak: "break-word",
                   fontSize: 12,
-                  fontFamily: "monospace",
+                  color: "#595959",
+                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
                 }}
               >
                 {JSON.stringify(renderInfo.vars, null, 2)}
@@ -344,14 +384,7 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
 
       <Flex justify="end" gap="small">
         <Button onClick={handleClose}>Cancel</Button>
-        {/* 仅保存 system_prompt 并刷新上下文预览，不关闭弹窗。 */}
-        <Button
-          onClick={handleSavePrompt}
-          loading={savingPrompt}
-          disabled={!editing?.id}
-        >
-          Save Prompt
-        </Button>
+
         <Button type="primary" htmlType="submit" loading={saving}>
           {isEdit ? "Save" : "Create"}
         </Button>
