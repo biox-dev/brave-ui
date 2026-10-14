@@ -571,61 +571,129 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
 
   return (
     <Flex vertical style={{ height: "100%", minHeight: 480 }}>
-      {/* 头部 */}
+      {/* 头部：拆成两行，避免单行信息过载。
+          第一行 = 身份 / 上下文（业务上下文 + 运行状态 + 当前 Profile）；
+          第二行 = 会话导航（切换下拉 + 刷新）与全局操作（Close / New Chat）。 */}
       <Flex
-        align="center"
-        justify="space-between"
-        gap={12}
-        style={{ height: 40, flexShrink: 0, marginBottom: 8 }}
+        vertical
+        gap={10}
+        style={{
+          flexShrink: 0,
+          paddingBottom: 10,
+          marginBottom: 12,
+          borderBottom: "1px solid #f0f0f0",
+        }}
       >
-        <Flex align="center" gap={8} style={{ minWidth: 0 }}>
-          {/* <Text type="secondary" style={{ fontSize: 12 }}>
-            {conversationId ? `Conversation: ${conversationId}` : "New conversation"}
-          </Text> */}
-          {envInfo?.label && (
-            <Space.Compact>
-              <Button
-                size="small"
-                icon={<FileTextOutlined />}
-                title="View system prompt"
-                onClick={handleViewSystemPrompt}
-              >
-                {envInfo.label}
-              </Button>
-              <Button
-                size="small"
-                icon={<ReloadOutlined />}
-                loading={envLoading}
-                title="Refresh context"
-                onClick={() => void loadEnvInfo()}
-              />
-              <Button
-                size="small"
-                icon={<EditOutlined />}
-                disabled={!envInfo.profile_id}
-                title={envInfo.profile_id ? "Edit profile" : "No profile bound"}
-                onClick={handleEditProfile}
-              />
-            </Space.Compact>
-          )}
-        </Flex>
-        <Flex align="center" gap={8} style={{ flexShrink: 0 }}>
-          <Tag
-            color={currentProfileId ? "processing" : "default"}
-            icon={<EditOutlined />}
-            style={{ cursor: "pointer", marginInlineEnd: 0 }}
-            onClick={handleProfileChange}
-          >
-            {currentProfileName || "Default profile"}
-          </Tag>
-          {sending && (
-            <Flex align="center" gap={8}>
-              <Spin size="small" indicator={<LoadingOutlined spin />} />
+        {/* 第一行：左侧业务上下文与运行状态，右侧当前 Profile */}
+        <Flex align="center" justify="space-between" gap={12}>
+          <Flex align="center" gap={8} style={{ minWidth: 0, flex: 1 }}>
+            {envInfo?.label ? (
+              <Space.Compact style={{ minWidth: 0 }}>
+                <Button
+                  size="small"
+                  icon={<FileTextOutlined />}
+                  title="View system prompt"
+                  onClick={handleViewSystemPrompt}
+                  style={{ maxWidth: 280, minWidth: 0 }}
+                >
+                  <span
+                    style={{
+                      display: "inline-block",
+                      maxWidth: 220,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      verticalAlign: "bottom",
+                    }}
+                  >
+                    {envInfo.label}
+                  </span>
+                </Button>
+                <Button
+                  size="small"
+                  icon={<ReloadOutlined />}
+                  loading={envLoading}
+                  title="Refresh context"
+                  onClick={() => void loadEnvInfo()}
+                />
+                <Button
+                  size="small"
+                  icon={<EditOutlined />}
+                  disabled={!envInfo.profile_id}
+                  title={envInfo.profile_id ? "Edit profile" : "No profile bound"}
+                  onClick={handleEditProfile}
+                />
+              </Space.Compact>
+            ) : (
               <Text type="secondary" style={{ fontSize: 12 }}>
-                {waiting ? "Waiting for permission…" : "Agent is running…"}
+                No context bound
               </Text>
-            </Flex>
-          )}
+            )}
+            {sending && (
+              <Flex align="center" gap={6} style={{ minWidth: 0, overflow: "hidden" }}>
+                <Spin size="small" indicator={<LoadingOutlined spin />} />
+                <Text type="secondary" style={{ fontSize: 12, whiteSpace: "nowrap" }}>
+                  {waiting ? "Waiting for permission…" : "Agent is running…"}
+                </Text>
+              </Flex>
+            )}
+          </Flex>
+          <Flex align="center" gap={8} style={{ flexShrink: 0 }}>
+            <Tag
+              color={currentProfileId ? "processing" : "default"}
+              icon={<EditOutlined />}
+              style={{ cursor: "pointer", marginInlineEnd: 0 }}
+              onClick={handleProfileChange}
+            >
+              {currentProfileName || "Default profile"}
+            </Tag>
+          </Flex>
+        </Flex>
+
+        {/* 第二行：会话切换下拉 + 刷新 + 全局操作 */}
+        <Flex align="center" gap="small">
+          <Select
+            value={conversationId}
+            placeholder="Select a conversation"
+            onChange={(id) => {
+              if (!id) {
+                handleClear();
+                return;
+              }
+              handleSwitchConversation(id);
+            }}
+            loading={loadingConversations}
+            allowClear
+            size="small"
+            showSearch
+            optionFilterProp="label"
+            style={{ flex: 1 }}
+            options={conversations.map((c) => ({
+              value: c.id,
+              label: (
+                <Flex align="center" gap={6} style={{ width: "100%" }}>
+                  <span
+                    style={{
+                      flex: 1,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {conversationLabel(c)}
+                  </span>
+                  {isValidTaskId(c.current_task_id) && <Badge status="processing" />}
+                </Flex>
+              ),
+            }))}
+          />
+          <Button
+            size="small"
+            icon={<ReloadOutlined />}
+            title="Refresh conversations"
+            onClick={loadConversations}
+            loading={loadingConversations}
+          />
           {onCancel && (
             <Button size="small" onClick={onCancel}>
               Close
@@ -636,57 +704,6 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
           </Button>
         </Flex>
       </Flex>
-
-      {/* Profile：显示当前用户的 Agent Profile，点击打开配置弹窗修改 */}
-
-
-      {/* 会话切换下拉 + 刷新 */}
-      <Flex gap="small" style={{ marginBottom: 8 }}>
-        <Select
-          value={conversationId}
-          placeholder="Select a conversation"
-          onChange={(id) => {
-            if (!id) {
-              handleClear();
-              return;
-            }
-            handleSwitchConversation(id);
-          }}
-          loading={loadingConversations}
-          allowClear
-          showSearch
-          optionFilterProp="label"
-          style={{ flex: 1 }}
-          options={conversations.map((c) => ({
-            value: c.id,
-            label: (
-              <Flex align="center" gap={6} style={{ width: "100%" }}>
-                <span
-                  style={{
-                    flex: 1,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {conversationLabel(c)}
-                </span>
-                {isValidTaskId(c.current_task_id) && <Badge status="processing" />}
-              </Flex>
-            ),
-          }))}
-        />
-        <Button
-          size="small"
-          icon={<ReloadOutlined />}
-          onClick={loadConversations}
-          loading={loadingConversations}
-        />
-      </Flex>
-
-      {/* 运行中 / 等待权限状态提示 */}
-
-
 
       {/* 消息区域：历史消息气泡始终展示；存在进行中的任务（currentTaskId）时，
           最后一条 assistant 回复位置替换为该任务的实时事件流（AgentTaskStream），
