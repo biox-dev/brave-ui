@@ -1,6 +1,6 @@
 import { addLiteratureApi, updateLiteratureApi, type ProjectLiteratureDetailItem } from "@/api/project";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
-import { Button, Form, Input, Select, Space } from "antd";
+import { Button, Form, Input, Space } from "antd";
 import { FC, useEffect, useMemo } from "react";
 
 type Mode = "create" | "update";
@@ -30,8 +30,6 @@ const ProjectLiteratureItemForm: FC<ProjectLiteratureItemFormProps> = ({
       form.setFieldsValue({
         title: literature.title,
         content: literature.content || "",
-        content_source: literature.content_source || "file",
-        filename: literature.filename || "fulltext.md",
       });
       return;
     }
@@ -39,8 +37,6 @@ const ProjectLiteratureItemForm: FC<ProjectLiteratureItemFormProps> = ({
     form.setFieldsValue({
       title: "",
       content: "",
-      content_source: "file",
-      filename: "fulltext.md",
     });
   }, [currentMode, form, literature]);
 
@@ -51,8 +47,6 @@ const ProjectLiteratureItemForm: FC<ProjectLiteratureItemFormProps> = ({
       const resp = await addLiteratureApi({
         title: values.title,
         content: values.content || "",
-        content_source: values.content_source,
-        filename: values.filename,
       });
       message.success("Created successfully");
       onOk?.(resp.data);
@@ -68,8 +62,6 @@ const ProjectLiteratureItemForm: FC<ProjectLiteratureItemFormProps> = ({
       id: literature.id,
       title: values.title,
       content: values.content || "",
-      content_source: values.content_source,
-      filename: values.filename,
     });
     message.success("Updated successfully");
     onOk?.(true);
@@ -82,21 +74,8 @@ const ProjectLiteratureItemForm: FC<ProjectLiteratureItemFormProps> = ({
           <Input placeholder="Input literature title" />
         </Form.Item>
 
-        <Form.Item label="Content Source" name="content_source" rules={[{ required: true, message: "Please select content source" }]}>
-          <Select
-            options={[
-              { label: "File", value: "file" },
-              { label: "Database", value: "database" },
-            ]}
-          />
-        </Form.Item>
-
-        <Form.Item label="Filename" name="filename" rules={[{ required: true, message: "Please input filename" }]}>
-          <Input placeholder="fulltext.md" />
-        </Form.Item>
-
         <Form.Item label="Full Text" name="content">
-          <Input.TextArea rows={6} placeholder="Full text content (only persisted for file source)" />
+          <Input.TextArea rows={6} placeholder="Full text content (stored as literature.md)" />
         </Form.Item>
       </Form>
 

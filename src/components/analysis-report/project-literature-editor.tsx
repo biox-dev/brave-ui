@@ -23,8 +23,6 @@ const ProjectLiteratureEditor: FC<any> = ({ literature, onSaved }) => {
       id: literature.id,
       title: literature.title,
       content: values.content || "",
-      content_source: literature.content_source,
-      filename: literature.filename,
     });
     message.success("Saved");
     onSaved?.();

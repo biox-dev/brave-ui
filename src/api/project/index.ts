@@ -257,17 +257,13 @@ export const publishProjectReportToDocApi = (reportId: string) =>
 
 export interface ProjectLiteratureItem {
 	id: string;
-	owner_project_id?: string;
 	title: string;
-	source?: string;
-	filename?: string;
 	created_at: string;
 	updated_at: string;
 }
 
 export interface ProjectLiteratureDetailItem extends ProjectLiteratureItem {
 	content: string;
-	content_source?: string;
 }
 
 export interface ProjectLiteraturePoolItem extends ProjectLiteratureItem {
@@ -277,16 +273,12 @@ export interface ProjectLiteraturePoolItem extends ProjectLiteratureItem {
 export interface AddLiteratureRequest {
 	title: string;
 	content?: string;
-	content_source?: string;
-	filename?: string;
 }
 
 export interface UpdateLiteratureRequest {
 	id: string;
 	title: string;
 	content?: string;
-	content_source?: string;
-	filename?: string;
 }
 
 export interface DeleteLiteratureRequest {
