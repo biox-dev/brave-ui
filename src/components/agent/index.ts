@@ -10,6 +10,8 @@ const viewLoaders = {
     agentMemoryEditModal: () => import("./agent-memory-edit-modal"),
     agentSkillEditModal: () => import("./agent-skill-edit-modal"),
     agentConfigModal: () => import("./agent-config-modal"),
+    // 用 Markdown 展示当前上下文渲染后的 system_prompt（只读）。
+    agentSystemPromptModal: () => import("./agent-system-prompt-modal"),
     // 独立的 Profile 新建 / 编辑弹窗（只传 profileId，内部按 ID 查询回填）。
     agentProfileEditModal: () => import("./agent-profile-edit-modal"),
     // 复用 Agent Profile 页面作为 Profile 选择器（selectable=true 时显示 Select 按钮）。

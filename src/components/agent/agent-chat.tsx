@@ -5,6 +5,7 @@ import {
   ClearOutlined,
   CloseOutlined,
   EditOutlined,
+  FileTextOutlined,
   LoadingOutlined,
   QuestionCircleOutlined,
   ReloadOutlined,
@@ -39,7 +40,6 @@ import {
 import { getGlobalMessage } from "@/hooks/useGlobalMessage";
 import { sseClient } from "@/sse";
 import { useDispatch, useSelector } from "react-redux";
-import { Popover } from "antd/lib";
 import { getCurrentUserApi, type AgentUserConfig } from "@/api/auth";
 import { setUserItem } from "@/store/userSlice";
 import { invoke } from "@/core/ui-system/invokeV2";
@@ -472,6 +472,14 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       });
   };
 
+  // 查看当前上下文渲染后的 system_prompt：通过 invoke 弹窗以 Markdown 展示。
+  const handleViewSystemPrompt = () => {
+    invoke.agentSystemPromptModal.open(
+      { envInfo },
+      { title: "System prompt", width: 800, footer: null }
+    );
+  };
+
   // 编辑当前上下文解析出的 Profile：通过 invoke 打开独立的 Profile 编辑弹窗，
   // 只传 profile_id（弹窗内部按 ID 查询回填）。保存成功后刷新上下文，
   // 因为 Profile 变化会影响系统提示词渲染。
@@ -576,41 +584,14 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
           </Text> */}
           {envInfo?.label && (
             <Space.Compact>
-              <Popover placement="left" title={<div style={{ fontSize: 12, width: 300 }}>
-              {/* <div>{`Working dir: ${envInfo.working_dir || "(none)"}`}</div> */}
-              {envInfo.type && <div>{`Type: ${envInfo.type}`}</div>}
-              {conversationId && <div>{`Conversation ID: ${conversationId}`}</div>}
-              {currentTaskId && <div>{`Current task ID: ${currentTaskId}`}</div>}
-              <hr />
-              {envInfo.system_prompt && (
-                <div style={{ width: 300 }}>
-                  <div style={{ marginBottom: 4 }}>System prompt:</div>
-                  <pre
-                    style={{
-                      margin: 0,
-                      width: 300,
-                      maxHeight: 200,
-                      overflow: "auto",
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
-                      fontSize: 12,
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    {envInfo.system_prompt}
-                  </pre>
-                </div>
-              )}
-            </div>}>
-                <Tag
-                  color="processing"
-                  style={{ marginInlineEnd: 0, cursor: "pointer" }}
-                  title="Click to refresh context"
-                  onClick={() => void loadEnvInfo()}
-                >
-                  {envInfo.label}
-                </Tag>
-              </Popover>
+              <Button
+                size="small"
+                icon={<FileTextOutlined />}
+                title="View system prompt"
+                onClick={handleViewSystemPrompt}
+              >
+                {envInfo.label}
+              </Button>
               <Button
                 size="small"
                 icon={<ReloadOutlined />}
