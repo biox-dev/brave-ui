@@ -9,7 +9,7 @@ import { useProjectReportPageQuery } from "@/hooks/usePaginationV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { formatRelativeTime } from "@/utils/time";
-import { DeleteOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined, SendOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, EyeOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined, SendOutlined } from "@ant-design/icons";
 import { Button, Empty, Pagination, Popconfirm, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo, useState } from "react";
@@ -30,7 +30,8 @@ const ProjectReportList: FC<any> = () => {
   // Derive the selected report id from the current route so the selection
   // survives a full page refresh.
   const selectedId = useMemo(() => {
-    const match = location.pathname.match(/\/report\/([^/]+)/);
+    // 同时匹配 /report/:id 与 /report-file/:id，两种路由下对应行都保持高亮。
+    const match = location.pathname.match(/\/(?:report-file|report)\/([^/]+)/);
     return match ? decodeURIComponent(match[1]) : undefined;
   }, [location.pathname]);
 
@@ -142,13 +143,22 @@ const ProjectReportList: FC<any> = () => {
       {
         title: "Actions",
         key: "actions",
-        width: 88,
+        width: 148,
         align: "right",
       render: (_, record) => (
         <span
           className="project-report-item-actions"
           onClick={(e) => e.stopPropagation()}
         >
+          {/* 原先由 onRow 点击触发的跳转，改为列表内显式按钮。 */}
+          <Tooltip title="Open report">
+            <Button
+              type="text"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => navigate(`/report/${record.id}`)}
+            />
+          </Tooltip>
           <Button
             type="text"
             size="small"
@@ -201,9 +211,27 @@ const ProjectReportList: FC<any> = () => {
             loading={isLoading || isFetching}
             pagination={false}
             showHeader={false}
+            // 点击行跳转到报告文件页面；展开图标单独阻止冒泡以免误触发跳转。
+            onRow={(record) => ({
+              style: { cursor: "pointer" },
+              onClick: () => navigate(`/report-file/${record.id}`),
+            })}
             expandable={{
               expandedRowKeys,
               onExpandedRowsChange: (keys) => setExpandedRowKeys(keys as string[]),
+              expandIcon: ({ expanded, onExpand, record }) => (
+                <span
+                  className={
+                    expanded
+                      ? "ant-table-row-expand-icon ant-table-row-expand-icon-expanded"
+                      : "ant-table-row-expand-icon ant-table-row-expand-icon-collapsed"
+                  }
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onExpand(record, e);
+                  }}
+                />
+              ),
               expandedRowRender: (record) => (
                 <ProjectReportItemsPanel
                   reportId={record.id}
@@ -215,9 +243,6 @@ const ProjectReportList: FC<any> = () => {
             rowClassName={(record) =>
               record.id === selectedId ? "project-report-row-selected" : ""
             }
-            onRow={(record) => ({
-              onClick: () => navigate(`/report/${record.id}`),
-            })}
           />
         )}
       </div>

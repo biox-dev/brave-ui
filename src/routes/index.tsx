@@ -59,6 +59,7 @@ const PipelineComponentsCard = lazy(() => import('@/components/pipeline-componen
 const SoftwareAnalysisEditor = lazy(() => import('@/pages/software-analysis-editor'));
 const AnalysisReport = lazy(() => import('@/pages/page-route/analsyis-report'));
 const ReportWriting = lazy(() => import('@/pages/page-route/report-writing'));
+const ReportFile = lazy(() => import('@/pages/page-route/report-file'));
 const LiteratureWriting = lazy(() => import('@/pages/page-route/literature-writing'));
 const AnalysisNodeReport = lazy(() => import('@/pages/page-route/analysis-node-report'));
 
@@ -193,6 +194,9 @@ if (appType == "index") {
         },{
             path: "/report/:project-report-id",
             element: <ReportWriting />        },{
+            path: "/report-file/:report-id",
+            element: <ReportFile />
+        },{
             path: "/report-item/:item-id",
             element: <ReportWriting />
         },{

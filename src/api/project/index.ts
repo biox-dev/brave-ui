@@ -161,6 +161,13 @@ export interface ProjectReportItemContentResponse {
 	owner_type?: ProjectReportItemOwnerType;
 }
 
+// ProjectReportFileResponse 是报告自身文件（工作目录下的 output.md）的内容。
+export interface ProjectReportFileResponse {
+	report_id: string;
+	filename: string;
+	content: string;
+}
+
 export interface ProjectReportPageQuery {
 	// Reserved for future filters.
 }
@@ -201,6 +208,14 @@ export const pageProjectReportApi = (payload: ProjectReportPageRequest) => http.
 export const getProjectReportDetailApi = (id: string) => http.get<ProjectReportDetail>(`/project/project-report-detail?id=${encodeURIComponent(id)}`)
 export const getProjectReportContentApi = (reportId: string) =>
 	http.get<ProjectReportContentResponse>(`/project/project-report-content?report_id=${encodeURIComponent(reportId)}`)
+
+// getProjectReportFileApi 读取报告工作目录下的自身 markdown 文件（output.md）。
+export const getProjectReportFileApi = (reportId: string) =>
+	http.get<ProjectReportFileResponse>(`/project/project-report-file?report_id=${encodeURIComponent(reportId)}`)
+
+// updateProjectReportFileApi 覆写报告工作目录下的自身 markdown 文件（output.md）。
+export const updateProjectReportFileApi = (payload: { report_id: string; content: string }) =>
+	http.post<{ message: string }>("/project/update-project-report-file", payload)
 
 // getProjectReportHtmlApi 返回报告聚合后的独立 HTML 文档字符串。
 // inlineImages=true 时图片以 base64 内嵌（自包含），false 时保留原始 URL。

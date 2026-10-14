@@ -5,6 +5,7 @@ import type { InferViewRegistryFromLoaders } from "@/core/component-registry/reg
 const viewLoaders = {
     analysisDocView: () => import("./analysis-doc-view"),
     projectReportItemForm: () => import("./project-report-item-form"),
+    projectReportFileEditor: () => import("./project-report-file-editor"),
     projectLiteratureItemForm: () => import("./project-literature-item-form"),
     projectLiteratureEditor: () => import("./project-literature-editor"),
     projectLiteratureBindForm: () => import("./project-literature-bind-form"),
