@@ -1,6 +1,15 @@
-import { Alert, Empty, Segmented, Spin, Tag, Tooltip } from "antd"
-import { FC, useEffect, useState } from "react"
-import { getGitDiffApi, type GitDiffFile, type GitDiffFileStatus, type GitDiffResponse, type GitDiffSection } from "@/api/pipeline/git"
+import { Alert, Button, Empty, Popconfirm, Segmented, Spin, Tag, Tooltip } from "antd"
+import { UndoOutlined } from "@ant-design/icons"
+import { FC, useCallback, useEffect, useRef, useState } from "react"
+import {
+	getGitDiffApi,
+	revertGitFileApi,
+	type GitDiffFile,
+	type GitDiffFileStatus,
+	type GitDiffResponse,
+	type GitDiffSection,
+} from "@/api/pipeline/git"
+import { useGlobalMessage } from "@/hooks/useGlobalMessage"
 import { useI18n } from "@/hooks/useI18n"
 
 /**
@@ -12,6 +21,9 @@ import { useI18n } from "@/hooks/useI18n"
  * 数据来自 `GET /script/{id}/git-diff` / `GET /workflow/{id}/git-diff`，分两段：
  *   - 工作区改动：相对本地 HEAD 的未提交改动（含未跟踪文件）；
  *   - 未发布提交：本地 HEAD 相对 store HEAD 的差异（已提交但还没发布）。
+ *
+ * 「工作区改动」里的每个文件可单独撤回（`POST .../git-revert-file`）：恢复为本地 HEAD
+ * 版本（新增文件则删除），只影响该文件、不产生提交。
  *
  * 后端 `internal/utils/git_diff.go` 负责真正算 diff，这里只做展示。
  */
@@ -64,6 +76,7 @@ const lineStyle = (line: string): { background: string; color: string } => {
 
 const GitDiffView: FC<GitDiffViewProps> = ({ entity, id }) => {
 	const { locale } = useI18n()
+	const message = useGlobalMessage()
 	const zh = locale === "zh_CN"
 
 	const hasId = id !== undefined && id !== null && id !== ""
@@ -72,63 +85,107 @@ const GitDiffView: FC<GitDiffViewProps> = ({ entity, id }) => {
 	const [error, setError] = useState("")
 	const [data, setData] = useState<GitDiffResponse | undefined>(undefined)
 	const [tab, setTab] = useState<string>("worktree")
+	const [revertingPath, setRevertingPath] = useState("")
+	// 只保留最后一次加载结果，避免快速切换实体时旧响应覆盖新数据。
+	const loadSeq = useRef(0)
 
-	useEffect(() => {
-		if (!hasId) {
-			return
-		}
-		let cancelled = false
-		const load = async () => {
-			setLoading(true)
+	// reload 抽为可复用回调：初次加载与「撤回」成功后都走同一条链路。
+	const reload = useCallback(
+		async (showSpinner = true) => {
+			if (!hasId) {
+				return
+			}
+			const seq = ++loadSeq.current
+			if (showSpinner) {
+				setLoading(true)
+			}
 			setError("")
-			setTab("worktree")
 			try {
 				const resp = await getGitDiffApi(entity, id)
-				if (!cancelled) {
+				if (seq === loadSeq.current) {
 					setData(resp)
 				}
 			} catch (err) {
-				if (!cancelled) {
+				if (seq === loadSeq.current) {
 					setData(undefined)
 					setError(err instanceof Error ? err.message : String(err))
 				}
 			} finally {
-				if (!cancelled) {
+				if (showSpinner && seq === loadSeq.current) {
 					setLoading(false)
 				}
 			}
-		}
-		void load()
-		return () => {
-			cancelled = true
-		}
+		},
+		[entity, id, hasId],
+	)
+
+	useEffect(() => {
+		setTab("worktree")
+		void reload()
 		// id 是 int64 主键（字符串），加载只在实体/主键变化时重跑。
-	}, [entity, id, hasId])
+	}, [reload])
+
+	// 撤回单个文件的未提交改动：恢复为本地 HEAD 版本后静默刷新 diff。
+	const handleRevert = useCallback(
+		async (path: string) => {
+			setRevertingPath(path)
+			try {
+				await revertGitFileApi(entity, id as string | number, path)
+				message.success(zh ? `已撤回 ${path}` : `Reverted ${path}`)
+				await reload(false)
+			} catch (err) {
+				message.error(err instanceof Error ? err.message : String(err))
+			} finally {
+				setRevertingPath("")
+			}
+		},
+		[entity, id, message, reload, zh],
+	)
 
 	const section: GitDiffSection | undefined = tab === "unpublished" ? data?.unpublished : data?.worktree
 
-	const renderFileTags = (target: GitDiffSection) => (
+	const renderFileTags = (target: GitDiffSection, canRevert: boolean) => (
 		<div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
 			{target.files.map((file: GitDiffFile) => (
-				<Tooltip
-					key={file.path}
-					title={
-						file.omitted
-							? `${statusLabel(file.status, zh)} ${file.path} · ${zh ? "文件过大，未展示内容" : "file too large, content omitted"}`
-							: file.binary
-								? `${statusLabel(file.status, zh)} ${file.path} · ${zh ? "二进制文件，不展示内容" : "binary file, content not shown"}`
-								: `${statusLabel(file.status, zh)} ${file.path} +${file.additions} -${file.deletions}`
-					}
-				>
-					<Tag color={statusColor[file.status] ?? "default"} style={{ marginInlineEnd: 0, maxWidth: "100%" }}>
-						<span style={{ fontFamily: monospace, wordBreak: "break-all" }}>{file.path}</span>
-						{!file.binary && !file.omitted && (file.additions > 0 || file.deletions > 0) && (
-							<span style={{ marginInlineStart: 6 }}>
-								+{file.additions} -{file.deletions}
-							</span>
-						)}
-					</Tag>
-				</Tooltip>
+				<span key={file.path} style={{ display: "inline-flex", alignItems: "center", maxWidth: "100%" }}>
+					<Tooltip
+						title={
+							file.omitted
+								? `${statusLabel(file.status, zh)} ${file.path} · ${zh ? "文件过大，未展示内容" : "file too large, content omitted"}`
+								: file.binary
+									? `${statusLabel(file.status, zh)} ${file.path} · ${zh ? "二进制文件，不展示内容" : "binary file, content not shown"}`
+									: `${statusLabel(file.status, zh)} ${file.path} +${file.additions} -${file.deletions}`
+						}
+					>
+						<Tag color={statusColor[file.status] ?? "default"} style={{ marginInlineEnd: 0, maxWidth: "100%" }}>
+							<span style={{ fontFamily: monospace, wordBreak: "break-all" }}>{file.path}</span>
+							{!file.binary && !file.omitted && (file.additions > 0 || file.deletions > 0) && (
+								<span style={{ marginInlineStart: 6 }}>
+									+{file.additions} -{file.deletions}
+								</span>
+							)}
+						</Tag>
+					</Tooltip>
+					{canRevert && (
+						<Popconfirm
+							title={zh ? "撤回该文件的未提交改动？" : "Discard changes to this file?"}
+							description={zh ? "文件将恢复为最近一次提交时的内容。" : "The file is restored to the last commit."}
+							okText={zh ? "撤回" : "Revert"}
+							cancelText={zh ? "取消" : "Cancel"}
+							okButtonProps={{ danger: true }}
+							onConfirm={() => handleRevert(file.path)}
+						>
+							<Button
+								type="text"
+								size="small"
+								danger
+								icon={<UndoOutlined />}
+								loading={revertingPath === file.path}
+								style={{ marginInlineStart: 2 }}
+							/>
+						</Popconfirm>
+					)}
+				</span>
 			))}
 		</div>
 	)
@@ -146,7 +203,7 @@ const GitDiffView: FC<GitDiffViewProps> = ({ entity, id }) => {
 					{target.target_commit ? ` -> ${target.target_commit.slice(0, 7)}` : ""}
 					{target.truncated ? (zh ? " · 内容过大已截断" : " · truncated") : ""}
 				</div>
-				{renderFileTags(target)}
+				{renderFileTags(target, tab === "worktree")}
 				<div
 					style={{
 						maxHeight: "56vh",

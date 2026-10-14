@@ -125,3 +125,39 @@ export const getWorkflowGitDiffApi = async (workflowId: string | number) => {
 export const getGitDiffApi = async (entity: "script" | "workflow", id: string | number) => {
 	return entity === "script" ? getScriptGitDiffApi(id) : getWorkflowGitDiffApi(id);
 };
+
+/** `POST /script/{id}/git-revert-file`、`POST /workflow/{id}/git-revert-file` 的响应。 */
+export interface GitRevertFileResponse {
+	entity: "script" | "workflow";
+	/** 组件 uuid（script.script_id / workflow.workflow_id）。 */
+	id: string;
+	/** 被撤回的文件路径（相对仓库根目录，"/" 分隔）。 */
+	path: string;
+	/** 请求成功即表示该文件已恢复为本地 HEAD 版本。 */
+	reverted: boolean;
+}
+
+/** 撤回脚本目录里单个文件的未提交改动（恢复为本地 HEAD 版本）。 */
+export const revertScriptGitFileApi = async (scriptId: string | number, path: string) => {
+	const resp = await http.post<GitRevertFileResponse>(
+		`/script/${encodeURIComponent(String(scriptId))}/git-revert-file`,
+		{ path },
+		{ skipGlobalError: true },
+	);
+	return resp.data;
+};
+
+/** 撤回 workflow 目录里单个文件的未提交改动（恢复为本地 HEAD 版本）。 */
+export const revertWorkflowGitFileApi = async (workflowId: string | number, path: string) => {
+	const resp = await http.post<GitRevertFileResponse>(
+		`/workflow/${encodeURIComponent(String(workflowId))}/git-revert-file`,
+		{ path },
+		{ skipGlobalError: true },
+	);
+	return resp.data;
+};
+
+/** 按组件类型撤回单个文件的未提交改动。 */
+export const revertGitFileApi = async (entity: "script" | "workflow", id: string | number, path: string) => {
+	return entity === "script" ? revertScriptGitFileApi(id, path) : revertWorkflowGitFileApi(id, path);
+};
