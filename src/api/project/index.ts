@@ -99,13 +99,11 @@ export interface ProjectReportItemNode extends ProjectReportItem {
 }
 
 export interface AddProjectReportRequest {
-	project_id: string;
 	title: string;
 }
 
 export interface UpdateProjectReportRequest {
 	id: string;
-	project_id: string;
 	title: string;
 }
 

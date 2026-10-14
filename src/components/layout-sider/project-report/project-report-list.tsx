@@ -57,7 +57,6 @@ const ProjectReportList: FC<any> = () => {
       const created = await invoke.projectReportItemForm.openAsync(
         {
           mode: "create",
-          project_id: projectId,
         },
         {
           title: "Create Project Report",
@@ -80,7 +79,6 @@ const ProjectReportList: FC<any> = () => {
       await invoke.projectReportItemForm.openAsync(
         {
           mode: "update",
-          project_id: projectId,
           report: detailResp.data,
         },
         {

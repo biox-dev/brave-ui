@@ -261,7 +261,6 @@ const ReportWriting: FC<any> = () => {
       await invoke.projectReportItemForm.openAsync(
         {
           mode: "update",
-          project_id: projectId,
           report: { id: projectReportId, project_id: projectId ?? "", title: content?.title ?? "", created_at: "", updated_at: "" },
         },
         {

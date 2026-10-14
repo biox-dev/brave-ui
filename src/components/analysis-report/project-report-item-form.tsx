@@ -7,7 +7,6 @@ type Mode = "create" | "update";
 
 interface ProjectReportItemFormProps {
   mode?: Mode;
-  project_id?: string;
   report?: ProjectReportDetail;
   onOk?: (data?: any) => void;
   onCancel?: () => void;
@@ -15,7 +14,6 @@ interface ProjectReportItemFormProps {
 
 const ProjectReportItemForm: FC<ProjectReportItemFormProps> = ({
   mode,
-  project_id,
   report,
   onOk,
   onCancel,
@@ -38,15 +36,10 @@ const ProjectReportItemForm: FC<ProjectReportItemFormProps> = ({
 
   const submit = async () => {
     const values = await form.validateFields();
-    const pid = project_id || report?.project_id;
-    if (!pid) {
-      message.error("Missing project_id");
-      return;
-    }
 
     if (currentMode === "create") {
+      // 后端根据当前用户解析激活项目，前端不再传 project_id。
       const resp = await addProjectReportApi({
-        project_id: pid,
         title: values.title,
       });
       message.success("Created successfully");
@@ -61,7 +54,6 @@ const ProjectReportItemForm: FC<ProjectReportItemFormProps> = ({
 
     await updateProjectReportApi({
       id: report.id,
-      project_id: pid,
       title: values.title,
     });
     message.success("Updated successfully");
