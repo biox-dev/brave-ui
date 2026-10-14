@@ -19,7 +19,7 @@ import {
   type ProjectReportItemContentResponse,
 } from "@/api/project";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
-import { setLLMEnv } from "@/utils/llm-env";
+// import { setLLMEnv } from "@/utils/llm-env";
 import { printHtmlDocument } from "@/utils/print-html";
 import { getPathname } from "@/utils/utils";
 
@@ -103,7 +103,7 @@ const ReportWriting: FC<any> = () => {
   };
 
   useEffect(() => {
-    setLLMEnv(projectReportId, "projectReport");
+    // setLLMEnv(projectReportId, "projectReport");
     loadContent(projectReportId, itemId);
   }, [projectReportId, itemId]);
 
@@ -301,14 +301,14 @@ const ReportWriting: FC<any> = () => {
       size="small"
       title={
         <Flex align="center" gap="small">
-          {itemId && (
+          {/* {itemId && (
             <Button
               size="small"
               type="text"
               icon={<ArrowLeftOutlined />}
               onClick={() => navigate(-1)}
             />
-          )}
+          )} */}
           <span>{title}</span>
         </Flex>
       }

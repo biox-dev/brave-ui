@@ -21,7 +21,6 @@ interface ProfileFormValues {
   model?: string;
   skills?: string[];
   inject_memory?: boolean;
-  inject_project?: boolean;
   is_default?: boolean;
 }
 
@@ -112,14 +111,12 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
             model: record.model,
             skills: record.skills ?? [],
             inject_memory: record.context?.inject_memory ?? true,
-            inject_project: record.context?.inject_project ?? false,
             is_default: record.is_default ?? false,
           });
         } else {
           form.resetFields();
           form.setFieldsValue({
             inject_memory: true,
-            inject_project: false,
             is_default: false,
           });
         }
@@ -147,7 +144,6 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
     skills: values.skills ?? [],
     context: {
       inject_memory: values.inject_memory ?? true,
-      inject_project: values.inject_project ?? false,
     },
     is_default: values.is_default ?? false,
   });
@@ -359,14 +355,6 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
         <Form.Item
           name="inject_memory"
           label="Inject Memory"
-          valuePropName="checked"
-          style={{ marginBottom: 8 }}
-        >
-          <Switch />
-        </Form.Item>
-        <Form.Item
-          name="inject_project"
-          label="Inject Project Context"
           valuePropName="checked"
           style={{ marginBottom: 8 }}
         >

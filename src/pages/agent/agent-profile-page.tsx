@@ -27,9 +27,6 @@ const contextTags = (context?: AgentProfileContext) => (
     <Tag color={context?.inject_memory ? "green" : "default"}>
       Memory {context?.inject_memory ? "ON" : "OFF"}
     </Tag>
-    <Tag color={context?.inject_project ? "blue" : "default"}>
-      Project {context?.inject_project ? "ON" : "OFF"}
-    </Tag>
   </Space>
 );
 

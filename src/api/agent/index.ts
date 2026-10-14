@@ -376,16 +376,6 @@ export const deleteAgentSkillApi = (id: string) => {
   return http.post<{ ok: boolean; id: string }>("/agent/skill/delete", { id });
 };
 
-// 当前用户的项目上下文（注入 Agent 系统提示词的背景文本块）。
-export interface AgentProjectContextResponse {
-  project_context: string;
-}
-
-// 查询当前用户激活项目下的项目上下文。
-export const getAgentProjectContextApi = () => {
-  return http.get<AgentProjectContextResponse>("/agent/project-context");
-};
-
 // Agent 记忆类别（对应后端 agent.MemoryKind）。
 export const AgentMemoryKind = {
   Fact: "fact",
@@ -449,8 +439,6 @@ export const retrieveAgentMemoryApi = (query: string, limit?: number) => {
 export interface AgentProfileContext {
   /** 是否注入长期记忆。 */
   inject_memory: boolean;
-  /** 是否注入项目上下文（仅撰写文章 / 报告类任务需要）。 */
-  inject_project: boolean;
 }
 
 // AgentProfile（对应后端 agent.Profile）。
