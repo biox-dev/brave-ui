@@ -13,6 +13,7 @@ import { formatRelativeTime } from "@/utils/time";
 import {
   DeleteOutlined,
   EditOutlined,
+  EyeOutlined,
   HistoryOutlined,
   RedoOutlined,
   ReloadOutlined,
@@ -142,6 +143,14 @@ const AISummaryProjectList: FC<AISummaryProjectListProps> = ({ title, onOk, onCa
     navigate(`/c/ai-summaries/${encodeURIComponent(item.id)}`);
   };
 
+  /** invoke 弹窗打开详情页（与路由 /c/ai-summaries/:summary_id 同一组件）。 */
+  const handleOpenInModal = (item: AISummaryListItem) => {
+    invoke.aiSummaryDetail.open(
+      { summary_id: item.id },
+      { width: 960, title: summaryTitle(item), footer: null }
+    );
+  };
+
   const handleConfirm = () => {
     const picked = data.find((item) => String(item.id) === String(pickedId));
     if (picked && onOk) {
@@ -238,7 +247,7 @@ const AISummaryProjectList: FC<AISummaryProjectListProps> = ({ title, onOk, onCa
   const actionsColumn: ColumnsType<AISummaryListItem>[number] = {
     title: "Actions",
     key: "actions",
-    width: 110,
+    width: 150,
     align: "right",
     render: (_: unknown, record) => {
       const taskId = taskIdOf(record);
@@ -248,6 +257,14 @@ const AISummaryProjectList: FC<AISummaryProjectListProps> = ({ title, onOk, onCa
           className="project-report-item-actions"
           onClick={(e) => e.stopPropagation()}
         >
+          <Tooltip title={locale === "en_US" ? "Open" : "打开"}>
+            <Button
+              type="text"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => handleOpenInModal(record)}
+            />
+          </Tooltip>
           {taskId && (
             <Tooltip title="Task">
               <Button

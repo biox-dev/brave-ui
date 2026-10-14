@@ -1,9 +1,10 @@
 import { deleteAnalysisNodeApi, type AnalysisNodeItem } from "@/api/analysis";
+import { invoke } from "@/core/ui-system/invokeV2";
 import { useAnalysisNodePageQuery } from "@/hooks/usePaginationV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { formatRelativeTime } from "@/utils/time";
-import { DeleteOutlined, ExperimentOutlined, ReloadOutlined } from "@ant-design/icons";
+import { DeleteOutlined, ExperimentOutlined, EyeOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Descriptions, Empty, Pagination, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo, useState } from "react";
@@ -140,6 +141,21 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
     refetch();
   };
 
+  /**
+   * invoke 弹窗打开节点报告（与路由 /analsyis-node-report/:analysisNodeId 同一组件：
+   * 路由传的是 record.id，这里保持一致）。
+   */
+  const handleOpenReport = (node: AnalysisNodeItem) => {
+    invoke.analysisNodeDetails.open(
+      { analysis_node_id: String(node.id) },
+      {
+        width: 960,
+        title: node.node_name || node.analysis_node_id || `Node-${node.id}`,
+        footer: null,
+      }
+    );
+  };
+
   const handleConfirm = () => {
     const picked = data.find((item) => String(item.id) === String(pickedId));
     if (picked && onOk) {
@@ -202,13 +218,21 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
       {
         title: "Actions",
         key: "actions",
-        width: 56,
+        width: 96,
         align: "right",
         render: (_, record) => (
           <span
             className="project-report-item-actions"
             onClick={(e) => e.stopPropagation()}
           >
+            <Tooltip title="Report">
+              <Button
+                type="text"
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => handleOpenReport(record)}
+              />
+            </Tooltip>
             <Popconfirm
               title="Delete selected analysis node?"
               onConfirm={() => handleDelete(record)}

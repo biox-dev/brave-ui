@@ -49,9 +49,23 @@ const ownerLabel = (ownerType: string) => {
  * - 左侧列表只返回概要，进入本页后按 ID 查询详情（含 content 与 prefix）；
  * - content 以 Markdown 渲染，prefix 用于解析其中的相对图片/链接；
  * - 支持 Update / Regenerate / Delete。
+ *
+ * 同时注册为 invoke 视图（`invoke.aiSummaryDetail.open({ summary_id })`，见
+ * components/ai-summary/index.ts）：此时 summary_id 由调用方传入，`close` 由 UIContainer 注入。
  */
-const AISummaryDetail: FC = () => {
-  const { summary_id } = useParams();
+export interface AISummaryDetailProps {
+  /** 摘要 ID；路由模式下缺省时回退到 useParams。 */
+  summary_id?: string;
+  /** UIContainer 注入的关闭方法（Modal / Drawer 模式）。 */
+  close?: () => void;
+}
+
+const AISummaryDetail: FC<AISummaryDetailProps> = ({
+  summary_id: summaryIdProp,
+  close,
+}) => {
+  const { summary_id: routeSummaryId } = useParams();
+  const summary_id = summaryIdProp || routeSummaryId;
   const navigate = useNavigate();
   const { locale } = useI18n();
   const message = useGlobalMessage();
@@ -117,6 +131,11 @@ const AISummaryDetail: FC = () => {
     await deleteAISummaryApi(summary.id);
     message.success(zh ? "摘要已删除" : "AI summary deleted");
     setSummary(undefined);
+    if (close) {
+      // invoke 弹窗模式：关闭自身，不要动底层路由。
+      close();
+      return;
+    }
     navigate("/", { replace: true });
   };
 

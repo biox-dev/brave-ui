@@ -15,7 +15,7 @@ import SplitWorkspace from './components/SplitWorkspace.tsx';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
-type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList'| 'analysisNodeList' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'aiSummaryProject' | 'assayProjectPage' | 'datasetFilePage' | 'analysisNodeFilePage';
+type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'aiSummaryProject' | 'assayProjectPage' | 'datasetFilePage' | 'analysisNodeFilePage';
 
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
   key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'aiSummaryProject' || key === 'assayProjectPage' || key === 'datasetFilePage' || key === 'analysisNodeFilePage';
@@ -42,7 +42,7 @@ const App: React.FC = () => {
 
   const leftActivityItems = useMemo(
     () => [
-       {
+      {
         key: 'datasetFilePage',
         label: locale === 'en_US' ? 'Dataset Files' : '数据集文件',
         icon: <FolderOpenOutlined />,
@@ -57,12 +57,12 @@ const App: React.FC = () => {
         label: locale === 'en_US' ? 'Assays' : '实验/建库',
         icon: <ExperimentOutlined />,
       },
-       {
+      {
         key: 'scriptPage',
         label: locale === 'en_US' ? 'Script Page' : '脚本页',
         icon: <FileTextOutlined />,
       },
-     
+
       {
         key: 'workflowPage',
         label: locale === 'en_US' ? 'Workflow Page' : '流程页',
@@ -72,27 +72,27 @@ const App: React.FC = () => {
         key: 'analysisNodeList',
         label: locale === 'en_US' ? 'Analysis Node List' : '分析节点列表',
         icon: <NodeIndexOutlined />,
-      },{
+      }, {
         key: 'analysisList',
         label: locale === 'en_US' ? 'Analysis List' : '分析列表',
         icon: <UnorderedListOutlined />,
       },
-      {
-        key: 'projectReport',
-        label: locale === 'en_US' ? 'Project Report' : '项目报告',
-        icon: <BarChartOutlined />,
-      }, 
+
       {
         key: 'aiSummaryProject',
         label: locale === 'en_US' ? 'AI Summary' : 'AI 摘要',
         icon: <RobotOutlined />,
+      }, {
+        key: 'projectReport',
+        label: locale === 'en_US' ? 'Project Report' : '项目报告',
+        icon: <BarChartOutlined />,
       },
-       // {
+      // {
       //   key: 'sysFileBrowser',
       //   label: locale === 'en_US' ? 'System Files' : '系统文件',
       //   icon: <FolderOpenOutlined />,
       // },
-    
+
       {
         key: 'projectLiterature',
         label: locale === 'en_US' ? 'Literature' : '参考文献',
@@ -139,7 +139,7 @@ const App: React.FC = () => {
       [{ label: locale === 'en_US' ? 'Assistant' : '助手', value: 'agentChat' },
       { label: locale === 'en_US' ? 'App' : '应用', value: 'appSessionPage' },
       { label: locale === 'en_US' ? 'Parameters' : '参数', value: 'editParamsPanel' },
-      // ...sideOptions
+        // ...sideOptions
       ],
     [],
   );
