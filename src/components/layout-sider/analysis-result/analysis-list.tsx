@@ -6,7 +6,7 @@ import { formatRelativeTime } from "@/utils/time";
 import { DeleteOutlined, FileSearchOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Descriptions, Empty, Pagination, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { FC, useMemo } from "react";
+import { FC, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 
@@ -65,7 +65,14 @@ const AnalysisDetailCard = ({ item }: { item: AnalysisItem }) => (
   </div>
 );
 
-const AnalysisList: FC<any> = () => {
+export interface AnalysisListProps {
+  title?: string;
+  onOk?: (analysis: AnalysisItem) => void;
+  onCancel?: () => void;
+  close?: () => void;
+}
+
+const AnalysisList: FC<AnalysisListProps> = ({ title, onOk, onCancel, close }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const message = useGlobalMessage();
@@ -73,11 +80,16 @@ const AnalysisList: FC<any> = () => {
 
   // Derive the selected analysis id from the current route so the selection
   // survives a full page refresh.
-  const selectedId = useMemo(() => {
+  const routeSelectedId = useMemo(() => {
     const match = location.pathname.match(/\/analysis-report\/([^/]+)/);
     return match ? decodeURIComponent(match[1]) : undefined;
   }, [location.pathname]);
   const { projectId } = useSelector((state: any) => state.user);
+
+  // 作为选择器（通过 invoke 打开）时使用本地选中态，普通模式沿用路由选中态。
+  const selectable = Boolean(onOk || onCancel);
+  const [pickedId, setPickedId] = useState<string>();
+  const selectedId = selectable ? pickedId : routeSelectedId;
 
   const {
     data,
@@ -101,6 +113,21 @@ const AnalysisList: FC<any> = () => {
     await deleteAnalysisApi(analysis.id);
     message.success("Deleted successfully");
     refetch();
+  };
+
+  const handleConfirm = () => {
+    const picked = data.find((item) => String(item.id) === String(pickedId));
+    if (picked && onOk) {
+      onOk(picked);
+    }
+  };
+
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+      return;
+    }
+    close?.();
   };
 
   const columns = useMemo<ColumnsType<AnalysisItem>>(
@@ -200,10 +227,29 @@ const AnalysisList: FC<any> = () => {
     return Row;
   }, [data]);
 
+  const selectColumn: ColumnsType<AnalysisItem>[number] = {
+    title: "Select",
+    key: "select",
+    width: 96,
+    align: "right",
+    render: (_, record) => (
+      <Button
+        type={String(record.id) === String(selectedId) ? "primary" : "default"}
+        size="small"
+        onClick={(e) => {
+          e.stopPropagation();
+          setPickedId(record.id);
+        }}
+      >
+        {String(record.id) === String(selectedId) ? "Selected" : "Select"}
+      </Button>
+    ),
+  };
+
   return (
     <div className="project-report-panel">
       <div className="project-report-panel-header">
-        <span className="project-report-panel-title">Analysis</span>
+        <span className="project-report-panel-title">{title || "Analysis"}</span>
         <div className="project-report-panel-actions">
           <Button
             type="text"
@@ -224,17 +270,20 @@ const AnalysisList: FC<any> = () => {
           <Table<AnalysisItem>
             rowKey="id"
             size="small"
-            columns={columns}
+            columns={selectable ? [...columns, selectColumn] : columns}
             dataSource={data}
             loading={isLoading || isFetching}
             pagination={false}
             showHeader={false}
             components={{ body: { row: bodyRow } }}
             rowClassName={(record) =>
-              record.id === selectedId ? "project-report-row-selected" : ""
+              String(record.id) === String(selectedId) ? "project-report-row-selected" : ""
             }
             onRow={(record) => ({
-              onClick: () => navigate(`/analysis-report/${record.id}`),
+              onClick: () =>
+                selectable
+                  ? setPickedId(record.id)
+                  : navigate(`/analysis-report/${record.id}`),
             })}
           />
         )}
@@ -257,6 +306,23 @@ const AnalysisList: FC<any> = () => {
           }}
         />
       </div>
+
+      {selectable && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 8,
+            padding: "8px 10px",
+            borderTop: "1px solid var(--sharp-divider)",
+          }}
+        >
+          <Button onClick={handleCancel}>Cancel</Button>
+          <Button type="primary" disabled={!selectedId} onClick={handleConfirm}>
+            Confirm
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

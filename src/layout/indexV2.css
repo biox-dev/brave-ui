@@ -89,11 +89,15 @@
 }
 
 .project-report-panel .ant-table-tbody > tr:hover > td {
-  background: color-mix(in srgb, var(--sharp-panel-muted) 65%, transparent) !important;
+  background: color-mix(in srgb, var(--sharp-panel-muted, rgba(128, 128, 128, 0.18)) 65%, transparent) !important;
 }
 
+/* `.project-report-panel` is also rendered inside invoke drawers/modals, whose
+   content is portaled to <body> — outside `.layout-sharp` where the theme
+   variables are declared. Without a fallback the selected background resolves to
+   transparent and the row is only partially highlighted (2px bar). */
 .project-report-panel .ant-table-tbody > tr.project-report-row-selected > td {
-  background: var(--project-report-selected-bg) !important;
+  background: var(--project-report-selected-bg, color-mix(in srgb, #1890ff 14%, transparent)) !important;
   box-shadow: inset 2px 0 0 0 #1890ff;
 }
 

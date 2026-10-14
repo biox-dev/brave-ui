@@ -6,11 +6,10 @@ import {
 	type ProjectReportItem,
 	type ProjectReportItemOwnerType,
 } from "@/api/project";
-import { pageAnalysisByProjectApi, pageAnalysisNodeByProjectApi } from "@/api/analysis";
-import { pageAISummaryByProjectApi } from "@/api/ai-summary";
+import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { DeleteOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
-import { Button, Dropdown, Empty, Input, Modal, Popconfirm, Select, Spin, Tree } from "antd";
+import { Button, Dropdown, Empty, Input, Modal, Popconfirm, Spin, Tree } from "antd";
 import type { MenuProps, TreeProps } from "antd";
 import { FC, useEffect, useMemo, useState } from "react";
 import { useQuery } from "react-query";
@@ -29,115 +28,48 @@ const OWNER_TYPE_OPTIONS: { key: ProjectReportItemOwnerType; label: string }[] =
 	{ key: "custom", label: "Section / Custom" },
 ];
 
-interface OwnerOption {
-	label: string;
-	value: string;
-}
-
 interface AddReportItemModalProps {
 	reportId: string;
-	ownerType?: ProjectReportItemOwnerType;
 	sortOrder: number;
 	open: boolean;
 	onClose: () => void;
 	onAdded?: () => void;
 }
 
-// AddReportItemModal 为 analysis / analysis_node / ai_summary 类型条目选择 OwnerID；
-// custom 类型只需输入标题即可新增章节占位/自定义内容条目。
+// AddReportItemModal 仅用于新增 custom 类型条目：输入标题即可创建章节占位/自定义内容条目。
+// analysis / analysis_node / ai_summary 类型条目改为通过 invoke 打开对应列表页进行选择。
 const AddReportItemModal: FC<AddReportItemModalProps> = ({
 	reportId,
-	ownerType,
 	sortOrder,
 	open,
 	onClose,
 	onAdded,
 }) => {
 	const message = useGlobalMessage();
-	const [options, setOptions] = useState<OwnerOption[]>([]);
-	const [loading, setLoading] = useState(false);
-	const [ownerId, setOwnerId] = useState<string>();
 	const [title, setTitle] = useState("");
 	const [submitting, setSubmitting] = useState(false);
 
 	useEffect(() => {
-		if (!open || !ownerType) {
-			setOptions([]);
-			setOwnerId(undefined);
+		if (open) {
 			setTitle("");
-			return;
 		}
-
-		// 自定义内容条目只需输入标题，无需选择 owner。
-		if (ownerType === "custom") {
-			setOptions([]);
-			setOwnerId(undefined);
-			setTitle("");
-			return;
-		}
-
-		let cancelled = false;
-		setLoading(true);
-		(async () => {
-			try {
-				let opts: OwnerOption[] = [];
-				if (ownerType === "analysis") {
-					const resp = await pageAnalysisByProjectApi({ page: 1, page_size: 200 });
-					opts = (resp.data?.data || []).map((a) => ({ label: a.analysis_name || a.id, value: a.id }));
-				} else if (ownerType === "analysis_node") {
-					const resp = await pageAnalysisNodeByProjectApi({ page: 1, page_size: 200 });
-					opts = (resp.data?.data || []).map((n) => ({ label: n.node_name || n.id, value: n.id }));
-				} else if (ownerType === "ai_summary") {
-					const resp = await pageAISummaryByProjectApi({ page: 1, page_size: 200 });
-					opts = (resp.data?.data || []).map((s) => ({ label: s.title || s.id, value: s.id }));
-				}
-				if (!cancelled) {
-					setOptions(opts);
-				}
-			} finally {
-				if (!cancelled) {
-					setLoading(false);
-				}
-			}
-		})();
-
-		return () => {
-			cancelled = true;
-		};
-	}, [open, ownerType]);
+	}, [open]);
 
 	const handleOk = async () => {
-		if (!ownerType) {
+		if (!title.trim()) {
+			message.warning("Please input a title");
 			return;
 		}
 
 		setSubmitting(true);
 		try {
-			if (ownerType === "custom") {
-				if (!title.trim()) {
-					message.warning("Please input a title");
-					return;
-				}
-				await addProjectReportItemApi({
-					project_report_id: reportId,
-					parent_id: "0",
-					owner_type: "custom",
-					sort_order: sortOrder,
-					title: title.trim(),
-				});
-			} else {
-				if (!ownerId) {
-					message.warning("Please select an owner");
-					return;
-				}
-				await addProjectReportItemApi({
-					project_report_id: reportId,
-					parent_id: "0",
-					owner_type: ownerType,
-					owner_id: ownerId,
-					sort_order: sortOrder,
-				});
-			}
+			await addProjectReportItemApi({
+				project_report_id: reportId,
+				parent_id: "0",
+				owner_type: "custom",
+				sort_order: sortOrder,
+				title: title.trim(),
+			});
 			message.success("Added successfully");
 			onAdded?.();
 			onClose();
@@ -149,33 +81,20 @@ const AddReportItemModal: FC<AddReportItemModalProps> = ({
 	return (
 		<Modal
 			open={open}
-			title={`Add ${ownerType ?? ""} item`}
+			title="Add custom item"
 			onCancel={onClose}
 			onOk={handleOk}
 			confirmLoading={submitting}
 			destroyOnClose
 		>
-			{ownerType === "custom" ? (
-				<Input
-					style={{ width: "100%" }}
-					value={title}
-					onChange={(e) => setTitle(e.target.value)}
-					placeholder="Title"
-					maxLength={255}
-					onPressEnter={handleOk}
-				/>
-			) : (
-				<Select
-					style={{ width: "100%" }}
-					loading={loading}
-					value={ownerId}
-					onChange={setOwnerId}
-					options={options}
-					placeholder="Select owner"
-					showSearch
-					optionFilterProp="label"
-				/>
-			)}
+			<Input
+				style={{ width: "100%" }}
+				value={title}
+				onChange={(e) => setTitle(e.target.value)}
+				placeholder="Title"
+				maxLength={255}
+				onPressEnter={handleOk}
+			/>
 		</Modal>
 	);
 };
@@ -200,7 +119,6 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
 	);
 
 	const [treeNodes, setTreeNodes] = useState<ReportTreeNode[]>([]);
-	const [addOwnerType, setAddOwnerType] = useState<ProjectReportItemOwnerType>();
 	const [modalOpen, setModalOpen] = useState(false);
 	const [reordering, setReordering] = useState(false);
 	const [refreshing, setRefreshing] = useState(false);
@@ -223,9 +141,54 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
 		}
 	};
 
-	const handleAddMenuClick: MenuProps["onClick"] = ({ key }) => {
-		setAddOwnerType(key as ProjectReportItemOwnerType);
-		setModalOpen(true);
+	// 非 custom 类型通过 invoke 打开对应列表页进行选择；custom 直接弹标题输入框。
+	const handleAddMenuClick: MenuProps["onClick"] = async ({ key }) => {
+		const ownerType = key as ProjectReportItemOwnerType;
+		if (ownerType === "custom") {
+			setModalOpen(true);
+			return;
+		}
+		await handlePickOwnerAndAdd(ownerType);
+	};
+
+	// handlePickOwnerAndAdd 打开对应实体列表页选择一条记录，选中后作为报告条目写入。
+	const handlePickOwnerAndAdd = async (ownerType: ProjectReportItemOwnerType) => {
+		try {
+			let picked: { id: string } | undefined;
+			if (ownerType === "analysis") {
+				picked = await invoke.analysisList.openDrawerAsync(
+					{},
+					{ title: "Select Analysis", width: 720 }
+				);
+			} else if (ownerType === "analysis_node") {
+				picked = await invoke.analysisNodeList.openDrawerAsync(
+					{},
+					{ title: "Select Analysis Node", width: 720 }
+				);
+			} else if (ownerType === "ai_summary") {
+				picked = await invoke.aiSummaryProject.openDrawerAsync(
+					{},
+					{ title: "Select AI Summary", width: 720 }
+				);
+			}
+
+			if (!picked?.id) {
+				return;
+			}
+
+			await addProjectReportItemApi({
+				project_report_id: reportId,
+				parent_id: "0",
+				owner_type: ownerType,
+				owner_id: picked.id,
+				sort_order: nextSortOrder,
+			});
+			message.success("Added successfully");
+			await refetch();
+			onChanged?.();
+		} catch {
+			// 用户取消选择，无需处理。
+		}
 	};
 
 	const handleDeleteItem = async (itemId: string) => {
@@ -326,7 +289,6 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
 
 			<AddReportItemModal
 				reportId={reportId}
-				ownerType={addOwnerType}
 				sortOrder={nextSortOrder}
 				open={modalOpen}
 				onClose={() => setModalOpen(false)}

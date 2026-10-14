@@ -6,7 +6,7 @@ import { formatRelativeTime } from "@/utils/time";
 import { DeleteOutlined, ExperimentOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Descriptions, Empty, Pagination, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { FC, useMemo } from "react";
+import { FC, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 
@@ -87,7 +87,14 @@ const AnalysisNodeDetailCard = ({ item }: { item: AnalysisNodeItem }) => (
   </div>
 );
 
-const AnalysisResultList: FC<any> = () => {
+export interface AnalysisResultListProps {
+  title?: string;
+  onOk?: (node: AnalysisNodeItem) => void;
+  onCancel?: () => void;
+  close?: () => void;
+}
+
+const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel, close }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const message = useGlobalMessage();
@@ -95,7 +102,7 @@ const AnalysisResultList: FC<any> = () => {
 
   // Derive the selected node id from the current route so the selection
   // survives a full page refresh.
-  const selectedId = useMemo(() => {
+  const routeSelectedId = useMemo(() => {
     const match = location.pathname.match(/\/analsyis-node-report\/([^/]+)/);
     return match ? decodeURIComponent(match[1]) : undefined;
   }, [location.pathname]);
@@ -103,6 +110,11 @@ const AnalysisResultList: FC<any> = () => {
   // 后端按调用者的 active project 过滤数据，所以把 project_id 作为 scopeKey 传给
   // 分页 hook：只进 query key（切项目时自动重新请求并回到第 1 页），不发给后端。
   const { projectId } = useSelector((state: any) => state.user);
+
+  // 作为选择器（通过 invoke 打开）时使用本地选中态，普通模式沿用路由选中态。
+  const selectable = Boolean(onOk || onCancel);
+  const [pickedId, setPickedId] = useState<string>();
+  const selectedId = selectable ? pickedId : routeSelectedId;
 
   const {
     data,
@@ -126,6 +138,21 @@ const AnalysisResultList: FC<any> = () => {
     await deleteAnalysisNodeApi(node.id);
     message.success("Deleted successfully");
     refetch();
+  };
+
+  const handleConfirm = () => {
+    const picked = data.find((item) => String(item.id) === String(pickedId));
+    if (picked && onOk) {
+      onOk(picked);
+    }
+  };
+
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+      return;
+    }
+    close?.();
   };
 
   const columns = useMemo<ColumnsType<AnalysisNodeItem>>(
@@ -226,10 +253,29 @@ const AnalysisResultList: FC<any> = () => {
     return Row;
   }, [data]);
 
+  const selectColumn: ColumnsType<AnalysisNodeItem>[number] = {
+    title: "Select",
+    key: "select",
+    width: 96,
+    align: "right",
+    render: (_, record) => (
+      <Button
+        type={String(record.id) === String(selectedId) ? "primary" : "default"}
+        size="small"
+        onClick={(e) => {
+          e.stopPropagation();
+          setPickedId(record.id);
+        }}
+      >
+        {String(record.id) === String(selectedId) ? "Selected" : "Select"}
+      </Button>
+    ),
+  };
+
   return (
     <div className="project-report-panel">
       <div className="project-report-panel-header">
-        <span className="project-report-panel-title">Analysis Nodes</span>
+        <span className="project-report-panel-title">{title || "Analysis Nodes"}</span>
         <div className="project-report-panel-actions">
           <Button
             type="text"
@@ -250,17 +296,20 @@ const AnalysisResultList: FC<any> = () => {
           <Table<AnalysisNodeItem>
             rowKey="id"
             size="small"
-            columns={columns}
+            columns={selectable ? [...columns, selectColumn] : columns}
             dataSource={data}
             loading={isLoading || isFetching}
             pagination={false}
             showHeader={false}
             components={{ body: { row: bodyRow } }}
             rowClassName={(record) =>
-              record.id === selectedId ? "project-report-row-selected" : ""
+              String(record.id) === String(selectedId) ? "project-report-row-selected" : ""
             }
             onRow={(record) => ({
-              onClick: () => navigate(`/analsyis-node-report/${record.id}`),
+              onClick: () =>
+                selectable
+                  ? setPickedId(record.id)
+                  : navigate(`/analsyis-node-report/${record.id}`),
             })}
           />
         )}
@@ -283,6 +332,23 @@ const AnalysisResultList: FC<any> = () => {
           }}
         />
       </div>
+
+      {selectable && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 8,
+            padding: "8px 10px",
+            borderTop: "1px solid var(--sharp-divider)",
+          }}
+        >
+          <Button onClick={handleCancel}>Cancel</Button>
+          <Button type="primary" disabled={!selectedId} onClick={handleConfirm}>
+            Confirm
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

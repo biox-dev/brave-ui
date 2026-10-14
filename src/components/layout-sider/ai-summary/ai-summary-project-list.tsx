@@ -30,7 +30,7 @@ import {
   Tooltip,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { FC, useMemo } from "react";
+import { FC, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 
@@ -100,7 +100,14 @@ const AISummaryDetailCard = ({ item }: { item: AISummaryListItem }) => {
  * - 点击 item 跳转详情页（/c/ai-summaries/:summary_id），正文在详情页渲染；
  * - 行内支持 Update / Regenerate / Delete，悬停显示摘要概览。
  */
-const AISummaryProjectList: FC = () => {
+export interface AISummaryProjectListProps {
+  title?: string;
+  onOk?: (summary: AISummaryListItem) => void;
+  onCancel?: () => void;
+  close?: () => void;
+}
+
+const AISummaryProjectList: FC<AISummaryProjectListProps> = ({ title, onOk, onCancel, close }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { locale } = useI18n();
@@ -109,10 +116,15 @@ const AISummaryProjectList: FC = () => {
   const projectId = typeof project === "string" ? project : project?.project_id;
 
   // 从当前路由解析已选中的摘要 ID，刷新后仍能保持选中态。
-  const selectedId = useMemo(() => {
+  const routeSelectedId = useMemo(() => {
     const match = location.pathname.match(/\/c\/ai-summaries\/([^/]+)/);
     return match ? decodeURIComponent(match[1]) : undefined;
   }, [location.pathname]);
+
+  // 作为选择器（通过 invoke 打开）时使用本地选中态，普通模式沿用路由选中态。
+  const selectable = Boolean(onOk || onCancel);
+  const [pickedId, setPickedId] = useState<string>();
+  const selectedId = selectable ? pickedId : routeSelectedId;
 
   const {
     data,
@@ -128,6 +140,21 @@ const AISummaryProjectList: FC = () => {
 
   const handleOpen = (item: AISummaryListItem) => {
     navigate(`/c/ai-summaries/${encodeURIComponent(item.id)}`);
+  };
+
+  const handleConfirm = () => {
+    const picked = data.find((item) => String(item.id) === String(pickedId));
+    if (picked && onOk) {
+      onOk(picked);
+    }
+  };
+
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+      return;
+    }
+    close?.();
   };
 
   const handleUpdate = async (item: AISummaryListItem) => {
@@ -296,6 +323,25 @@ const AISummaryProjectList: FC = () => {
     return Row;
   }, [data]);
 
+  const selectColumn: ColumnsType<AISummaryListItem>[number] = {
+    title: "Select",
+    key: "select",
+    width: 96,
+    align: "right",
+    render: (_, record) => (
+      <Button
+        type={String(record.id) === String(selectedId) ? "primary" : "default"}
+        size="small"
+        onClick={(e) => {
+          e.stopPropagation();
+          setPickedId(record.id);
+        }}
+      >
+        {String(record.id) === String(selectedId) ? "Selected" : "Select"}
+      </Button>
+    ),
+  };
+
   const emptyText = projectId
     ? locale === "en_US"
       ? "No AI summary for active project"
@@ -308,7 +354,7 @@ const AISummaryProjectList: FC = () => {
     <div className="project-report-panel">
       <div className="project-report-panel-header">
         <span className="project-report-panel-title">
-          {locale === "en_US" ? "AI Summary" : "AI 摘要"}
+          {title || (locale === "en_US" ? "AI Summary" : "AI 摘要")}
         </span>
         <div className="project-report-panel-actions">
           <Tooltip title={locale === "en_US" ? "Refresh" : "刷新"}>
@@ -330,19 +376,20 @@ const AISummaryProjectList: FC = () => {
           <Table<AISummaryListItem>
             rowKey="id"
             size="small"
-            columns={[...columns, actionsColumn]}
+            columns={selectable ? [...columns, actionsColumn, selectColumn] : [...columns, actionsColumn]}
             dataSource={data}
             loading={isLoading || isFetching}
             pagination={false}
             showHeader={false}
             components={{ body: { row: bodyRow } }}
             rowClassName={(record) =>
-              String(record.id) === selectedId
+              String(record.id) === String(selectedId)
                 ? "project-report-row-selected"
                 : ""
             }
             onRow={(record) => ({
-              onClick: () => handleOpen(record),
+              onClick: () =>
+                selectable ? setPickedId(record.id) : handleOpen(record),
             })}
           />
         )}
@@ -367,6 +414,23 @@ const AISummaryProjectList: FC = () => {
           }}
         />
       </div>
+
+      {selectable && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 8,
+            padding: "8px 10px",
+            borderTop: "1px solid var(--sharp-divider)",
+          }}
+        >
+          <Button onClick={handleCancel}>Cancel</Button>
+          <Button type="primary" disabled={!selectedId} onClick={handleConfirm}>
+            Confirm
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
