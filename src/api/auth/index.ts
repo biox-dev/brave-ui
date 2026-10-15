@@ -10,6 +10,10 @@ export interface AgentUserConfig {
 	/** 选中的 Agent Profile ID（字符串形式的雪花 ID；为空 / 0 表示使用默认）。 */
 	profile_id?: string;
 	permissions?: Record<string, string>;
+	/** 当前业务上下文对象 ID（llmEnv.id）。 */
+	env_id?: string;
+	/** 当前业务上下文类型（llmEnv.type，如 projectReport / analysisNode）。 */
+	env_type?: string;
 }
 
 // Agent Profile 摘要 DTO（对应后端 types.AgentProfileInfo）。
@@ -99,13 +103,23 @@ export const updateUserProfileApi = (profileID: string) => {
 	});
 };
 
-// 更新当前用户的 Agent 配置（Profile + Permissions）。
+// 更新当前用户的 Agent 配置（Profile + Permissions + 业务上下文）。
 export const updateAgentConfigApi = (payload: {
 	profile_id?: string;
 	permissions?: Record<string, string>;
+	env_id?: string;
+	env_type?: string;
 }) => {
 	return http.post<{ success: boolean; message: string; user: LoginUser }>(
 		"/auth/agent-config",
+		payload
+	);
+};
+
+// 更新当前用户的业务上下文（llmEnv）：只改 env_id / env_type，不影响 Profile 与权限。
+export const updateAgentEnvApi = (payload: { env_id?: string; env_type?: string }) => {
+	return http.post<{ success: boolean; message: string; user: LoginUser }>(
+		"/auth/agent-env",
 		payload
 	);
 };

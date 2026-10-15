@@ -4,6 +4,7 @@ import {
   CheckOutlined,
   ClearOutlined,
   CloseOutlined,
+  DeleteOutlined,
   EditOutlined,
   FileTextOutlined,
   LoadingOutlined,
@@ -43,7 +44,12 @@ import {
 import { getGlobalMessage } from "@/hooks/useGlobalMessage";
 import { sseClient } from "@/sse";
 import { useDispatch, useSelector } from "react-redux";
-import { getCurrentUserApi, updateUserProfileApi, type AgentUserConfig } from "@/api/auth";
+import {
+  getCurrentUserApi,
+  updateAgentEnvApi,
+  updateUserProfileApi,
+  type AgentUserConfig,
+} from "@/api/auth";
 import { setUserItem } from "@/store/userSlice";
 import { invoke } from "@/core/ui-system/invokeV2";
 import AgentTaskStream from "./agent-task-stream";
@@ -121,10 +127,11 @@ interface AgentChatProps {
  */
 const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, onCancel }) => {
   const [conversationId, setConversationId] = useState<string | undefined>(initialConversationId);
-  // 业务上下文：由页面通过 setLLMEnv(id, type) 设置，发送时一并传给后端解析系统提示词与工作目录。
-  const llmEnv = useSelector((state: any) => state.user.llmEnv);
+  // 业务上下文：后端从当前用户记录（agent_config.env_id / env_type）读取，
+  // 这里只镜像展示；刷新时通过 describeAgentEnvApi() 拉取可读名称。
   // 当前登录用户：Agent Profile 只能来自 userInfo（切换时同步更新 UserState）。
   const userInfo = useSelector((state: any) => state.user.userInfo);
+  const llmEnv = useSelector((state: any) => state.user.llmEnv);
   const dispatch = useDispatch();
   // 解析后的人类可读上下文（类型 + 名称 + 工作目录），用于顶部展示当前对话环境。
   const [envInfo, setEnvInfo] = useState<AgentEnvInfo | null>(null);
@@ -155,6 +162,8 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   const [profiles, setProfiles] = useState<AgentProfileItem[]>([]);
   // Profile 切换中的加载态（避免重复提交）。
   const [switchingProfile, setSwitchingProfile] = useState(false);
+  // 清空当前用户业务上下文（env）的加载态。
+  const [clearingEnv, setClearingEnv] = useState(false);
 
   const listRef = useRef<HTMLDivElement>(null);
   // 当前选中的会话 ID（ref 镜像，供 WS 回调读取最新值）。
@@ -180,7 +189,8 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   const loadEnvInfo = useCallback(async (): Promise<AgentEnvInfo | null> => {
     setEnvLoading(true);
     try {
-      const res = await describeAgentEnvApi(llmEnv ?? null);
+      // 业务上下文后端从当前用户记录读取，无需传参。
+      const res = await describeAgentEnvApi();
       setEnvInfo(res.data ?? null);
       return res.data ?? null;
     } catch {
@@ -572,6 +582,27 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       });
   };
 
+  // 清空当前用户绑定的业务上下文（env_id / env_type）：调用 /auth/agent-env 写入空值，
+  // 后端 RuntimeContextResolver.Resolve 会因 type 为空回退到 resolveDefaultWorkingDirectory
+  // （当前激活项目的默认工作目录），即“走默认”。
+  const handleClearEnv = async () => {
+    setClearingEnv(true);
+    try {
+      const res = await updateAgentEnvApi({ env_id: "", env_type: "" });
+      const fresh = res.data?.user;
+      if (fresh) dispatch(setUserItem({ userInfo: fresh }));
+      // 同步清空本地镜像的 llmEnv，避免业务页面残留旧上下文。
+      dispatch(setUserItem({ llmEnv: undefined }));
+      getGlobalMessage()?.success("Context cleared");
+      // 重新解析上下文，顶部标签应回退为默认工作目录。
+      void loadEnvInfo();
+    } catch {
+      // API errors are shown globally by the http interceptor.
+    } finally {
+      setClearingEnv(false);
+    }
+  };
+
   const handleSend = async () => {
     const text = input.trim();
     if (!text || sending) return;
@@ -588,7 +619,6 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       const res = await chatAgentApi({
         conversation_id: conversationId,
         message: text,
-        env: llmEnv ?? undefined,
       });
       const { task_id, conversation_id } = res.data;
 
@@ -664,7 +694,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
                 <Button
                   size="small"
                   icon={<FileTextOutlined />}
-                  title="View system prompt"
+                  title={`View system prompt (${envInfo.type})`}
                   onClick={handleViewSystemPrompt}
                   style={{ maxWidth: 280, minWidth: 0 }}
                 >
@@ -695,6 +725,22 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
                   title={envInfo.profile_id ? "Edit profile" : "No profile bound"}
                   onClick={handleEditProfile}
                 />
+                <Popconfirm
+                  title="Clear context?"
+                  description="Unbind the current env so the default working directory is used."
+                  okText="Clear"
+                  okButtonProps={{ danger: true }}
+                  cancelText="Cancel"
+                  onConfirm={handleClearEnv}
+                >
+                  <Button
+                    size="small"
+                    danger
+                    icon={<DeleteOutlined />}
+                    loading={clearingEnv}
+                    title="Clear context (use default working directory)"
+                  />
+                </Popconfirm>
               </Space.Compact>
             ) : (
               <Text type="secondary" style={{ fontSize: 12 }}>

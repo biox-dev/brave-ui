@@ -16,6 +16,8 @@ import AnalysisReportContent from "../components-relation/tools/analysis-report-
 import AnalysisToolsComp from "../components-relation/tools/anlaysis-component"
 import { useStoreRender } from "@/context/render/RenderProvider"
 import { useI18n } from "@/hooks/useI18n"
+import { useGlobalMessage } from "@/hooks/useGlobalMessage"
+import { LLMEnvType, setLLMEnv } from "@/utils/llm-env"
 
 const ResultParse = lazy(() => import("@/components/result-parse"))
 // import AnalysisResultPanel from '@/components/analysis-result-view/panel'
@@ -59,6 +61,7 @@ const AnalysisReport: FC<any> = () => {
     // const projectParam = queryParams.get("project");
     // const dispatch = useDispatch()
     const { modal, openModal, closeModal } = useModal();
+    const message = useGlobalMessage();
     const [componentType, setComponentType] = useState<any>()
     const [rightPanel, setRightPanel] = useState<any>("toc");
 
@@ -146,7 +149,22 @@ const AnalysisReport: FC<any> = () => {
 
 
     return <div >
-
+        <Flex justify="flex-end" style={{ marginBottom: 8 }}>
+            <Tooltip title="Bind this analysis as the current Agent context">
+                <Button
+                    size="small"
+                    color="geekblue"
+                    variant="solid"
+                    disabled={!analysisId}
+                    onClick={async () => {
+                        await setLLMEnv(analysisId, LLMEnvType.Analysis);
+                        message.success("Agent context bound to analysis");
+                    }}
+                >
+                    Use as Agent Context
+                </Button>
+            </Tooltip>
+        </Flex>
         <AnalysisToolsComp
             analysisId={analysisKey}
             panelView={"analysisNodePanel"}

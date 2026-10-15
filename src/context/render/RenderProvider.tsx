@@ -6,7 +6,6 @@ import { getScriptFormApi, getWorkflowFormApi } from "@/api/workflow"
 import { useDispatch, useSelector } from "react-redux"
 import { editNodeParamsApi, editParamsV2Api } from "@/api/analysis"
 import { setUserItem } from "@/store/userSlice"
-import { LLMEnvType, setLLMEnv } from "@/utils/llm-env"
 
 export const RenderContext = createContext<any>(null)
 
@@ -93,16 +92,8 @@ export const RenderProvider: FC<any> = ({ children }) => {
 
     }, [analysisNodeId]);
 
-    // 同步 LLM 业务上下文：analysisNode 优先于 analysis，两者都不存在时清空。
-    useEffect(() => {
-        if (analysisNodeId) {
-            setLLMEnv(analysisNodeId, LLMEnvType.AnalysisNode)
-        } else if (analysisId) {
-            setLLMEnv(analysisId, LLMEnvType.Analysis)
-        } else {
-            setLLMEnv(undefined, undefined)
-        }
-    }, [analysisId, analysisNodeId]);
+    // 业务上下文（llmEnv）不再在这里自动同步：它已改为用户级状态，
+    // 由业务页面顶部的按钮显式调用 setLLMEnv 写入当前用户记录（见 llm-env.ts）。
 
     const clear = () => {
         // setComponentParentIdsMap({})

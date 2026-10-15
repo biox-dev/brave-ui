@@ -15,6 +15,7 @@ import { useComponentStore } from "@/event-bus/stores/components";
 import { FilesRender } from "../result-render/components/files-render";
 import { AnalysisNodeFilesRender } from "../result-render/components/analysis-node-files-render";
 import { NodeParamsRender } from "../result-render/components/node-params-render";
+import { LLMEnvType, setLLMEnv } from "@/utils/llm-env";
 
 type NodeResultAsset = {
     images?: any[];
@@ -144,6 +145,20 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
             title={selectedSampleDetail?.node?.script_name || "Result Report"}
             extra={
                 <Space>
+                    <Tooltip title="Bind this analysis node as the current Agent context">
+                        <Button
+                            size="small"
+                            color="geekblue"
+                            variant="solid"
+                            disabled={!analysisNodeId}
+                            onClick={async () => {
+                                await setLLMEnv(analysisNodeId, LLMEnvType.AnalysisNode);
+                                message.success("Agent context bound to analysis node");
+                            }}
+                        >
+                            Use as Agent Context
+                        </Button>
+                    </Tooltip>
                     {selectedSampleDetail && (
                         <Space>
 

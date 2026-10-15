@@ -12,7 +12,7 @@ import {
 } from "@/api/project";
 import ProjectReportGitActions from "@/components/project-report-git/project-report-git-actions";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
-import { setLLMEnv } from "@/utils/llm-env";
+import { LLMEnvType, setLLMEnv } from "@/utils/llm-env";
 
 type ReportFileView = "view" | "update";
 
@@ -62,7 +62,6 @@ const ReportFile: FC<any> = () => {
   };
 
   useEffect(() => {
-    setLLMEnv(reportId, "projectReport");
     load(reportId);
   }, [reportId]);
 
@@ -115,6 +114,19 @@ const ReportFile: FC<any> = () => {
       }
       extra={
         <Flex gap="small" align="center">
+          {/* 把当前报告绑定为当前用户的 Agent 业务上下文（llmEnv）。 */}
+          <Button
+            size="small"
+            color="geekblue"
+            variant="solid"
+            disabled={!reportId}
+            onClick={async () => {
+              await setLLMEnv(reportId, LLMEnvType.ProjectReport);
+              message.success("Agent context bound to report");
+            }}
+          >
+            Use as Agent Context
+          </Button>
           {/* 报告目录的 git 操作：查看变化 / 提交 / 撤回修改。 */}
           <ProjectReportGitActions
             key={`${reportId}-${gitVersion}`}

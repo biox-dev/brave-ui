@@ -1,9 +1,10 @@
 import store from "@/store";
 import { setUserItem } from "@/store/userSlice";
+import { updateAgentEnvApi } from "@/api/auth";
 
 /**
- * LLM 业务上下文类型枚举（与后端 handler.RuntimeEnvType 约定一致）。
- * 新增业务上下文时需同步后端 runtime_context.go 中的 normalizeEnvType。
+ * LLM 业务上下文类型枚举（与后端 handler.EnvType* 约定一致）。
+ * 新增业务上下文时需同步后端 agent_runtime_context.go 中的 normalizeEnvType。
  */
 export const LLMEnvType = {
   /** 脚本工作区 */
@@ -22,11 +23,21 @@ export type LLMEnv = {
 };
 
 /**
- * 设置全局 llmEnv 到 redux store。
- * @param id 业务对象 id（如 project report id / analysis node id 等）
- * @param type llm 环境类型，推荐使用 LLMEnvType 枚举
+ * 设置当前用户选中的业务上下文（llmEnv）。
+ *
+ * 与旧版本（仅写 redux store）不同：这里把 env 持久化到后端当前用户记录上的
+ * AgentConfig.EnvID / EnvType，随后用返回的最新 userInfo 同步 redux。
+ * 后端解析系统提示词模板变量与工作目录时直接读取该用户配置，
+ * 因此不再需要在 chat / describe 请求里携带 env。
+ *
+ * 调用方式与旧 setLLMEnv 保持一致：setLLMEnv(id, type)。
+ *
+ * @param id 业务对象 id（如 project report id / analysis node id / analysis id）
+ * @param type 业务上下文类型，推荐使用 LLMEnvType 枚举；为空表示清空上下文
+ * @returns 请求 Promise（页面通常无需 await，失败仅记录日志，避免阻断交互）
  */
-export const setLLMEnv = (id?: string, type?: string) => {
+export const setLLMEnv = async (id?: string, type?: string) => {
+  // 乐观更新本地，保证 UI（如顶部上下文标签）立即反映新环境。
   store.dispatch(
     setUserItem({
       llmEnv: {
@@ -35,4 +46,17 @@ export const setLLMEnv = (id?: string, type?: string) => {
       },
     })
   );
+
+  try {
+    const res = await updateAgentEnvApi({ env_id: id ?? "", env_type: type ?? "" });
+    const fresh = res.data?.user;
+    if (fresh) {
+      // 同步后端返回的最新 userInfo（含 agent_config.env_id / env_type）。
+      store.dispatch(setUserItem({ userInfo: fresh }));
+    }
+    return res.data;
+  } catch {
+    // 错误由全局拦截器提示；本地乐观状态保留，避免阻塞页面渲染。
+  }
 };
+

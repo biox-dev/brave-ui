@@ -324,8 +324,6 @@ export interface AgentChatRequest {
   /** AgentProfile ID（为空取默认）。 */
   profile_id?: string;
   working_dir?: string;
-  /** 业务上下文 {id,type}，由业务页面通过 setLLMEnv 设置，后端据此解析系统提示词与工作目录。 */
-  env?: { id?: string; type?: string } | null;
 }
 
 // 多轮对话响应（对应后端 /agent/chat 返回值）。
@@ -354,8 +352,9 @@ export interface AgentEnvInfo {
 }
 
 // 解析当前对话的业务上下文，返回人类可读的名称与工作目录。
-export const describeAgentEnvApi = (env?: { id?: string; type?: string } | null) => {
-  return http.post<AgentEnvInfo>("/agent/env/describe", { env: env ?? null });
+// 业务上下文（llmEnv）由业务页面通过 setLLMEnv 写入当前用户记录，后端直接读取，无需传参。
+export const describeAgentEnvApi = () => {
+  return http.post<AgentEnvInfo>("/agent/env/describe", {});
 };
 
 // 查看全部技能（内置 + 用户自定义）。

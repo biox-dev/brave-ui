@@ -19,7 +19,6 @@ import {
   type ProjectReportItemContentResponse,
 } from "@/api/project";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
-// import { setLLMEnv } from "@/utils/llm-env";
 import { printHtmlDocument } from "@/utils/print-html";
 import { getPathname } from "@/utils/utils";
 import { resolveAnalysisAssetHTML } from "@/utils/analysis-url";
@@ -104,7 +103,6 @@ const ReportWriting: FC<any> = () => {
   };
 
   useEffect(() => {
-    // setLLMEnv(projectReportId, "projectReport");
     loadContent(projectReportId, itemId);
   }, [projectReportId, itemId]);
 
