@@ -178,6 +178,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
   font-size: 11px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -195,11 +197,13 @@
 
 .project-report-items-panel-actions {
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: 0;
 }
 
 .project-report-items-panel-actions .ant-btn {
+  padding-inline: 4px;
   color: var(--sharp-text-soft);
 }
 

@@ -8,10 +8,18 @@ import {
 } from "@/api/project";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
-import { DeleteOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
-import { Button, Dropdown, Empty, Input, Modal, Popconfirm, Spin, Tree } from "antd";
-import type { MenuProps, TreeProps } from "antd";
-import { FC, useEffect, useMemo, useState } from "react";
+import {
+	DeleteOutlined,
+	ExperimentOutlined,
+	FileSearchOutlined,
+	FileTextOutlined,
+	PlusOutlined,
+	ReloadOutlined,
+	RobotOutlined,
+} from "@ant-design/icons";
+import { Button, Empty, Input, Modal, Popconfirm, Spin, Tree } from "antd";
+import type { TreeProps } from "antd";
+import { FC, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "react-query";
 import {
 	countReportTreeNodes,
@@ -21,11 +29,16 @@ import {
 	type ReportTreeNode,
 } from "./project-report-tree-utils";
 
-const OWNER_TYPE_OPTIONS: { key: ProjectReportItemOwnerType; label: string }[] = [
-	{ key: "analysis", label: "Analysis" },
-	{ key: "analysis_node", label: "Analysis Node" },
-	{ key: "ai_summary", label: "AI Summary" },
-	{ key: "custom", label: "Section / Custom" },
+// ADD_OWNER_ACTIONS 把四种新增条目类型平铺成独立 icon 按钮，避免每次都要先展开下拉菜单。
+const ADD_OWNER_ACTIONS: {
+	key: ProjectReportItemOwnerType;
+	label: string;
+	icon: ReactNode;
+}[] = [
+	{ key: "analysis", label: "Add analysis", icon: <FileSearchOutlined /> },
+	{ key: "analysis_node", label: "Add analysis node", icon: <ExperimentOutlined /> },
+	{ key: "ai_summary", label: "Add AI summary", icon: <RobotOutlined /> },
+	{ key: "custom", label: "Add section / custom", icon: <PlusOutlined /> },
 ];
 
 interface AddReportItemModalProps {
@@ -142,8 +155,7 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
 	};
 
 	// 非 custom 类型通过 invoke 打开对应列表页进行选择；custom 直接弹标题输入框。
-	const handleAddMenuClick: MenuProps["onClick"] = async ({ key }) => {
-		const ownerType = key as ProjectReportItemOwnerType;
+	const handleAddItem = async (ownerType: ProjectReportItemOwnerType) => {
 		if (ownerType === "custom") {
 			setModalOpen(true);
 			return;
@@ -258,15 +270,16 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
 						title="Refresh"
 						onClick={handleRefresh}
 					/>
-					<Dropdown
-						trigger={["click"]}
-						menu={{
-							items: OWNER_TYPE_OPTIONS.map((o) => ({ key: o.key, label: o.label })),
-							onClick: handleAddMenuClick,
-						}}
-					>
-						<Button type="text" size="small" icon={<PlusOutlined />} title="Add item" />
-					</Dropdown>
+					{ADD_OWNER_ACTIONS.map((action) => (
+						<Button
+							key={action.key}
+							type="text"
+							size="small"
+							icon={action.icon}
+							title={action.label}
+							onClick={() => handleAddItem(action.key)}
+						/>
+					))}
 				</span>
 			</div>
 
