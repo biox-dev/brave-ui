@@ -1,6 +1,7 @@
 import axios from "axios";
 import { http } from "@/api/client/http";
 import type { PageResponse } from "@/api/data";
+import type { GitDiffSection } from "@/api/pipeline/git";
 
 export interface ActiveProject {
 	id: number;
@@ -166,6 +167,57 @@ export interface ProjectReportFileResponse {
 	content: string;
 }
 
+// ProjectReportGitState 是报告工作目录的本地 git 状态（与后端 utils.ReportWorktreeGitState 一一对应）。
+export interface ProjectReportGitState {
+	/** 报告工作目录（绝对路径）。 */
+	dir?: string;
+	/** 本地 HEAD commit（尚无提交时为空）。 */
+	commit?: string;
+	/** 目录是否已有可用提交（HEAD 已出生）；false 时没有可对比的基线。 */
+	initialized: boolean;
+	/** 工作区是否有未提交改动（含未跟踪文件）。 */
+	dirty: boolean;
+}
+
+// ProjectReportGitDiffResponse 是 `GET /project/project-report-git-diff` 的响应。
+// 报告没有发布目标（store），因此只有「工作区改动」一段，字段命名与组件目录 diff 保持一致。
+export interface ProjectReportGitDiffResponse {
+	report_id: string;
+	project_id: string;
+	/** 报告工作目录（绝对路径）。 */
+	repo_dir: string;
+	/** 目录是否已是 git 仓库且有基线提交；false 时没有可展示的 diff。 */
+	initialized: boolean;
+	/** 本地 HEAD commit（尚无提交时为空）。 */
+	head_commit?: string;
+	/** 工作区是否有未提交改动。 */
+	has_changes: boolean;
+	/** 工作区相对本地 HEAD 的未提交改动（含未跟踪文件）。 */
+	worktree: GitDiffSection;
+	/** 实时本地 git 状态。 */
+	git_state: ProjectReportGitState;
+}
+
+// ProjectReportCommitResponse 是 `POST /project/commit-project-report` 的响应。
+export interface ProjectReportCommitResponse {
+	report_id: string;
+	project_id: string;
+	/** 本次是否真的产生了新提交（工作区干净时为 false）。 */
+	committed: boolean;
+	/** 提交后的 HEAD commit。 */
+	commit?: string;
+	/** 本次提交实际使用的 message。 */
+	commit_message: string;
+}
+
+// ProjectReportRevertFileResponse 是 `POST /project/revert-project-report-file` 的响应。
+export interface ProjectReportRevertFileResponse {
+	report_id: string;
+	/** 被撤回的文件路径（相对报告目录）。 */
+	path: string;
+	reverted: boolean;
+}
+
 export interface ProjectReportPageQuery {
 	// Reserved for future filters.
 }
@@ -214,6 +266,34 @@ export const getProjectReportFileApi = (reportId: string) =>
 // updateProjectReportFileApi 覆写报告工作目录下的自身 markdown 文件（output.md）。
 export const updateProjectReportFileApi = (payload: { report_id: string; content: string }) =>
 	http.post<{ message: string }>("/project/update-project-report-file", payload)
+
+// getProjectReportGitDiffApi 读取报告工作目录的本地未提交改动。
+export const getProjectReportGitDiffApi = async (reportId: string | number) => {
+	const resp = await http.get<ProjectReportGitDiffResponse>(`/project/project-report-git-diff`, {
+		params: { report_id: String(reportId) },
+		skipGlobalError: true,
+	})
+	return resp.data
+}
+
+// commitProjectReportApi 把报告工作目录的所有改动提交为一个 commit（message 可留空）。
+export const commitProjectReportApi = async (reportId: string | number, message?: string) => {
+	const resp = await http.post<ProjectReportCommitResponse>("/project/commit-project-report", {
+		report_id: String(reportId),
+		message: message?.trim() || undefined,
+	})
+	return resp.data
+}
+
+// revertProjectReportFileApi 撤回报告目录里单个文件的未提交改动（恢复为本地 HEAD 版本）。
+export const revertProjectReportFileApi = async (reportId: string | number, path: string) => {
+	const resp = await http.post<ProjectReportRevertFileResponse>(
+		"/project/revert-project-report-file",
+		{ report_id: String(reportId), path },
+		{ skipGlobalError: true },
+	)
+	return resp.data
+}
 
 // getProjectReportHtmlApi 返回报告聚合后的独立 HTML 文档字符串。
 // inlineImages=true 时图片以 base64 内嵌（自包含），false 时保留原始 URL。
