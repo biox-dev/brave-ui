@@ -135,6 +135,8 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   // 当前用户的会话列表（用于切换）。
   const [conversations, setConversations] = useState<AgentConversationItem[]>([]);
   const [loadingConversations, setLoadingConversations] = useState(false);
+  // 当前会话重新拉取的加载态（供刷新按钮展示）。
+  const [reloadingConversation, setReloadingConversation] = useState(false);
 
   // 当前选中会话活跃任务的待确认权限（可同时存在多个）。
   const [pendingPermissions, setPendingPermissions] = useState<AgentPermissionItem[]>([]);
@@ -387,6 +389,29 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     handleSwitchConversation(initialConversationId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialConversationId]);
+
+  // 重新拉取当前会话（含完整历史消息）：用于手动同步后端最新状态。
+  const handleReloadConversation = async () => {
+    const id = conversationId;
+    if (!id) return;
+    setReloadingConversation(true);
+    try {
+      const res = await getConversationApi(id);
+      const conv = res.data;
+      // 仅在仍是同一会话时回填，避免请求期间用户已切换会话造成覆盖。
+      if (conv.id !== selectedConvIdRef.current) return;
+      setMessages(mapMessages(conv));
+      // 同步刷新待确认权限 / 待作答提问，保证按钮与卡片与后端一致。
+      if (isValidTaskId(conv.current_task_id)) {
+        void loadPermissions(conv.current_task_id);
+        void loadQuestions(conv.current_task_id);
+      }
+    } catch {
+      // 错误由全局拦截器提示。
+    } finally {
+      setReloadingConversation(false);
+    }
+  };
 
   // 轮次结束：把 assistant 回复固化到消息列表（若为选中会话），并清理活跃轮次。
   const finalizeTurn = async (turn: ActiveTurn, _type: string) => {
@@ -700,6 +725,13 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
                 </Flex>
               ),
             }))}
+          />
+          <Button
+            size="small"
+            icon={<ReloadOutlined spin={reloadingConversation} />}
+            title="Reload current conversation"
+            onClick={handleReloadConversation}
+            disabled={!conversationId}
           />
           <Button
             size="small"
