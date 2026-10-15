@@ -4,7 +4,6 @@ import {
   CheckOutlined,
   ClearOutlined,
   CloseOutlined,
-  DeleteOutlined,
   EditOutlined,
   FileTextOutlined,
   LoadingOutlined,
@@ -51,6 +50,7 @@ import {
   type AgentUserConfig,
 } from "@/api/auth";
 import { setUserItem } from "@/store/userSlice";
+import { useComponentStore } from "@/event-bus/stores/components";
 import { invoke } from "@/core/ui-system/invokeV2";
 import AgentTaskStream from "./agent-task-stream";
 import AgentAskUserCard from "./agent-ask-user";
@@ -186,6 +186,9 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
 
   // 向后端解析人类可读的业务上下文（如节点名/报告标题）用于顶部展示。
   // 返回解析结果，供 Profile 编辑弹窗保存后刷新展示（vars / 渲染后的 system_prompt）。
+  //
+  // 依赖为空：本函数引用保持稳定，既便于注册到 component store 供外部调用，
+  // 也避免因 llmEnv 引用变化而重建；业务上下文变化后的重新解析改由下方 effect 触发。
   const loadEnvInfo = useCallback(async (): Promise<AgentEnvInfo | null> => {
     setEnvLoading(true);
     try {
@@ -199,12 +202,24 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     } finally {
       setEnvLoading(false);
     }
-  }, [llmEnv]);
+  }, []);
 
   // 当前业务上下文变化时，自动解析一次。
   useEffect(() => {
     void loadEnvInfo();
-  }, [loadEnvInfo]);
+  }, [llmEnv, loadEnvInfo]);
+
+  // 注册本组件实例到 component store（id = "agent-chat"），对外暴露
+  // loadEnvInfo / reload。外部（如 utils/llm-env.ts 的 setLLMEnv）通过
+  // ActionDispatcher.dispatch("component.invoke", { category: "store", id: "agent-chat", method: "loadEnvInfo" })
+  // 调用，从而在“业务上下文已写入后端”之后主动触发解析。
+  const { register: registerComponent, unregister: unregisterComponent } = useComponentStore();
+  useEffect(() => {
+    registerComponent("store", "agent-chat", { loadEnvInfo });
+    return () => {
+      unregisterComponent("store", "agent-chat");
+    };
+  }, [loadEnvInfo, registerComponent, unregisterComponent]);
 
   // 加载会话列表（挂载时 + 轮次结束时刷新）。
   const loadConversations = async () => {
@@ -725,27 +740,33 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
                   title={envInfo.profile_id ? "Edit profile" : "No profile bound"}
                   onClick={handleEditProfile}
                 />
-                <Popconfirm
-                  title="Clear context?"
-                  description="Unbind the current env so the default working directory is used."
-                  okText="Clear"
-                  okButtonProps={{ danger: true }}
-                  cancelText="Cancel"
-                  onConfirm={handleClearEnv}
-                >
-                  <Button
-                    size="small"
-                    danger
-                    icon={<DeleteOutlined />}
-                    loading={clearingEnv}
-                    title="Clear context (use default working directory)"
-                  />
-                </Popconfirm>
+                {envInfo?.type && (
+                  <Popconfirm
+                    title="Clear context?"
+                    description="Unbind the current env so the default working directory is used."
+                    okText="Clear"
+                    okButtonProps={{ danger: true }}
+                    cancelText="Cancel"
+                    onConfirm={handleClearEnv}
+                  >
+                    <Button
+                      size="small"
+                      // danger
+                      icon={<ClearOutlined />}
+                      loading={clearingEnv}
+                      title="Clear context (use default working directory)"
+                    />
+                  </Popconfirm>
+                )}
               </Space.Compact>
             ) : (
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                No context bound
-              </Text>
+              <Space size={8}>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  No context bound
+                </Text>
+                {/* 仅在没有绑定业务上下文（envInfo.type 不存在）时，才提供“清空上下文”入口。 */}
+
+              </Space>
             )}
             {sending && (
               <Flex align="center" gap={6} style={{ minWidth: 0, overflow: "hidden" }}>
