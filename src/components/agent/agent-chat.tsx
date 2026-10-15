@@ -11,6 +11,7 @@ import {
   ReloadOutlined,
   RobotOutlined,
   SendOutlined,
+  SettingOutlined,
   UserOutlined,
   WarningOutlined,
 } from "@ant-design/icons";
@@ -26,6 +27,8 @@ import {
   describeAgentEnvApi,
   getAgentPendingPermissionsApi,
   getAgentPendingQuestionsApi,
+  listAgentProfileApi,
+  type AgentProfileItem,
   getAgentTaskApi,
   getAgentTaskEventsApi,
   getConversationApi,
@@ -40,7 +43,7 @@ import {
 import { getGlobalMessage } from "@/hooks/useGlobalMessage";
 import { sseClient } from "@/sse";
 import { useDispatch, useSelector } from "react-redux";
-import { getCurrentUserApi, type AgentUserConfig } from "@/api/auth";
+import { getCurrentUserApi, updateUserProfileApi, type AgentUserConfig } from "@/api/auth";
 import { setUserItem } from "@/store/userSlice";
 import { invoke } from "@/core/ui-system/invokeV2";
 import AgentTaskStream from "./agent-task-stream";
@@ -148,6 +151,11 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   const [currentTaskId, setCurrentTaskId] = useState<string>();
   const [canceling, setCanceling] = useState(false);
 
+  // 可选的 Agent Profile 列表（顶部选择框数据源）。
+  const [profiles, setProfiles] = useState<AgentProfileItem[]>([]);
+  // Profile 切换中的加载态（避免重复提交）。
+  const [switchingProfile, setSwitchingProfile] = useState(false);
+
   const listRef = useRef<HTMLDivElement>(null);
   // 当前选中的会话 ID（ref 镜像，供 WS 回调读取最新值）。
   const selectedConvIdRef = useRef<string | undefined>(initialConversationId);
@@ -159,6 +167,13 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, waiting, currentTaskId]);
+
+  // 加载可用 Agent Profile 列表（顶部选择框数据源）。
+  useEffect(() => {
+    listAgentProfileApi()
+      .then((res) => setProfiles(res.data ?? []))
+      .catch(() => setProfiles([]));
+  }, []);
 
   // 向后端解析人类可读的业务上下文（如节点名/报告标题）用于顶部展示。
   // 返回解析结果，供 Profile 编辑弹窗保存后刷新展示（vars / 渲染后的 system_prompt）。
@@ -486,6 +501,25 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 直接切换 Profile：调用专用接口只修改 profile_id（不动 Permissions），
+  // 成功后从后端拉取最新 userInfo（刷新 agent_profile DTO 与 Profile 展示名）。
+  const handleProfileSelect = async (profileId?: string) => {
+    if (!userInfo) return;
+    setSwitchingProfile(true);
+    try {
+      const res = await updateUserProfileApi(profileId ?? "");
+      const fresh = res.data?.user;
+      if (fresh) dispatch(setUserItem({ userInfo: fresh }));
+      getGlobalMessage()?.success("Profile updated");
+      // Profile 变化会影响当前上下文渲染的系统提示词，重新解析一次。
+      void loadEnvInfo();
+    } catch {
+      // API errors are shown globally by the http interceptor.
+    } finally {
+      setSwitchingProfile(false);
+    }
+  };
+
   // 切换 Profile / Agent 配置：通过 invokeV2 弹窗展示并编辑当前用户的
   // agent_config（Profile + Permissions），保存后同步更新 Redux 中的 userInfo。
   const handleProfileChange = () => {
@@ -606,7 +640,6 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
 
   // 当前用户选中的 Profile 展示名（由 /auth/me 解析的 agent_profile DTO 提供）。
   const currentProfileId = userInfo?.agent_config?.profile_id;
-  const currentProfileName = userInfo?.agent_profile?.name;
 
   return (
     <Flex vertical style={{ height: "100%", minHeight: 480 }}>
@@ -678,14 +711,29 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
             )}
           </Flex>
           <Flex align="center" gap={8} style={{ flexShrink: 0 }}>
-            <Tag
-              color={currentProfileId ? "processing" : "default"}
-              icon={<EditOutlined />}
-              style={{ cursor: "pointer", marginInlineEnd: 0 }}
+            <Select
+              size="small"
+              value={currentProfileId}
+              placeholder="Select profile"
+              loading={switchingProfile}
+              showSearch
+              optionFilterProp="label"
+              disabled={!userInfo}
+              onChange={(id) => void handleProfileSelect(id)}
+              style={{ width: 200 }}
+              options={profiles.map((p) => ({
+                value: p.id,
+                label: `${p.name}${p.is_default ? " (default)" : ""}`,
+              }))}
+            />
+            <Button
+              size="small"
+              icon={<SettingOutlined />}
+              title="Edit permissions"
               onClick={handleProfileChange}
             >
-              {currentProfileName || "Default profile"}
-            </Tag>
+              Permissions
+            </Button>
           </Flex>
         </Flex>
 
