@@ -103,8 +103,8 @@ const ScriptPage = ({
 	const columns: ColumnsType<ScriptItem> = [
 		{
 			title: "Script Name",
-			dataIndex: "component_name",
-			key: "component_name",
+			dataIndex: "name",
+			key: "name",
 			width: 300,
 			ellipsis: true,
 			render: (value: string) => value || "-",

@@ -17,6 +17,7 @@ import ViewResolver from "@/core/ui-renderer/ViewResolver";
 import { componentMap, ImgView, UrlComp } from "./components";
 import { FilesRender } from "./components/files-render";
 import LogFile from "@/components/log-file";
+import { resolveAnalysisAssetURL } from "@/utils/analysis-url";
 // import EditParamsPanel from "../edit-params/components/panel";
 
 
@@ -601,7 +602,7 @@ export const AnalysisResultViewComp: FC<any> = ({ analysis_id, onClose, callback
 const HtmlPreview: FC<any> = ({ visible, onClose, params, baseURL }) => {
     return <Modal open={visible} onCancel={onClose} onClose={onClose} width={"80%"} title={"HTML Preview"} footer={null}>
         {params?.data && <>
-            <iframe src={`${baseURL}${params?.data}`} width={"100%"} style={{ height: "80vh", border: "none" }}>
+            <iframe src={`${resolveAnalysisAssetURL(baseURL, params?.data)}`} width={"100%"} style={{ height: "80vh", border: "none" }}>
             </iframe>
         </>}
 

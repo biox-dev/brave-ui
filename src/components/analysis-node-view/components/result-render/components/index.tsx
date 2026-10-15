@@ -22,12 +22,13 @@ import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { CreateOrUpdatePipelineComponent } from "../../../../create-pipeline";
 import BigTable from '@/components/big-table';
 import DiffSummaryCard from "./diff-summary-card";
+import { resolveAnalysisAssetURL } from "@/utils/analysis-url";
 
 
 export const UrlComp: FC<any> = ({ url, filename, baseURL }) => {
     return <>
         {url && <Popover title={<div style={{ wordBreak: "break-all", maxWidth: "400px" }}>
-            {`${baseURL}${url}`}
+            {`${resolveAnalysisAssetURL(baseURL, url)}`}
         </div>}>
             <Tag color="success"
                 style={{
@@ -37,7 +38,7 @@ export const UrlComp: FC<any> = ({ url, filename, baseURL }) => {
                     display: "inline-block", // Allow wrapping inside the tag
                     //   maxWidth: "300px"       // Optional: limit width to trigger wrapping
                 }} onClick={() => {
-                    window.open(`${baseURL}${url}?t=${Date.now()}`, "_blank")
+                    window.open(`${resolveAnalysisAssetURL(baseURL, url)}?t=${Date.now()}`, "_blank")
                 }}><span>{filename} </span><DownloadOutlined /></Tag></Popover>}
 
     </>
@@ -213,7 +214,7 @@ const ImgView0: FC<any> = ({ data, url, urls, filename, baseURL }) => {
 
             <div>
 
-                <Image src={data?.startsWith("data:image/png") ? data : `${baseURL}${data}?t=${Date.now()}`} style={{ width: "100%", marginRight: "0.5rem" }}></Image>
+                <Image src={data?.startsWith("data:image/png") ? data : `${resolveAnalysisAssetURL(baseURL, data)}?t=${Date.now()}`} style={{ width: "100%", marginRight: "0.5rem" }}></Image>
                 {(urls && Array.isArray(urls)) && <>
 
                     {urls.map((item: any, index: any) => (
@@ -325,7 +326,7 @@ const HtmlView: FC<any> = ({ data, url }) => {
 
             {/* iframe 本体 */}
             <iframe
-                src={`${baseURL}${url}`}
+                src={`${resolveAnalysisAssetURL(baseURL, url)}`}
                 width="100%"
                 style={{ height: "100%", border: "none" }}
                 onLoad={() => setLoading(false)} // 加载完成时隐藏 loading

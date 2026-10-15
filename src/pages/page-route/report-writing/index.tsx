@@ -22,6 +22,7 @@ import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 // import { setLLMEnv } from "@/utils/llm-env";
 import { printHtmlDocument } from "@/utils/print-html";
 import { getPathname } from "@/utils/utils";
+import { resolveAnalysisAssetHTML } from "@/utils/analysis-url";
 
 // sanitizeFileName 移除文件名中的非法字符，空标题时回退到默认名。
 const sanitizeFileName = (name: string, fallback: string) => {
@@ -32,7 +33,7 @@ const sanitizeFileName = (name: string, fallback: string) => {
 const ReportWriting: FC<any> = () => {
   const navigate = useNavigate();
   const message = useGlobalMessage();
-  const { project } = useSelector((state: any) => state.user);
+  const { project, baseURL } = useSelector((state: any) => state.user);
   const projectId = typeof project === "string" ? project : project?.project_id;
 
   const { "project-report-id": projectReportId, "item-id": itemId } = useParams<{
@@ -477,9 +478,11 @@ const ReportWriting: FC<any> = () => {
           </Button>
         </Flex>
         <Spin spinning={htmlPreview.loading}>
+          {/* 后端导出的 HTML 里图片路径以数据目录为根（无 /data-analysis 前缀，
+              srcDoc 会按站点绝对路径解析），预览时统一补上前缀。 */}
           <iframe
             title="report-html"
-            srcDoc={htmlPreview.content}
+            srcDoc={resolveAnalysisAssetHTML(htmlPreview.content, baseURL)}
             sandbox="allow-same-origin"
             style={{ width: "100%", height: "calc(70vh - 49px)", border: "none" }}
           />

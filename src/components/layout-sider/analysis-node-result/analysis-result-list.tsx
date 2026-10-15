@@ -184,6 +184,8 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
             record.updated_at
               ? formatRelativeTime(record.updated_at, locale)
               : undefined,
+            // script_name 来自后端按 script_id join 出来的脚本名称。
+            record.script_name,
             // record.executor,
 
           ]

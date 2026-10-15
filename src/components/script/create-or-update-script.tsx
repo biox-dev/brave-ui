@@ -39,7 +39,7 @@ const normalizeTags = (value: any): string[] => {
 };
 
 const toFormValues = (script: any) => ({
-  component_name: script?.component_name,
+  name: script?.name,
   container_template_id: script?.container_template_id,
   // backend /find-script returns the display name under "continername"
   container_name:
@@ -213,7 +213,7 @@ const CreateOrUpdateScript: FC<CreateOrUpdateScriptProps> = ({
       >
         <Form form={form} layout="vertical">
           <Form.Item
-            name="component_name"
+            name="name"
             label="Component Name"
             rules={[{ required: true, message: "Please input component name!" }]}
           >

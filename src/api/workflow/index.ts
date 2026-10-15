@@ -26,7 +26,7 @@ export const getScriptFormApi = (scriptId:any) =>{
 export interface ScriptItem {
 	id: string;
 	component_id: string;
-	component_name: string;
+	name: string;
 	description?: string;
 	script_type?: string;
 	category?: string;
@@ -41,7 +41,7 @@ export interface ScriptPageQuery {
 	id?: string;
 	ids?: string[];
 	script_id?: string;
-	component_name?: string;
+	name?: string;
 	script_type?: string;
 	category?: string;
 	install_key?: string;

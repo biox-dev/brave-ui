@@ -19,6 +19,7 @@ import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { CreateOrUpdatePipelineComponent } from "../create-pipeline";
 import BigTable from '@/components/big-table';
 import { componentMap, ImgView, UrlComp } from '../analysis-node-view/components/result-render/components'
+import { resolveAnalysisAssetURL } from '@/utils/analysis-url'
 import MicrobiomeSummaryCard from "../analysis-node-view/components/result-render/components/diff-summary-card";
 import AnalysisResultRender from "./analysis-result-render";
 import { useSideViewContext } from "@/context/side/SideViewContext";
@@ -960,7 +961,7 @@ const AnalysisResultDisplay: FC<any> = ({ analsyisResult, loading }) => {
 const HtmlPreview: FC<any> = ({ visible, onClose, params, baseURL }) => {
     return <Modal open={visible} onCancel={onClose} onClose={onClose} width={"80%"} title={"HTML Preview"} footer={null}>
         {params?.data && <>
-            <iframe src={`${baseURL}${params?.data}`} width={"100%"} style={{ height: "80vh", border: "none" }}>
+            <iframe src={`${resolveAnalysisAssetURL(baseURL, params?.data)}`} width={"100%"} style={{ height: "80vh", border: "none" }}>
             </iframe>
         </>}
 

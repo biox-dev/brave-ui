@@ -87,9 +87,9 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
                                 <div className="script-panel-heading">
                                     <div className="script-panel-title-row">
                                         <FileTextOutlined className="script-panel-icon" />
-                                        <Tooltip title={script.script_path || script.component_name}>
+                                        <Tooltip title={script.script_path || script.name}>
                                             <span className="script-panel-title">
-                                                {script.component_name || script.script_path || script.id}
+                                                {script.name || script.script_path || script.id}
                                             </span>
                                         </Tooltip>
                                         {script.script_type ? (

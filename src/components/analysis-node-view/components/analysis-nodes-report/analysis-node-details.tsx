@@ -534,7 +534,6 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
                     <AISummaryPanel
                         ownerType="analysis_node"
                         ownerId={analysis_node_id}
-                        prefix={selectedSampleDetail?.url_prefix || ""}
                     />
                     <AnalysisNodeFilesRender analysis_node_id={analysis_node_id} name="Node Files" />
                     <NodeParamsRender analysis_node_id={analysis_node_id} name="Node Params" />
@@ -545,7 +544,6 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
                         <Skeleton active paragraph={{ rows: 6 }} />
                     ) : (
                         <ViewResolver
-                            prefix={selectedSampleDetail?.url_prefix || ""}
                             analsyisResult={selectedSampleDetail.result || { images: [], tables: [], htmls: [], files: [] }}
                             view={"analysisResultDisplay"}
                         ></ViewResolver>

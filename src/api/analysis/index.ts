@@ -41,6 +41,8 @@ export interface AnalysisNodeItem {
 	node_id: string;
 	node_name: string;
 	script_id: string;
+	// script_name 由后端按 script_id join pipeline_components 得到（列表接口才返回）。
+	script_name?: string;
 	status: string;
 	server_status: string;
 	executor: string;

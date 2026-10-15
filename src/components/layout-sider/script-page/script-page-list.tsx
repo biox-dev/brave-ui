@@ -28,7 +28,7 @@ const ScriptDetailCard = ({ item }: { item: ScriptItem }) => {
         column={1}
         bordered
         items={[
-          { key: "component_name", label: "Script Name", children: item.component_name || item.component_id || "-" },
+          { key: "name", label: "Script Name", children: item.name || item.component_id || "-" },
           { key: "id", label: "Script ID", children: item.id || "-" },
           { key: "component_id", label: "Component ID", children: item.component_id || "-" },
           { key: "script_type", label: "Script Type", children: item.script_type || "-" },
@@ -118,8 +118,8 @@ const ScriptPageList: FC<any> = () => {
     () => [
       {
         title: "Script Name",
-        dataIndex: "component_name",
-        key: "component_name",
+        dataIndex: "name",
+        key: "name",
         ellipsis: { showTitle: false },
         render: (name: string, record) => {
           const title = name || record.component_id || `Script-${record.id}`;
@@ -182,7 +182,7 @@ const ScriptPageList: FC<any> = () => {
           title={
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
               <CodeOutlined />
-              {record.component_name || record.component_id || `Script-${record.id}`}
+              {record.name || record.component_id || `Script-${record.id}`}
             </span>
           }
           content={<ScriptDetailCard item={record} />}
@@ -201,7 +201,7 @@ const ScriptPageList: FC<any> = () => {
     width: 130,
     align: "right",
     render: (_: unknown, record) => {
-      const title = record.component_name || record.component_id || `Script-${record.id}`;
+      const title = record.name || record.component_id || `Script-${record.id}`;
       // Every action opens the same views the script-panel tabs use, but as a
       // drawer via `invoke` — edit/create, main file code, and README.md.
       const drawerProps = { width: 960, title, footer: null };

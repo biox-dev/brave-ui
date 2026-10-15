@@ -11,6 +11,7 @@ import 'katex/dist/katex.min.css'
 import { useSelector } from "react-redux";
 import ViewResolver from "@/core/ui-renderer/ViewResolver";
 import type { ViewRenderProps } from "@/core/component-registry/registry-types";
+import { withDataAnalysisPrefix } from "@/utils/analysis-url";
 import './index.css'
 
 const VIEW_RESOLVER_TOKEN_REGEXP = /@@VIEW_RESOLVER_(\d+)@@/g
@@ -336,9 +337,11 @@ const Markdown: FC<any> = ({ data ,prefix=""}) => {
         ),
         img: ({ node, src, ...props }) => (
           <div className="markdown-image">
-            {/* {src} */}
+            {/* 以 / 开头的是后端给出的绝对路径（以数据目录为根，如 /34/analysis_node/.../a.png），
+                此时不再拼 prefix，只补前端统一的 /data-analysis 前缀；
+                相对路径才按 prefix（所属产物目录）拼接。 */}
             <Image
-              src={resolveImageSrc(baseURL, `${prefix}${src}?timestamp=${Date.now()}`)}
+              src={resolveImageSrc(baseURL, `${withDataAnalysisPrefix(src?.startsWith('/') ? src : `${prefix}${src}`)}?timestamp=${Date.now()}`)}
               className="markdown-image__img"
               style={{ width: '100%', height: 'auto', display: 'block' }}
               alt={props.alt || ''}
