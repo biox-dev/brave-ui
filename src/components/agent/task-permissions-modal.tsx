@@ -21,6 +21,24 @@ const operationDiff = (op?: AgentOperation | null): string => {
   return typeof value === "string" ? value : "";
 };
 
+// 展示 Provider 提供的工具名（metadata.tool）。
+const operationTool = (op?: AgentOperation | null): string => {
+  const value = op?.metadata?.tool;
+  return typeof value === "string" ? value : "";
+};
+
+// 操作摘要：优先 Provider 的人类可读 description，其次回退到 Path / Command / Content。
+const operationSummary = (op?: AgentOperation | null): string => {
+  if (!op) return "-";
+  return (
+    (op.description && op.description.trim()) ||
+    op.path ||
+    op.command ||
+    op.content ||
+    "-"
+  );
+};
+
 const formatTime = (value?: string | null) => (value ? new Date(value).toLocaleString() : "-");
 
 const STATUS_COLORS: Record<string, string> = {
@@ -59,17 +77,25 @@ const createColumns = ({ onApprove, onDeny, resolvingId }: ActionHandlers): Colu
     title: "Operation Type",
     key: "operation_type",
     width: 140,
-    render: (_: unknown, record) => record.operation?.type || "-",
+    render: (_: unknown, record) => {
+      const tool = operationTool(record.operation);
+      return (
+        <Space size={4}>
+          <Text>{record.operation?.type || "-"}</Text>
+          {tool && (
+            <Tag color="default" style={{ margin: 0, fontSize: 11 }}>
+              {tool}
+            </Tag>
+          )}
+        </Space>
+      );
+    },
   },
   {
-    title: "Operation",
-    key: "operation",
+    title: "Description",
+    key: "description",
     ellipsis: true,
-    render: (_: unknown, record) => {
-      const op = record.operation;
-      if (!op) return "-";
-      return op.path || op.command || op.content || "-";
-    },
+    render: (_: unknown, record) => operationSummary(record.operation),
   },
   {
     title: "Diff",

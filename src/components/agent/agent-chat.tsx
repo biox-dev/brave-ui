@@ -290,9 +290,23 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     }
   };
 
+  // 操作摘要：优先展示 Provider 提供的人类可读 description，其次回退到
+  // Path / Command / Content（Provider 未提供 description 时的原生操作）。
   const renderOperation = (op: AgentPermissionItem["operation"]) => {
     if (!op) return "-";
-    return op.path || op.command || op.content || "-";
+    return (
+      (op.description && op.description.trim()) ||
+      op.path ||
+      op.command ||
+      op.content ||
+      "-"
+    );
+  };
+
+  // 展示 Provider 提供的工具名（metadata.tool），便于用户判断来源。
+  const operationTool = (op: AgentPermissionItem["operation"]): string => {
+    const value = op?.metadata?.tool;
+    return typeof value === "string" ? value : "";
   };
 
   // 从 Operation.Metadata 提取 diff（opencode edit / write 权限请求透传，供批准前查看）。
@@ -854,6 +868,9 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
           {pendingPermissions.map((perm) => {
             const pendingLoading = resolvingId === perm.id;
             const diff = operationDiff(perm.operation);
+            const tool = operationTool(perm.operation);
+            const description = perm.operation?.description?.trim();
+            const target = renderOperation(perm.operation);
             return (
               <Flex
                 key={perm.id}
@@ -868,15 +885,33 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
               >
                 <Flex align="center" justify="space-between" gap={8}>
                   <Flex vertical gap={2} style={{ minWidth: 0, flex: 1 }}>
-                    <Text strong style={{ fontSize: 13 }}>
-                      {perm.operation?.type || "Permission"}
-                    </Text>
-                    <Text
-                      type="secondary"
-                      style={{ fontSize: 12, wordBreak: "break-all" }}
-                    >
-                      {renderOperation(perm.operation)}
-                    </Text>
+                    <Flex align="center" gap={6} wrap>
+                      <Text strong style={{ fontSize: 13 }}>
+                        {perm.operation?.type || "Permission"}
+                      </Text>
+                      {tool && (
+                        <Tag
+                          color="default"
+                          style={{ margin: 0, fontSize: 11, lineHeight: "16px" }}
+                        >
+                          {tool}
+                        </Tag>
+                      )}
+                    </Flex>
+                    {/* 优先展示 Provider 的人类可读描述；描述与目标一致时只显示一条。 */}
+                    {description && (
+                      <Text style={{ fontSize: 12, wordBreak: "break-word" }}>
+                        {description}
+                      </Text>
+                    )}
+                    {(!description || target !== description) && (
+                      <Text
+                        type="secondary"
+                        style={{ fontSize: 12, wordBreak: "break-all" }}
+                      >
+                        {target}
+                      </Text>
+                    )}
                   </Flex>
                   <Space size={4}>
                     <Button

@@ -36,6 +36,8 @@ export interface AgentOperation {
   path?: string;
   content?: string;
   command?: string;
+  /** 人类可读操作摘要（如 "Execute command: ls -la"），批准前展示用。 */
+  description?: string;
   metadata?: Record<string, unknown> | null;
 }
 

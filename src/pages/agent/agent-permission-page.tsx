@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Card, Flex, Input, Popconfirm, Select, Space, Table, Typography } from "antd";
+import { Button, Card, Flex, Input, Popconfirm, Select, Space, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { CheckOutlined, CloseOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useAgentPermissionPageQuery } from "@/hooks/usePaginationV2";
@@ -57,16 +57,33 @@ const createColumns = ({ onApprove, onDeny, resolvingId }: ActionHandlers): Colu
     title: "Operation Type",
     key: "operation_type",
     width: 140,
-    render: (_: unknown, record) => record.operation?.type || "-",
+    render: (_: unknown, record) => {
+      const op = record.operation;
+      const tool = op?.metadata?.tool;
+      return (
+        <Space size={4}>
+          <span>{op?.type || "-"}</span>
+          {typeof tool === "string" && tool && (
+            <Tag style={{ margin: 0, fontSize: 11 }}>{tool}</Tag>
+          )}
+        </Space>
+      );
+    },
   },
   {
-    title: "Operation",
-    key: "operation",
+    title: "Description",
+    key: "description",
     ellipsis: true,
     render: (_: unknown, record) => {
       const op = record.operation;
       if (!op) return "-";
-      return op.path || op.command || op.content || "-";
+      return (
+        (op.description && op.description.trim()) ||
+        op.path ||
+        op.command ||
+        op.content ||
+        "-"
+      );
     },
   },
   {
