@@ -48,13 +48,14 @@ function takeReportNode(nodes: ReportTreeNode[], key: string): ReportTreeNode | 
 	return undefined;
 }
 
-function findReportNode(nodes: ReportTreeNode[], key: string): ReportTreeNode | undefined {
+// findReportTreeNode 按 key 在树中查找节点（含各级子节点）。
+export function findReportTreeNode(nodes: ReportTreeNode[], key: string): ReportTreeNode | undefined {
 	for (const node of nodes) {
 		if (node.key === key) {
 			return node;
 		}
 		if (node.children) {
-			const found = findReportNode(node.children, key);
+			const found = findReportTreeNode(node.children, key);
 			if (found) {
 				return found;
 			}
@@ -99,7 +100,7 @@ export function moveReportTreeNode(
 
 	if (!dropToGap) {
 		// 放到节点内部，作为其第一个子节点。
-		const target = findReportNode(next, dropKey);
+		const target = findReportTreeNode(next, dropKey);
 		if (!target) {
 			return null;
 		}

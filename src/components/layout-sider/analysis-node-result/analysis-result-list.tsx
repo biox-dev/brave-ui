@@ -93,9 +93,11 @@ export interface AnalysisResultListProps {
   onOk?: (node: AnalysisNodeItem) => void;
   onCancel?: () => void;
   close?: () => void;
+  // multiple 为 true 时支持一次选择多条，确认时 onOk 收到选中节点数组。
+  multiple?: boolean;
 }
 
-const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel, close }) => {
+const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel, close, multiple = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const message = useGlobalMessage();
@@ -114,8 +116,27 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
 
   // 作为选择器（通过 invoke 打开）时使用本地选中态，普通模式沿用路由选中态。
   const selectable = Boolean(onOk || onCancel);
-  const [pickedId, setPickedId] = useState<string>();
-  const selectedId = selectable ? pickedId : routeSelectedId;
+  // 本地选中结果用 Map 按点击顺序保存：既能跨分页保留选择，又能保持添加顺序。
+  const [picked, setPicked] = useState<Map<string, AnalysisNodeItem>>(new Map());
+  const pickedItems = useMemo(() => Array.from(picked.values()), [picked]);
+  const isPicked = (id: string) => picked.has(String(id));
+  const selectedId = selectable ? pickedItems[0]?.id : routeSelectedId;
+
+  // handleSelect 在多选模式下切换选中状态，单选模式下直接替换选中项。
+  const handleSelect = (record: AnalysisNodeItem) => {
+    setPicked((prev) => {
+      if (!multiple) {
+        return new Map([[String(record.id), record]]);
+      }
+      const next = new Map(prev);
+      if (next.has(String(record.id))) {
+        next.delete(String(record.id));
+      } else {
+        next.set(String(record.id), record);
+      }
+      return next;
+    });
+  };
 
   const {
     data,
@@ -157,10 +178,12 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
   };
 
   const handleConfirm = () => {
-    const picked = data.find((item) => String(item.id) === String(pickedId));
-    if (picked && onOk) {
-      onOk(picked);
+    if (!onOk || pickedItems.length === 0) {
+      return;
     }
+    // 多选时回传数组，单选时回传单个对象，保持既有调用方兼容。
+    const payload = multiple ? pickedItems : pickedItems[0];
+    (onOk as (value: AnalysisNodeItem | AnalysisNodeItem[]) => void)(payload);
   };
 
   const handleCancel = () => {
@@ -286,14 +309,14 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
     align: "right",
     render: (_, record) => (
       <Button
-        type={String(record.id) === String(selectedId) ? "primary" : "default"}
+        type={isPicked(record.id) ? "primary" : "default"}
         size="small"
         onClick={(e) => {
           e.stopPropagation();
-          setPickedId(record.id);
+          handleSelect(record);
         }}
       >
-        {String(record.id) === String(selectedId) ? "Selected" : "Select"}
+        {isPicked(record.id) ? "Selected" : "Select"}
       </Button>
     ),
   };
@@ -329,12 +352,14 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
             showHeader={false}
             components={{ body: { row: bodyRow } }}
             rowClassName={(record) =>
-              String(record.id) === String(selectedId) ? "project-report-row-selected" : ""
+              isPicked(record.id) || String(record.id) === String(selectedId)
+                ? "project-report-row-selected"
+                : ""
             }
             onRow={(record) => ({
               onClick: () =>
                 selectable
-                  ? setPickedId(record.id)
+                  ? handleSelect(record)
                   : navigate(`/analsyis-node-report/${record.id}`),
             })}
           />
@@ -369,8 +394,15 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
             borderTop: "1px solid var(--sharp-divider)",
           }}
         >
+          {multiple && pickedItems.length > 0 && (
+            <span style={{ marginRight: "auto" }}>{pickedItems.length} selected</span>
+          )}
           <Button onClick={handleCancel}>Cancel</Button>
-          <Button type="primary" disabled={!selectedId} onClick={handleConfirm}>
+          <Button
+            type="primary"
+            disabled={pickedItems.length === 0}
+            onClick={handleConfirm}
+          >
             Confirm
           </Button>
         </div>

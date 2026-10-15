@@ -17,12 +17,13 @@ import {
 	ReloadOutlined,
 	RobotOutlined,
 } from "@ant-design/icons";
-import { Button, Empty, Input, Modal, Popconfirm, Spin, Tree } from "antd";
-import type { TreeProps } from "antd";
+import { Button, Dropdown, Empty, Input, Modal, Popconfirm, Spin, Tree } from "antd";
+import type { MenuProps, TreeProps } from "antd";
 import { FC, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "react-query";
 import {
 	countReportTreeNodes,
+	findReportTreeNode,
 	flattenReportTreeOrders,
 	moveReportTreeNode,
 	toReportTreeNodes,
@@ -41,8 +42,19 @@ const ADD_OWNER_ACTIONS: {
 	{ key: "custom", label: "Add section / custom", icon: <PlusOutlined /> },
 ];
 
+// ROOT_PARENT_ID 是 antd Tree 中根层条目的父节点标识，与后端约定一致。
+const ROOT_PARENT_ID = "0";
+
+// ADD_OWNER_MENU_ITEMS 复用新增类型定义，作为树节点右键/加号下拉的菜单项。
+const ADD_OWNER_MENU_ITEMS: MenuProps["items"] = ADD_OWNER_ACTIONS.map((action) => ({
+	key: action.key,
+	label: action.label,
+	icon: action.icon,
+}));
+
 interface AddReportItemModalProps {
 	reportId: string;
+	parentId: string;
 	sortOrder: number;
 	open: boolean;
 	onClose: () => void;
@@ -53,6 +65,7 @@ interface AddReportItemModalProps {
 // analysis / analysis_node / ai_summary 类型条目改为通过 invoke 打开对应列表页进行选择。
 const AddReportItemModal: FC<AddReportItemModalProps> = ({
 	reportId,
+	parentId,
 	sortOrder,
 	open,
 	onClose,
@@ -78,7 +91,7 @@ const AddReportItemModal: FC<AddReportItemModalProps> = ({
 		try {
 			await addProjectReportItemApi({
 				project_report_id: reportId,
-				parent_id: "0",
+				parent_id: parentId,
 				owner_type: "custom",
 				sort_order: sortOrder,
 				title: title.trim(),
@@ -133,6 +146,9 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
 
 	const [treeNodes, setTreeNodes] = useState<ReportTreeNode[]>([]);
 	const [modalOpen, setModalOpen] = useState(false);
+	// addParentId 记录当前新增操作的父节点，"0" 表示追加到根层，否则作为该节点的子条目。
+	const [addParentId, setAddParentId] = useState(ROOT_PARENT_ID);
+	const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
 	const [reordering, setReordering] = useState(false);
 	const [refreshing, setRefreshing] = useState(false);
 
@@ -141,9 +157,25 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
 		setTreeNodes(toReportTreeNodes(data ?? []));
 	}, [data]);
 
-	// 新增条目追加到根节点末尾。
+	// 新增条目追加到目标父节点的同级末尾。
 	const nextSortOrder = useMemo(() => treeNodes.length, [treeNodes]);
 	const totalItems = useMemo(() => countReportTreeNodes(treeNodes), [treeNodes]);
+
+	// nextSortOrderFor 计算在指定父节点下追加新条目时的 sort_order。
+	const nextSortOrderFor = (parentId: string) => {
+		if (parentId === ROOT_PARENT_ID) {
+			return nextSortOrder;
+		}
+		return findReportTreeNode(treeNodes, parentId)?.children?.length ?? 0;
+	};
+
+	// expandParents 展开新条目所在父节点，便于直接看到结果。
+	const expandParents = (parentId: string) => {
+		if (parentId === ROOT_PARENT_ID) {
+			return;
+		}
+		setExpandedKeys((prev) => (prev.includes(parentId) ? prev : [...prev, parentId]));
+	};
 
 	const handleRefresh = async () => {
 		setRefreshing(true);
@@ -155,47 +187,88 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
 	};
 
 	// 非 custom 类型通过 invoke 打开对应列表页进行选择；custom 直接弹标题输入框。
-	const handleAddItem = async (ownerType: ProjectReportItemOwnerType) => {
+	// parentId 为 "0" 时新增到根层，为具体节点 id 时新增为该节点的子条目。
+	const handleAddItem = async (ownerType: ProjectReportItemOwnerType, parentId = ROOT_PARENT_ID) => {
 		if (ownerType === "custom") {
+			setAddParentId(parentId);
 			setModalOpen(true);
 			return;
 		}
-		await handlePickOwnerAndAdd(ownerType);
+		await handlePickOwnerAndAdd(ownerType, parentId);
 	};
 
-	// handlePickOwnerAndAdd 打开对应实体列表页选择一条记录，选中后作为报告条目写入。
-	const handlePickOwnerAndAdd = async (ownerType: ProjectReportItemOwnerType) => {
+	// existingOwnerIds 返回指定父节点下已存在的同类型条目 owner_id 集合，用于避免重复添加。
+	const existingOwnerIds = (parentId: string, ownerType: ProjectReportItemOwnerType) => {
+		const siblings =
+			parentId === ROOT_PARENT_ID
+				? treeNodes
+				: findReportTreeNode(treeNodes, parentId)?.children ?? [];
+		return new Set(
+			siblings
+				.filter((node) => node.ownerType === ownerType)
+				.map((node) => String(node.item.owner_id ?? ""))
+		);
+	};
+
+	// handlePickOwnerAndAdd 打开对应实体列表页（支持多选）选择记录，选中后作为报告条目批量写入。
+	const handlePickOwnerAndAdd = async (
+		ownerType: ProjectReportItemOwnerType,
+		parentId = ROOT_PARENT_ID
+	) => {
 		try {
-			let picked: { id: string } | undefined;
+			// multiple 让选择器返回数组，可一次选中多条批量添加。
+			const params = { multiple: true };
+			let picked: unknown;
 			if (ownerType === "analysis") {
-				picked = await invoke.analysisList.openDrawerAsync(
-					{},
-					{ title: "Select Analysis", width: 720 }
-				);
+				picked = await invoke.analysisList.openDrawerAsync(params, {
+					title: "Select Analysis",
+					width: 720,
+				});
 			} else if (ownerType === "analysis_node") {
-				picked = await invoke.analysisNodeList.openDrawerAsync(
-					{},
-					{ title: "Select Analysis Node", width: 720 }
-				);
+				picked = await invoke.analysisNodeList.openDrawerAsync(params, {
+					title: "Select Analysis Node",
+					width: 720,
+				});
 			} else if (ownerType === "ai_summary") {
-				picked = await invoke.aiSummaryProject.openDrawerAsync(
-					{},
-					{ title: "Select AI Summary", width: 720 }
-				);
+				picked = await invoke.aiSummaryProject.openDrawerAsync(params, {
+					title: "Select AI Summary",
+					width: 720,
+				});
 			}
 
-			if (!picked?.id) {
+			// 兼容单选（对象）与多选（数组）两种回传形式。
+			const pickedList: { id: string }[] = Array.isArray(picked)
+				? (picked as { id: string }[])
+				: picked
+					? [picked as { id: string }]
+					: [];
+			if (pickedList.length === 0) {
 				return;
 			}
 
-			await addProjectReportItemApi({
-				project_report_id: reportId,
-				parent_id: "0",
-				owner_type: ownerType,
-				owner_id: picked.id,
-				sort_order: nextSortOrder,
-			});
-			message.success("Added successfully");
+			// 已存在的同类型条目直接跳过，避免重复添加。
+			const existing = existingOwnerIds(parentId, ownerType);
+			const pending = pickedList.filter((item) => item?.id && !existing.has(String(item.id)));
+			if (pending.length === 0) {
+				message.warning("Selected items are already added");
+				return;
+			}
+
+			// 逐条按顺序写入，保证 sort_order 连续且与选择顺序一致。
+			let sortOrder = nextSortOrderFor(parentId);
+			for (const item of pending) {
+				await addProjectReportItemApi({
+					project_report_id: reportId,
+					parent_id: parentId,
+					owner_type: ownerType,
+					owner_id: String(item.id),
+					sort_order: sortOrder,
+				});
+				sortOrder += 1;
+			}
+
+			expandParents(parentId);
+			message.success(`Added ${pending.length} item(s)`);
 			await refetch();
 			onChanged?.();
 		} catch {
@@ -244,6 +317,21 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
 			<span className="project-report-item-title">{node.title}</span>
 			<span className="project-report-item-meta">{node.ownerType}</span>
 			<span className="project-report-item-actions" onClick={(e) => e.stopPropagation()}>
+				{/* 在当前节点下新增子条目：选择类型后以该节点 id 作为 parent_id 写入。 */}
+				<Dropdown
+					trigger={["click"]}
+					menu={{
+						items: ADD_OWNER_MENU_ITEMS,
+						onClick: ({ key }) => void handleAddItem(key as ProjectReportItemOwnerType, node.key),
+					}}
+				>
+					<Button
+						type="text"
+						size="small"
+						icon={<PlusOutlined />}
+						title="Add child item"
+					/>
+				</Dropdown>
 				<Popconfirm
 					title="Delete selected report item and its children?"
 					onConfirm={() => handleDeleteItem(node.key)}
@@ -294,6 +382,8 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
 					blockNode
 					draggable
 					disabled={reordering}
+					expandedKeys={expandedKeys}
+					onExpand={(keys) => setExpandedKeys(keys as string[])}
 					titleRender={titleRender}
 					onDrop={handleDrop}
 					onSelect={(_, info) => onOpenItem((info.node as unknown as ReportTreeNode).item)}
@@ -302,10 +392,12 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
 
 			<AddReportItemModal
 				reportId={reportId}
-				sortOrder={nextSortOrder}
+				parentId={addParentId}
+				sortOrder={nextSortOrderFor(addParentId)}
 				open={modalOpen}
 				onClose={() => setModalOpen(false)}
 				onAdded={async () => {
+					expandParents(addParentId);
 					await refetch();
 					onChanged?.();
 				}}
