@@ -1,7 +1,9 @@
 import { FC, useEffect, useRef } from "react";
 import { Sender, type SenderProps } from "@ant-design/x";
-import { Dropdown, Flex, GetRef, type MenuProps } from "antd";
-import { ProfileOutlined } from "@ant-design/icons";
+import { Button, Flex, GetRef } from "antd";
+import { DatabaseOutlined, FileOutlined, PartitionOutlined } from "@ant-design/icons";
+import { invoke } from "@/core/ui-system/invokeV2";
+import type { DatasetFileItem } from "@/api/data";
 
 /** Sender slot 模式的 slotConfig 类型（可插入 tag 引用）。 */
 type SlotConfig = NonNullable<SenderProps["slotConfig"]>;
@@ -14,23 +16,6 @@ type SlotConfig = NonNullable<SenderProps["slotConfig"]>;
  * effect，把输入内容回写成空值。
  */
 const SLOT_CONFIG: SlotConfig = [];
-
-/** 可引用的文件。 */
-interface FileRefOption {
-  /** 菜单项 key。 */
-  key: string;
-  /** 菜单与 chip 上显示的名称。 */
-  label: string;
-  /** 拼进消息文本里的路径。 */
-  path: string;
-}
-
-// TODO: 目前是占位数据（后端还没有「列出工作目录 / 项目文件」的接口），
-// 接入真实文件来源后替换这里即可。
-const FILE_REF_OPTIONS: FileRefOption[] = [
-  { key: "demo_file", label: "demo.ts", path: "src/demo.ts" },
-  { key: "readme", label: "README.md", path: "README.md" },
-];
 
 export interface AgentSenderProps {
   /** 当前输入文本（受控）：插入的文件引用也以 `@path` 文本参与拼接。 */
@@ -51,8 +36,10 @@ export interface AgentSenderProps {
 /**
  * Agent 输入区（独立组件）。
  *
- * 目前只实现一个功能按钮：**文件引用**（Files）—— 点击后在光标处插入一个文件
- * chip，提交时该 chip 以 `@path` 文本拼进消息文本。
+ * 目前提供两个功能按钮（通过 invoke 弹出对应页面的「选择模式」挑一个文件，
+ * 选中后在光标处插入文件 chip，提交时该 chip 以 `@path` 文本拼进消息文本）：
+ *   - Data Files：`invoke.datasetFilePage`，数据集文件（go_dataset -> go_file）；
+ *   - Node Files：`invoke.analysisNodeFilePage`，分析节点产物文件（go_file.analysis_node_id）。
  * 其余 Sender 扩展（深度思考开关 / Agent 选择 / 附件 / API 设置等）先不添加。
  */
 const AgentSender: FC<AgentSenderProps> = ({
@@ -75,33 +62,59 @@ const AgentSender: FC<AgentSenderProps> = ({
     if (!value) senderRef.current?.clear?.();
   }, [value]);
 
-  const fileItems: MenuProps["items"] = FILE_REF_OPTIONS.map((f) => ({
-    key: f.key,
-    icon: <ProfileOutlined />,
-    label: f.label,
-  }));
-
   // 插入文件引用：以 tag 形式插到光标处（定位不到光标时追加到末尾）。
   // formatResult 决定这个 tag 拼进消息文本后的纯文本形式。
-  const handleFileRefClick = (key: string) => {
-    const file = FILE_REF_OPTIONS.find((f) => f.key === key);
-    if (!file) return;
+  const insertFileRef = (path: string, label: string) => {
     senderRef.current?.insert?.([
       {
         type: "tag",
-        key: `${file.key}_${Date.now()}`,
+        key: `file_ref_${Date.now()}`,
         props: {
           label: (
             <Flex align="center" gap={4} style={{ display: "inline-flex" }}>
-              <ProfileOutlined />
-              {file.label}
+              <FileOutlined />
+              {label}
             </Flex>
           ),
-          value: file.path,
+          value: path,
         },
-        formatResult: () => `@${file.path}`,
+        formatResult: () => `@${path}`,
       },
     ]);
+  };
+
+  // 选择结果统一处理：用户取消（reject）或文件没有 path 时什么都不插入。
+  const insertPickedFile = (file?: DatasetFileItem) => {
+    const path = String(file?.path ?? "").trim();
+    if (!path) return;
+    insertFileRef(path, file?.file_name || file?.file_id || path);
+  };
+
+  // Data Files：invoke 弹出 dataset-file-page 的选择模式（单选 + Confirm），
+  // Confirm 时该页面用 onOk 回传选中的 DatasetFileItem，openDrawerAsync 据此 resolve。
+  const handleSelectDatasetFile = async () => {
+    try {
+      const file = (await invoke.datasetFilePage.openDrawerAsync(
+        {},
+        { width: 1000, title: "Select Data File" }
+      )) as DatasetFileItem | undefined;
+      insertPickedFile(file);
+    } catch {
+      // 用户取消选择，无需处理。
+    }
+  };
+
+  // Node Files：invoke 弹出 analysis-node-file-page 的选择模式（同上）。
+  const handleSelectNodeFile = async () => {
+    try {
+      const file = (await invoke.analysisNodeFilePage.openDrawerAsync(
+        {},
+        { width: 1000, title: "Select Analysis Node File" }
+      )) as DatasetFileItem | undefined;
+      insertPickedFile(file);
+    } catch {
+      // 用户取消选择，无需处理。
+    }
   };
 
   return (
@@ -131,15 +144,23 @@ const AgentSender: FC<AgentSenderProps> = ({
       footer={(actionNode) => (
         <Flex justify="space-between" align="center">
           <Flex align="center" gap="small">
-            {/* 唯一的扩展功能按钮：文件引用。 */}
-            <Dropdown
-              menu={{ items: fileItems, onClick: ({ key }) => handleFileRefClick(key) }}
+            {/* 两个文件引用入口：数据集文件 / 分析节点产物文件。 */}
+            <Button
+              size="small"
+              icon={<DatabaseOutlined />}
               disabled={locked}
+              onClick={() => void handleSelectDatasetFile()}
             >
-              <Sender.Switch value={false} icon={<ProfileOutlined />} disabled={locked}>
-                Files
-              </Sender.Switch>
-            </Dropdown>
+              Data Files
+            </Button>
+            <Button
+              size="small"
+              icon={<PartitionOutlined />}
+              disabled={locked}
+              onClick={() => void handleSelectNodeFile()}
+            >
+              Node Files
+            </Button>
           </Flex>
           <Flex align="center">{actionNode}</Flex>
         </Flex>

@@ -13,9 +13,19 @@ import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 // Analysis-node-produced files of the active project (go_file.analysis_node_id ->
 // analysis_nodes.id). These files are node-private and not dataset-bound, so the
 // page mirrors dataset-file-page but drops the dataset/role-editing affordances.
+//
+// 除作为左侧面板页面使用外，也可通过 `invoke.analysisNodeFilePage.openDrawerAsync(...)`
+// 弹出当「文件选择器」：openDrawerAsync 会把 onOk/onCancel 注入 params，注入后进入
+// 选择模式（单选 + Confirm），Confirm 时用 onOk 回传选中的 DatasetFileItem 完成 resolve。
 export interface AnalysisNodeFilePageProps {
   page_size?: number | string;
   title?: string;
+  /** 选中文件后回调（由 invoke.openDrawerAsync 注入；注入即进入选择模式）。 */
+  onOk?: (file: DatasetFileItem) => void;
+  /** 取消/关闭回调（由 invoke.openDrawerAsync 注入）。 */
+  onCancel?: () => void;
+  /** UIContainer 注入的关闭函数（直接以页面方式打开时使用）。 */
+  close?: () => void;
 }
 
 const normalizePageSize = (value?: number | string) => {
@@ -95,11 +105,20 @@ const FileDetailCard = ({ item }: { item: DatasetFileItem }) => (
   </div>
 );
 
-const AnalysisNodeFilePage = ({ page_size, title }: AnalysisNodeFilePageProps) => {
+const AnalysisNodeFilePage = ({
+  page_size,
+  title,
+  onOk,
+  onCancel,
+  close,
+}: AnalysisNodeFilePageProps) => {
   const message = useGlobalMessage();
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState<string>();
   const { projectId } = useSelector((state: any) => state.user);
+
+  // 选择模式：注入 onOk/onCancel 后作为抽屉里的文件选择器使用（点击行只选中、不跳转）。
+  const selectable = Boolean(onOk || onCancel);
 
   const {
     data,
@@ -193,56 +212,94 @@ const AnalysisNodeFilePage = ({ page_size, title }: AnalysisNodeFilePageProps) =
     },
   };
 
-  const columns: ColumnsType<DatasetFileItem> = [
-    listColumn,
-    {
-      title: "Actions",
-      key: "actions",
-      width: 80,
-      align: "right",
-      render: (_: unknown, record) => (
-        <span className="project-report-item-actions" onClick={(e) => e.stopPropagation()}>
-          <Tooltip title="Open Sheet">
-            <Button
-              type="text"
-              size="small"
-              icon={<TableOutlined />}
-              onClick={() => handleOpenSheet(record)}
-            />
-          </Tooltip>
-          <Tooltip title="Edit">
-            <Button
-              type="text"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={async () => {
-                try {
-                  await invoke.editFilePage.openDrawerAsync(
-                    { file: record },
-                    { width: 480, title: `Edit File: ${record.file_name || record.file_id}` }
-                  );
-                  refetch();
-                } catch {
-                  // user cancelled
-                }
-              }}
-            />
-          </Tooltip>
-          <Popconfirm
-            title="Delete this file?"
-            description="This will remove the file and its relations."
-            onConfirm={async () => {
-              await deleteFileApi({ id: record.id });
-              message.success("File deleted successfully");
-              refetch();
+  const actionsColumn: ColumnsType<DatasetFileItem>[number] = {
+    title: "Actions",
+    key: "actions",
+    width: 80,
+    align: "right",
+    render: (_: unknown, record) => (
+      <span className="project-report-item-actions" onClick={(e) => e.stopPropagation()}>
+        <Tooltip title="Open Sheet">
+          <Button
+            type="text"
+            size="small"
+            icon={<TableOutlined />}
+            onClick={() => handleOpenSheet(record)}
+          />
+        </Tooltip>
+        <Tooltip title="Edit">
+          <Button
+            type="text"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={async () => {
+              try {
+                await invoke.editFilePage.openDrawerAsync(
+                  { file: record },
+                  { width: 480, title: `Edit File: ${record.file_name || record.file_id}` }
+                );
+                refetch();
+              } catch {
+                // user cancelled
+              }
             }}
-          >
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </span>
-      ),
-    },
-  ];
+          />
+        </Tooltip>
+        <Popconfirm
+          title="Delete this file?"
+          description="This will remove the file and its relations."
+          onConfirm={async () => {
+            await deleteFileApi({ id: record.id });
+            message.success("File deleted successfully");
+            refetch();
+          }}
+        >
+          <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+        </Popconfirm>
+      </span>
+    ),
+  };
+
+  // 选择模式下多一列 Select（与 dataset-file-page 的选择模式保持一致）。
+  const selectColumn: ColumnsType<DatasetFileItem>[number] = {
+    title: "Action",
+    key: "action",
+    width: 96,
+    fixed: "right",
+    render: (_: unknown, record) => (
+      <Button
+        type={record.id === selectedId ? "primary" : "default"}
+        size="small"
+        onClick={() => setSelectedId(record.id)}
+      >
+        {record.id === selectedId ? "Selected" : "Select"}
+      </Button>
+    ),
+  };
+
+  const columns: ColumnsType<DatasetFileItem> = selectable
+    ? [listColumn, actionsColumn, selectColumn]
+    : [listColumn, actionsColumn];
+
+  const selectedItem = useMemo(
+    () => data.find((item) => String(item.id) === String(selectedId)),
+    [data, selectedId]
+  );
+
+  const handleConfirm = () => {
+    if (!selectedItem || !onOk) {
+      return;
+    }
+    onOk(selectedItem);
+  };
+
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+      return;
+    }
+    close?.();
+  };
 
   return (
     <div className="project-report-panel">
@@ -267,14 +324,28 @@ const AnalysisNodeFilePage = ({ page_size, title }: AnalysisNodeFilePageProps) =
             dataSource={data}
             loading={isLoading || isFetching}
             pagination={false}
-            showHeader={false}
+            showHeader={selectable}
+            scroll={selectable ? { x: 900 } : undefined}
             components={{ body: { row: bodyRow } }}
             rowClassName={(record) =>
               record.id === selectedId ? "project-report-row-selected" : ""
             }
+            rowSelection={
+              selectable
+                ? {
+                    type: "radio",
+                    selectedRowKeys: selectedId ? [selectedId] : [],
+                    onChange: (selectedRowKeys) => {
+                      setSelectedId(String(selectedRowKeys[0] || ""));
+                    },
+                  }
+                : undefined
+            }
             onRow={(record) => ({
               onClick: () => {
                 setSelectedId(record.id);
+                // 选择模式下点击行只选中，不跳转详情路由。
+                if (selectable) return;
                 navigate(`/dataset-file/${encodeURIComponent(record.id)}`);
               },
             })}
@@ -299,6 +370,16 @@ const AnalysisNodeFilePage = ({ page_size, title }: AnalysisNodeFilePageProps) =
               }
             }}
           />
+          {selectable && (
+            <Flex gap="small">
+              <Button size="small" onClick={handleCancel}>
+                Cancel
+              </Button>
+              <Button size="small" type="primary" disabled={!selectedItem} onClick={handleConfirm}>
+                Confirm
+              </Button>
+            </Flex>
+          )}
         </Flex>
       </div>
     </div>
