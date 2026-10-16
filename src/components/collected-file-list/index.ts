@@ -3,7 +3,7 @@ import type { InferViewRegistryFromLoaders } from "@/core/component-registry/reg
 
 const viewLoaders = {
     // Collected form-item data detail list (upstream analysis result files /
-    // assays), opened from CollectedAssaySelect via invoke.collectedFileList.
+    // assays), opened from FileSelect via invoke.collectedFileList.
     collectedFileList: () => import("./collected-file-list"),
 };
 

@@ -12,7 +12,7 @@ import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { getFileColumnsApi } from "@/api/data";
 import { AppendFields } from "../append/append-fields";
 
-export const CollectedAssaySelect: FC<any> = ({
+export const FileSelect: FC<any> = ({
   label,
   modes = [],
   columns,
@@ -315,4 +315,4 @@ export const CollectedAssaySelect: FC<any> = ({
   );
 };
 
-export default CollectedAssaySelect;
+export default FileSelect;

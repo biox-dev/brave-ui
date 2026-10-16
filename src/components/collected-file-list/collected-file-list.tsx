@@ -1,6 +1,6 @@
 // src/components/collected-file-list/collected-file-list.tsx
 // Detail list of the collected `data` of a form item (upstream analysis result
-// files / assays). Opened from CollectedAssaySelect via
+// files / assays). Opened from FileSelect via
 // `invoke.collectedFileList.openDrawerAsync({ data })`: pick a row to resolve the
 // drawer with that item, or act on it in place (open sheet / edit / delete).
 import { useEffect, useMemo, useRef, useState } from "react";

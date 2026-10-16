@@ -326,8 +326,8 @@ export const COMPONENT_META: readonly ComponentMeta[] = [
 
   // -------------------------------------------------------------- collected
   {
-    type: "CollectedAssaySelect",
-    label: "CollectedAssaySelect",
+    type: "FileSelect",
+    label: "FileSelect",
     category: "collected",
     description:
       "Table picker over upstream results, projecting one form field per collected column.",

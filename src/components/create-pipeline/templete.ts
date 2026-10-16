@@ -42,7 +42,7 @@ export const INPUTS = [
         "message": "This field cannot be empty!"
       }
     ],
-    "type": "CollectedAssaySelect"
+    "type": "FileSelect"
   }, {
     "label": "SeuratObjects  File",
     "name": "seuratObjects",
@@ -189,7 +189,7 @@ export const scriptTempleteV1 = {
       "component_id": "75087620-2ff8-4045-8694-a0c19aac12fc",
       "db": true,
       "group": "group_field",
-      "type": "CollectedAssaySelect",
+      "type": "FileSelect",
       "columns": [
         "sample_vars",
         "feature_var"

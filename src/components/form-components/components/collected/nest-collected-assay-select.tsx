@@ -1,9 +1,9 @@
 // src/components/form-components/components/collected/nest-collected-assay-select.tsx
-// Repeatable CollectedAssaySelect, one card per row.
+// Repeatable FileSelect, one card per row.
 import { Button, Card, Form } from "antd";
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
 import { FC } from "react";
-import { CollectedAssaySelect } from "./collected-assay-select";
+import { FileSelect } from "./collected-assay-select";
 
 export const NestCollectedAssaySelect: FC<any> = ({ name, ...rest }) => (
   <>
@@ -17,7 +17,7 @@ export const NestCollectedAssaySelect: FC<any> = ({ name, ...rest }) => (
                 style={{ flex: 1, marginBottom: "0.5rem", marginRight: "0.5rem" }}
                 size="small"
               >
-                <CollectedAssaySelect
+                <FileSelect
                   name={[name, listIndex]} //⭐ 把动态 index 传给子组件
                   {...rest}
                 />

@@ -17,7 +17,7 @@ import { ThreeColorPicker } from "./base/three-color-picker";
 import { CollectedColumnsSelect } from "./collected/collected-columns-select";
 import { CollectedGroupSelectAssayButton } from "./collected/collected-group-select-assay-button";
 import { CollectedGroupSelectAssayButton2 } from "./collected/collected-group-select-assay-button2";
-import { CollectedAssaySelect } from "./collected/collected-assay-select";
+import { FileSelect } from "./collected/collected-assay-select";
 import { CollectedAssaySelectV2 } from "./collected/collected-assay-select-v2";
 import { CollectedSimplpeGroupSelect } from "./collected/collected-simplpe-group-select";
 import { NestCollectedColumnsSelect } from "./collected/nest-collected-columns-select";
@@ -51,7 +51,7 @@ export {
   CollectedColumnsSelect,
   CollectedGroupSelectAssayButton,
   CollectedGroupSelectAssayButton2,
-  CollectedAssaySelect,
+  FileSelect,
   CollectedAssaySelectV2,
   CollectedSimplpeGroupSelect,
   ColorPickerComp,
@@ -99,7 +99,7 @@ export const COMPONENT_IMPLEMENTATIONS: Record<string, FC<any>> = {
   CollectedSimplpeGroupSelect,
   CollectedGroupSelectAssayButton,
   CollectedGroupSelectAssayButton2,
-  CollectedAssaySelect,
+  FileSelect,
   CollectedColumnsSelect,
   NestCollectedAssaySelect,
   NestCollectedColumnsSelect,
