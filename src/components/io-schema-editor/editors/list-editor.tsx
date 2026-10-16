@@ -152,6 +152,7 @@ const ListEditorInner: FC<{
 
       {list.map((item, index) => (
         <Fragment key={index}>
+          
           <SchemaItemCard
             listKey={listKey}
             item={item}
@@ -161,6 +162,7 @@ const ListEditorInner: FC<{
             onRemove={onRemove}
             onMove={onMove}
           />
+          
           <Tooltip title={`Insert a new ${singular} below this component`}>
             <Button
               size="small"
@@ -173,7 +175,9 @@ const ListEditorInner: FC<{
               Add {singular} below
             </Button>
           </Tooltip>
+          
         </Fragment>
+        
       ))}
     </Flex>
   );

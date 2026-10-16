@@ -16,7 +16,7 @@ import { Button, Card, Collapse, Form, Input, InputNumber, Select, Space, Spin, 
 import { FC, useEffect, useState } from "react";
 import { http } from "@/api/client/http";
 import { ComponentImageUpload } from "@/components/common/component-image";
-import IOSchemaEditor, { normalizeIOSchema } from "@/components/script/io-schema-editor";
+import IOSchemaEditor, { normalizeIOSchema } from "@/components/io-schema-editor";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 
 // ---------- small helpers ----------

@@ -125,17 +125,18 @@ const SchemaItemCardInner: FC<
                 },
               ]
             : []),
-          ...(groups.includes("advanced")
-            ? [
-                {
-                  key: "advanced",
-                  label: "Advanced JSON",
-                  children: <AdvancedEditor {...editorProps} />,
-                },
-              ]
-            : []),
+          // ...(groups.includes("advanced")
+          //   ? [
+          //       {
+          //         key: "advanced",
+          //         label: "Advanced JSON",
+          //         children: <AdvancedEditor {...editorProps} />,
+          //       },
+          //     ]
+          //   : []),
         ]}
       />
+      
     </Card>
   );
 };

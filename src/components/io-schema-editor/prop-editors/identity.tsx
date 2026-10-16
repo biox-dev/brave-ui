@@ -19,6 +19,7 @@ export const IdentityEditor: PropEditor = ({ item, listKey, set }) => {
 
   return (
     <Row gutter={12}>
+      
       <Field label="type">
         {isOutput ? (
           <AutoComplete

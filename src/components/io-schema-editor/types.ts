@@ -9,7 +9,7 @@ import type {
 export type { JSONList, JSONMap, PropGroupKey };
 
 /** Lists an io_schema is made of (`scatter` / `gather` are edited as raw JSON). */
-export const LIST_KEYS = ["inputs", "params", "outputs"] as const;
+export const LIST_KEYS = ["inputs",  "outputs"] as const;
 export type ListKey = (typeof LIST_KEYS)[number];
 
 export const isListKey = (value: string): value is ListKey =>

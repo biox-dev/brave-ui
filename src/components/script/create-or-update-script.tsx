@@ -20,7 +20,7 @@ import { http } from "@/api/client/http";
 import { ComponentImageUpload } from "@/components/common/component-image";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
-import IOSchemaEditor, { normalizeIOSchema } from "./io-schema-editor";
+import IOSchemaEditor, { normalizeIOSchema } from "../io-schema-editor";
 
 // ---------- small helpers ----------
 

@@ -66,7 +66,7 @@ export const PropGroupSection: FC<PropEditorProps & { group: PropGroupKey }> = (
 }) => {
   const Editor = PROP_EDITORS[group];
   return <>
-  {/* {JSON.stringify(rest)} */}
+  {/* {JSON.stringify(group)} */}
   <Editor {...rest} />
   </>;
 };
