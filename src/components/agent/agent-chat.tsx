@@ -1,5 +1,5 @@
 import { FC, useCallback, useEffect, useRef, useState } from "react";
-import { Badge, Button, Empty, Flex, Input, Popconfirm, Select, Space, Spin, Tag, Typography } from "antd";
+import { Badge, Button, Empty, Flex, Popconfirm, Select, Space, Spin, Tag, Typography } from "antd";
 import {
   CheckOutlined,
   ClearOutlined,
@@ -10,7 +10,6 @@ import {
   QuestionCircleOutlined,
   ReloadOutlined,
   RobotOutlined,
-  SendOutlined,
   SettingOutlined,
   UserOutlined,
   WarningOutlined,
@@ -54,6 +53,7 @@ import { useComponentStore } from "@/event-bus/stores/components";
 import { invoke } from "@/core/ui-system/invokeV2";
 import AgentTaskStream from "./agent-task-stream";
 import AgentAskUserCard from "./agent-ask-user";
+import AgentSender from "./agent-sender";
 import { renderAssistantMessage } from "./agent-message-render";
 import UnifiedDiff from "@/components/common/unified-diff";
 
@@ -156,7 +156,6 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   const [answeringId, setAnsweringId] = useState<string>();
   // 当前进行中的任务 ID（用于 Cancel 按钮）。
   const [currentTaskId, setCurrentTaskId] = useState<string>();
-  const [canceling, setCanceling] = useState(false);
 
   // 可选的 Agent Profile 列表（顶部选择框数据源）。
   const [profiles, setProfiles] = useState<AgentProfileItem[]>([]);
@@ -321,14 +320,11 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   // 取消当前进行中的任务（终态事件会通过 WS 触发 finalizeTurn 清理状态）。
   const handleCancelTask = async () => {
     if (!currentTaskId) return;
-    setCanceling(true);
     try {
       await cancelAgentTaskApi(currentTaskId);
       getGlobalMessage()?.success("Task canceled");
     } catch {
       // API errors are shown globally by the http interceptor.
-    } finally {
-      setCanceling(false);
     }
   };
 
@@ -618,8 +614,8 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     }
   };
 
-  const handleSend = async () => {
-    const text = input.trim();
+  const handleSend = async (raw?: string) => {
+    const text = (raw ?? input).trim();
     if (!text || sending) return;
 
     setInput("");
@@ -1089,35 +1085,16 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
         </Flex>
       )}
 
-      {/* 输入区 */}
-      <Flex gap="small" style={{ marginTop: 8 }}>
-        <Input.TextArea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Type a message… (Enter to send, Shift+Enter for newline)"
-          autoSize={{ minRows: 1, maxRows: 5 }}
-          onPressEnter={(e) => {
-            if (!e.shiftKey) {
-              e.preventDefault();
-              handleSend();
-            }
-          }}
-          disabled={sending}
-        />
-        {sending ? (
-
-          <Button onClick={handleCancelTask} danger type="primary" icon={<CloseOutlined />} loading={canceling} />
-        ) : (
-          <Button
-            type="primary"
-            icon={<SendOutlined />}
-            onClick={handleSend}
-            disabled={!input.trim()}
-          >
-            Send
-          </Button>
-        )}
-      </Flex>
+      {/* 输入区：独立的 AgentSender 组件，目前只提供「文件引用」功能按钮。
+          发送 / 停止由 Sender 内置按钮负责，发送中锁定输入。 */}
+      <AgentSender
+        value={input}
+        onChange={setInput}
+        onSubmit={(text) => void handleSend(text)}
+        loading={sending}
+        onCancel={handleCancelTask}
+        placeholder="Type a message… (Enter to send, Shift+Enter for newline)"
+      />
     </Flex>
   );
 };
