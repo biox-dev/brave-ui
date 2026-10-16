@@ -78,14 +78,14 @@ const AgentSender: FC<AgentSenderProps> = ({
           ),
           value: path,
         },
-        formatResult: () => `@${path}`,
+        formatResult: () => `@file:${path} `,
       },
     ]);
   };
 
   // 选择结果统一处理：用户取消（reject）或文件没有 path 时什么都不插入。
   const insertPickedFile = (file?: DatasetFileItem) => {
-    const path = String(file?.path ?? "").trim();
+    const path = String(file?.id ?? "").trim();
     if (!path) return;
     insertFileRef(path, file?.file_name || file?.file_id || path);
   };
