@@ -253,6 +253,13 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     });
   };
 
+  // 该任务是否已由历史消息投影出内容（token / reasoning / tool），
+  // 是则不再额外渲染 AgentTaskStream，避免同一任务的时间线出现两份。
+  const streamedByHistory = (taskId: string) =>
+    messages.some(
+      (m) => m.taskId === taskId && m.role === "assistant" && !!m.kind && m.kind !== "assistant_final" && m.kind !== "assistant"
+    );
+
   // 拉取任务待确认的权限请求（仅保留 pending 状态）。
   const loadPermissions = async (taskId: string) => {
     if (!taskId) return;
@@ -922,9 +929,12 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
               </Flex>
             ))}
 
-            {/* 进行中的任务展示完整实时事件流（reasoning/tool/message）。
+            {/* 进行中的任务兜底展示完整实时事件流（reasoning/tool/message）。
+                历史已投影出内容时不重复渲染，避免同一任务出现两份时间线。
                 嵌入模式下由 AgentTaskStream 委托父容器滚动，避免嵌套滚动条。 */}
-            {currentTaskId && <AgentTaskStream taskId={currentTaskId} scrollContainerRef={listRef} />}
+            {currentTaskId && !streamedByHistory(currentTaskId) && (
+              <AgentTaskStream taskId={currentTaskId} scrollContainerRef={listRef} />
+            )}
             {/* {
               sending && (
                 <Flex align="flex-start" gap={8}>

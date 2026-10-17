@@ -1,4 +1,4 @@
-import { FC, useEffect, useMemo, useState } from "react";
+import { FC, useEffect, useRef, useState } from "react";
 import { Button, Checkbox, Flex, Input, Radio, Space, Tag, Typography } from "antd";
 import { LeftOutlined, RightOutlined, SendOutlined } from "@ant-design/icons";
 import type { AgentAskUserAnswer, AgentQuestion, AgentQuestionAnswer, AgentQuestionItem } from "@/api/agent";
@@ -12,13 +12,18 @@ const TYPE_LABEL: Record<string, string> = {
   text: "文本",
 };
 
-// 单题答案的草稿状态：values 为已选选项值，custom 为自定义 / 文本输入。
+// 「其他」自定义输入在 Radio / Checkbox 中的内部值（不会提交给后端）。
+const CUSTOM_OPTION_VALUE = "__custom__";
+
+// 单题答案的草稿状态：values 为已选选项值，custom 为自定义 / 文本输入，
+// customSelected 表示选择题是否勾选了「其他」（与输入内容是否为空无关）。
 interface AnswerDraft {
   values: string[];
   custom: string;
+  customSelected?: boolean;
 }
 
-const EMPTY_DRAFT: AnswerDraft = { values: [], custom: "" };
+const EMPTY_DRAFT: AnswerDraft = { values: [], custom: "", customSelected: false };
 
 interface AgentAskUserCardProps {
   /** 后端返回的提问请求（含一个或多个 question）。 */
@@ -32,6 +37,17 @@ interface AgentAskUserCardProps {
    * 暂存进度，待全部必答题完成后才唤醒 Agent。
    */
   onSubmit: (answer: AgentAskUserAnswer) => void;
+}
+
+// 选择题是否允许自定义输入：后端显式声明或无法穷举时一律提供「其他」输入框，
+// 避免模型漏列选项导致用户无法作答。
+function allowCustom(q: AgentQuestion): boolean {
+  return q.type === "text" || q.allow_custom !== false;
+}
+
+// 一个选项值是否属于问题声明的选项（用于区分已选选项与自定义输入）。
+function isDeclaredValue(q: AgentQuestion, value: string): boolean {
+  return (q.options ?? []).some((opt) => opt.value === value);
 }
 
 // 把单个问题的草稿状态规整为后端 QuestionAnswer。
@@ -48,10 +64,10 @@ function toAnswer(q: AgentQuestion, draft: AnswerDraft): AgentQuestionAnswer {
 
 // 判断一个问题是否已有内容填入。
 function hasContent(draft: AnswerDraft): boolean {
-  return draft.values.length > 0 || draft.custom.trim().length > 0;
+  return draft.values.length > 0 || draft.custom.trim().length > 0 || !!draft.customSelected;
 }
 
-// 必答题必须有内容才能继续 / 提交。
+// 必答题必须有内容才能提交。
 function isAnswered(q: AgentQuestion, draft: AnswerDraft): boolean {
   return !q.required || hasContent(draft);
 }
@@ -59,9 +75,23 @@ function isAnswered(q: AgentQuestion, draft: AnswerDraft): boolean {
 // 从已有作答（后端暂存进度）恢复草稿。
 function draftFromAnswer(q: AgentQuestion, answer?: AgentQuestionAnswer): AnswerDraft {
   if (!answer) return { ...EMPTY_DRAFT };
-  const values = answer.values?.length ? answer.values : answer.value ? [answer.value] : [];
   const custom = q.type === "text" ? answer.value ?? "" : answer.custom ?? "";
-  return { values, custom };
+  if (q.type === "text") {
+    return { values: [], custom, customSelected: false };
+  }
+  const raw = answer.values?.length ? answer.values : answer.value ? [answer.value] : [];
+  const values: string[] = [];
+  let extra = custom;
+  raw.forEach((value) => {
+    if (!value) return;
+    if (isDeclaredValue(q, value)) {
+      values.push(value);
+    } else if (!extra) {
+      // 不在选项声明中的值（用户自定义输入）回填到输入框。
+      extra = value;
+    }
+  });
+  return { values, custom: extra, customSelected: extra.trim().length > 0 };
 }
 
 /**
@@ -74,27 +104,52 @@ function draftFromAnswer(q: AgentQuestion, answer?: AgentQuestionAnswer): Answer
  * 也可返回上一题修改；全部必答题完成后统一提交并唤醒 Agent。
  */
 const AgentAskUserCard: FC<AgentAskUserCardProps> = ({ question, submitting, onSubmit }) => {
-  const questions = useMemo(() => question.questions ?? [], [question.questions]);
+  const questions = question.questions ?? [];
   const total = questions.length;
 
   const [drafts, setDrafts] = useState<Record<string, AnswerDraft>>({});
   const [index, setIndex] = useState(0);
+  // 提问内容快照：仅当提问本身（问题列表 / 暂存进度）真正变化时才恢复草稿与页码，
+  // 避免翻页或父组件重渲染把用户所在的题号重置回第一题。
+  const snapshotRef = useRef("");
 
-  // 提问内容或后端暂存进度变化时恢复草稿，并定位到第一道未完成的必答题。
   useEffect(() => {
+    const snapshot = JSON.stringify([
+      question.id,
+      question.updated_at,
+      question.questions ?? [],
+      question.answer?.answers ?? [],
+    ]);
+    if (snapshotRef.current === snapshot) return;
+    const isNewQuestion = snapshotRef.current === "";
+    snapshotRef.current = snapshot;
+
     const restored: Record<string, AnswerDraft> = {};
     (question.answer?.answers ?? []).forEach((ans) => {
-      const q = questions.find((item) => item.id === ans.id);
+      const q = (question.questions ?? []).find((item) => item.id === ans.id);
       if (q) restored[q.id] = draftFromAnswer(q, ans);
     });
-    setDrafts(restored);
+    // 合并而非整体覆盖：后端暂存进度回来时，本地已填但尚未提交到后端的内容不能被清空
+    // （否则用户填完一题点「上一题」，刚填的内容会消失、按钮状态也跟着回退）。
+    setDrafts((prev) => {
+      const mergedDrafts: Record<string, AnswerDraft> = { ...restored };
+      Object.entries(prev).forEach(([id, draft]) => {
+        if (!hasContent(draft)) return;
+        if (!hasContent(mergedDrafts[id] ?? EMPTY_DRAFT)) {
+          mergedDrafts[id] = draft;
+        }
+      });
+      return mergedDrafts;
+    });
 
-    const next = questions.findIndex(
+    // 仅在首次挂载 / 切换到另一条提问时定位到第一道未完成的必答题；
+    // 已在本条提问内翻页时保持当前页码。
+    if (!isNewQuestion) return;
+    const next = (question.questions ?? []).findIndex(
       (q) => q.required && !hasContent(restored[q.id] ?? EMPTY_DRAFT)
     );
     setIndex(next >= 0 ? next : 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [question.id, question.updated_at]);
+  }, [question]);
 
   const draftOf = (id: string): AnswerDraft => drafts[id] ?? EMPTY_DRAFT;
 
@@ -102,30 +157,38 @@ const AgentAskUserCard: FC<AgentAskUserCardProps> = ({ question, submitting, onS
     setDrafts((prev) => ({ ...prev, [id]: { ...(prev[id] ?? EMPTY_DRAFT), ...patch } }));
   };
 
+  // 选择题的草稿：允许自定义时，「其他」作为独立选中项参与 Radio / Checkbox 的选中态，
+  // 但提交时只回传真实选项值（custom 单独回传）。
+  const choiceDraftOf = (q: AgentQuestion): AnswerDraft => {
+    const draft = draftOf(q.id);
+    if (!allowCustom(q) || !draft.customSelected) return draft;
+    return { ...draft, values: [...draft.values, CUSTOM_OPTION_VALUE] };
+  };
+
+  // 单选 / 多选变化：把「其他」的选中态翻译回 values / customSelected。
+  const applyChoiceValues = (q: AgentQuestion, next: string[]) => {
+    const customSelected = next.includes(CUSTOM_OPTION_VALUE);
+    const values = next.filter((value) => value !== CUSTOM_OPTION_VALUE);
+    setDraft(q.id, { values, customSelected });
+  };
+
   // 当前题（单题提问时 index 恒为 0）。
-  const current = questions[index];
+  const current = questions[Math.min(index, Math.max(total - 1, 0))];
   const isFirst = index <= 0;
   const isLast = index >= total - 1;
 
   // 未完成的必答题标题列表（决定「提交」按钮是否可用）。
-  const missing = useMemo(
-    () => questions.filter((q) => !isAnswered(q, draftOf(q.id))).map((q) => q.title),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [questions, drafts]
-  );
+  const missing = questions.filter((q) => !isAnswered(q, draftOf(q.id))).map((q) => q.title);
 
   // 已填入内容的题目数量，用于进度展示。
-  const doneCount = useMemo(
-    () => questions.filter((q) => hasContent(draftOf(q.id))).length,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [questions, drafts]
-  );
+  const doneCount = questions.filter((q) => hasContent(draftOf(q.id))).length;
 
   if (!current) return null;
 
   const draft = draftOf(current.id);
   const single = total === 1;
   const canNext = isAnswered(current, draft);
+  const customAllowed = allowCustom(current);
 
   // 组装作答：只回传已填入内容的问题（选答题留空即视为不作答）。
   const buildAnswer = (): AgentAskUserAnswer => {
@@ -138,13 +201,13 @@ const AgentAskUserCard: FC<AgentAskUserCardProps> = ({ question, submitting, onS
   };
 
   const goTo = (next: number) => {
-    if (next < 0 || next >= total || next === index) return;
+    if (next < 0 || next >= total) return;
     setIndex(next);
   };
 
-  // 翻页时把已完成题目暂存到后端（后端合并后仍保持 pending），刷新页面也不丢进度。
+  // 翻页是纯前端行为：草稿保存在组件内，不向后端提交暂存，避免后端返回的合并结果
+  // 覆盖用户刚填的内容、并把页码重置回第一道未答必答题（表现为「上一题点不动 / 被退出」）。
   const handleNavigate = (next: number) => {
-    if (doneCount > 0) onSubmit(buildAnswer());
     goTo(next);
   };
 
@@ -157,6 +220,9 @@ const AgentAskUserCard: FC<AgentAskUserCardProps> = ({ question, submitting, onS
     if (missing.length > 0) return;
     onSubmit(buildAnswer());
   };
+
+  const choiceValues = choiceDraftOf(current).values;
+  const customChecked = customAllowed && choiceValues.includes(CUSTOM_OPTION_VALUE);
 
   return (
     <Flex
@@ -212,10 +278,8 @@ const AgentAskUserCard: FC<AgentAskUserCardProps> = ({ question, submitting, onS
 
         {current.type === "single_choice" && (
           <Radio.Group
-            value={draft.values[0]}
-            onChange={(e) =>
-              setDraft(current.id, { values: e.target.value ? [e.target.value] : [] })
-            }
+            value={choiceValues[0]}
+            onChange={(e) => applyChoiceValues(current, [e.target.value])}
           >
             <Space direction="vertical" size={2}>
               {(current.options ?? []).map((opt) => (
@@ -230,14 +294,15 @@ const AgentAskUserCard: FC<AgentAskUserCardProps> = ({ question, submitting, onS
                   </Flex>
                 </Radio>
               ))}
+              {customAllowed && <Radio value={CUSTOM_OPTION_VALUE}>其他（自行输入）</Radio>}
             </Space>
           </Radio.Group>
         )}
 
         {current.type === "multiple_choice" && (
           <Checkbox.Group
-            value={draft.values}
-            onChange={(values) => setDraft(current.id, { values: values as string[] })}
+            value={choiceValues}
+            onChange={(values) => applyChoiceValues(current, values as string[])}
           >
             <Space direction="vertical" size={2}>
               {(current.options ?? []).map((opt) => (
@@ -252,12 +317,15 @@ const AgentAskUserCard: FC<AgentAskUserCardProps> = ({ question, submitting, onS
                   </Flex>
                 </Checkbox>
               ))}
+              {customAllowed && (
+                <Checkbox value={CUSTOM_OPTION_VALUE}>其他 / 补充说明（自行输入）</Checkbox>
+              )}
             </Space>
           </Checkbox.Group>
         )}
 
-        {/* 文本题，或选择 + 自定义输入 */}
-        {(current.type === "text" || current.allow_custom) && (
+        {/* 文本题，或选择「其他」/ 补充说明时展示输入框（选中「其他」即渲染，与是否已输入无关）。 */}
+        {(current.type === "text" || customChecked) && (
           <Input.TextArea
             value={draft.custom}
             onChange={(e) => setDraft(current.id, { custom: e.target.value })}
@@ -266,6 +334,12 @@ const AgentAskUserCard: FC<AgentAskUserCardProps> = ({ question, submitting, onS
             }
             autoSize={{ minRows: 1, maxRows: 4 }}
           />
+        )}
+        {/* 允许自定义但未选「其他」时给出提示，确保用户随时可以自行输入。 */}
+        {current.type !== "text" && customAllowed && !customChecked && (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            选项不完整？选择「其他」可自行输入。
+          </Text>
         )}
       </Flex>
 

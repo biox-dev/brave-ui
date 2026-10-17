@@ -25,11 +25,15 @@ import { renderAssistantMessage } from "./agent-message-render";
 
 const { Text } = Typography;
 
+// 由 UI 卡片承载的工具调用：时间线不展示其原始 JSON（提问卡片单独渲染），
+// 也不展示其"调用参数"，避免用户直接看到大段原始入参。
+
 interface AgentWSMessage {
   type?: string;
   task_id?: string;
   event?: AgentEventItem;
 }
+
 
 interface StreamEventPayload {
   type?: string;
@@ -301,8 +305,13 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId, scrollContainerRef 
         seenRef.current.clear();
         msgsRef.current = [];
         for (const ev of merged) {
+          // 历史（已落库）的事件按最终状态渲染：随后统一关闭未收口的 streaming 消息，
+          // 避免刷新 / 重新水合后正文一直停留在「流式中」而不再更新。
           applyEvent(ev);
         }
+        closeOpen("assistant_final");
+        closeOpen("reasoning");
+        flush();
         hydratedRef.current = true;
       })
       .catch(() => {
