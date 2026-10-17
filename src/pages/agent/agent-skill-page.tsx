@@ -71,6 +71,15 @@ const createColumns = ({
       value ? <Tag color="red">disabled</Tag> : <Tag color="blue">enabled</Tag>,
   },
   {
+    title: "Template Render",
+    dataIndex: "disable_render",
+    key: "disable_render",
+    width: 150,
+    align: "center",
+    render: (value?: boolean) =>
+      value ? <Tag color="orange">disabled</Tag> : <Tag color="blue">enabled</Tag>,
+  },
+  {
     title: "Location",
     dataIndex: "skill_file_path",
     key: "skill_file_path",
@@ -205,7 +214,9 @@ const AgentSkillPage = () => {
       <Flex gap="small" style={{ marginBottom: 12 }} wrap>
         <Text type="secondary">
           Skills available to the agent, defined as SKILL.md documents under the
-          &quot;.skills&quot; directory. Changes take effect immediately while the
+          &quot;.skills&quot; directory. Template rendering substitutes{" "}
+          <Text code>{"{{ var }}"}</Text> in instructions and resources with the
+          current runtime variables. Changes take effect immediately while the
           server is running.
         </Text>
       </Flex>
@@ -217,7 +228,7 @@ const AgentSkillPage = () => {
         loading={loading}
         pagination={false}
         size="small"
-        scroll={{ x: 1100 }}
+        scroll={{ x: 1250 }}
         expandable={{
           expandedRowRender: (record) => (
             <div>

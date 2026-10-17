@@ -17,6 +17,7 @@ interface AgentSkillFormValues {
   description: string;
   user_invocable: boolean;
   disable_model_invocation: boolean;
+  disable_render: boolean;
   instructions?: string;
 }
 
@@ -36,6 +37,7 @@ const AgentSkillEditModal: FC<AgentSkillEditModalProps> = ({ skill, onOk, onCanc
         description: values.description.trim(),
         user_invocable: values.user_invocable,
         disable_model_invocation: values.disable_model_invocation,
+        disable_render: values.disable_render,
         instructions: values.instructions ?? "",
       });
 
@@ -58,6 +60,7 @@ const AgentSkillEditModal: FC<AgentSkillEditModalProps> = ({ skill, onOk, onCanc
         description: skill?.description ?? "",
         user_invocable: skill?.user_invocable ?? false,
         disable_model_invocation: skill?.disable_model_invocation ?? false,
+        disable_render: skill?.disable_render ?? false,
         instructions: skill?.instructions ?? "",
       }}
     >
@@ -103,6 +106,15 @@ const AgentSkillEditModal: FC<AgentSkillEditModalProps> = ({ skill, onOk, onCanc
           label="Disable Model Invocation"
           valuePropName="checked"
           tooltip="When on, the skill is hidden from the system prompt."
+          style={{ marginBottom: 8 }}
+        >
+          <Switch />
+        </Form.Item>
+        <Form.Item
+          name="disable_render"
+          label="Disable Template Render"
+          valuePropName="checked"
+          tooltip="When on, the skill instructions and bundled resources are returned verbatim; {{ var }} placeholders are not rendered."
           style={{ marginBottom: 8 }}
         >
           <Switch />
