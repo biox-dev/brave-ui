@@ -102,6 +102,8 @@ export interface AgentQuestionAnswer {
 export interface AgentAskUserAnswer {
   request_id?: string;
   answers: AgentQuestionAnswer[];
+  /** 本次已作答的问题 ID（逐题提交时用于区分“未答”与“空值”）。 */
+  answered_ids?: string[];
 }
 
 // 提问请求（对应后端 agent.QuestionRequest）。

@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Card, Flex, Popconfirm, Space, Table, Typography, message } from "antd";
+import { Alert, Button, Card, Flex, Popconfirm, Space, Switch, Table, Tag, Typography, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { ImportOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useContainerTemplatePageQuery } from "@/hooks/usePaginationV2";
-import { deleteContainerTemplateApi, exportContainerTemplateApi, type ContainerTemplateItem } from "@/api/container";
+import {
+  deleteContainerTemplateApi,
+  exportContainerTemplateApi,
+  getDefaultContainerTemplateApi,
+  setDefaultContainerTemplateApi,
+  type ContainerTemplateItem,
+} from "@/api/container";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useI18n } from "@/hooks/useI18n";
 import { formatRelativeTime } from "@/utils/time";
@@ -64,6 +70,15 @@ const createColumns = (locale: string): ColumnsType<ContainerTemplateItem> => [
     key: "name",
     width: 220,
     ellipsis: true,
+    render: (value: string, record) =>
+      record.is_default ? (
+        <Space size={4}>
+          <Tag color="gold">Default</Tag>
+          <span>{value || "-"}</span>
+        </Space>
+      ) : (
+        value || "-"
+      ),
   },
   {
     title: "Spec ID",
@@ -141,6 +156,10 @@ const ContainerTemplatePage = ({
 }: ContainerTemplatePageProps) => {
   const [selectedId, setSelectedID] = useState<string>();
   const [deletingId, setDeletingId] = useState<string>();
+  // defaultTemplateId：系统默认容器模板 ID（全局唯一，null 表示尚未配置）。
+  const [defaultTemplateId, setDefaultTemplateId] = useState<string | null>(null);
+  const [defaultLoading, setDefaultLoading] = useState(false);
+  const [settingDefaultId, setSettingDefaultId] = useState<string>();
   const [messageApi, contextHolder] = message.useMessage();
   const { locale } = useI18n();
   const selectable = Boolean(onOk || onCancel);
@@ -187,17 +206,61 @@ const ContainerTemplatePage = ({
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 
+  // 读取系统默认模板（create_script 未指定容器模板时会用这一条）。
+  const loadDefaultTemplate = useCallback(async () => {
+    setDefaultLoading(true);
+    try {
+      const resp = await getDefaultContainerTemplateApi();
+      setDefaultTemplateId(resp.data?.data?.id ?? null);
+    } catch {
+      setDefaultTemplateId(null);
+    } finally {
+      setDefaultLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDefaultTemplate();
+  }, [loadDefaultTemplate]);
+
+  // 设为默认：后端会互斥地清空其它模板的默认标记，因此这里只需要重新拉一次默认值。
+  const handleSetDefault = useCallback(
+    async (record: ContainerTemplateItem, checked: boolean) => {
+      if (!checked) {
+        messageApi.warning("At least one template must stay as default. Set another template as default instead.");
+        return;
+      }
+      setSettingDefaultId(record.id);
+      try {
+        await setDefaultContainerTemplateApi({ id: record.id });
+        messageApi.success(`"${record.name}" is now the default container template`);
+        await loadDefaultTemplate();
+        refetch();
+      } catch (error) {
+        messageApi.error(getErrorMessage(error, "Failed to set default container template"));
+      } finally {
+        setSettingDefaultId(undefined);
+      }
+    },
+    [loadDefaultTemplate, messageApi, refetch]
+  );
+
+  const handleRefresh = useCallback(() => {
+    refetch();
+    loadDefaultTemplate();
+  }, [refetch, loadDefaultTemplate]);
+
   const handleCreate = useCallback(async () => {
     try {
       await invoke.containerTemplateForm.openAsync(
         {},
         { title: "Create Container Template", width: 600, footer: false }
       );
-      refetch();
+      handleRefresh();
     } catch {
       // User cancelled
     }
-  }, [refetch]);
+  }, [handleRefresh]);
 
   const handleEdit = useCallback(async (record: ContainerTemplateItem) => {
     try {
@@ -205,24 +268,24 @@ const ContainerTemplatePage = ({
         { item: record },
         { title: "Edit Container Template", width: 600, footer: false }
       );
-      refetch();
+      handleRefresh();
     } catch {
       // User cancelled
     }
-  }, [refetch]);
+  }, [handleRefresh]);
 
   const handleDelete = useCallback(async (record: ContainerTemplateItem) => {
     setDeletingId(record.id);
     try {
       await deleteContainerTemplateApi({ id: record.id });
       messageApi.success("Container template deleted successfully");
-      refetch();
+      handleRefresh();
     } catch (error) {
       messageApi.error(getErrorMessage(error, "Failed to delete container template"));
     } finally {
       setDeletingId(undefined);
     }
-  }, [messageApi, refetch]);
+  }, [messageApi, handleRefresh]);
 
   const handleExport = useCallback(async (record: ContainerTemplateItem) => {
     try {
@@ -243,14 +306,29 @@ const ContainerTemplatePage = ({
         {},
         { title: "Import Container Template", width: 600, footer: false }
       );
-      refetch();
+      handleRefresh();
     } catch {
       // User cancelled
     }
-  }, [refetch]);
+  }, [handleRefresh]);
 
   const selectColumns = useMemo<ColumnsType<ContainerTemplateItem>>(() => {
     const crudColumns: ColumnsType<ContainerTemplateItem> = [
+      {
+        title: "Default",
+        key: "default_action",
+        width: 110,
+        fixed: "right" as const,
+        render: (_: unknown, record) => (
+          <Switch
+            size="small"
+            checked={record.id === defaultTemplateId}
+            loading={settingDefaultId === record.id}
+            disabled={defaultLoading || record.id === defaultTemplateId}
+            onChange={(checked) => handleSetDefault(record, checked)}
+          />
+        ),
+      },
       {
         title: "Actions",
         key: "crud_actions",
@@ -310,7 +388,7 @@ const ContainerTemplatePage = ({
         ),
       },
     ];
-  }, [selectable, selectedId, deletingId, columns, handleExport]);
+  }, [selectable, selectedId, deletingId, columns, handleEdit, handleExport, handleDelete, handleSetDefault, defaultTemplateId, settingDefaultId, defaultLoading]);
 
   const handleConfirm = () => {
     if (!selectedItem || !onOk) {
@@ -347,13 +425,22 @@ const ContainerTemplatePage = ({
               <Button icon={<ImportOutlined />} onClick={handleImport}>
                 Import
               </Button>
-          <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
+          <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={isFetching}>
             Refresh
           </Button>
         </Space>
       }
     >
       {contextHolder}
+      {!defaultLoading && !defaultTemplateId && total > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="No default container template configured"
+          description="Turn on the Default switch for one template below. Scripts created by the agent without an explicit container template will use it."
+        />
+      )}
       <Table<ContainerTemplateItem>
         rowKey="id"
         columns={selectColumns}

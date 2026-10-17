@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Form, Input, InputNumber, Select, Button, Flex, Space, Card, Typography } from "antd";
+import { Form, Input, InputNumber, Select, Switch, Button, Flex, Space, Card, Typography } from "antd";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import type { ContainerTemplateItem } from "@/api/container";
 import { createContainerTemplateApi, updateContainerTemplateApi } from "@/api/container";
@@ -266,6 +266,15 @@ const ContainerTemplateForm = ({
             {/* 绑定行（Definition）自身字段 */}
             <Form.Item name="display_name" label="Display Name" tooltip="Overrides the spec name for this binding only">
                 <Input placeholder="Optional display name for this image binding" />
+            </Form.Item>
+
+            <Form.Item
+                name="is_default"
+                label="Default Template"
+                valuePropName="checked"
+                tooltip="Only one template can be default. Scripts created by the agent without an explicit container template use it."
+            >
+                <Switch />
             </Form.Item>
 
             {!hideRuntimeFields && (
