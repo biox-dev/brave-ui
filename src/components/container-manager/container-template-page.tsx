@@ -6,7 +6,6 @@ import { useContainerTemplatePageQuery } from "@/hooks/usePaginationV2";
 import {
   deleteContainerTemplateApi,
   exportContainerTemplateApi,
-  getDefaultContainerTemplateApi,
   setDefaultContainerTemplateApi,
   type ContainerTemplateItem,
 } from "@/api/container";
@@ -156,9 +155,6 @@ const ContainerTemplatePage = ({
 }: ContainerTemplatePageProps) => {
   const [selectedId, setSelectedID] = useState<string>();
   const [deletingId, setDeletingId] = useState<string>();
-  // defaultTemplateId：系统默认容器模板 ID（全局唯一，null 表示尚未配置）。
-  const [defaultTemplateId, setDefaultTemplateId] = useState<string | null>(null);
-  const [defaultLoading, setDefaultLoading] = useState(false);
   const [settingDefaultId, setSettingDefaultId] = useState<string>();
   const [messageApi, contextHolder] = message.useMessage();
   const { locale } = useI18n();
@@ -206,24 +202,10 @@ const ContainerTemplatePage = ({
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 
-  // 读取系统默认模板（create_script 未指定容器模板时会用这一条）。
-  const loadDefaultTemplate = useCallback(async () => {
-    setDefaultLoading(true);
-    try {
-      const resp = await getDefaultContainerTemplateApi();
-      setDefaultTemplateId(resp.data?.data?.id ?? null);
-    } catch {
-      setDefaultTemplateId(null);
-    } finally {
-      setDefaultLoading(false);
-    }
-  }, []);
+  // 当前页是否已有默认模板：分页接口已返回 is_default，可直接判断，无需单独请求。
+  const hasDefaultInPage = useMemo(() => data.some((item) => item.is_default), [data]);
 
-  useEffect(() => {
-    loadDefaultTemplate();
-  }, [loadDefaultTemplate]);
-
-  // 设为默认：后端会互斥地清空其它模板的默认标记，因此这里只需要重新拉一次默认值。
+  // 设为默认：后端会互斥地清空其它模板的默认标记，因此成功后重新拉取当前页即可。
   const handleSetDefault = useCallback(
     async (record: ContainerTemplateItem, checked: boolean) => {
       if (!checked) {
@@ -234,7 +216,6 @@ const ContainerTemplatePage = ({
       try {
         await setDefaultContainerTemplateApi({ id: record.id });
         messageApi.success(`"${record.name}" is now the default container template`);
-        await loadDefaultTemplate();
         refetch();
       } catch (error) {
         messageApi.error(getErrorMessage(error, "Failed to set default container template"));
@@ -242,13 +223,12 @@ const ContainerTemplatePage = ({
         setSettingDefaultId(undefined);
       }
     },
-    [loadDefaultTemplate, messageApi, refetch]
+    [messageApi, refetch]
   );
 
   const handleRefresh = useCallback(() => {
     refetch();
-    loadDefaultTemplate();
-  }, [refetch, loadDefaultTemplate]);
+  }, [refetch]);
 
   const handleCreate = useCallback(async () => {
     try {
@@ -322,9 +302,9 @@ const ContainerTemplatePage = ({
         render: (_: unknown, record) => (
           <Switch
             size="small"
-            checked={record.id === defaultTemplateId}
+            checked={Boolean(record.is_default)}
             loading={settingDefaultId === record.id}
-            disabled={defaultLoading || record.id === defaultTemplateId}
+            disabled={Boolean(record.is_default)}
             onChange={(checked) => handleSetDefault(record, checked)}
           />
         ),
@@ -388,7 +368,7 @@ const ContainerTemplatePage = ({
         ),
       },
     ];
-  }, [selectable, selectedId, deletingId, columns, handleEdit, handleExport, handleDelete, handleSetDefault, defaultTemplateId, settingDefaultId, defaultLoading]);
+  }, [selectable, selectedId, deletingId, columns, handleEdit, handleExport, handleDelete, handleSetDefault, settingDefaultId]);
 
   const handleConfirm = () => {
     if (!selectedItem || !onOk) {
@@ -432,7 +412,7 @@ const ContainerTemplatePage = ({
       }
     >
       {contextHolder}
-      {!defaultLoading && !defaultTemplateId && total > 0 && (
+      {!hasDefaultInPage && total > 0 && (
         <Alert
           type="warning"
           showIcon
