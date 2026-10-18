@@ -11,6 +11,7 @@ import {
 import { getGlobalMessage } from "@/hooks/useGlobalMessage";
 import DatabaseConfigSection from "./database-config-section";
 import ContainerConfigSection from "./container-config-section";
+import AgentConfigSection from "./agent-config-section";
 
 const { Paragraph } = Typography;
 
@@ -18,6 +19,7 @@ const { Paragraph } = Typography;
 const SECTION_LABELS: Record<ConfigSectionKey, string> = {
 	database: "数据库",
 	container: "容器",
+	agent: "AI Agent",
 };
 
 /**
@@ -117,6 +119,16 @@ const ConfigPage = () => {
 										<ContainerConfigSection
 											value={sections.container}
 											onSave={(value) => saveSection("container", value)}
+										/>
+									),
+								},
+								{
+									key: "agent",
+									label: SECTION_LABELS.agent,
+									children: (
+										<AgentConfigSection
+											value={sections.agent}
+											onSave={(value) => saveSection("agent", value)}
 										/>
 									),
 								},

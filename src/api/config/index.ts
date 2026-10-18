@@ -34,10 +34,27 @@ export interface ContainerConfig {
 	create_queue_max_pending: number;
 }
 
+/**
+ * 模型提供商配置，字段与后端 config.ModelProviderConfig 对齐。
+ * key 为模型名（与 Profile.model 对应）。
+ */
+export interface ModelProviderConfig {
+	model: string;
+	base_url: string;
+	api_key: string;
+	extra: Record<string, string>;
+}
+
+/** AI Agent 配置，字段与后端 config.AgentConfig 对齐。 */
+export interface AgentConfig {
+	providers: Record<string, ModelProviderConfig>;
+}
+
 /** 后端已注册的可编辑配置段，key 与 config.yml 的顶层键名一致。 */
 export interface ConfigSections {
 	database: DatabaseConfig;
 	container: ContainerConfig;
+	agent: AgentConfig;
 }
 
 /** 配置段 key，同时也是 POST 时使用的 section 标识。 */
