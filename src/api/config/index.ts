@@ -37,16 +37,58 @@ export interface ContainerConfig {
 /**
  * 模型提供商配置，字段与后端 config.ModelProviderConfig 对齐。
  * key 为模型名（与 Profile.model 对应）。
+ *
+ * 只需填写 provider（厂商类型）+ api_model（真实模型名）+ api_key 即可：
+ * base_url / context_window / default_max_tokens / can_reason / supports_attachments
+ * 等元信息由后端按厂商预置表自动补齐。
  */
 export interface ModelProviderConfig {
-	model: string;
-	base_url: string;
-	api_key: string;
-	extra: Record<string, string>;
+	model_id?: string;
+	base_url?: string;
+	api_key?: string;
+	/** 模型厂商类型（openai / anthropic / deepseek / gemini …）。 */
+	provider?: string;
+	/** 发给厂商的真实模型名；为空时回退 model_id。 */
+	api_model?: string;
+	/** 模型展示名；为空时回退 model_id。 */
+	name?: string;
+	context_window?: number;
+	default_max_tokens?: number;
+	can_reason?: boolean;
+	supports_attachments?: boolean;
+	cost_per_1m_in?: number;
+	cost_per_1m_out?: number;
+	cost_per_1m_in_cached?: number;
+	cost_per_1m_out_cached?: number;
+	reasoning_effort?: string;
+	extra?: Record<string, string>;
 }
 
 /** AI Agent 配置，字段与后端 config.AgentConfig 对齐。 */
 export interface AgentConfig {
+	providers: Record<string, ModelProviderConfig>;
+}
+
+/** 模型厂商预置信息（后端 config.ModelVendorPreset）。 */
+export interface ModelVendorPreset {
+	/** 厂商类型，写入 ModelProviderConfig.provider。 */
+	type: string;
+	/** 展示名。 */
+	name: string;
+	/** 默认 base_url，空表示由 SDK 决定。 */
+	base_url: string;
+	/** 常见模型名前缀。 */
+	api_model_prefix?: string;
+	/** 常见模型名。 */
+	models: string[];
+}
+
+/** 模型厂商 / 模型选项接口响应。 */
+export interface ModelProviderOptionsResponse {
+	vendors: ModelVendorPreset[];
+	/** 预置模型参数（key 为模型名，不含凭据）。 */
+	defaults: Record<string, ModelProviderConfig>;
+	/** 当前生效的模型配置表。 */
 	providers: Record<string, ModelProviderConfig>;
 }
 
@@ -90,4 +132,14 @@ export const updateConfigSectionApi = <K extends ConfigSectionKey>(
 		section,
 		value,
 	});
+};
+
+/**
+ * 获取模型厂商与模型选项。
+ *
+ * 供 AI Agent 配置页渲染「厂商 → 模型 → API Key」表单：厂商类型、默认 base_url、
+ * 常见模型名均由后端下发，前端不必硬编码。
+ */
+export const getModelProviderOptionsApi = () => {
+	return http.get<ModelProviderOptionsResponse>("/config/model/providers");
 };
