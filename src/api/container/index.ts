@@ -83,23 +83,29 @@ export interface ContainerImageExportItem {
     pull_policy: string;
 }
 
-export interface ContainerTemplateExportItem {
+/**
+ * ContainerTemplateDefinition = 「运行配置 × 镜像」绑定行（表 go_container_template_definition）。
+ * 对外容器模板 ID 即绑定行主键；spec_id / image_id 指向下面的完整对象的主键。
+ */
+export interface ContainerTemplateDefinitionItem {
     id: string;
-    name: string;
-    description: string;
-    image: ContainerImageExportItem;
-    command: string;
-    cpu: number;
-    memory: number;
-    work_dir: string;
-    port: number;
-    app_type: string;
-    env: Record<string, unknown> | null;
-    mounts: ContainerMount[] | null;
-    volumes: Record<string, unknown> | null;
-    scheduling_constraint: Record<string, unknown> | null;
-    labels: Record<string, unknown> | null;
-    change_uid: boolean;
+    spec_id: string;
+    image_id: string;
+    display_name?: string;
+    is_default?: boolean;
+    created_at?: string;
+    updated_at?: string;
+}
+
+/**
+ * 容器模板统一导出/导入格式，与 script.json / workflow.json 的容器资产部分完全相同：
+ * 三个按主键去重的平铺列表，通过主键互相引用（definition.spec_id / image_id）。
+ * 不包含时间字段。
+ */
+export interface ContainerTemplateBundleItem {
+    container_images: ContainerImageExportItem[];
+    container_template_specs: ContainerTemplateSpecItem[];
+    container_template_definitions: ContainerTemplateDefinitionItem[];
 }
 
 export interface AppSessionItem {
@@ -272,11 +278,11 @@ export const deleteContainerTemplateApi = (payload: { id: string }) => {
 };
 
 export const exportContainerTemplateApi = (payload: { id: string }) => {
-    return http.post<ContainerTemplateExportItem>("/container/template/export", payload);
+    return http.post<ContainerTemplateBundleItem>("/container/template/export", payload);
 };
 
-export const importContainerTemplateApi = (payload: ContainerTemplateExportItem) => {
-    return http.post<ContainerTemplateExportItem>("/container/template/import", payload);
+export const importContainerTemplateApi = (payload: ContainerTemplateBundleItem) => {
+    return http.post<ContainerTemplateBundleItem>("/container/template/import", payload);
 };
 
 /** 读取系统默认容器模板；没有默认模板时 data 为 null。 */

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { Form, Input, InputNumber, Select, Switch, Button, Flex, Space, Card, Typography } from "antd";
-import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
+import { Form, Input, Switch, Button, Flex, Space, Typography } from "antd";
 import type { ContainerTemplateItem } from "@/api/container";
 import { createContainerTemplateApi, updateContainerTemplateApi } from "@/api/container";
 import { invoke } from "@/core/ui-system/invokeV2";
@@ -19,23 +18,6 @@ const getErrorMessage = (error: unknown, fallback: string) => {
 
 const { Text } = Typography;
 
-/** Convert Record<string,string> to Form.List entries */
-const envToEntries = (env: Record<string, unknown> | null | undefined) => {
-    if (!env || typeof env !== "object") return [];
-    return Object.entries(env).map(([key, value]) => ({ key, value: String(value ?? "") }));
-};
-
-/** Convert Form.List entries to Record<string,string> */
-const entriesToEnv = (entries: { key: string; value: string }[]) => {
-    const env: Record<string, string> = {};
-    for (const { key, value } of entries) {
-        if (key.trim()) {
-            env[key.trim()] = value;
-        }
-    }
-    return env;
-};
-
 export interface ContainerTemplateFormProps {
     // When editing, pass the existing item (a ContainerTemplate read model = definition + spec + image)
     item?: ContainerTemplateItem;
@@ -52,7 +34,15 @@ export interface ContainerTemplateFormProps {
 /**
  * ContainerTemplateDefinition（运行配置 × 镜像 绑定行）表单。
  * 一条绑定行 = 一个可直接运行的容器模板：对外 ID 即绑定行主键。
- * 运行配置（ContainerTemplateSpec）可以复用已有的，也可以随绑定行一起新建。
+ *
+ * 本表单只提交绑定行自身的字段：
+ *   - spec_id：要复用的共享运行配置（ContainerTemplateSpec）；
+ *   - image_id：要绑定的镜像；
+ *   - display_name：该绑定行的展示名（为空时回退到配置名）；
+ *   - is_default：是否作为系统唯一默认容器模板。
+ *
+ * 运行配置的内部字段（命令、资源、端口、环境变量、挂载等）在「Container Template Spec」
+ * 页面维护 —— 同一套配置可被多个镜像绑定复用，所以不在这里重复编辑。
  */
 const ContainerTemplateForm = ({
     item,
@@ -68,81 +58,44 @@ const ContainerTemplateForm = ({
     const isEdit = Boolean(item?.id);
 
     const specIdValue = Form.useWatch<string | undefined>("spec_id", form);
-    // 编辑时 spec 固定；新增时选择“复用已有配置”则隐藏运行配置字段（由后端忽略）。
-    const reuseSpec = Boolean(specIdValue);
-    const hideRuntimeFields = !isEdit && reuseSpec;
+    const specLabel = Form.useWatch<string | undefined>("spec_label", form);
+    const imageIdValue = Form.useWatch<string | undefined>("image_id", form);
+    const imageLabel = Form.useWatch<string | undefined>("image_label", form);
 
     useEffect(() => {
         if (isEdit && item) {
             form.setFieldsValue({
-                ...item,
+                id: item.id,
                 spec_id: item.spec_id,
-                env: envToEntries(item.env as Record<string, unknown> | null),
-                mounts: item.mounts && Array.isArray(item.mounts) ? item.mounts : [],
+                image_id: item.image_id,
+                display_name: item.name || undefined,
+                is_default: Boolean(item.is_default),
+                spec_label: item.spec_id,
+                image_label: item.image?.full_name || item.image_id,
             });
-        } else {
-            form.resetFields();
-            if (initialSpecId) {
-                form.setFieldsValue({ spec_id: initialSpecId });
-            }
+            return;
         }
-    }, [item, isEdit, form, initialSpecId]);
 
+        form.resetFields();
+        if (initialSpecId) {
+            form.setFieldsValue({
+                spec_id: initialSpecId,
+                spec_label: initialSpecName || initialSpecId,
+            });
+        }
+    }, [item, isEdit, form, initialSpecId, initialSpecName]);
+
+    /** 只提交绑定行（ContainerTemplateDefinition）的字段，运行配置与镜像仅以 id 引用。 */
     const buildPayload = (values: Record<string, unknown>) => {
-        const payload: Record<string, unknown> = {};
-
+        const payload: Record<string, unknown> = {
+            spec_id: values.spec_id,
+            image_id: values.image_id,
+            is_default: Boolean(values.is_default),
+            display_name: typeof values.display_name === "string" ? values.display_name.trim() : "",
+        };
         if (isEdit) {
             payload.id = item!.id;
         }
-
-        // 复用已有运行配置时，运行配置字段一律不发送（后端会忽略）。
-        const runtimeKeys = new Set([
-            "name",
-            "description",
-            "command",
-            "work_dir",
-            "port",
-            "cpu",
-            "memory",
-            "app_type",
-            "change_uid",
-            "env",
-            "mounts",
-        ]);
-
-        for (const [key, val] of Object.entries(values)) {
-            if (hideRuntimeFields && runtimeKeys.has(key)) {
-                continue;
-            }
-            // Skip undefined, null, or empty string (do not send nil values)
-            if (val === undefined || val === null || val === "") {
-                continue;
-            }
-            // Skip zero values for optional numeric fields when not explicitly set
-            if ((key === "cpu" || key === "memory" || key === "port") && val === 0) {
-                continue;
-            }
-            // Convert env entries array to object
-            if (key === "env" && Array.isArray(val)) {
-                const envObj = entriesToEnv(val as { key: string; value: string }[]);
-                if (Object.keys(envObj).length > 0) {
-                    payload[key] = envObj;
-                }
-                continue;
-            }
-            // Keep mounts as-is (already an array of objects)
-            if (key === "mounts" && Array.isArray(val)) {
-                const filtered = (val as { source: string; target: string; mode: string; type: string; owner: string }[]).filter(
-                    (m) => m.source || m.target
-                );
-                if (filtered.length > 0) {
-                    payload[key] = filtered;
-                }
-                continue;
-            }
-            payload[key] = val;
-        }
-
         return payload;
     };
 
@@ -185,7 +138,7 @@ const ContainerTemplateForm = ({
             if (selected?.id) {
                 form.setFieldsValue({
                     image_id: selected.id,
-                    image_name: selected.full_name || selected.name,
+                    image_label: selected.full_name || selected.name || selected.id,
                 });
             }
         } catch {
@@ -201,70 +154,86 @@ const ContainerTemplateForm = ({
                 { title: "Select Container Template Spec", width: "80%", footer: false }
             );
             if (selected?.id) {
-                form.setFieldsValue({ spec_id: selected.id, spec_name: selected.name });
+                form.setFieldsValue({
+                    spec_id: selected.id,
+                    spec_label: selected.name || selected.id,
+                });
             }
         } catch {
             // User cancelled selection
         }
     };
 
-    const clearSpec = () => {
-        form.setFieldsValue({ spec_id: undefined, spec_name: undefined });
-    };
-
     return (
-        <Form
-            form={form}
-            layout="vertical"
-            initialValues={{
-                type: "app",
-                port: 8787,
-                cpu: 0,
-                memory: 0,
-            }}
-        >
-            {/* 运行配置：可复用已有 Spec，也可在下面随绑定行一起新建 */}
-            <Form.Item label="Runtime Spec">
-                <Space.Compact style={{ width: "100%" }}>
-                    <Form.Item name="spec_id" noStyle>
-                        <Input
-                            readOnly
-                            placeholder="Click to reuse an existing spec (empty = create new)"
-                            onClick={isEdit ? undefined : handleSelectSpec}
-                            style={{ cursor: isEdit ? "default" : "pointer" }}
-                        />
-                    </Form.Item>
-                    {!isEdit && (
-                        <Button onClick={reuseSpec ? clearSpec : handleSelectSpec}>
-                            {reuseSpec ? "Clear" : "Select Spec"}
-                        </Button>
-                    )}
-                </Space.Compact>
-            </Form.Item>
-
-            <Form.Item name="spec_name" hidden>
-                <Input />
-            </Form.Item>
+        <Form form={form} layout="vertical">
+            <Text type="secondary" style={{ display: "block", marginBottom: 16 }}>
+                A container template binds one runtime spec (how to run) to one image (what to run).
+                Command, resources, ports, env and mounts belong to the spec and can be shared across images.
+            </Text>
 
             <Form.Item
-                name="image_id"
-                label="Image"
-                rules={[{ required: true, message: "Please select a container image" }]}
+                label="Runtime Spec"
+                tooltip="Shared runtime configuration (ContainerTemplateSpec). Its command / resources / env are managed on the Container Template Spec page."
             >
-                <Input
-                    readOnly
-                    placeholder="Click to select container image"
-                    onClick={handleSelectImage}
-                    style={{ cursor: "pointer" }}
-                />
+                <Space.Compact style={{ width: "100%" }}>
+                    <Form.Item
+                        name="spec_id"
+                        noStyle
+                        rules={[{ required: true, message: "Please select a runtime spec" }]}
+                    >
+                        <Input
+                            readOnly
+                            placeholder="Click to select a runtime spec"
+                            onClick={handleSelectSpec}
+                            style={{ cursor: "pointer" }}
+                        />
+                    </Form.Item>
+                    <Button onClick={handleSelectSpec}>Select Spec</Button>
+                </Space.Compact>
             </Form.Item>
-
-            <Form.Item name="image_name" hidden>
+            <Form.Item name="spec_label" hidden>
                 <Input />
             </Form.Item>
+            {specIdValue && (
+                <Text type="secondary" style={{ display: "block", marginTop: -12, marginBottom: 12 }}>
+                    Spec: {specLabel || specIdValue}
+                </Text>
+            )}
 
-            {/* 绑定行（Definition）自身字段 */}
-            <Form.Item name="display_name" label="Display Name" tooltip="Overrides the spec name for this binding only">
+            <Form.Item
+                label="Image"
+                tooltip="Container image bound to the selected runtime spec."
+            >
+                <Space.Compact style={{ width: "100%" }}>
+                    <Form.Item
+                        name="image_id"
+                        noStyle
+                        rules={[{ required: true, message: "Please select a container image" }]}
+                    >
+                        <Input
+                            readOnly
+                            placeholder="Click to select a container image"
+                            onClick={handleSelectImage}
+                            style={{ cursor: "pointer" }}
+                        />
+                    </Form.Item>
+                    <Button onClick={handleSelectImage}>Select Image</Button>
+                </Space.Compact>
+            </Form.Item>
+            <Form.Item name="image_label" hidden>
+                <Input />
+            </Form.Item>
+            {imageIdValue && (
+                <Text type="secondary" style={{ display: "block", marginTop: -12, marginBottom: 12 }}>
+                    Image: {imageLabel || imageIdValue}
+                </Text>
+            )}
+
+            <Form.Item
+                name="display_name"
+                label="Display Name"
+                tooltip="Overrides the spec name for this binding only. Leave empty to use the spec name."
+            >
                 <Input placeholder="Optional display name for this image binding" />
             </Form.Item>
 
@@ -276,142 +245,6 @@ const ContainerTemplateForm = ({
             >
                 <Switch />
             </Form.Item>
-
-            {!hideRuntimeFields && (
-                <>
-                    <Form.Item
-                        name="name"
-                        label="Spec Name"
-                        rules={[{ required: true, message: "Please enter the template name" }]}
-                    >
-                        <Input placeholder="e.g. RStudio Server" />
-                    </Form.Item>
-
-                    <Form.Item name="app_type" label="App Type">
-                        <Input placeholder="e.g. rstudio, jupyter, vscode" />
-                    </Form.Item>
-
-                    <Form.Item name="description" label="Description">
-                        <Input.TextArea rows={3} placeholder="Template description" />
-                    </Form.Item>
-
-                    <Form.Item name="command" label="Command">
-                        <Input.TextArea rows={2} placeholder="Container command" />
-                    </Form.Item>
-
-                    <Form.Item name="work_dir" label="Work Directory">
-                        <Input placeholder="e.g. /home/rstudio" />
-                    </Form.Item>
-
-
-                    <Form.Item name="port" label="Port">
-                        <InputNumber
-                            style={{ width: "100%" }}
-                            placeholder="Exposed port"
-                            min={0}
-                            max={65535}
-                        />
-                    </Form.Item>
-
-                    <Form.Item name="cpu" label="CPU (cores)">
-                        <InputNumber
-                            style={{ width: "100%" }}
-                            placeholder="CPU cores"
-                            min={0}
-                            step={0.1}
-                        />
-                    </Form.Item>
-
-                    <Form.Item name="memory" label="Memory (bytes)">
-                        <InputNumber
-                            style={{ width: "100%" }}
-                            placeholder="Memory limit in bytes"
-                            min={0}
-                        />
-                    </Form.Item>
-
-            {/* Environment Variables */}
-            <Card
-                size="small"
-                title={<Text strong>Environment Variables</Text>}
-                style={{ marginBottom: 16 }}
-            >
-                <Form.List name="env">
-                    {(fields, { add, remove }) => (
-                        <>
-                            {fields.map(({ key, name, ...rest }) => (
-                                <Space key={key} style={{ display: "flex", marginBottom: 8 }} align="baseline">
-                                    <Form.Item {...rest} name={[name, "key"]} rules={[{ required: true, message: "Key required" }]}>
-                                        <Input placeholder="Key (e.g. NB_GID)" style={{ width: 180 }} />
-                                    </Form.Item>
-                                    <Form.Item {...rest} name={[name, "value"]} rules={[{ required: true, message: "Value required" }]}>
-                                        <Input placeholder="Value (e.g. $DOCKER_GID)" style={{ width: 220 }} />
-                                    </Form.Item>
-                                    <DeleteOutlined onClick={() => remove(name)} style={{ color: "#ff4d4f", cursor: "pointer" }} />
-                                </Space>
-                            ))}
-                            <Button type="dashed" onClick={() => add({ key: "", value: "" })} block icon={<PlusOutlined />}>
-                                Add Env
-                            </Button>
-                        </>
-                    )}
-                </Form.List>
-            </Card>
-
-            {/* Mounts */}
-            <Card
-                size="small"
-                title={<Text strong>Mounts</Text>}
-                style={{ marginBottom: 16 }}
-            >
-                <Form.List name="mounts">
-                    {(fields, { add, remove }) => (
-                        <>
-                            {fields.map(({ key, name, ...rest }) => (
-                                <Space key={key} style={{ display: "flex", marginBottom: 8, flexWrap: "wrap" }} align="baseline">
-                                    <Form.Item {...rest} name={[name, "type"]} initialValue="file">
-                                        <Select style={{ width: 90 }}
-                                            options={[
-                                                { label: "file", value: "file" },
-                                                { label: "dir", value: "dir" },
-                                            ]}
-                                        />
-                                    </Form.Item>
-                                    <Form.Item {...rest} name={[name, "owner"]} initialValue="app_session">
-                                        <Select style={{ width: 140 }}
-                                            options={[
-                                                { label: "dag_node", value: "dag_node" },
-                                                { label: "app_session", value: "app_session" },
-                                                { label: "service", value: "service" },
-                                            ]}
-                                        />
-                                    </Form.Item>
-                                    <Form.Item {...rest} name={[name, "source"]} rules={[{ required: true, message: "Source required" }]}>
-                                        <Input placeholder="Source (e.g. $R_PROFILE)" style={{ width: 180 }} />
-                                    </Form.Item>
-                                    <Form.Item {...rest} name={[name, "target"]} rules={[{ required: true, message: "Target required" }]}>
-                                        <Input placeholder="Target (e.g. /home/rstudio/.Rprofile)" style={{ width: 220 }} />
-                                    </Form.Item>
-                                    <Form.Item {...rest} name={[name, "mode"]} initialValue="rw">
-                                        <Select style={{ width: 100 }}
-                                            options={[
-                                                { label: "rw", value: "rw" },
-                                                { label: "ro", value: "ro" },
-                                            ]}
-                                        />
-                                    </Form.Item>
-                                    <DeleteOutlined onClick={() => remove(name)} style={{ color: "#ff4d4f", cursor: "pointer" }} />
-                                </Space>
-                            ))}
-                            <Button type="dashed" onClick={() => add({ type: "file", owner: "app_session", source: "", target: "", mode: "rw" })} block icon={<PlusOutlined />}>
-                                Add Mount
-                            </Button>
-                        </>
-                    )}
-                </Form.List>
-            </Card>
-                </>
-            )}
 
             <Flex justify="end" gap="small" style={{ marginTop: 16 }}>
                 <Button onClick={handleCancel} disabled={saving}>
