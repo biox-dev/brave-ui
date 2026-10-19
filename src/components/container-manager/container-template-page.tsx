@@ -202,9 +202,6 @@ const ContainerTemplatePage = ({
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 
-  // 当前页是否已有默认模板：分页接口已返回 is_default，可直接判断，无需单独请求。
-  const hasDefaultInPage = useMemo(() => data.some((item) => item.is_default), [data]);
-
   // 设为默认：后端会互斥地清空其它模板的默认标记，因此成功后重新拉取当前页即可。
   const handleSetDefault = useCallback(
     async (record: ContainerTemplateItem, checked: boolean) => {
@@ -412,15 +409,6 @@ const ContainerTemplatePage = ({
       }
     >
       {contextHolder}
-      {!hasDefaultInPage && total > 0 && (
-        <Alert
-          type="warning"
-          showIcon
-          style={{ marginBottom: 12 }}
-          message="No default container template configured"
-          description="Turn on the Default switch for one template below. Scripts created by the agent without an explicit container template will use it."
-        />
-      )}
       <Table<ContainerTemplateItem>
         rowKey="id"
         columns={selectColumns}
