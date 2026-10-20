@@ -354,6 +354,8 @@ export interface AgentEnvInfo {
   profile_name?: string;
   /** 用于渲染系统提示词的 Profile ID（雪花 ID，后端以字符串返回）。 */
   profile_id?: string;
+  /** Profile 启用的技能名列表；空数组表示不限制技能（使用全部技能）。 */
+  skills?: string[] | null;
 }
 
 // 解析当前对话的业务上下文，返回人类可读的名称与工作目录。
@@ -370,6 +372,24 @@ export const listAgentSkillApi = () => {
 // 查看单个技能（含指令正文），用于编辑回填。
 export const getAgentSkillApi = (id: string) => {
   return http.get<AgentSkillItem>("/agent/skill/get", { params: { id } });
+};
+
+// 技能解析结果（对应后端 skill.GetSkillOutput）。
+// instructions 是用当前业务上下文渲染后的 SKILL.md 正文，与模型调用 get_skill 拿到的内容一致。
+export interface AgentSkillResolveResult {
+  name: string;
+  description?: string;
+  version?: string;
+  skill_path?: string;
+  resources?: string[];
+  instructions: string;
+  /** 技能不存在 / 版本不匹配等业务错误（后端以 200 返回）。 */
+  error?: string;
+}
+
+// 按名称解析技能并用当前业务上下文渲染（对应后端 GET /agent/skill/resolve）。
+export const resolveAgentSkillApi = (id: string) => {
+  return http.get<AgentSkillResolveResult>("/agent/skill/resolve", { params: { id } });
 };
 
 // 创建 / 更新技能：写回 SKILL.md 并热更新后端注册表，运行中即时生效。

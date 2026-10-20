@@ -1,6 +1,7 @@
 import { FC } from "react";
 import { Button, Empty, Flex, Tag, Typography } from "antd";
 import Markdown from "@/components/markdown";
+import { invoke } from "@/core/ui-system/invokeV2";
 import type { AgentEnvInfo } from "@/api/agent";
 
 const { Text } = Typography;
@@ -31,6 +32,16 @@ const AgentSystemPromptModal: FC<AgentSystemPromptModalProps> = ({ envInfo, onCa
   };
 
   const prompt = envInfo?.system_prompt?.trim();
+  // skills 为数组（含空数组）时展示：空数组表示 Profile 未限制技能，本轮使用全部技能。
+  const skills = envInfo?.skills;
+
+  // 点击技能 Tag：用后端解析接口拿当前上下文渲染后的技能详情（只读弹窗）。
+  const openSkillDetail = (skill: string) => {
+    invoke.agentSkillDetailModal.open(
+      { name: skill },
+      { title: skill, width: 800, footer: null },
+    );
+  };
 
   return (
     <Flex vertical gap={12}>
@@ -40,6 +51,28 @@ const AgentSystemPromptModal: FC<AgentSystemPromptModalProps> = ({ envInfo, onCa
           {envInfo?.type && <Tag color="processing">Type: {envInfo.type}</Tag>}
           {envInfo?.profile_name && <Tag color="blue">Profile: {envInfo.profile_name}</Tag>}
           {envInfo?.label && <Tag>{envInfo.label}</Tag>}
+        </Flex>
+      )}
+
+      {/* Profile 启用的技能：空列表表示不限制（使用全部技能）。 */}
+      {Array.isArray(skills) && (
+        <Flex align="center" gap={8} wrap>
+          <Text type="secondary">Skills:</Text>
+          {skills.length > 0 ? (
+            skills.map((skill) => (
+              <Tag
+                key={skill}
+                color="purple"
+                style={{ cursor: "pointer" }}
+                title={`View skill ${skill}`}
+                onClick={() => openSkillDetail(skill)}
+              >
+                {skill}
+              </Tag>
+            ))
+          ) : (
+            <Tag>All (no restriction)</Tag>
+          )}
         </Flex>
       )}
 

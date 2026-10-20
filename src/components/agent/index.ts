@@ -9,6 +9,8 @@ const viewLoaders = {
     agentChat: () => import("./agent-chat"),
     agentMemoryEditModal: () => import("./agent-memory-edit-modal"),
     agentSkillEditModal: () => import("./agent-skill-edit-modal"),
+    // 只读展示技能详情（名称 / 描述 / 版本 / 资源 + 当前上下文渲染后的指令正文）。
+    agentSkillDetailModal: () => import("./agent-skill-detail-modal"),
     agentConfigModal: () => import("./agent-config-modal"),
     // 用 Markdown 展示当前上下文渲染后的 system_prompt（只读）。
     agentSystemPromptModal: () => import("./agent-system-prompt-modal"),

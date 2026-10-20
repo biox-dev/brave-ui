@@ -1,13 +1,19 @@
-import { Button, Flex, Form, Input, Switch } from "antd";
+import { Button, Flex, Form, Input, Switch, Typography } from "antd";
 import { FC, useState } from "react";
-import { saveAgentSkillApi, type AgentSkillItem } from "@/api/agent";
+import { saveAgentSkillApi, type AgentEnvInfo, type AgentSkillItem } from "@/api/agent";
 import { getGlobalMessage } from "@/hooks/useGlobalMessage";
 
 const { TextArea } = Input;
+const { Text } = Typography;
 
 interface AgentSkillEditModalProps {
   /** 待编辑的技能；为 null / undefined 时表示新建。 */
   skill?: AgentSkillItem | null;
+  /**
+   * 当前业务上下文（可选）：由入口（如 Agent Profile 编辑弹窗）传入，
+   * 用于展示渲染技能指令所用的模板变量，便于编写 pongo2 模板。
+   */
+  renderInfo?: AgentEnvInfo | null;
   onOk?: (skill: AgentSkillItem) => void;
   onCancel?: () => void;
 }
@@ -21,11 +27,20 @@ interface AgentSkillFormValues {
   instructions?: string;
 }
 
-const AgentSkillEditModal: FC<AgentSkillEditModalProps> = ({ skill, onOk, onCancel }) => {
+const AgentSkillEditModal: FC<AgentSkillEditModalProps> = ({
+  skill,
+  renderInfo,
+  onOk,
+  onCancel,
+}) => {
   const [form] = Form.useForm<AgentSkillFormValues>();
   const [loading, setLoading] = useState(false);
 
   const isEdit = Boolean(skill?.name);
+
+  // 当前上下文的模板变量（仅展示，供编写指令正文时引用）。
+  const contextVars = renderInfo?.vars ?? null;
+  const hasVars = !!contextVars && Object.keys(contextVars).length > 0;
 
   const handleFinish = async (values: AgentSkillFormValues) => {
     setLoading(true);
@@ -121,7 +136,47 @@ const AgentSkillEditModal: FC<AgentSkillEditModalProps> = ({ skill, onOk, onCanc
         </Form.Item>
       </Flex>
 
-      <Form.Item name="instructions" label="Instructions (SKILL.md body)">
+      {/* 上下文字段（只读）：展示渲染指令正文可用的模板变量。 */}
+      {hasVars && (
+        <div
+          style={{
+            marginBottom: 16,
+            padding: "10px 12px",
+            border: "1px solid #f0f0f0",
+            borderRadius: 8,
+            background: "#fafafa",
+          }}
+        >
+          <Text strong style={{ fontSize: 13 }}>
+            Context Vars
+          </Text>
+          <pre
+            style={{
+              margin: 0,
+              marginTop: 6,
+              maxHeight: 160,
+              overflow: "auto",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              fontSize: 12,
+              color: "#595959",
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+            }}
+          >
+            {JSON.stringify(contextVars, null, 2)}
+          </pre>
+        </div>
+      )}
+
+      <Form.Item
+        name="instructions"
+        label="Instructions (SKILL.md body)"
+        tooltip={
+          hasVars
+            ? "pongo2 模板：可用变量见上方 Context Vars（Disable Template Render 开启时不渲染）。"
+            : undefined
+        }
+      >
         <TextArea
           rows={12}
           placeholder="Markdown instructions the model should follow."

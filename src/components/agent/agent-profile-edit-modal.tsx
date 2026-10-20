@@ -1,7 +1,9 @@
 import { FC, useEffect, useState } from "react";
 import { Button, Flex, Form, Input, Select, Skeleton, Space, Switch, Typography } from "antd";
+import { EditOutlined } from "@ant-design/icons";
 import {
   getAgentProfileApi,
+  getAgentSkillApi,
   listAgentSkillApi,
   saveAgentProfileApi,
   type AgentEnvInfo,
@@ -10,6 +12,7 @@ import {
   type AgentSkillItem,
 } from "@/api/agent";
 import { getGlobalMessage } from "@/hooks/useGlobalMessage";
+import { invoke } from "@/core/ui-system/invokeV2";
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -71,6 +74,10 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
   const [refreshingEnv, setRefreshingEnv] = useState(false);
 
   const isEdit = Boolean(profileId);
+
+  // 监听 Skills 的当前选择，供「Edit Skill」按钮确定要编辑的技能（仅选中一个时可编辑）。
+  // 注意：Hook 必须在提前 return（loading）之前调用，保证每次渲染的调用顺序一致。
+  const selectedSkills = Form.useWatch("skills", form);
 
   // 外部 envInfo 变化时同步到本地预览状态（如 AgentChat 在弹窗打开前重新解析）。
   useEffect(() => {
@@ -148,6 +155,33 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
     is_default: values.is_default ?? false,
   });
 
+  // 重新拉取技能列表，保证编辑技能后下拉选项与最新内容一致。
+  const loadSkills = async () => {
+    try {
+      const res = await listAgentSkillApi();
+      setSkills(res.data ?? []);
+    } catch {
+      // API errors are shown globally by the http interceptor.
+    }
+  };
+
+  // 通过「Edit skill」下拉框选中技能后，用 invoke 打开技能编辑弹窗。
+  // 同时把当前业务上下文（renderInfo）传进去，便于弹窗内展示可用的模板变量。
+  const handleEditSkill = async (name?: string) => {
+    if (!name) return;
+    try {
+      // 列表项可能不含指令正文，编辑前按名称拉取完整技能，避免保存时把正文覆盖为空。
+      const res = await getAgentSkillApi(name);
+      await invoke.agentSkillEditModal.openAsync(
+        { skill: res.data, renderInfo },
+        { title: `Edit Skill · ${name}`, width: 720, footer: null }
+      );
+      await loadSkills();
+    } catch {
+      // 用户取消或接口失败（接口错误已由全局拦截器提示）。
+    }
+  };
+
   const handleFinish = async (values: ProfileFormValues) => {
     const payload = buildPayload(values);
 
@@ -177,8 +211,7 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
     }
   };
 
-  // 仅保存 system_prompt（连同当前表单其它字段），保存后刷新业务上下文，
-  // 让预览区实时展示用新模板渲染出的 system_prompt 与 vars。
+  // 仅保存当前表单（含 system_prompt）并刷新业务上下文，不关闭弹窗。
   const handleSavePrompt = async () => {
     if (!editing?.id) {
       getGlobalMessage()?.warning("Save the profile first");
@@ -196,7 +229,7 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
       const res = await saveAgentProfileApi(buildPayload(values));
       setEditing(res.data);
       getGlobalMessage()?.success("System prompt saved");
-      // 刷新业务上下文，更新渲染后的 system_prompt 与 vars 展示。
+      // 刷新业务上下文，更新 Context Preview 中的模板变量。
       const fresh = await loadEnvInfo?.();
       if (fresh) setRenderInfo(fresh);
     } catch {
@@ -210,10 +243,8 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
     return <Skeleton active paragraph={{ rows: 8 }} />;
   }
 
-  // 预览区是否有可见内容（渲染后的 system_prompt 或 vars）。
-  const hasPreview =
-    !!renderInfo?.system_prompt ||
-    (!!renderInfo?.vars && Object.keys(renderInfo.vars).length > 0);
+  // 预览区是否有可见内容（当前上下文的模板变量）。
+  const hasPreview = !!renderInfo?.vars && Object.keys(renderInfo.vars).length > 0;
 
   return (
     <Form<ProfileFormValues>
@@ -245,7 +276,7 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
           title: (
             <span>
               pongo2 模板，可用变量如 <code>{"{{ workspace_directory }}"}</code>、
-              <code>{"{{ workspace_label }}"}</code>；下方预览为渲染后的真实提示词。
+              <code>{"{{ workspace_label }}"}</code>；可用变量见下方 Context Preview 的 Vars。
             </span>
           ),
         }}
@@ -265,7 +296,7 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
         />
       </Form.Item>
 
-      {/* 业务上下文预览（只读）：展示渲染系统提示词所用的 vars 与渲染后的 system_prompt。 */}
+      {/* 业务上下文预览（只读）：展示渲染系统提示词所用的 vars。 */}
       {hasPreview && (
         <div
           style={{
@@ -281,7 +312,7 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
               Context Preview
             </Text>
             <Space size="small">
-              {/* 仅保存 system_prompt 并刷新上下文预览，不关闭弹窗。 */}
+              {/* 仅保存当前表单（含 system_prompt）并刷新上下文变量，不关闭弹窗。 */}
               <Button
                 size="small"
                 type="link"
@@ -318,37 +349,41 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
               </pre>
             </div>
           )}
-
-          {renderInfo?.system_prompt && (
-            <div style={{ marginTop: 6 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Rendered system prompt
-              </Text>
-              <pre
-                style={{
-                  margin: 0,
-                  maxHeight: 200,
-                  overflow: "auto",
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                  fontSize: 12,
-                  fontFamily: "inherit",
-                }}
-              >
-                {renderInfo.system_prompt}
-              </pre>
-            </div>
-          )}
         </div>
       )}
 
-      <Form.Item name="skills" label="Skills">
-        <Select
-          mode="multiple"
-          allowClear
-          placeholder="Select skills to enable (empty = all)"
-          options={skills.map((s) => ({ label: s.name, value: s.name }))}
-        />
+      <Form.Item
+        label="Skills"
+        tooltip="启用哪些技能；选中的技能会在下方逐个显示，点击按钮即可编辑。"
+        style={{ marginBottom: 24 }}
+      >
+        <Flex vertical gap="small">
+          <Form.Item name="skills" noStyle>
+            <Select
+              mode="multiple"
+              allowClear
+              placeholder="Select skills to enable (empty = all)"
+              style={{ width: "100%" }}
+              options={skills.map((s) => ({ label: s.name, value: s.name }))}
+            />
+          </Form.Item>
+          {/* 遍历已选技能，每个技能一个按钮，点击后通过 invoke 打开对应技能的编辑弹窗。 */}
+          {!!selectedSkills?.length && (
+            <Flex gap="small" wrap>
+              {selectedSkills.map((name) => (
+                <Button
+                  key={name}
+                  size="small"
+                  icon={<EditOutlined />}
+                  title={`Edit skill · ${name}`}
+                  onClick={() => void handleEditSkill(name)}
+                >
+                  {name}
+                </Button>
+              ))}
+            </Flex>
+          )}
+        </Flex>
       </Form.Item>
 
       <Space size="large" wrap>
