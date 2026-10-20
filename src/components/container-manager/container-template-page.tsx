@@ -69,8 +69,14 @@ const createColumns = (locale: string): ColumnsType<ContainerTemplateItem> => [
     key: "id",
     width: 170,
 
+  }, {
+    title: "Display Name",
+    dataIndex: "display_name",
+    key: "display_name",
+    width: 170,
+
   },{
-    title: "Name",
+    title: "Spec Name",
     dataIndex: "name",
     key: "name",
     width: 220,
