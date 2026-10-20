@@ -1,7 +1,8 @@
 import { usePagination } from "@/hooks/usePagination";
-import { Button, Card, Col, Empty, Flex, Pagination, Popconfirm, Row, Statistic, Table, Tag, Tooltip, Typography } from "antd";
+import { Button, Card, Col, Empty, Flex, Modal, Pagination, Popconfirm, Row, Statistic, Table, Tag, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { FC, useEffect, useMemo } from "react";
+import { FC, useEffect, useMemo, useState } from "react";
+import AnalysisNodeTerminal from "@/components/container-manager/analysis-node-terminal";
 import { ExportOutlined, RedoOutlined } from '@ant-design/icons'
 import axios from "axios";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
@@ -149,6 +150,8 @@ const AnalysisNodes: FC<any> = ({ analysis_id }) => {
     const nodeLevels = useMemo(() => calcNodeLevels(data as AnalysisNode[]), [data]);
     const { modals, openModals, closeModals } = useModals(["editParams", "moduleEdit", "createOrUpdatePipelineComponent"]);
     const { open } = useUI();
+    // 运行中的节点可以打开容器终端（xterm.js -> WebSocket -> kubectl/docker exec）。
+    const [terminalNode, setTerminalNode] = useState<AnalysisNode | null>(null);
 
     const { register, unregister } = useComponentStore();
 
@@ -411,6 +414,13 @@ const AnalysisNodes: FC<any> = ({ analysis_id }) => {
                         }}>Code</Button>
                     </Tooltip>
                     {record?.status != "pending" && <>
+                        {record?.status == "running" && (
+                            <Tooltip title="Open a shell inside the running container">
+                                <Button size="small" color="cyan" variant="solid" onClick={() => setTerminalNode(record)}>
+                                    Terminal
+                                </Button>
+                            </Tooltip>
+                        )}
                         {record?.image_status == "exist" ?
                             <>
                                 {record?.status == "running" ?
@@ -656,6 +666,19 @@ const AnalysisNodes: FC<any> = ({ analysis_id }) => {
             onClose={() => closeModals("createOrUpdatePipelineComponent")}
             view="create-or-update-component-drawer"
             params={modals.createOrUpdatePipelineComponent.params}></ViewResolver>
+
+        <Modal
+            open={Boolean(terminalNode)}
+            onCancel={() => setTerminalNode(null)}
+            footer={null}
+            destroyOnClose
+            width={960}
+            title={`Terminal - ${terminalNode?.node_name || terminalNode?.node_id || ""}`}
+        >
+            {terminalNode && (
+                <AnalysisNodeTerminal id={terminalNode.id} name={terminalNode.node_name} />
+            )}
+        </Modal>
 
     </>
 }

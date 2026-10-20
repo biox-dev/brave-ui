@@ -194,14 +194,6 @@ export const layoutMenuTree: LayoutMenuItem[] = [
         },
       },
       {
-        key: '/agent-analysis',
-        icon: 'agent',
-        label: {
-          zh_CN: 'Agent 容器',
-          en_US: 'Agent Analysis',
-        },
-      },
-      {
         key: '/agent-permission',
         icon: 'agent',
         label: {

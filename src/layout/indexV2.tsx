@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ApartmentOutlined, BookOutlined, FileTextOutlined, SettingOutlined, FileSearchOutlined, FolderOpenOutlined, FileDoneOutlined, NodeIndexOutlined, UnorderedListOutlined, BarChartOutlined, ExperimentOutlined, FileOutlined, RobotOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, BookOutlined, FileTextOutlined, SettingOutlined, FileSearchOutlined, FolderOpenOutlined, FileDoneOutlined, NodeIndexOutlined, UnorderedListOutlined, BarChartOutlined, ExperimentOutlined, FileOutlined } from '@ant-design/icons';
 import { Dropdown, Layout, Segmented, theme } from 'antd';
 import { Outlet, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
@@ -15,10 +15,10 @@ import SplitWorkspace from './components/SplitWorkspace.tsx';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
-type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'aiSummaryProject' | 'assayProjectPage' | 'datasetFilePage' | 'analysisNodeFilePage' | 'agentAnalysisPage';
+type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'aiSummaryProject' | 'assayProjectPage' | 'datasetFilePage' | 'analysisNodeFilePage';
 
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
-  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'aiSummaryProject' || key === 'assayProjectPage' || key === 'datasetFilePage' || key === 'analysisNodeFilePage' || key === 'agentAnalysisPage';
+  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'aiSummaryProject' || key === 'assayProjectPage' || key === 'datasetFilePage' || key === 'analysisNodeFilePage';
 
 const App: React.FC = () => {
   const { locale } = useI18n();
@@ -72,10 +72,6 @@ const App: React.FC = () => {
         key: 'analysisNodeList',
         label: locale === 'en_US' ? 'Analysis Node List' : '分析节点列表',
         icon: <NodeIndexOutlined />,
-      }, {
-        key: 'agentAnalysisPage',
-        label: locale === 'en_US' ? 'Agent Analysis' : 'Agent 容器',
-        icon: <RobotOutlined />,
       }, {
         key: 'analysisList',
         label: locale === 'en_US' ? 'Analysis List' : '分析列表',

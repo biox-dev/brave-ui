@@ -1,7 +1,8 @@
-import { Button, Card, Flex, Popconfirm, Skeleton, Space, Tag, Tooltip, Typography } from "antd";
+import { Button, Card, Flex, Modal, Popconfirm, Skeleton, Space, Tag, Tooltip, Typography } from "antd";
 import axios from "axios";
 import { FC, useCallback, useEffect, useMemo, useState } from "react";
 import { CloseOutlined, EditOutlined, ExportOutlined, RedoOutlined } from "@ant-design/icons";
+import AnalysisNodeTerminal from "@/components/container-manager/analysis-node-terminal";
 import AISummaryPanel from "@/components/ai-summary/ai-summary-panel";
 import ViewResolver from "@/core/ui-renderer/ViewResolver";
 import { invoke } from "@/core/ui-system/invokeV2";
@@ -52,6 +53,8 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
     const { register, unregister } = useComponentStore();
     const message = useGlobalMessage();
     const [selectedSampleDetail, setSelectedSampleDetail] = useState<any>({});
+    // 运行中的节点可以打开容器终端（xterm.js -> WebSocket -> kubectl/docker exec）。
+    const [terminalOpen, setTerminalOpen] = useState(false);
     const { containerURL } = useSelector((state: any) => state.user);
 
     // const loadSampleDetail = useCallback(async (targetAnalysisNodeId?: string, force = false) => {
@@ -329,6 +332,17 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
                                         </Popconfirm>
                                     )}
 
+                                    {selectedSampleDetail.node?.status == "running" && (
+                                        <Button
+                                            size="small"
+                                            color="cyan"
+                                            variant="solid"
+                                            onClick={() => setTerminalOpen(true)}
+                                        >
+                                            Terminal
+                                        </Button>
+                                    )}
+
                                     <Button
                                         size="small"
                                         color="cyan"
@@ -567,6 +581,22 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
 
                 </Flex>
             )}
+
+            <Modal
+                open={terminalOpen}
+                onCancel={() => setTerminalOpen(false)}
+                footer={null}
+                destroyOnClose
+                width={960}
+                title={`Terminal - ${selectedSampleDetail.node?.node_name || selectedSampleDetail.node?.node_id || ""}`}
+            >
+                {terminalOpen && (
+                    <AnalysisNodeTerminal
+                        id={selectedSampleDetail.node?.id ?? analysisNodeId ?? analysis_node_id ?? ""}
+                        name={selectedSampleDetail.node?.node_name}
+                    />
+                )}
+            </Modal>
         </Card>
     );
 };

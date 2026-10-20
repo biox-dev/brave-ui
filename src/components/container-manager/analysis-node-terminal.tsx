@@ -2,21 +2,21 @@ import { useEffect, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
-import { agentAnalysisTerminalUrl } from "@/api/agent-analysis";
+import { analysisNodeTerminalUrl } from "@/api/analysis-node-terminal";
 
-interface AgentAnalysisTerminalProps {
-  id: string;
+interface AnalysisNodeTerminalProps {
+  id: string | number;
   name?: string;
 }
 
 /**
- * xterm.js 终端：通过 WebSocket 连接到运行中的容器。
+ * xterm.js 终端：通过 WebSocket 连接到运行中的分析节点容器。
  *
  * 协议：
  *   - 浏览器 -> 后端：二进制/文本都是按键输入；文本 {"type":"resize",...} 是终端尺寸控制帧。
  *   - 后端 -> 浏览器：二进制输出字节流。
  */
-const AgentAnalysisTerminal = ({ id, name }: AgentAnalysisTerminalProps) => {
+const AnalysisNodeTerminal = ({ id, name }: AnalysisNodeTerminalProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -39,7 +39,7 @@ const AgentAnalysisTerminal = ({ id, name }: AgentAnalysisTerminalProps) => {
     fitAddon.fit();
     term.writeln(`\x1b[90mconnecting to ${name || id}...\x1b[0m`);
 
-    const socket = new WebSocket(agentAnalysisTerminalUrl(id));
+    const socket = new WebSocket(analysisNodeTerminalUrl(id));
     socket.binaryType = "arraybuffer";
     const decoder = new TextDecoder("utf-8");
 
@@ -119,4 +119,4 @@ const AgentAnalysisTerminal = ({ id, name }: AgentAnalysisTerminalProps) => {
   );
 };
 
-export default AgentAnalysisTerminal;
+export default AnalysisNodeTerminal;

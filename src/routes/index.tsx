@@ -91,7 +91,6 @@ const ContainerEventPage = lazy(() => import("@/components/container-manager/con
 const OutboxEventPage = lazy(() => import("@/components/container-manager/outbox-event-page"))
 const FilePreviewRoute = lazy(() => import("@/components/file-preview/file-preview-route"))
 const AgentTaskPage = lazy(() => import("@/pages/agent/agent-task-page"))
-const AgentAnalysisPage = lazy(() => import("@/components/layout-sider/agent-analysis/agent-analysis-page"))
 const AgentPermissionPage = lazy(() => import("@/pages/agent/agent-permission-page"))
 const AgentEventPage = lazy(() => import("@/pages/agent/agent-event-page"))
 const AgentSkillPage = lazy(() => import("@/pages/agent/agent-skill-page"))
@@ -133,9 +132,6 @@ if (appType == "index") {
         }, {
             path: "agent-task",
             element: <AgentTaskPage />
-        }, {
-            path: "agent-analysis",
-            element: <AgentAnalysisPage />
         }, {
             path: "agent-permission",
             element: <AgentPermissionPage />
