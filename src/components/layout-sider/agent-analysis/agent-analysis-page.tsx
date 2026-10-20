@@ -30,6 +30,7 @@ import {
   type AgentAnalysisItem,
 } from "@/api/agent-analysis";
 import { invoke } from "@/core/ui-system/invokeV2";
+import { useComponentStore } from "@/event-bus/stores/components";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { formatRelativeTime } from "@/utils/time";
 
@@ -108,26 +109,63 @@ const AgentAnalysisDetailCard = ({ item }: { item: AgentAnalysisItem }) => (
 
 const AgentAnalysisPage = () => {
   const message = useGlobalMessage();
+  const { register, unregister } = useComponentStore();
   const [items, setItems] = useState<AgentAnalysisItem[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  // silent：后台刷新（websocket 推送触发）时不显示 loading 遮罩，避免列表闪烁
+  const load = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       const resp = await listAgentAnalysisApi();
       const rows = Array.isArray(resp.data) ? resp.data : [];
       setItems(rows);
     } catch (error) {
       console.warn("load agent analysis failed", error);
-      setItems([]);
+      if (!silent) {
+        setItems([]);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // websocket 实时刷新：后端推送 component.invoke(category="agent-analysis", method=...)
+  const realtimeInstance = useMemo(
+    () => ({
+      refresh: (_args?: any) => {
+        load(true);
+      },
+      analysisSubmitted: (_args?: any) => {
+        load(true);
+      },
+      analysisStarted: (_args?: any) => {
+        load(true);
+      },
+      analysisDone: (_args?: any) => {
+        load(true);
+      },
+      analysisFailed: (_args?: any) => {
+        load(true);
+      },
+    }),
+    [load],
+  );
+
+  useEffect(() => {
+    register("agent-analysis", "*", realtimeInstance);
+    return () => {
+      unregister("agent-analysis", "*", realtimeInstance);
+    };
+  }, [register, unregister, realtimeInstance]);
 
   const openCreate = () => {
     invoke.agentAnalysisForm.open(
@@ -351,7 +389,7 @@ const AgentAnalysisPage = () => {
               size="small"
               icon={<ReloadOutlined />}
               loading={loading}
-              onClick={load}
+              onClick={() => load()}
             />
           </Tooltip>
         </div>
