@@ -234,6 +234,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   };
 
   // 把后端消息映射为本地气泡。
+  // kind=error 是后端在任务失败时写入历史的错误消息，需要以错误样式渲染。
   const mapMessages = (conv: AgentConversationItem): ChatMessage[] =>
     conv.messages.map((m, i) => ({
       id: `${conv.id}-${m.task_id ?? "0"}-${m.kind ?? "assistant"}-${i}`,
@@ -242,6 +243,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       kind: m.kind,
       taskId: m.task_id,
       data: m.data,
+      error: m.kind === "error",
     }));
 
   const renderAssistantHistory = (m: ChatMessage) => {
@@ -456,13 +458,38 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     }
   };
 
+  // task.failed 兜底：若历史里没有 kind=error 的消息（旧数据 / 落库异常），
+  // 用任务记录上的 error 字段补一条错误气泡，保证错误信息稳定可见。
+  const appendTaskError = async (list: ChatMessage[], taskId: string) => {
+    if (list.some((m) => m.taskId === taskId && (m.kind === "error" || m.error))) return;
+    try {
+      const res = await getAgentTaskApi(taskId);
+      const text = (res.data?.error ?? "").trim();
+      if (!text) return;
+      list.push({
+        id: `error-${taskId}`,
+        role: "assistant",
+        kind: "error",
+        content: text,
+        taskId,
+        error: true,
+      });
+    } catch {
+      // 兜底查询失败时忽略：后端写入的 error 消息仍会展示。
+    }
+  };
+
   // 轮次结束：把 assistant 回复固化到消息列表（若为选中会话），并清理活跃轮次。
-  const finalizeTurn = async (turn: ActiveTurn, _type: string) => {
+  const finalizeTurn = async (turn: ActiveTurn, type: string) => {
     const selected = turn.convId === selectedConvIdRef.current;
     if (selected) {
       try {
         const res = await getConversationApi(turn.convId);
-        setMessages(mapMessages(res.data));
+        const nextMessages = mapMessages(res.data);
+        if (type === "task.failed") {
+          await appendTaskError(nextMessages, turn.taskId);
+        }
+        setMessages(nextMessages);
       } catch {
         // API errors are shown globally by the http interceptor.
       }

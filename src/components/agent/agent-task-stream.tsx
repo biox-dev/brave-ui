@@ -253,8 +253,17 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId, scrollContainerRef 
         return;
       }
       case "error":
-        pushMessage({ kind: "assistant_final", content: payload.content ?? "Stream error", error: true });
-        flush();
+        {
+          // 后端把可序列化的错误文本放在 content（Err 不参与 JSON）；
+          // 兼容旧事件时再回退到 data.error 与通用文案。
+          const data = (payload.data ?? {}) as Record<string, unknown>;
+          const content =
+            payload.content ||
+            (typeof data.error === "string" ? data.error : "") ||
+            "Stream error";
+          pushMessage({ kind: "assistant_final", content, error: true });
+          flush();
+        }
         return;
       case "done":
         closeOpen("assistant_final");
