@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import {
   Button,
   Descriptions,
   Empty,
+  Pagination,
   Popconfirm,
   Popover,
   Table,
@@ -26,7 +27,6 @@ import {
   deleteAgentAnalysisApi,
   isAgentAnalysisActive,
   isAgentAnalysisRunning,
-  listAgentAnalysisApi,
   rerunAgentAnalysisApi,
   stopAgentAnalysisApi,
   type AgentAnalysisItem,
@@ -34,7 +34,10 @@ import {
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useComponentStore } from "@/event-bus/stores/components";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
+import { useI18n } from "@/hooks/useI18n";
+import { useAgentAnalysisPageQuery } from "@/hooks/usePaginationV2";
 import { formatRelativeTime } from "@/utils/time";
+import { useSelector } from "react-redux";
 
 const statusColor = (status?: string) => {
   const normalized = (status || "").toLowerCase();
@@ -112,54 +115,48 @@ const AgentAnalysisDetailCard = ({ item }: { item: AgentAnalysisItem }) => (
 const AgentAnalysisPage = () => {
   const message = useGlobalMessage();
   const { register, unregister } = useComponentStore();
-  const [items, setItems] = useState<AgentAnalysisItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { locale } = useI18n();
+  const { projectId } = useSelector((state: { user: { projectId?: string } }) => state.user);
 
-  // silent：后台刷新（websocket 推送触发）时不显示 loading 遮罩，避免列表闪烁
-  const load = useCallback(async (silent = false) => {
-    if (!silent) {
-      setLoading(true);
-    }
-    try {
-      const resp = await listAgentAnalysisApi();
-      const rows = Array.isArray(resp.data) ? resp.data : [];
-      setItems(rows);
-    } catch (error) {
-      console.warn("load agent analysis failed", error);
-      if (!silent) {
-        setItems([]);
-      }
-    } finally {
-      if (!silent) {
-        setLoading(false);
-      }
-    }
-  }, []);
+  const {
+    data,
+    total,
+    page,
+    pageSize,
+    setPage,
+    setPageSize,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useAgentAnalysisPageQuery(
+    {},
+    {
+      initialPageSize: 20,
+      scopeKey: projectId,
+    },
+  );
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  // websocket 实时刷新：后端推送 component.invoke(category="agent-analysis", method=...)
+  // websocket 实时刷新：后端推送 component.invoke(category="agent-analysis", method=...)。
+  // 使用 refetch() 静默刷新，不切换 loading 遮罩，避免列表闪烁。
   const realtimeInstance = useMemo(
     () => ({
-      refresh: (_args?: any) => {
-        load(true);
+      refresh: () => {
+        refetch();
       },
-      analysisSubmitted: (_args?: any) => {
-        load(true);
+      analysisSubmitted: () => {
+        refetch();
       },
-      analysisStarted: (_args?: any) => {
-        load(true);
+      analysisStarted: () => {
+        refetch();
       },
-      analysisDone: (_args?: any) => {
-        load(true);
+      analysisDone: () => {
+        refetch();
       },
-      analysisFailed: (_args?: any) => {
-        load(true);
+      analysisFailed: () => {
+        refetch();
       },
     }),
-    [load],
+    [refetch],
   );
 
   useEffect(() => {
@@ -171,14 +168,14 @@ const AgentAnalysisPage = () => {
 
   const openCreate = () => {
     invoke.agentAnalysisForm.open(
-      { callback: () => load() },
+      { callback: () => refetch() },
       { title: "Create AgentAnalysis", width: 640, footer: null },
     );
   };
 
   const openEdit = (item: AgentAnalysisItem) => {
     invoke.agentAnalysisForm.open(
-      { id: item.id, callback: () => load() },
+      { id: item.id, callback: () => refetch() },
       {
         title: `Edit AgentAnalysis: ${item.name || item.id}`,
         width: 640,
@@ -238,7 +235,7 @@ const AgentAnalysisPage = () => {
     try {
       await deleteAgentAnalysisApi(item.id);
       message.success("AgentAnalysis 已删除");
-      await load();
+      await refetch();
     } catch (error) {
       console.warn("delete agent analysis failed", error);
     }
@@ -248,7 +245,7 @@ const AgentAnalysisPage = () => {
     try {
       await rerunAgentAnalysisApi(item.id);
       message.success("已提交重新运行");
-      await load();
+      await refetch();
     } catch (error) {
       console.warn("rerun agent analysis failed", error);
     }
@@ -258,7 +255,7 @@ const AgentAnalysisPage = () => {
     try {
       await stopAgentAnalysisApi(item.id);
       message.success("已提交停止");
-      await load();
+      await refetch();
     } catch (error) {
       console.warn("stop agent analysis failed", error);
     }
@@ -273,7 +270,7 @@ const AgentAnalysisPage = () => {
             // `template ${record.template_id}`,
             // record.workspace_dir,
             record.status,
-            record.created_at ? formatRelativeTime(record.created_at, "zh_CN") : "",
+            record.created_at ? formatRelativeTime(record.created_at, locale) : "",
           ]
             .filter(Boolean)
             .join(" · ");
@@ -299,13 +296,13 @@ const AgentAnalysisPage = () => {
         },
       },
     ],
-    [],
+    [locale],
   );
 
   const bodyRow = useMemo(() => {
     const Row = (props: any) => {
       const rowKey = props?.["data-row-key"];
-      const record = items.find((item) => String(item.id) === String(rowKey));
+      const record = data.find((item) => String(item.id) === String(rowKey));
       const rowElement = <tr {...props} />;
 
       if (!record) {
@@ -331,7 +328,7 @@ const AgentAnalysisPage = () => {
     };
 
     return Row;
-  }, [items]);
+  }, [data]);
 
   const actionsColumn: ColumnsType<AgentAnalysisItem>[number] = {
     key: "actions",
@@ -449,15 +446,15 @@ const AgentAnalysisPage = () => {
               type="text"
               size="small"
               icon={<ReloadOutlined />}
-              loading={loading}
-              onClick={() => load()}
+              loading={isFetching}
+              onClick={() => refetch()}
             />
           </Tooltip>
         </div>
       </div>
 
       <div className="project-report-panel-body">
-        {items.length === 0 && !loading ? (
+        {data.length === 0 && !isLoading ? (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No AgentAnalysis" />
         ) : (
           <Table<AgentAnalysisItem>
@@ -465,12 +462,30 @@ const AgentAnalysisPage = () => {
             size="small"
             showHeader={false}
             pagination={false}
-            loading={loading}
+            loading={isLoading}
             columns={[...columns, actionsColumn]}
-            dataSource={items}
+            dataSource={data}
             components={{ body: { row: bodyRow } }}
           />
         )}
+      </div>
+
+      <div style={{ padding: "6px 10px", borderTop: "1px solid var(--sharp-divider)" }}>
+        <Pagination
+          size="small"
+          current={page}
+          pageSize={pageSize}
+          total={total}
+          showSizeChanger
+          showTotal={(t) => `${t} agent analyses`}
+          onChange={(nextPage, nextSize) => {
+            if (nextSize !== pageSize) {
+              setPageSize(nextSize);
+            } else {
+              setPage(nextPage);
+            }
+          }}
+        />
       </div>
     </div>
   );

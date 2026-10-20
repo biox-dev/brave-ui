@@ -86,6 +86,11 @@ import {
 	type AISummaryListItem,
 	type AISummaryPageQuery,
 } from "@/api/ai-summary";
+import {
+	pageAgentAnalysisApi,
+	type AgentAnalysisItem,
+	type AgentAnalysisPageQuery,
+} from "@/api/agent-analysis";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 20;
@@ -649,6 +654,22 @@ export const useAgentMemoryPageQuery = (
 			return response.data;
 		},
 		initialPageSize: 10,
+		...options,
+	});
+};
+
+export const useAgentAnalysisPageQuery = (
+	query: AgentAnalysisPageQuery,
+	options?: Omit<UsePageQueryOptions<AgentAnalysisItem, AgentAnalysisPageQuery>, "queryKey" | "query" | "endpoint" | "queryFn">
+) => {
+	return usePageQuery<AgentAnalysisItem, AgentAnalysisPageQuery>({
+		queryKey: ["agent-analysis-page"],
+		query,
+		queryFn: async (payload) => {
+			const response = await pageAgentAnalysisApi(payload);
+			return response.data;
+		},
+		initialPageSize: 20,
 		...options,
 	});
 };

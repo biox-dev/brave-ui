@@ -1,4 +1,5 @@
 import { http } from "@/api/client/http";
+import type { PageRequest, PageResponse } from "@/api/data";
 import { getPathname } from "@/utils/utils";
 
 export interface AgentAnalysisItem {
@@ -41,6 +42,13 @@ export const createAgentAnalysisApi = (payload: CreateAgentAnalysisPayload) => {
 
 export const listAgentAnalysisApi = () => {
   return http.get<AgentAnalysisItem[]>("/container/agent-analysis/list");
+};
+
+// AgentAnalysis 分页查询参数（当前后端只支持分页，不提供额外过滤条件）。
+export type AgentAnalysisPageQuery = Record<string, unknown>;
+
+export const pageAgentAnalysisApi = (payload: PageRequest<AgentAnalysisPageQuery>) => {
+  return http.post<PageResponse<AgentAnalysisItem>>("/container/agent-analysis/list-by-page", payload);
 };
 
 export const getAgentAnalysisApi = (id: string) => {
