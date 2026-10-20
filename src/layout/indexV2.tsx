@@ -85,7 +85,7 @@ const App: React.FC = () => {
       {
         key: 'aiSummaryProject',
         label: locale === 'en_US' ? 'AI Summary' : 'AI 摘要',
-        icon: <RobotOutlined />,
+        icon: <FileDoneOutlined />,
       }, {
         key: 'projectReport',
         label: locale === 'en_US' ? 'Project Report' : '项目报告',
