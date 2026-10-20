@@ -50,6 +50,7 @@ import {
 } from "@/api/auth";
 import { setUserItem } from "@/store/userSlice";
 import { useComponentStore } from "@/event-bus/stores/components";
+import { useRouterStore } from "@/event-bus/stores/router";
 import { invoke } from "@/core/ui-system/invokeV2";
 import AgentTaskStream from "./agent-task-stream";
 import AgentAskUserCard from "./agent-ask-user";
@@ -245,6 +246,13 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       data: m.data,
       error: m.kind === "error",
     }));
+
+  // 错误消息（如模型未配置 / 厂商鉴权失败）提供「配置 Agent」入口：
+  // 先关闭承载本视图的 Modal / Drawer，再跳到配置页的 AI Agent 段。
+  const goAgentConfig = useCallback(() => {
+    onCancel?.();
+    useRouterStore.getState().go("/config?tab=agent");
+  }, [onCancel]);
 
   const renderAssistantHistory = (m: ChatMessage) => {
     return renderAssistantMessage({
@@ -947,7 +955,21 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
                   }
                 >
                   {m.role === "assistant" ? (
-                    renderAssistantHistory(m)
+                    // 错误消息附上「配置 Agent」跳转，便于用户直接去修正模型配置后重试。
+                    m.error ? (
+                      <Flex vertical gap={6} align="flex-start">
+                        {renderAssistantHistory(m)}
+                        <Button
+                          size="small"
+                          icon={<SettingOutlined />}
+                          onClick={goAgentConfig}
+                        >
+                          配置 Agent
+                        </Button>
+                      </Flex>
+                    ) : (
+                      renderAssistantHistory(m)
+                    )
                   ) : (
                     m.content
                   )}

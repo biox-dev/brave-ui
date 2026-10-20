@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
 import { Alert, Button, Card, Space, Spin, Tabs, Typography } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 import {
@@ -22,6 +23,10 @@ const SECTION_LABELS: Record<ConfigSectionKey, string> = {
 	agent: "AI Agent",
 };
 
+/** 校验 URL 中的 tab 参数是否为已知配置段，未知值回退到默认段。 */
+const resolveSectionKey = (value: string | null): ConfigSectionKey =>
+	value && value in SECTION_LABELS ? (value as ConfigSectionKey) : "database";
+
 /**
  * 可视化配置页。
  *
@@ -29,10 +34,27 @@ const SECTION_LABELS: Record<ConfigSectionKey, string> = {
  * 每个配置段只负责渲染自己的表单，因此新增配置段只需新增一个 section 组件 + 一个 Tab。
  */
 const ConfigPage = () => {
+	const [searchParams, setSearchParams] = useSearchParams();
+	// 支持通过 /config?tab=agent 深链直接打开指定配置段（如 Agent 报错时的“配置 Agent”入口）。
+	const tabParam = searchParams.get("tab");
+	const [activeKey, setActiveKey] = useState<ConfigSectionKey>(() => resolveSectionKey(tabParam));
 	const [configPath, setConfigPath] = useState("");
 	const [configExists, setConfigExists] = useState(true);
 	const [sections, setSections] = useState<ConfigSections | null>(null);
 	const [loading, setLoading] = useState(true);
+
+	// URL 中的 tab 变化（如再次点击跳转链接）时同步到当前选中的配置段。
+	useEffect(() => {
+		setActiveKey(resolveSectionKey(tabParam));
+	}, [tabParam]);
+
+	// 切换 Tab 时把选中的配置段写回 URL，便于刷新 / 复制链接后仍停在原位置。
+	const handleTabChange = (key: string) => {
+		setActiveKey(resolveSectionKey(key));
+		const next = new URLSearchParams(searchParams);
+		next.set("tab", key);
+		setSearchParams(next, { replace: true });
+	};
 
 	const load = useCallback(async () => {
 		setLoading(true);
@@ -100,7 +122,8 @@ const ConfigPage = () => {
 				<Spin spinning={loading}>
 					{sections ? (
 						<Tabs
-							defaultActiveKey="database"
+							activeKey={activeKey}
+							onChange={handleTabChange}
 							items={[
 								{
 									key: "database",
