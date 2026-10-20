@@ -66,6 +66,20 @@ export const stopAgentAnalysisApi = (id: string) => {
 };
 
 /**
+ * 读取任务的命令日志（WorkspaceDir/command.log）。
+ *
+ * 后端直接返回 text/plain，因此这里用 responseType: "text"；
+ * 日志尚未生成时返回 404，由调用方决定如何提示（skipGlobalError）。
+ */
+export const getAgentAnalysisLogApi = (id: string) => {
+  return http.get<string>("/container/agent-analysis/log", {
+    params: { id },
+    responseType: "text",
+    skipGlobalError: true,
+  });
+};
+
+/**
  * xterm.js 连接运行中容器的 WebSocket 地址。
  *
  * 后端会调用 kubectl exec -it / docker exec -it 打开 /bin/bash；

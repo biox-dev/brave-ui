@@ -13,6 +13,8 @@ import type { ColumnsType } from "antd/es/table";
 import {
   DeleteOutlined,
   EditOutlined,
+  FileTextOutlined,
+  InfoCircleOutlined,
   PlayCircleOutlined,
   PlusOutlined,
   RedoOutlined,
@@ -185,12 +187,48 @@ const AgentAnalysisPage = () => {
     );
   };
 
+  // 通过 invoke 打开容器实例 describe 弹窗（依赖 container_instance_id）。
+  const openContainerDescribe = async (item: AgentAnalysisItem) => {
+    if (!item.container_instance_id) {
+      return;
+    }
+    try {
+      await invoke.containerInstanceDescribeDialog.openAsync(
+        { instanceId: item.container_instance_id },
+        {
+          title: `Container Describe: ${item.name || item.id}`,
+          width: 720,
+          footer: false,
+        },
+      );
+    } catch {
+      // User cancelled
+    }
+  };
+
   const openTerminal = (item: AgentAnalysisItem) => {
     invoke.agentAnalysisTerminal.open(
       { id: item.id, name: item.name },
       {
         title: `Terminal: ${item.name || item.id}`,
         width: "85%",
+        footer: null,
+      },
+    );
+  };
+
+  // 通过 invoke 弹窗查看命令日志（WorkspaceDir/command.log）。
+  const openLog = (item: AgentAnalysisItem) => {
+    invoke.agentAnalysisLog.open(
+      {
+        id: item.id,
+        name: item.name,
+        log_path: item.log_path,
+        status: item.status,
+      },
+      {
+        title: `Log: ${item.name || item.id}`,
+        width: "80%",
         footer: null,
       },
     );
@@ -297,7 +335,7 @@ const AgentAnalysisPage = () => {
 
   const actionsColumn: ColumnsType<AgentAnalysisItem>[number] = {
     key: "actions",
-    width: 190,
+    width: 260,
     align: "right",
     render: (_: unknown, record) => {
       const running = isAgentAnalysisRunning(record.status);
@@ -307,6 +345,29 @@ const AgentAnalysisPage = () => {
           className="project-report-item-actions"
           onClick={(event) => event.stopPropagation()}
         >
+          <Tooltip title="View log">
+            <Button
+              type="text"
+              size="small"
+              icon={<FileTextOutlined />}
+              onClick={() => openLog(record)}
+            />
+          </Tooltip>
+          <Tooltip
+            title={
+              record.container_instance_id
+                ? "Describe container instance"
+                : "No container instance"
+            }
+          >
+            <Button
+              type="text"
+              size="small"
+              icon={<InfoCircleOutlined />}
+              disabled={!record.container_instance_id}
+              onClick={() => openContainerDescribe(record)}
+            />
+          </Tooltip>
           <Tooltip
             title={running ? "Attach terminal" : "Only available while running"}
           >

@@ -9,6 +9,7 @@ const viewLoaders = {
     analysisList: () => import("./analysis-result/analysis-list"),
     agentAnalysisPage: () => import("./agent-analysis/agent-analysis-page"),
     agentAnalysisForm: () => import("./agent-analysis/agent-analysis-form"),
+    agentAnalysisLog: () => import("./agent-analysis/agent-analysis-log"),
     agentAnalysisTerminal: () => import("../container-manager/agent-analysis-terminal"),
     workflowPage: () => import("./workflow-page/workflow-page-list"),
     scriptPage: () => import("./script-page/script-page-list"),
