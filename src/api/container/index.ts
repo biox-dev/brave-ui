@@ -29,6 +29,9 @@ export interface ContainerTemplateItem {
     spec_id: string;
     image_id: string;
     name: string;
+    // display_name: 绑定行自身的展示名；为空时 name 回退到共享运行配置名。
+    // 编辑表单必须读写它，否则会把回退出来的 name 误固化成绑定行展示名。
+    display_name?: string;
     description: string;
     type: string;
     image?: ContainerImageItem;

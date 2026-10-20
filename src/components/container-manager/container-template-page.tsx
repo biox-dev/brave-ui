@@ -63,7 +63,13 @@ const getErrorMessage = (error: unknown, fallback: string) => {
 };
 
 const createColumns = (locale: string): ColumnsType<ContainerTemplateItem> => [
-  {
+   {
+    title: "ID",
+    dataIndex: "id",
+    key: "id",
+    width: 170,
+
+  },{
     title: "Name",
     dataIndex: "name",
     key: "name",

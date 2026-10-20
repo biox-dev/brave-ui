@@ -68,7 +68,9 @@ const ContainerTemplateForm = ({
                 id: item.id,
                 spec_id: item.spec_id,
                 image_id: item.image_id,
-                display_name: item.name || undefined,
+                // 用绑定行自己的 display_name，而不是 item.name（后者可能是配置名回退值），
+                // 否则保存时会把配置名误写成该绑定行的展示名。
+                display_name: item.display_name || undefined,
                 is_default: Boolean(item.is_default),
                 spec_label: item.spec_id,
                 image_label: item.image?.full_name || item.image_id,
