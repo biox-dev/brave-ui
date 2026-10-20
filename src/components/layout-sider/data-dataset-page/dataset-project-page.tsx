@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Card, Flex, Popconfirm, Space, Table, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { DeleteOutlined, EditOutlined, FolderAddOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, FolderAddOutlined, ImportOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { useDatasetProjectPageQuery } from "@/hooks/usePaginationV2";
-import { deleteDatasetApi, ensureDatasetDirApi } from "@/api/data";
-import type { DatasetItem } from "@/api/data";
+import { deleteDatasetApi, ensureDatasetDirApi, importDatasetDirFilesApi, listDatasetFilesApi } from "@/api/data";
+import type { DatasetFileItem, DatasetItem } from "@/api/data";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 
@@ -74,6 +74,109 @@ const columns: ColumnsType<DatasetItem> = [
   },
 ];
 
+const formatBytes = (size?: number) => {
+  if (typeof size !== "number" || !Number.isFinite(size)) {
+    return "-";
+  }
+
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = size;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+};
+
+// One row per go_file bound to the dataset (go_dataset_file -> go_file).
+const datasetFileColumns: ColumnsType<DatasetFileItem> = [
+  {
+    title: "File Name",
+    dataIndex: "file_name",
+    key: "file_name",
+    ellipsis: true,
+    render: (value: string, record) => value || record.file_id || `File-${record.id}`,
+  },
+  {
+    title: "Role",
+    dataIndex: "role",
+    key: "role",
+    width: 110,
+    render: (value: string) => value || "-",
+  },
+  {
+    title: "Format",
+    dataIndex: "format",
+    key: "format",
+    width: 90,
+    render: (value: string) => value || "-",
+  },
+  {
+    title: "Size",
+    dataIndex: "size",
+    key: "size",
+    width: 100,
+    render: (value: number) => formatBytes(value),
+  },
+  {
+    title: "Path",
+    dataIndex: "path",
+    key: "path",
+    ellipsis: true,
+    render: (value: string) => <Typography.Text ellipsis={{ tooltip: value }}>{value || "-"}</Typography.Text>,
+  },
+];
+
+// DatasetFilesPanel is rendered inside an expanded dataset row and loads the
+// dataset's File rows on demand, so opening one row does not fetch files for
+// every dataset in the page.
+const DatasetFilesPanel = ({ datasetId }: { datasetId: string }) => {
+  const [files, setFiles] = useState<DatasetFileItem[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+
+    listDatasetFilesApi({ dataset_id: datasetId })
+      .then((response) => {
+        if (!cancelled) {
+          setFiles(response.data ?? []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFiles([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [datasetId]);
+
+  return (
+    <Table<DatasetFileItem>
+      rowKey="id"
+      size="small"
+      columns={datasetFileColumns}
+      dataSource={files}
+      loading={loading}
+      pagination={false}
+      scroll={{ x: 860 }}
+      locale={{ emptyText: "No files bound to this dataset" }}
+    />
+  );
+};
+
 const DatasetProjectPage = ({
   project_id,
   dataset_name,
@@ -88,6 +191,13 @@ const DatasetProjectPage = ({
   const message = useGlobalMessage();
   const { projectId } = useSelector((state: any) => state.user);
   const [selectedId, setSelectedID] = useState<string>();
+  // Tracks the dataset currently importing its directory so only that row's
+  // button shows a spinner.
+  const [importingId, setImportingId] = useState<string>();
+  // Datasets whose files are currently expanded (click a row to toggle).
+  const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([]);
+  // Bumped after an import so expanded panels remount and refetch their files.
+  const [filesRefreshKey, setFilesRefreshKey] = useState(0);
 
   const selectable = Boolean(onOk || onCancel);
 
@@ -134,6 +244,27 @@ const DatasetProjectPage = ({
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 
+  const toggleExpanded = (datasetId: string) => {
+    setExpandedRowKeys((prev) =>
+      prev.includes(datasetId) ? prev.filter((id) => id !== datasetId) : [...prev, datasetId]
+    );
+  };
+
+  // Clicking a dataset row toggles its file list; when the page is used as a
+  // picker the same click selects the row instead.
+  const handleRowClick = (record: DatasetItem, event: { target: EventTarget | null }) => {
+    if (selectable) {
+      setSelectedID(record.id);
+      return;
+    }
+    // The expand icon handles its own click, so ignore it here to avoid a
+    // double toggle.
+    if ((event.target as HTMLElement | null)?.closest?.(".ant-table-row-expand-icon")) {
+      return;
+    }
+    toggleExpanded(record.id);
+  };
+
   const handleCreate = async () => {
     try {
       await invoke.editDatasetPage.openDrawerAsync({}, { width: 480, title: "New Dataset" });
@@ -147,7 +278,7 @@ const DatasetProjectPage = ({
     try {
       await invoke.editDatasetPage.openDrawerAsync(
         { dataset: record },
-        { width: 480, title: `Edit Dataset: ${record.dataset_name || record.id}` }
+        { width: 720, title: `Edit Dataset: ${record.dataset_name || record.id}` }
       );
       refetch();
     } catch {
@@ -175,10 +306,38 @@ const DatasetProjectPage = ({
     }
   };
 
+  // Import every file under the dataset workspace directory (utils.GetDatasetDir)
+  // into go_file / go_dataset_file. The backend skips files already bound to the
+  // dataset (same path + dataset_id), so re-running it is idempotent.
+  const handleImportDirFiles = async (record: DatasetItem) => {
+    setImportingId(record.id);
+    try {
+      const response = await importDatasetDirFilesApi({ dataset_id: record.id });
+      const result = response.data;
+      const imported = result?.imported ?? 0;
+      const skipped = result?.skipped ?? 0;
+      const failed = result?.failed ?? 0;
+      const summary = `Imported ${imported}, skipped ${skipped}${failed > 0 ? `, failed ${failed}` : ""}`;
+
+      if (failed > 0) {
+        message.warning(summary);
+      } else {
+        message.success(summary);
+      }
+      // Refresh both the dataset list and any expanded file panel.
+      setFilesRefreshKey((value) => value + 1);
+      refetch();
+    } catch {
+      message.error("Failed to import dataset dir files");
+    } finally {
+      setImportingId(undefined);
+    }
+  };
+
   const actionsColumn: ColumnsType<DatasetItem>[number] = {
     title: "Actions",
     key: "actions",
-    width: 150,
+    width: 190,
     align: "right",
     fixed: "right",
     render: (_: unknown, record) => (
@@ -192,6 +351,16 @@ const DatasetProjectPage = ({
             size="small"
             icon={<FolderAddOutlined />}
             onClick={() => handleEnsureDir(record)}
+          />
+        </Tooltip>
+        <Tooltip title="Import Dir Files">
+          <Button
+            type="text"
+            size="small"
+            icon={<ImportOutlined />}
+            loading={importingId === record.id}
+            disabled={Boolean(importingId) && importingId !== record.id}
+            onClick={() => handleImportDirFiles(record)}
           />
         </Tooltip>
         <Tooltip title="Edit">
@@ -274,6 +443,17 @@ const DatasetProjectPage = ({
         size="small"
         scroll={{ x: 980 }}
         locale={{ emptyText: error ? "Failed to load datasets" : "No datasets" }}
+        expandable={{
+          expandedRowKeys,
+          onExpand: (expanded, record) => {
+            setExpandedRowKeys((prev) =>
+              expanded ? [...prev.filter((id) => id !== record.id), record.id] : prev.filter((id) => id !== record.id)
+            );
+          },
+          expandedRowRender: (record) => (
+            <DatasetFilesPanel key={`${record.id}:${filesRefreshKey}`} datasetId={record.id} />
+          ),
+        }}
         rowSelection={
           selectable
             ? {
@@ -285,13 +465,9 @@ const DatasetProjectPage = ({
               }
             : undefined
         }
-        onRow={
-          selectable
-            ? (record) => ({
-                onClick: () => setSelectedID(record.id),
-              })
-            : undefined
-        }
+        onRow={(record) => ({
+          onClick: (event) => handleRowClick(record, event),
+        })}
         pagination={{
           current: page,
           pageSize,

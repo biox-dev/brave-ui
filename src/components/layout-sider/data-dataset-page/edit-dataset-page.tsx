@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Button, Flex, Form, Input } from "antd";
+import { Button, Flex, Form, Input, Typography } from "antd";
+import { listDatasetDirFilesApi } from "@/api/data";
 import { createDatasetApi, updateDatasetApi } from "@/api/data";
 import type { DatasetItem } from "@/api/data";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
@@ -21,6 +22,7 @@ const trimOrUndefined = (value?: string) => {
 const EditDatasetPage = ({ dataset, onOk, onCancel, close }: EditDatasetPageProps) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [datasetDir, setDatasetDir] = useState("");
   const message = useGlobalMessage();
 
   const isEdit = Boolean(dataset?.id);
@@ -32,6 +34,34 @@ const EditDatasetPage = ({ dataset, onOk, onCancel, close }: EditDatasetPageProp
       metadata: dataset?.metadata ?? "",
     });
   }, [dataset, form]);
+
+  // The dataset's workspace directory (utils.GetDatasetDir) only exists for a
+  // persisted dataset, so it is resolved in edit mode. The files bound to the
+  // dataset are listed on the dataset table (expand a row), not here.
+  useEffect(() => {
+    if (!isEdit || !dataset?.id) {
+      setDatasetDir("");
+      return;
+    }
+
+    let cancelled = false;
+
+    listDatasetDirFilesApi({ dataset_id: dataset.id })
+      .then((response) => {
+        if (!cancelled) {
+          setDatasetDir(response.data?.path ?? "");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDatasetDir("");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit, dataset?.id]);
 
   const handleSubmit = async () => {
     try {
@@ -92,6 +122,18 @@ const EditDatasetPage = ({ dataset, onOk, onCancel, close }: EditDatasetPageProp
       <Form.Item name="metadata" label="Metadata">
         <Input.TextArea rows={3} placeholder="Enter metadata" />
       </Form.Item>
+      {isEdit && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 6, fontWeight: 500 }}>Dataset Dir</div>
+          <Typography.Text
+            code
+            copyable={Boolean(datasetDir)}
+            style={{ wordBreak: "break-all", whiteSpace: "pre-wrap" }}
+          >
+            {datasetDir || "-"}
+          </Typography.Text>
+        </div>
+      )}
       <Flex justify="end" gap="small">
         <Button onClick={handleCancel}>Cancel</Button>
         <Button type="primary" loading={loading} onClick={handleSubmit}>

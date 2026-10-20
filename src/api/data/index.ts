@@ -252,6 +252,54 @@ export const ensureDatasetDirApi = (payload: { id: string }) => {
 	return http.post<EnsureDatasetDirResponse>("/data/dataset/ensure-dir", payload);
 };
 
+// DatasetDirFileItem is one physical file under the dataset workspace directory
+// (utils.GetDatasetDir on the backend). `added` means a file with the same path
+// is already bound to the dataset, so the batch import skips it.
+export interface DatasetDirFileItem {
+	name: string;
+	relative_path: string;
+	path: string;
+	format: string;
+	size: number;
+	mod_time: string;
+	added: boolean;
+}
+
+export interface DatasetDirFilesResponse {
+	path: string;
+	files: DatasetDirFileItem[];
+}
+
+// listDatasetDirFilesApi returns the dataset directory path plus every file
+// found under it.
+export const listDatasetDirFilesApi = (payload: { dataset_id: string }) => {
+	return http.get<DatasetDirFilesResponse>(
+		`/data/dataset/dir-files?dataset_id=${encodeURIComponent(payload.dataset_id)}`
+	);
+};
+
+// listDatasetFilesApi returns every file bound to one dataset (DatasetFile ->
+// File), newest binding first.
+export const listDatasetFilesApi = (payload: { dataset_id: string }) => {
+	return http.get<DatasetFileItem[]>(
+		`/data/dataset/files?dataset_id=${encodeURIComponent(payload.dataset_id)}`
+	);
+};
+
+export interface ImportDatasetDirFilesResult {
+	total: number;
+	imported: number;
+	skipped: number;
+	failed: number;
+	errors?: string[];
+}
+
+// importDatasetDirFilesApi registers the dataset directory files that are not
+// yet bound to the dataset; re-running it is idempotent.
+export const importDatasetDirFilesApi = (payload: { dataset_id: string; role?: string }) => {
+	return http.post<ImportDatasetDirFilesResult>("/data/dataset/import-dir-files", payload);
+};
+
 // ImportAssayTSVRequest payload for /data/import/assay-tsv. `content` is the raw
 // TSV text (an uploaded file or pasted content). The header names the columns:
 // sample_name + assay_role (+ assay_type) map to Assay (the assay is bound to the
