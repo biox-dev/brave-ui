@@ -45,9 +45,23 @@ function allowCustom(q: AgentQuestion): boolean {
   return q.type === "text" || q.allow_custom !== false;
 }
 
+// 选项值归一化：模型可能漏填或重复 value，而 Radio / Checkbox 以 value 作为选中
+// 标识，value 相同时会「选中一个即勾选全部」。这里回退到 label / 序号，并保证同一题
+// 内取值唯一；返回顺序与 q.options 一致。
+function resolveOptionValues(q: AgentQuestion): string[] {
+  const seen = new Set<string>();
+  return (q.options ?? []).map((opt, index) => {
+    const base = (opt.value ?? "").trim() || (opt.label ?? "").trim() || `option_${index + 1}`;
+    let value = base;
+    for (let n = 2; seen.has(value); n++) value = `${base}#${n}`;
+    seen.add(value);
+    return value;
+  });
+}
+
 // 一个选项值是否属于问题声明的选项（用于区分已选选项与自定义输入）。
 function isDeclaredValue(q: AgentQuestion, value: string): boolean {
-  return (q.options ?? []).some((opt) => opt.value === value);
+  return resolveOptionValues(q).includes(value);
 }
 
 // 把单个问题的草稿状态规整为后端 QuestionAnswer。
@@ -223,6 +237,9 @@ const AgentAskUserCard: FC<AgentAskUserCardProps> = ({ question, submitting, onS
 
   const choiceValues = choiceDraftOf(current).values;
   const customChecked = customAllowed && choiceValues.includes(CUSTOM_OPTION_VALUE);
+  // 归一化后的选项值与当前题的选项一一对应（见 resolveOptionValues）。
+  const options = current.options ?? [];
+  const optionValues = resolveOptionValues(current);
 
   return (
     <Flex
@@ -282,8 +299,8 @@ const AgentAskUserCard: FC<AgentAskUserCardProps> = ({ question, submitting, onS
             onChange={(e) => applyChoiceValues(current, [e.target.value])}
           >
             <Space direction="vertical" size={2}>
-              {(current.options ?? []).map((opt) => (
-                <Radio key={opt.value} value={opt.value}>
+              {options.map((opt, i) => (
+                <Radio key={optionValues[i]} value={optionValues[i]}>
                   <Flex vertical>
                     <span>{opt.label}</span>
                     {opt.description && (
@@ -305,8 +322,8 @@ const AgentAskUserCard: FC<AgentAskUserCardProps> = ({ question, submitting, onS
             onChange={(values) => applyChoiceValues(current, values as string[])}
           >
             <Space direction="vertical" size={2}>
-              {(current.options ?? []).map((opt) => (
-                <Checkbox key={opt.value} value={opt.value}>
+              {options.map((opt, i) => (
+                <Checkbox key={optionValues[i]} value={optionValues[i]}>
                   <Flex vertical>
                     <span>{opt.label}</span>
                     {opt.description && (
