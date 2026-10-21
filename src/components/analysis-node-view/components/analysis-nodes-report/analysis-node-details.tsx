@@ -478,28 +478,6 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
                                                 footer: null,
                                             })
                                     }}>IO</Tag>
-                                <Tooltip title="Edit resolved_inputs / resolved_outputs">
-                                    <Tag
-                                        color="cyan"
-                                        style={{ cursor: "pointer" }}
-                                        onClick={() => {
-                                            invoke.nodeResolvedIOEdit.open(
-                                                {
-                                                    node: selectedSampleDetail.node,
-                                                    analysis_node_id: String(
-                                                        selectedSampleDetail.node?.id ?? analysis_node_id ?? ""
-                                                    ),
-                                                    node_name: selectedSampleDetail.node?.node_name,
-                                                    onSaved: () => loadSampleDetail(analysis_node_id),
-                                                },
-                                                {
-                                                    title: `Edit IO - ${selectedSampleDetail.node?.node_name}`,
-                                                    width: 960,
-                                                    footer: null,
-                                                }
-                                            )
-                                        }}>Edit IO</Tag>
-                                </Tooltip>
                                 {selectedSampleDetail.node?.status == "running" &&
                                     <Tag
                                         style={{ cursor: "pointer" }}
