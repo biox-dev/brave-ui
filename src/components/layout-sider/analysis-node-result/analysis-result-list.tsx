@@ -4,7 +4,7 @@ import { useAnalysisNodePageQuery } from "@/hooks/usePaginationV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { formatRelativeTime } from "@/utils/time";
-import { DeleteOutlined, ExperimentOutlined, EyeOutlined, ReloadOutlined } from "@ant-design/icons";
+import { DeleteOutlined, ExperimentOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Descriptions, Empty, Pagination, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo, useState } from "react";
@@ -177,6 +177,22 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
     );
   };
 
+  /**
+   * 手动创建命令型分析节点（无脚本，等价于 run_agent_analysis 的建节点部分）。
+   * 弹窗内完成创建后返回新节点，这里只负责刷新列表。
+   */
+  const handleCreateCommandNode = async () => {
+    try {
+      await invoke.createCommandNode.openAsync(
+        undefined,
+        { title: "Create Command Analysis Node", width: 720, footer: null }
+      );
+      refetch();
+    } catch {
+      // 用户取消时 openAsync 会 reject，无需处理。
+    }
+  };
+
   const handleConfirm = () => {
     if (!onOk || pickedItems.length === 0) {
       return;
@@ -326,6 +342,14 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
       <div className="project-report-panel-header">
         <span className="project-report-panel-title">{title || "Analysis Nodes"}</span>
         <div className="project-report-panel-actions">
+          <Tooltip title="Create command analysis node">
+            <Button
+              type="text"
+              size="small"
+              icon={<PlusOutlined />}
+              onClick={handleCreateCommandNode}
+            />
+          </Tooltip>
           <Button
             type="text"
             size="small"

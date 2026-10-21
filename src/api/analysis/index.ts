@@ -70,6 +70,24 @@ export const deleteAnalysisNodeApi = (analysisNodeId: string) => {
 	return http.post<{ message: string }>(`/analysis/node/delete/${encodeURIComponent(analysisNodeId)}`);
 };
 
+/**
+ * 手动创建命令型分析节点（无脚本）。
+ *
+ * 与内置工具 run_agent_analysis 等价：节点自带容器模板与 shell 命令，
+ * run.sh 由 command 生成；run=true 时创建后立即提交执行。
+ */
+export interface CreateCommandNodePayload {
+	name: string;
+	container_template_id: string;
+	command: string;
+	run?: boolean;
+}
+
+export const createCommandNodeApi = (payload: CreateCommandNodePayload) => {
+	return http.post<AnalysisNodeItem>("/analysis/command-node/create", payload);
+};
+
+
 export const deleteAnalysisApi = (analysisId: string) => {
 	return http.post<{ message: string }>(`/analysis/delete/${encodeURIComponent(analysisId)}`);
 };

@@ -15,6 +15,7 @@ const analysisNodeViewLoaders = {
     nodeResolvedIO: () => import("./components/node-resolved-io"),
     nodeLogs: () => import("./components/node-logs"),
     selectFileRole: () => import("./components/select-file-role"),
+    createCommandNode: () => import("./components/create-command-node-form"),
 };
 // ;
 declare module "@/core/component-registry/registry-types" {
