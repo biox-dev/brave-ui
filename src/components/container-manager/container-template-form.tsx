@@ -71,6 +71,8 @@ const ContainerTemplateForm = ({
                 // 用绑定行自己的 display_name，而不是 item.name（后者可能是配置名回退值），
                 // 否则保存时会把配置名误写成该绑定行的展示名。
                 display_name: item.display_name || undefined,
+                // 绑定行自身的长描述；与共享运行配置的 description 相互独立。
+                definition_description: item.definition_description || undefined,
                 is_default: Boolean(item.is_default),
                 spec_label: item.spec_id,
             });
@@ -94,6 +96,10 @@ const ContainerTemplateForm = ({
             pull_policy: values.pull_policy || "IfNotPresent",
             is_default: Boolean(values.is_default),
             display_name: typeof values.display_name === "string" ? values.display_name.trim() : "",
+            definition_description:
+                typeof values.definition_description === "string"
+                    ? values.definition_description.trim()
+                    : "",
         };
         if (isEdit) {
             payload.id = item!.id;
@@ -214,6 +220,17 @@ const ContainerTemplateForm = ({
                 tooltip="Overrides the spec name for this binding only. Leave empty to use the spec name."
             >
                 <Input placeholder="Optional display name for this image binding" />
+            </Form.Item>
+
+            <Form.Item
+                name="definition_description"
+                label="Description"
+                tooltip="Long description of this runnable template (what it is used for). Returned to the agent when the user references @container:<id>."
+            >
+                <Input.TextArea
+                    placeholder="Describe what this runnable template is used for"
+                    autoSize={{ minRows: 2, maxRows: 6 }}
+                />
             </Form.Item>
 
             <Form.Item

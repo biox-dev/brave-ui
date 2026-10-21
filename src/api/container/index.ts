@@ -18,6 +18,10 @@ export interface ContainerTemplateItem {
     // 编辑表单必须读写它，否则会把回退出来的 name 误固化成绑定行展示名。
     display_name?: string;
     description: string;
+    // definition_description: 绑定行（ContainerTemplateDefinition）自身的长描述，
+    // 与 description（共享运行配置 spec 的描述）相互独立；Agent 工具 get_container_template
+    // 会把它作为 description 回传给模型。
+    definition_description?: string;
     type: string;
     // image_name: 完整镜像名（含 registry / tag），如 docker.io/rocker/rstudio:4.4。
     image_name: string;
@@ -75,6 +79,7 @@ export interface ContainerTemplateDefinitionItem {
     image_name?: string;
     pull_policy?: string;
     display_name?: string;
+    description?: string;
     is_default?: boolean;
     created_at?: string;
     updated_at?: string;

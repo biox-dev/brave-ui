@@ -75,6 +75,13 @@ const createColumns = (locale: string): ColumnsType<ContainerTemplateItem> => [
     width: 170,
 
   },{
+    title: "Description",
+    dataIndex: "definition_description",
+    key: "definition_description",
+    width: 240,
+    ellipsis: true,
+    render: (value: string) => value || "-",
+  },{
     title: "Spec Name",
     dataIndex: "name",
     key: "name",
