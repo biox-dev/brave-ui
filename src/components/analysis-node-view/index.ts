@@ -14,6 +14,7 @@ const analysisNodeViewLoaders = {
     nodeError: () => import("./components/node-error"),
     nodeResolvedIO: () => import("./components/node-resolved-io"),
     nodeLogs: () => import("./components/node-logs"),
+    nodeCommand: () => import("./components/node-command"),
     selectFileRole: () => import("./components/select-file-role"),
     createCommandNode: () => import("./components/create-command-node-form"),
 };

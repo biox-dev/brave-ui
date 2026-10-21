@@ -1,7 +1,7 @@
 import { Button, Card, Flex, Modal, Popconfirm, Skeleton, Space, Tag, Tooltip, Typography } from "antd";
 import axios from "axios";
 import { FC, useCallback, useEffect, useMemo, useState } from "react";
-import { CloseOutlined, EditOutlined, ExportOutlined, RedoOutlined } from "@ant-design/icons";
+import { CloseOutlined, EditOutlined, ExportOutlined, FileTextOutlined, RedoOutlined } from "@ant-design/icons";
 import AnalysisNodeTerminal from "@/components/container-manager/analysis-node-terminal";
 import AISummaryPanel from "@/components/ai-summary/ai-summary-panel";
 import ViewResolver from "@/core/ui-renderer/ViewResolver";
@@ -196,6 +196,31 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
                             >
                                 Logs
                             </Button>
+                            <Tooltip title={`run.sh - ${selectedSampleDetail.node?.command_path || ""}`}>
+                                <Button
+                                    size="small"
+                                    color="cyan"
+                                    variant="solid"
+                                    icon={<FileTextOutlined />}
+                                    onClick={() => {
+                                        invoke.nodeCommand.open(
+                                            {
+                                                analysis_node_id: String(
+                                                    selectedSampleDetail.node?.id ?? analysis_node_id ?? ""
+                                                ),
+                                                node_name: selectedSampleDetail.node?.node_name,
+                                            },
+                                            {
+                                                width: "60%",
+                                                title: `Command - ${selectedSampleDetail.node?.node_id}`,
+                                                footer: null,
+                                            }
+                                        );
+                                    }}
+                                >
+                                    Command
+                                </Button>
+                            </Tooltip>
                             <Tooltip title={`Edit Script ${selectedSampleDetail.node?.script_id}`}>
                                 <Button
                                     size="small"
