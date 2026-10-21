@@ -47,7 +47,6 @@ import {
 import {
 	pageAppSessionApi,
 	pageContainerEventApi,
-	pageContainerImageApi,
 	pageContainerInstanceApi,
 	pageContainerTemplateApi,
 	pageContainerTemplateSpecApi,
@@ -56,8 +55,6 @@ import {
 	type AppSessionPageQuery,
 	type ContainerEventItem,
 	type ContainerEventPageQuery,
-	type ContainerImageItem,
-	type ContainerImagePageQuery,
 	type ContainerInstanceItem,
 	type ContainerInstancePageQuery,
 	type ContainerTemplateItem,
@@ -470,22 +467,6 @@ export const useLiteraturePoolPageQuery = (
 		query,
 		queryFn: async (payload) => {
 			const response = await pageLiteraturePoolApi(payload);
-			return response.data;
-		},
-		initialPageSize: 10,
-		...options,
-	});
-};
-
-export const useContainerImagePageQuery = (
-	query: ContainerImagePageQuery,
-	options?: Omit<UsePageQueryOptions<ContainerImageItem, ContainerImagePageQuery>, "queryKey" | "query" | "endpoint" | "queryFn">
-) => {
-	return usePageQuery<ContainerImageItem, ContainerImagePageQuery>({
-		queryKey: ["container-image-page"],
-		query,
-		queryFn: async (payload) => {
-			const response = await pageContainerImageApi(payload);
 			return response.data;
 		},
 		initialPageSize: 10,

@@ -1,7 +1,6 @@
 import { FC, useState } from "react";
 import { Button, Flex, Input, Typography, message } from "antd";
 import type {
-    ContainerImageExportItem,
     ContainerTemplateBundleItem,
     ContainerTemplateDefinitionItem,
     ContainerTemplateSpecItem,
@@ -39,9 +38,9 @@ function normalizeIds<T>(items: unknown): T[] {
 }
 
 /**
- * 校验并规整导入格式 { container_images, container_template_specs, container_template_definitions }：
- * - 三个字段都可缺省，但不能同时为空；
- * - 每层的 id 统一转成字符串（id 是绑定行 ↔ 配置 ↔ 镜像之间唯一的引用键）。
+ * 校验并规整导入格式 { container_template_specs, container_template_definitions }：
+ * - 两个字段都可缺省，但不能同时为空；
+ * - 每层的 id 统一转成字符串（id 是绑定行 ↔ 运行配置之间唯一的引用键）。
  */
 const normalizePayload = (raw: unknown): ContainerTemplateBundleItem => {
     if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
@@ -50,19 +49,17 @@ const normalizePayload = (raw: unknown): ContainerTemplateBundleItem => {
     const obj = raw as Record<string, unknown>;
 
     const payload: ContainerTemplateBundleItem = {
-        container_images: normalizeIds<ContainerImageExportItem>(obj.container_images),
         container_template_specs: normalizeIds<ContainerTemplateSpecItem>(obj.container_template_specs),
         container_template_definitions:
             normalizeIds<ContainerTemplateDefinitionItem>(obj.container_template_definitions),
     };
 
     if (
-        payload.container_images.length === 0 &&
         payload.container_template_specs.length === 0 &&
         payload.container_template_definitions.length === 0
     ) {
         throw new Error(
-            "Nothing to import. Expected container_images / container_template_specs / container_template_definitions."
+            "Nothing to import. Expected container_template_specs / container_template_definitions."
         );
     }
 
@@ -124,7 +121,6 @@ const ContainerTemplateImportDialog: FC<any> = ({
             <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
                 Paste an exported container template JSON. The format is the same flat structure used by
                 workflow / script exports:{" "}
-                <Typography.Text code>container_images</Typography.Text>,{" "}
                 <Typography.Text code>container_template_specs</Typography.Text> and{" "}
                 <Typography.Text code>container_template_definitions</Typography.Text>. Records are upserted by{" "}
                 <Typography.Text code>id</Typography.Text>.
@@ -134,9 +130,8 @@ const ContainerTemplateImportDialog: FC<any> = ({
                 onChange={(e) => setJson(e.target.value)}
                 rows={14}
                 placeholder={`{
-  "container_images": [ { "id": "...", "name": "...", "full_name": "...", "pull_policy": "IfNotPresent", "description": "", "size": 0 } ],
   "container_template_specs": [ { "id": "...", "name": "...", "command": "", "port": 8787, ... } ],
-  "container_template_definitions": [ { "id": "...", "spec_id": "...", "image_id": "...", "display_name": "", "is_default": false } ]
+  "container_template_definitions": [ { "id": "...", "spec_id": "...", "image_name": "docker.io/rocker/rstudio:4.4", "pull_policy": "IfNotPresent", "display_name": "", "is_default": false } ]
 }`}
                 style={{ fontFamily: "monospace", fontSize: 12 }}
             />

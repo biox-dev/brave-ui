@@ -2,20 +2,6 @@ import axios from "axios";
 import { http } from "@/api/client/http";
 import type { PageRequest, PageResponse } from "@/api/data";
 
-export interface ContainerImageItem {
-    id: string;
-    name: string;
-    tag: string;
-    registry: string;
-    namespace: string;
-    full_name: string;
-    digest: string;
-    description: string;
-    size: number;
-    created_at: string;
-    updated_at: string;
-}
-
 export interface ContainerMount {
     source: string;
     target: string;
@@ -27,14 +13,16 @@ export interface ContainerMount {
 export interface ContainerTemplateItem {
     id: string;
     spec_id: string;
-    image_id: string;
     name: string;
     // display_name: 绑定行自身的展示名；为空时 name 回退到共享运行配置名。
     // 编辑表单必须读写它，否则会把回退出来的 name 误固化成绑定行展示名。
     display_name?: string;
     description: string;
     type: string;
-    image?: ContainerImageItem;
+    // image_name: 完整镜像名（含 registry / tag），如 docker.io/rocker/rstudio:4.4。
+    image_name: string;
+    // pull_policy: Always / IfNotPresent / Never。
+    pull_policy: string;
     command: string;
     cpu: number;
     memory: number;
@@ -77,23 +65,15 @@ export interface ContainerTemplateSpecItem {
     updated_at: string;
 }
 
-export interface ContainerImageExportItem {
-    id: string;
-    name: string;
-    full_name: string;
-    description: string;
-    size: number;
-    pull_policy: string;
-}
-
 /**
  * ContainerTemplateDefinition = 「运行配置 × 镜像」绑定行（表 go_container_template_definition）。
- * 对外容器模板 ID 即绑定行主键；spec_id / image_id 指向下面的完整对象的主键。
+ * 对外容器模板 ID 即绑定行主键；镜像名与拉取策略直接存在绑定行上。
  */
 export interface ContainerTemplateDefinitionItem {
     id: string;
     spec_id: string;
-    image_id: string;
+    image_name?: string;
+    pull_policy?: string;
     display_name?: string;
     is_default?: boolean;
     created_at?: string;
@@ -102,11 +82,10 @@ export interface ContainerTemplateDefinitionItem {
 
 /**
  * 容器模板统一导出/导入格式，与 script.json / workflow.json 的容器资产部分完全相同：
- * 三个按主键去重的平铺列表，通过主键互相引用（definition.spec_id / image_id）。
+ * 两个按主键去重的平铺列表，通过主键互相引用（definition.spec_id）。
  * 不包含时间字段。
  */
 export interface ContainerTemplateBundleItem {
-    container_images: ContainerImageExportItem[];
     container_template_specs: ContainerTemplateSpecItem[];
     container_template_definitions: ContainerTemplateDefinitionItem[];
 }
@@ -168,23 +147,11 @@ export interface OutboxEventItem {
     updated_at: string;
 }
 
-export interface ContainerImagePageQuery {
-    id?: string;
-    name?: string;
-    tag?: string;
-    registry?: string;
-    namespace?: string;
-    full_name?: string;
-    digest?: string;
-    description?: string;
-}
-
 export interface ContainerTemplatePageQuery {
     id?: string;
     name?: string;
     description?: string;
     type?: string;
-    image_id?: string;
     spec_id?: string;
     command?: string;
     work_dir?: string;
@@ -247,22 +214,6 @@ export interface OutboxEventPageQuery {
     type?: string;
     status?: string;
 }
-
-export const pageContainerImageApi = (payload: PageRequest<ContainerImagePageQuery>) => {
-    return http.post<PageResponse<ContainerImageItem>>("/container/image/list-by-page", payload);
-};
-
-export const createContainerImageApi = (payload: Partial<ContainerImageItem>) => {
-    return http.post<ContainerImageItem>("/container/image/create", payload);
-};
-
-export const updateContainerImageApi = (payload: Partial<ContainerImageItem> & { id: string }) => {
-    return http.post<{ message: string }>("/container/image/update", payload);
-};
-
-export const deleteContainerImageApi = (payload: { id: string }) => {
-    return http.post<{ message: string }>("/container/image/delete", payload);
-};
 
 export const pageContainerTemplateApi = (payload: PageRequest<ContainerTemplatePageQuery>) => {
     return http.post<PageResponse<ContainerTemplateItem>>("/container/template/list-by-page", payload);

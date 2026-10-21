@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Form, Input, Switch, Button, Flex, Space, Typography } from "antd";
+import { Form, Input, Select, Switch, Button, Flex, Space, Typography } from "antd";
 import type { ContainerTemplateItem } from "@/api/container";
 import { createContainerTemplateApi, updateContainerTemplateApi } from "@/api/container";
 import { invoke } from "@/core/ui-system/invokeV2";
@@ -37,7 +37,8 @@ export interface ContainerTemplateFormProps {
  *
  * 本表单只提交绑定行自身的字段：
  *   - spec_id：要复用的共享运行配置（ContainerTemplateSpec）；
- *   - image_id：要绑定的镜像；
+ *   - image_name：要运行的完整镜像名；
+ *   - pull_policy：镜像拉取策略（Always / IfNotPresent / Never）；
  *   - display_name：该绑定行的展示名（为空时回退到配置名）；
  *   - is_default：是否作为系统唯一默认容器模板。
  *
@@ -59,21 +60,19 @@ const ContainerTemplateForm = ({
 
     const specIdValue = Form.useWatch<string | undefined>("spec_id", form);
     const specLabel = Form.useWatch<string | undefined>("spec_label", form);
-    const imageIdValue = Form.useWatch<string | undefined>("image_id", form);
-    const imageLabel = Form.useWatch<string | undefined>("image_label", form);
 
     useEffect(() => {
         if (isEdit && item) {
             form.setFieldsValue({
                 id: item.id,
                 spec_id: item.spec_id,
-                image_id: item.image_id,
+                image_name: item.image_name,
+                pull_policy: item.pull_policy || "IfNotPresent",
                 // 用绑定行自己的 display_name，而不是 item.name（后者可能是配置名回退值），
                 // 否则保存时会把配置名误写成该绑定行的展示名。
                 display_name: item.display_name || undefined,
                 is_default: Boolean(item.is_default),
                 spec_label: item.spec_id,
-                image_label: item.image?.full_name || item.image_id,
             });
             return;
         }
@@ -87,11 +86,12 @@ const ContainerTemplateForm = ({
         }
     }, [item, isEdit, form, initialSpecId, initialSpecName]);
 
-    /** 只提交绑定行（ContainerTemplateDefinition）的字段，运行配置与镜像仅以 id 引用。 */
+    /** 只提交绑定行（ContainerTemplateDefinition）的字段，运行配置仅以 id 引用。 */
     const buildPayload = (values: Record<string, unknown>) => {
         const payload: Record<string, unknown> = {
             spec_id: values.spec_id,
-            image_id: values.image_id,
+            image_name: typeof values.image_name === "string" ? values.image_name.trim() : "",
+            pull_policy: values.pull_policy || "IfNotPresent",
             is_default: Boolean(values.is_default),
             display_name: typeof values.display_name === "string" ? values.display_name.trim() : "",
         };
@@ -129,23 +129,6 @@ const ContainerTemplateForm = ({
     const handleCancel = () => {
         onCancel?.();
         close?.();
-    };
-
-    const handleSelectImage = async () => {
-        try {
-            const selected = await invoke.containerImagePage.openAsync(
-                {},
-                { title: "Select Container Image", width: "80%", footer: false }
-            );
-            if (selected?.id) {
-                form.setFieldsValue({
-                    image_id: selected.id,
-                    image_label: selected.full_name || selected.name || selected.id,
-                });
-            }
-        } catch {
-            // User cancelled selection
-        }
     };
 
     // 选择要复用的运行配置（ContainerTemplateSpec）。
@@ -203,33 +186,27 @@ const ContainerTemplateForm = ({
             )}
 
             <Form.Item
-                label="Image"
-                tooltip="Container image bound to the selected runtime spec."
+                name="image_name"
+                label="Image Name"
+                rules={[{ required: true, message: "Please enter the full container image name" }]}
+                tooltip="Full image reference including registry and tag, e.g. docker.io/rocker/rstudio:4.4."
             >
-                <Space.Compact style={{ width: "100%" }}>
-                    <Form.Item
-                        name="image_id"
-                        noStyle
-                        rules={[{ required: true, message: "Please select a container image" }]}
-                    >
-                        <Input
-                            readOnly
-                            placeholder="Click to select a container image"
-                            onClick={handleSelectImage}
-                            style={{ cursor: "pointer" }}
-                        />
-                    </Form.Item>
-                    <Button onClick={handleSelectImage}>Select Image</Button>
-                </Space.Compact>
+                <Input placeholder="e.g. docker.io/rocker/rstudio:4.4" />
             </Form.Item>
-            <Form.Item name="image_label" hidden>
-                <Input />
+
+            <Form.Item
+                name="pull_policy"
+                label="Pull Policy"
+                tooltip="Always: pull before every run. IfNotPresent: reuse local image when available. Never: only use the local image."
+            >
+                <Select
+                    options={[
+                        { label: "Always", value: "Always" },
+                        { label: "IfNotPresent", value: "IfNotPresent" },
+                        { label: "Never", value: "Never" },
+                    ]}
+                />
             </Form.Item>
-            {imageIdValue && (
-                <Text type="secondary" style={{ display: "block", marginTop: -12, marginBottom: 12 }}>
-                    Image: {imageLabel || imageIdValue}
-                </Text>
-            )}
 
             <Form.Item
                 name="display_name"

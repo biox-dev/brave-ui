@@ -518,25 +518,6 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
                                         }}>Server Inspect</Tag>
                                 }
 
-                                {selectedSampleDetail.node?.image_status == "exist" &&
-                                    <Tag
-                                        style={{ cursor: "pointer" }}
-                                        onClick={() => {
-
-                                            invoke.containerInspect.open({
-                                                params: {
-                                                    inspect: "image-inspect",
-                                                    id: selectedSampleDetail.node?.image_id,
-                                                }
-                                            },
-                                                {
-                                                    title: `Server Inspect - ${selectedSampleDetail.node?.node_name}`,
-                                                    width: 800,
-                                                    footer: null,
-                                                })
-                                        }}>Image Inspect</Tag>
-                                }
-
 
 
 

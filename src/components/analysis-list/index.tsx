@@ -329,7 +329,7 @@ const AnalysisList = forwardRef<any, any>(({
             key: "image_status",
             ellipsis: true,
             render: (text: any, record: any) => (
-                <Tooltip title={record.image_id}>
+                <Tooltip title={record.container_image}>
                     <Tag color="green">
                         {text}
                     </Tag>

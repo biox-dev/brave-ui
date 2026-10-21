@@ -20,7 +20,6 @@ export interface ContainerTemplatePageProps {
   name?: string;
   description?: string;
   type?: string;
-  image_id?: string;
   spec_id?: string;
   command?: string;
   work_dir?: string;
@@ -108,9 +107,16 @@ const createColumns = (locale: string): ColumnsType<ContainerTemplateItem> => [
   {
     title: "Image",
     key: "image",
-    width: 220,
+    width: 260,
     ellipsis: true,
-    render: (_: unknown, record) => record.image?.full_name || record.image_id || "-",
+    render: (_: unknown, record) => record.image_name || "-",
+  },
+  {
+    title: "Pull Policy",
+    dataIndex: "pull_policy",
+    key: "pull_policy",
+    width: 130,
+    render: (value: string) => value || "-",
   },
   {
     title: "Command",
@@ -155,7 +161,6 @@ const ContainerTemplatePage = ({
   name,
   description,
   type,
-  image_id,
   spec_id,
   command,
   work_dir,
@@ -205,12 +210,11 @@ const ContainerTemplatePage = ({
       name: normalizeText(name),
       description: normalizeText(description),
       type: normalizeText(type),
-      image_id: normalizeText(image_id),
       spec_id: normalizeText(spec_id),
       command: normalizeText(command),
       work_dir: normalizeText(work_dir),
     });
-  }, [id, name, description, type, image_id, spec_id, command, work_dir, setQuery]);
+  }, [id, name, description, type, spec_id, command, work_dir, setQuery]);
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 

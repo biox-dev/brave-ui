@@ -144,14 +144,6 @@ export const layoutMenuTree: LayoutMenuItem[] = [
         },
       },
       {
-        key: '/container-image',
-        icon: 'container',
-        label: {
-          zh_CN: '容器镜像',
-          en_US: 'Container Image',
-        },
-      },
-      {
         key: '/container-template',
         icon: 'container',
         label: {

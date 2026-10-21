@@ -238,17 +238,6 @@ const ContainerTable: React.FC<Props> = ({ data, loading, openModal }) => {
                     >
                         Inspect
                     </Button>
-
-                    <Button
-                        size="small"
-                        color="cyan"
-                        variant="solid"
-                        onClick={() =>
-                            openModal("inspectPanel", { inspect: "image-inspect", id: item.image_id })
-                        }
-                    >
-                        Image Inspect
-                    </Button>
                 </Flex>
             ),
         },

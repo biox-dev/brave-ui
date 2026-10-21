@@ -117,7 +117,7 @@ const ContainerPage: FC<any> = ({ params, rowSelection }) => {
             dataIndex: "image_status",
             key: "image_status",
             render: (text: any, record: any) => (
-                <Tooltip title={record.image_id}>
+                <Tooltip title={record.container_image}>
                     <Tag color="green">
                         {text}
                     </Tag>
@@ -289,15 +289,6 @@ export const ContainerOpt: FC<any> = ({ record, reload, traefikUI = false }) => 
             </>}
 
 
-        </>}
-        {record.image_status == "exist" && <>
-            <Button size="small" color="cyan" variant="solid"
-                onClick={() => {
-                    openModal("inspectPanel", {
-                        inspect: "image-inspect",
-                        id: record.image_id
-                    })
-                }}  >Image Inspect</Button>
         </>}
 
         <InspectPanel
