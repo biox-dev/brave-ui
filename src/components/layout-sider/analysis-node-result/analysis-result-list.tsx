@@ -1,5 +1,6 @@
 import { deleteAnalysisNodeApi, type AnalysisNodeItem } from "@/api/analysis";
 import { invoke } from "@/core/ui-system/invokeV2";
+import { useComponentStore } from "@/event-bus/stores/components";
 import { useAnalysisNodePageQuery } from "@/hooks/usePaginationV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
@@ -7,7 +8,7 @@ import { formatRelativeTime } from "@/utils/time";
 import { DeleteOutlined, ExperimentOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Descriptions, Empty, Pagination, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { FC, useMemo, useState } from "react";
+import { FC, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 
@@ -156,6 +157,26 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
     }
   );
 
+  // 订阅 ws 分析事件：节点开始/结束后自动刷新列表。
+  const { register, unregister } = useComponentStore();
+  const instanceNode = useMemo(
+    () => ({
+      analysisStarted: () => {
+        refetch();
+      },
+      analysisDone: () => {
+        refetch();
+      },
+    }),
+    [refetch]
+  );
+  useEffect(() => {
+    register("analysis", "*", instanceNode);
+    return () => {
+      unregister("analysis", "*", instanceNode);
+    };
+  }, [register, unregister, instanceNode]);
+
   const handleDelete = async (node: AnalysisNodeItem) => {
     await deleteAnalysisNodeApi(node.id);
     message.success("Deleted successfully");
@@ -178,7 +199,7 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
   };
 
   /**
-   * 手动创建命令型分析节点（无脚本，等价于 run_agent_analysis 的建节点部分）。
+   * 手动创建命令型分析节点（无脚本，等价于 create_agent_analysis 的建节点部分）。
    * 弹窗内完成创建后返回新节点，这里只负责刷新列表。
    */
   const handleCreateCommandNode = async () => {
@@ -220,6 +241,7 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
         render: (name: string, record) => {
           const title = name || record.analysis_node_id || `Node-${record.id}`;
           const meta = [
+            record.status,
             record.updated_at
               ? formatRelativeTime(record.updated_at, locale)
               : undefined,

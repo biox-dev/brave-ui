@@ -14,7 +14,7 @@ export interface CreateCommandNodeFormProps {
 /**
  * 手动创建命令型分析节点（无脚本）。
  *
- * 等价于 Agent 工具 run_agent_analysis：节点自带容器模板与 shell 命令，
+ * 等价于 Agent 工具 create_agent_analysis：节点自带容器模板与 shell 命令，
  * run.sh 由 command 生成；创建后与普通分析节点共用运行 / 停止 / 日志链路。
  * 通过 `invoke.createCommandNode.openAsync(...)` 以弹窗方式打开。
  */

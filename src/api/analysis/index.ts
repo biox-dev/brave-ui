@@ -73,7 +73,7 @@ export const deleteAnalysisNodeApi = (analysisNodeId: string) => {
 /**
  * 手动创建命令型分析节点（无脚本）。
  *
- * 与内置工具 run_agent_analysis 等价：节点自带容器模板与 shell 命令，
+ * 与内置工具 create_agent_analysis 等价：节点自带容器模板与 shell 命令，
  * run.sh 由 command 生成；run=true 时创建后立即提交执行。
  */
 export interface CreateCommandNodePayload {
