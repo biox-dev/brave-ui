@@ -13,6 +13,7 @@ const analysisNodeViewLoaders = {
     analysisNodeSnapshot: () => import("./components/analysis-node-snapshot"),
     nodeError: () => import("./components/node-error"),
     nodeResolvedIO: () => import("./components/node-resolved-io"),
+    nodeResolvedIOEdit: () => import("./components/node-resolved-io-edit"),
     nodeLogs: () => import("./components/node-logs"),
     nodeCommand: () => import("./components/node-command"),
     selectFileRole: () => import("./components/select-file-role"),
