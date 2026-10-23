@@ -65,12 +65,9 @@ import {
 	type OutboxEventPageQuery,
 } from "@/api/container";
 import {
-	pageAgentEventApi,
 	pageAgentMemoryApi,
 	pageAgentPermissionApi,
 	pageAgentTaskApi,
-	type AgentEventItem,
-	type AgentEventPageQuery,
 	type AgentMemoryItem,
 	type AgentMemoryPageQuery,
 	type AgentPermissionItem,
@@ -595,22 +592,6 @@ export const useAgentPermissionPageQuery = (
 		query,
 		queryFn: async (payload) => {
 			const response = await pageAgentPermissionApi(payload);
-			return response.data;
-		},
-		initialPageSize: 10,
-		...options,
-	});
-};
-
-export const useAgentEventPageQuery = (
-	query: AgentEventPageQuery,
-	options?: Omit<UsePageQueryOptions<AgentEventItem, AgentEventPageQuery>, "queryKey" | "query" | "endpoint" | "queryFn">
-) => {
-	return usePageQuery<AgentEventItem, AgentEventPageQuery>({
-		queryKey: ["agent-event-page"],
-		query,
-		queryFn: async (payload) => {
-			const response = await pageAgentEventApi(payload);
 			return response.data;
 		},
 		initialPageSize: 10,

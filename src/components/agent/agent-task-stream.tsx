@@ -14,7 +14,6 @@ import {
   approveAgentPermissionApi,
   denyAgentPermissionApi,
   getAgentPendingPermissionsApi,
-  getAgentTaskEventsApi,
   type AgentEventItem,
   type AgentOperation,
   type AgentPermissionItem,
@@ -75,7 +74,6 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId, scrollContainerRef 
   const embedded = !!scrollContainerRef;
   const [messages, setMessages] = useState<StreamMessage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
   const [status, setStatus] = useState<string>("created");
 
   // const [pendingPermissions, setPendingPermissions] = useState<AgentPermissionItem[]>([]);
@@ -84,8 +82,6 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId, scrollContainerRef 
   const msgsRef = useRef<StreamMessage[]>([]);
   const seenRef = useRef<Set<string>>(new Set());
   const keySeqRef = useRef(0);
-  const hydratedRef = useRef(false);
-  const liveBufferRef = useRef<AgentEventItem[]>([]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const autoScrollRef = useRef(true);
@@ -174,7 +170,7 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId, scrollContainerRef 
   // };
 
   const applyEvent = useCallback((ev: AgentEventItem) => {
-    const dedupeKey = `${ev.id ?? ""}:${ev.sequence ?? ""}`;
+    const dedupeKey = ev.id ?? "";
     if (seenRef.current.has(dedupeKey)) return;
     seenRef.current.add(dedupeKey);
 
@@ -276,66 +272,13 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId, scrollContainerRef 
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setLoadError(false);
     setStatus("created");
-
-    hydratedRef.current = false;
-    liveBufferRef.current = [];
     msgsRef.current = [];
     seenRef.current.clear();
     keySeqRef.current = 0;
     setMessages([]);
-
-    getAgentTaskEventsApi(taskId, 0)
-      .then((res) => {
-        if (cancelled) return;
-        const history = res.data ?? [];
-        const buffered = liveBufferRef.current;
-        liveBufferRef.current = [];
-
-        const merged: AgentEventItem[] = [];
-        const dedupe = new Map<string, AgentEventItem>();
-        const put = (e: AgentEventItem) => {
-          const k = `${e.id ?? ""}:${e.sequence ?? ""}`;
-          if (dedupe.has(k)) return;
-          dedupe.set(k, e);
-          merged.push(e);
-        };
-        [...history, ...buffered].forEach(put);
-        merged.sort((a, b) => {
-          const ta = new Date(a.created_at ?? "").getTime() || 0;
-          const tb = new Date(b.created_at ?? "").getTime() || 0;
-          if (ta !== tb) return ta - tb;
-          return (a.sequence ?? 0) - (b.sequence ?? 0);
-        });
-
-        seenRef.current.clear();
-        msgsRef.current = [];
-        for (const ev of merged) {
-          // 历史（已落库）的事件按最终状态渲染：随后统一关闭未收口的 streaming 消息，
-          // 避免刷新 / 重新水合后正文一直停留在「流式中」而不再更新。
-          applyEvent(ev);
-        }
-        closeOpen("assistant_final");
-        closeOpen("reasoning");
-        flush();
-        hydratedRef.current = true;
-      })
-      .catch(() => {
-        if (!cancelled) setLoadError(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    // void loadPermissions();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [taskId, applyEvent]);
+    setLoading(false);
+  }, [taskId]);
 
   useEffect(() => {
     const unsubscribe = sseClient.onMessage((raw: unknown) => {
@@ -344,11 +287,7 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId, scrollContainerRef 
       if (msg.type !== "agent.event") return;
       if (!msg.event || msg.task_id !== taskId) return;
 
-      if (hydratedRef.current) {
-        applyEvent(msg.event);
-      } else {
-        liveBufferRef.current.push(msg.event);
-      }
+      applyEvent(msg.event);
     });
     return () => unsubscribe();
   }, [taskId, applyEvent]);
@@ -375,7 +314,7 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId, scrollContainerRef 
     };
     target.addEventListener("scroll", handler);
     return () => target.removeEventListener("scroll", handler);
-  }, [scrollContainerRef, loading, loadError]);
+  }, [scrollContainerRef, loading]);
 
   return (
     <Flex vertical gap="small" style={{ padding: "8px 0" }}>
@@ -445,8 +384,6 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId, scrollContainerRef 
         <Flex justify="center" style={{ padding: 24 }}>
           <Spin size="small" />
         </Flex>
-      ) : loadError ? (
-        <Empty description="Failed to load task events" image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ) : (
         <div
           ref={containerRef}

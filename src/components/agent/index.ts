@@ -3,7 +3,6 @@ import type { InferViewRegistryFromLoaders } from "@/core/component-registry/reg
 
 const viewLoaders = {
     createAgentTaskModal: () => import("./create-agent-task-modal"),
-    taskEventsModal: () => import("./task-events-modal"),
     taskPermissionsModal: () => import("./task-permissions-modal"),
     taskLLMRequestModal: () => import("./task-llm-request-modal"),
     agentChat: () => import("./agent-chat"),

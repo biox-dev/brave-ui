@@ -7,6 +7,7 @@ import {
   EditOutlined,
   FileTextOutlined,
   LoadingOutlined,
+  PlayCircleOutlined,
   QuestionCircleOutlined,
   ReloadOutlined,
   RobotOutlined,
@@ -29,7 +30,6 @@ import {
   listAgentProfileApi,
   type AgentProfileItem,
   getAgentTaskApi,
-  getAgentTaskEventsApi,
   getConversationApi,
   pageConversationApi,
   type AgentAskUserAnswer,
@@ -38,6 +38,7 @@ import {
   type AgentEventItem,
   type AgentPermissionItem,
   type AgentQuestionItem,
+  resumeAgentTaskApi,
 } from "@/api/agent";
 import { getGlobalMessage } from "@/hooks/useGlobalMessage";
 import { sseClient } from "@/sse";
@@ -124,7 +125,7 @@ interface AgentChatProps {
  *   - 任务终态后刷新会话，展示后端投影后的 assistant_final/reasoning/tool_* 历史。
  *
  * 历史恢复：发送后先按 task_id 增量拉取事件（GetTaskEvents），
- * 避免错过 WS 推送早于 HTTP 响应的早期状态事件；实时与历史按 id + sequence 去重。
+ * 避免错过 WS 推送早于 HTTP 响应的早期状态事件；实时事件按 id 去重。
  */
 const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, onCancel }) => {
   const [conversationId, setConversationId] = useState<string | undefined>(initialConversationId);
@@ -157,6 +158,9 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   const [answeringId, setAnsweringId] = useState<string>();
   // 当前进行中的任务 ID（用于 Cancel 按钮）。
   const [currentTaskId, setCurrentTaskId] = useState<string>();
+  // 可续跑的中断任务 ID：后端重启 / 进程崩溃后任务处于 failed 且存在检查点。
+  const [resumableTaskId, setResumableTaskId] = useState<string>();
+  const [resumingTask, setResumingTask] = useState(false);
 
   // 可选的 Agent Profile 列表（顶部选择框数据源）。
   const [profiles, setProfiles] = useState<AgentProfileItem[]>([]);
@@ -345,6 +349,44 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     }
   };
 
+  // 从持久化检查点继续执行一个被中断的任务。
+  //
+  // 后端会复用同一 taskID 重新启动执行循环；这里把本地活跃轮次重新登记，
+  // 让 WS 事件继续路由到本轮，并清掉该任务已投影的历史气泡，避免
+  // streamedByHistory 把新的实时流隐藏掉。
+  const handleResumeTask = async () => {
+    const taskId = resumableTaskId;
+    if (!taskId || sending) return;
+
+    setResumingTask(true);
+    try {
+      await resumeAgentTaskApi(taskId);
+
+      const convId = selectedConvIdRef.current ?? conversationId;
+      if (convId) {
+        activeTurnsRef.current.set(taskId, {
+          taskId,
+          convId,
+          waiting: false,
+          sending: true,
+        });
+      }
+      seenRef.current.clear();
+      setMessages((prev) => prev.filter((m) => m.taskId !== taskId));
+      setCurrentTaskId(taskId);
+      setSending(true);
+      setWaiting(false);
+      setResumableTaskId(undefined);
+      getGlobalMessage()?.success("Task resumed");
+      void loadPermissions(taskId);
+      void loadQuestions(taskId);
+    } catch {
+      // API errors are shown globally by the http interceptor.
+    } finally {
+      setResumingTask(false);
+    }
+  };
+
   // 操作摘要：优先展示 Provider 提供的人类可读 description，其次回退到
   // Path / Command / Content（Provider 未提供 description 时的原生操作）。
   const renderOperation = (op: AgentPermissionItem["operation"]) => {
@@ -380,6 +422,8 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       selectedConvIdRef.current = conv.id;
       setConversationId(conv.id);
       setMessages(mapMessages(conv));
+      // 切换会话时先重置续跑提示，后续按目标任务状态重新判定。
+      setResumableTaskId(undefined);
 
       const taskId = conv.current_task_id;
       if (!isValidTaskId(taskId)) {
@@ -404,13 +448,16 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
             st === AgentTaskStatus.Failed ||
             st === AgentTaskStatus.Canceled
           ) {
-            // 任务已终态：清掉活跃轮次，不再恢复。
+            // 任务已终态：清掉活跃轮次，不再恢复；failed 且存在检查点时提供继续入口。
             activeTurnsRef.current.delete(taskId);
             setCurrentTaskId(undefined);
             setSending(false);
             setWaiting(false);
             setPendingPermissions([]);
             setPendingQuestions([]);
+            setResumableTaskId(
+              st === AgentTaskStatus.Failed && t.data.resumable ? taskId : undefined
+            );
             return;
           }
           turn.waiting = st === AgentTaskStatus.WaitingPermission;
@@ -422,6 +469,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       setCurrentTaskId(taskId);
       setSending(turn.sending);
       setWaiting(turn.waiting);
+      setResumableTaskId(undefined);
 
       // 恢复该任务待确认的权限，保证刷新后切换到会话时按钮仍在。
       loadPermissions(taskId);
@@ -443,6 +491,23 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialConversationId]);
 
+  // 手动刷新对话时同步任务的可续跑状态（failed + resumable）。
+  const refreshResumableTask = async (taskId: string) => {
+    if (!isValidTaskId(taskId)) {
+      setResumableTaskId(undefined);
+      return;
+    }
+    try {
+      const res = await getAgentTaskApi(taskId);
+      const task = res.data;
+      setResumableTaskId(
+        task?.status === AgentTaskStatus.Failed && task.resumable ? taskId : undefined
+      );
+    } catch {
+      setResumableTaskId(undefined);
+    }
+  };
+
   // 重新拉取当前会话（含完整历史消息）：用于手动同步后端最新状态。
   const handleReloadConversation = async () => {
     const id = conversationId;
@@ -458,6 +523,9 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       if (isValidTaskId(conv.current_task_id)) {
         void loadPermissions(conv.current_task_id);
         void loadQuestions(conv.current_task_id);
+        void refreshResumableTask(conv.current_task_id);
+      } else {
+        setResumableTaskId(undefined);
       }
     } catch {
       // 错误由全局拦截器提示。
@@ -496,6 +564,10 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
         const nextMessages = mapMessages(res.data);
         if (type === "task.failed") {
           await appendTaskError(nextMessages, turn.taskId);
+          // 后端重启 / 崩溃导致的中断可以续跑：保留一个 Continue 入口。
+          await refreshResumableTask(turn.taskId);
+        } else {
+          setResumableTaskId(undefined);
         }
         setMessages(nextMessages);
       } catch {
@@ -517,7 +589,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     const turn = activeTurnsRef.current.get(ev.task_id);
     if (!turn) return;
 
-    const key = `${ev.id ?? ""}:${ev.sequence ?? ""}`;
+    const key = ev.id ?? "";
     if (seenRef.current.has(key)) return;
     seenRef.current.add(key);
 
@@ -667,6 +739,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     ]);
     setSending(true);
     setWaiting(false);
+    setResumableTaskId(undefined);
 
     try {
       const res = await chatAgentApi({
@@ -693,14 +766,6 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       loadPermissions(task_id);
       // 本轮任务也可能很快发起提问，提前拉取待作答提问。
       loadQuestions(task_id);
-
-      // 恢复可能在 HTTP 响应前就已推送的早期事件（与实时推送按 id+sequence 去重）。
-      try {
-        const evRes = await getAgentTaskEventsApi(task_id, 0);
-        (evRes.data ?? []).forEach(applyEvent);
-      } catch {
-        // 拉取历史失败不影响实时流；错误由全局拦截器提示。
-      }
     } catch {
       // API 错误由全局拦截器提示。
       setSending(false);
@@ -718,6 +783,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     setWaiting(false);
     setPendingPermissions([]);
     setPendingQuestions([]);
+    setResumableTaskId(undefined);
     setInput("");
   };
 
@@ -1014,6 +1080,40 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
         )}
       </div>
 
+
+      {/* 中断可续跑提示：后端重启 / 进程崩溃后，任务处于 failed 但保留了检查点。 */}
+      {resumableTaskId && !sending && (
+        <Flex
+          align="center"
+          justify="space-between"
+          gap={12}
+          style={{
+            marginTop: 12,
+            padding: "8px 12px",
+            border: "1px solid #91caff",
+            borderRadius: 8,
+            background: "#e6f4ff",
+          }}
+        >
+          <Flex vertical gap={2} style={{ minWidth: 0 }}>
+            <Text strong style={{ fontSize: 13 }}>
+              Task interrupted
+            </Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              The agent can continue from its last execution checkpoint.
+            </Text>
+          </Flex>
+          <Button
+            type="primary"
+            size="small"
+            icon={<PlayCircleOutlined />}
+            loading={resumingTask}
+            onClick={() => void handleResumeTask()}
+          >
+            Continue
+          </Button>
+        </Flex>
+      )}
 
       {/* 待作答提问（AskUser）：固定在输入区上方，提交后 Agent 继续执行。
           提问由后端持久化，刷新 / 切回会话后仍会恢复展示。 */}

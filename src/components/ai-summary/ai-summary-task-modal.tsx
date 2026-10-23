@@ -3,22 +3,17 @@ import {
   Button,
   Descriptions,
   Flex,
-  Space,
   Spin,
   Tag,
-  Timeline,
   Typography,
 } from "antd";
 import {
   useCallback,
   useEffect,
   useState,
-  type CSSProperties,
 } from "react";
 import {
   getAgentTaskApi,
-  getAgentTaskEventsApi,
-  type AgentEventItem,
   type AgentTaskItem,
 } from "@/api/agent";
 
@@ -36,18 +31,6 @@ const TASK_STATUS_COLOR: Record<string, string> = {
   canceled: "default",
 };
 
-const PRE_STYLE: CSSProperties = {
-  margin: 0,
-  padding: 8,
-  background: "#f5f5f5",
-  borderRadius: 4,
-  whiteSpace: "pre-wrap",
-  wordBreak: "break-word",
-  fontSize: 12,
-  maxHeight: 200,
-  overflow: "auto",
-};
-
 const formatTime = (value?: string | null) => {
   if (!value) return "-";
   const date = new Date(value);
@@ -55,29 +38,12 @@ const formatTime = (value?: string | null) => {
   return date.toLocaleString();
 };
 
-const formatPayload = (payload: unknown) => {
-  if (payload === null || payload === undefined) return "";
-  try {
-    return JSON.stringify(payload, null, 2);
-  } catch {
-    return String(payload);
-  }
-};
-
-const eventColor = (type: string): string => {
-  if (type.includes("failed") || type.includes("error")) return "red";
-  if (type.includes("completed")) return "green";
-  if (type.includes("canceled")) return "gray";
-  return "blue";
-};
-
 /**
- * 弹窗展示 AISummary 关联的 Agent 任务及其事件流。
+ * 弹窗展示 AISummary 关联的 Agent 任务详情。
  */
 const AISummaryTaskModal = ({ taskId }: AISummaryTaskModalProps) => {
   const [loading, setLoading] = useState(false);
   const [task, setTask] = useState<AgentTaskItem | null>(null);
-  const [events, setEvents] = useState<AgentEventItem[]>([]);
 
   const loadData = useCallback(() => {
     if (taskId === undefined || taskId === null || taskId === "") {
@@ -86,10 +52,9 @@ const AISummaryTaskModal = ({ taskId }: AISummaryTaskModalProps) => {
 
     const id = String(taskId);
     setLoading(true);
-    Promise.all([getAgentTaskApi(id), getAgentTaskEventsApi(id)])
-      .then(([taskRes, eventsRes]) => {
+    getAgentTaskApi(id)
+      .then((taskRes) => {
         setTask(taskRes.data ?? null);
-        setEvents(eventsRes.data ?? []);
       })
       .catch(() => {
         // 错误提示已由 http 响应拦截器统一处理。
@@ -163,35 +128,6 @@ const AISummaryTaskModal = ({ taskId }: AISummaryTaskModalProps) => {
               </Descriptions.Item>
             )}
           </Descriptions>
-
-          <div>
-            <Typography.Text strong>Agent Events ({events.length})</Typography.Text>
-            {events.length === 0 ? (
-              <Typography.Paragraph type="secondary" style={{ marginTop: 8 }}>
-                No events
-              </Typography.Paragraph>
-            ) : (
-              <Timeline
-                style={{ marginTop: 12 }}
-                items={events.map((ev) => ({
-                  color: eventColor(ev.type),
-                  children: (
-                    <Flex vertical gap={4}>
-                      <Space size={8}>
-                        <Tag>{ev.type}</Tag>
-                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                          #{ev.sequence} · {formatTime(ev.created_at)}
-                        </Typography.Text>
-                      </Space>
-                      {ev.payload !== null && ev.payload !== undefined && (
-                        <pre style={PRE_STYLE}>{formatPayload(ev.payload)}</pre>
-                      )}
-                    </Flex>
-                  ),
-                }))}
-              />
-            )}
-          </div>
         </Flex>
       )}
     </Spin>

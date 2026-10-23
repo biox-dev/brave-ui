@@ -32,7 +32,6 @@ const STATUS_OPTIONS = [
 const formatTime = (value?: string | null) => (value ? new Date(value).toLocaleString() : "-");
 
 interface ActionHandlers {
-  onViewEvents: (id: string) => void;
   onViewPermissions: (id: string) => void;
   onViewLLMRequest: (id: string) => void;
   onCancel: (id: string) => void;
@@ -40,7 +39,6 @@ interface ActionHandlers {
 }
 
 const createColumns = ({
-  onViewEvents,
   onViewPermissions,
   onViewLLMRequest,
   onCancel,
@@ -119,9 +117,6 @@ const createColumns = ({
       const cancelable = ACTIVE_STATUSES.has(record.status);
       return (
         <Space size="small">
-          <Button size="small" onClick={() => onViewEvents(record.id)}>
-            Events
-          </Button>
           <Button size="small" onClick={() => onViewPermissions(record.id)}>
             Permissions
           </Button>
@@ -191,17 +186,6 @@ const AgentTaskPage = () => {
     }
   };
 
-  const handleViewEvents = async (taskId: string) => {
-    await invoke.taskEventsModal.openAsync(
-      { taskId },
-      {
-        title: `Task Events - ${taskId.slice(0, 8)}...`,
-        width: 900,
-        footer: null,
-      }
-    );
-  };
-
   const handleViewPermissions = async (taskId: string) => {
     await invoke.taskPermissionsModal.openAsync(
       { taskId },
@@ -238,7 +222,6 @@ const AgentTaskPage = () => {
   };
 
   const columns = createColumns({
-    onViewEvents: handleViewEvents,
     onViewPermissions: handleViewPermissions,
     onViewLLMRequest: handleViewLLMRequest,
     onCancel: handleCancel,

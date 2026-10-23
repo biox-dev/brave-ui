@@ -51,6 +51,9 @@ export interface AgentTaskItem {
   working_dir?: string;
   request?: Record<string, unknown> | null;
   error?: string;
+  /** 是否存在持久化执行检查点（后端由 Task.ResumeState 派生）。
+   *  failed 且 resumable=true 时，可调用 /agent/task/resume 继续执行。 */
+  resumable?: boolean;
   created_at: string;
   updated_at: string;
   started_at?: string | null;
@@ -123,11 +126,10 @@ export interface AgentQuestionItem {
   resolved_by?: string | null;
 }
 
-// 任务事件（对应后端 agent.AgentEvent）。
+// 任务实时推送信封（对应后端 agent.AgentEvent；仅用于 WS，历史消息见 agent_messages）。
 export interface AgentEventItem {
   id: string;
   task_id: string;
-  sequence: number;
   type: string;
   payload?: unknown;
   created_at: string;
@@ -196,10 +198,6 @@ export interface AgentQuestionPageQuery {
   statuses?: string[];
 }
 
-export interface AgentEventPageQuery {
-  task_id?: string;
-}
-
 export const createAgentTaskApi = (payload: AgentTaskCreateRequest) => {
   return http.post<AgentTaskItem>("/agent/task/create", payload);
 };
@@ -210,10 +208,6 @@ export const pageAgentTaskApi = (payload: PageRequest<AgentTaskPageQuery>) => {
 
 export const pageAgentPermissionApi = (payload: PageRequest<AgentPermissionPageQuery>) => {
   return http.post<PageResponse<AgentPermissionItem>>("/agent/permission/page", payload);
-};
-
-export const pageAgentEventApi = (payload: PageRequest<AgentEventPageQuery>) => {
-  return http.post<PageResponse<AgentEventItem>>("/agent/event/page", payload);
 };
 
 export const approveAgentPermissionApi = (id: string) => {
@@ -240,13 +234,6 @@ export const answerAgentQuestionApi = (id: string, answer: AgentAskUserAnswer) =
   return http.post<{ ok: boolean; id: string }>("/agent/question/answer", { id, answer });
 };
 
-// 增量拉取任务事件（返回 sequence 大于 after 的事件）。
-export const getAgentTaskEventsApi = (taskId: string, after?: number) => {
-  return http.get<AgentEventItem[]>("/agent/task/events", {
-    params: { task_id: taskId, after: after ?? 0 },
-  });
-};
-
 // 获取任务当前待确认的权限请求。
 export const getAgentPendingPermissionsApi = (taskId: string) => {
   return http.get<AgentPermissionItem[]>("/agent/task/permissions", {
@@ -257,6 +244,11 @@ export const getAgentPendingPermissionsApi = (taskId: string) => {
 // 取消 Agent 任务。
 export const cancelAgentTaskApi = (id: string) => {
   return http.post<{ ok: boolean; id: string }>("/agent/task/cancel", { id });
+};
+
+// 从持久化检查点继续执行 Agent 任务（后端重启 / 进程崩溃后任务中断时使用）。
+export const resumeAgentTaskApi = (id: string) => {
+  return http.post<{ ok: boolean; id: string }>("/agent/task/resume", { id });
 };
 
 // 会话（对应后端 agent.Conversation）。

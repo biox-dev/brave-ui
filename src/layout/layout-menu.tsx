@@ -194,13 +194,7 @@ export const layoutMenuTree: LayoutMenuItem[] = [
         },
       },
       {
-        key: '/agent-event',
-        icon: 'agent',
-        label: {
-          zh_CN: 'Agent 事件',
-          en_US: 'Agent Events',
-        },
-      },{
+
         key: '/agent-skill',
         icon: 'agent',
         label: {
