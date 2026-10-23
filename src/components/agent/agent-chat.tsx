@@ -73,6 +73,22 @@ interface AgentWSMessage {
 // 任务终态事件类型。
 const TERMINAL_EVENT_TYPES = new Set(["task.completed", "task.failed", "task.canceled"]);
 
+// AgentChat 负责处理的事件类型（与 AgentTaskStream 的所有权划分）。
+//
+// 两个组件订阅同一条 `agent.event` 并共享去重表，必须先声明所有权再写去重键：
+//   - 归 AgentChat：权限 / 提问（驱动卡片与按钮）与终态（驱动轮次收尾、刷新会话）；
+//   - 归 AgentTaskStream：stream 增量、task.started / task.waiting（驱动时间线与运行状态）。
+// 两边都不处理的事件类型也交给时间线组件分支处理（那里是 default: return）。
+const CHAT_OWNED_EVENT_TYPES = new Set([
+  "permission.created",
+  "permission.resolved",
+  "question.created",
+  "question.resolved",
+  "task.completed",
+  "task.failed",
+  "task.canceled",
+]);
+
 // 本地聊天消息（user / assistant 气泡）。
 interface ChatMessage {
   id: string;
@@ -124,8 +140,9 @@ interface AgentChatProps {
  *   - 进行中的任务用 AgentTaskStream 渲染完整过程（reasoning/tool/message 流式）；
  *   - 任务终态后刷新会话，展示后端投影后的 assistant_final/reasoning/tool_* 历史。
  *
- * 历史恢复：发送后先按 task_id 增量拉取事件（GetTaskEvents），
- * 避免错过 WS 推送早于 HTTP 响应的早期状态事件；实时事件按 id 去重。
+ * 历史恢复：刷新 / 切换会话后，会话消息由 conversation/get 投影，
+ * 进行中任务的执行过程由 GET /agent/task/timeline 回填（AgentTaskStream 内部完成），
+ * 增量事件（text / reasoning_delta）只广播不落库，因此不参与恢复。
  */
 const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, onCancel }) => {
   const [conversationId, setConversationId] = useState<string | undefined>(initialConversationId);
@@ -174,6 +191,8 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   const selectedConvIdRef = useRef<string | undefined>(initialConversationId);
   // 活跃轮次表：taskID → 该轮次中间态，跨会话切换与浏览器刷新保留。
   const activeTurnsRef = useRef<Map<string, ActiveTurn>>(new Map());
+  // 全局事件去重表：AgentTaskStream 通过 seenRef 共享同一张表，保证同一 event.id
+  // 只被处理一次（两侧都订阅 agent.event，各维护一份会造成状态与时间线不一致）。
   const seenRef = useRef<Set<string>>(new Set());
 
   // 自动滚动到底部。
@@ -269,10 +288,45 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
 
   // 该任务是否已由历史消息投影出内容（token / reasoning / tool），
   // 是则不再额外渲染 AgentTaskStream，避免同一任务的时间线出现两份。
+  //
+  // 注意：只对「已结束展示」的轮次生效。只要 currentTaskId 仍在，就说明本轮还在
+  // 进行（running / waiting_permission），实时区必须渲染 —— 否则刷新页面后批准权限，
+  // 因为历史里已有 reasoning / tool_call 而整块实时流不出现，看起来就是「批准后没反应」。
   const streamedByHistory = (taskId: string) =>
     messages.some(
       (m) => m.taskId === taskId && m.role === "assistant" && !!m.kind && m.kind !== "assistant_final" && m.kind !== "assistant"
     );
+
+  // 实时区是否渲染：进行中的任务始终渲染；没有进行中任务时不渲染。
+  // 历史与实时区的重复由 AgentTaskStream 的回填跳过逻辑消除（skipCount）。
+  const showLiveStream = (taskId?: string) => isValidTaskId(taskId);
+
+  // 本轮已被 AgentChat 历史消息覆盖的条数（reasoning / tool_call / tool_result 等）。
+  // 时间线组件回填时跳过前 N 条，避免同一条事实在历史区与实时区各出现一份。
+  const coveredByHistory = (taskId?: string) =>
+    isValidTaskId(taskId)
+      ? messages.filter(
+        (m) => m.taskId === taskId && m.role === "assistant" && m.kind !== "error"
+      ).length
+      : 0;
+
+  // 权限 / 提问决策后兜底登记「活跃轮次」。
+  //
+  // 刷新页面后 activeTurnsRef 是空的：只有 handleSwitchConversation 会重建它，且仅当
+  // conv.current_task_id 有效。若用户此时直接批准权限，后端会从 TaskWaitingPermission
+  // 续跑到 TaskRunning 并继续推流，但本地 applyEvent 因找不到 turn 而丢弃全部事件，
+  // 表现为「批准后时间线不动、收不到实时流」。因此决策后必须重新登记。
+  const ensureActiveTurn = (taskId: string) => {
+    const convId = selectedConvIdRef.current;
+    if (!isValidTaskId(taskId) || !convId) return;
+    if (activeTurnsRef.current.has(taskId)) return;
+    activeTurnsRef.current.set(taskId, {
+      taskId,
+      convId,
+      waiting: false,
+      sending: true,
+    });
+  };
 
   // 拉取任务待确认的权限请求（仅保留 pending 状态）。
   const loadPermissions = async (taskId: string) => {
@@ -291,6 +345,11 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     try {
       await approveAgentPermissionApi(perm.id);
       getGlobalMessage()?.success("Permission approved");
+      // 后端会唤醒执行循环并重新推流：重新登记活跃轮次，否则后续事件无人路由。
+      ensureActiveTurn(perm.task_id);
+      setWaiting(false);
+      setSending(true);
+      setCurrentTaskId(perm.task_id);
       await loadPermissions(perm.task_id);
     } catch {
       // API errors are shown globally by the http interceptor.
@@ -304,6 +363,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     try {
       await denyAgentPermissionApi(perm.id);
       getGlobalMessage()?.success("Permission denied");
+      ensureActiveTurn(perm.task_id);
       await loadPermissions(perm.task_id);
     } catch {
       // API errors are shown globally by the http interceptor.
@@ -585,9 +645,19 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   };
 
   // 统一处理一个任务事件（实时 WS 推送与历史恢复共用）。
+  //
+  // 去重表（seenRef）与 AgentTaskStream 共享，因此这里必须先按「是否归本组件处理」
+  // 过滤，再写入去重表：否则本组件会把「归时间线组件消费」的事件（stream 增量、
+  // task.started / task.waiting 等状态事件）提前登记为已见，导致时间线组件收不到、
+  // 实时流状态停更新（刷新后批准权限后不恢复 running 就是这个原因）。
   const applyEvent = (ev: AgentEventItem) => {
     const turn = activeTurnsRef.current.get(ev.task_id);
     if (!turn) return;
+
+    // 所有权判定：AgentChat 只负责「业务状态」类事件（权限 / 提问 / 终态收尾）。
+    // stream 增量与 task.started / task.waiting 归 AgentTaskStream，本组件既不处理
+    // 也不占用去重键（终态仍需本组件收尾，因此留在 OWNED 里）。
+    if (!CHAT_OWNED_EVENT_TYPES.has(ev.type ?? "")) return;
 
     const key = ev.id ?? "";
     if (seenRef.current.has(key)) return;
@@ -595,20 +665,6 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
 
     const selected = turn.convId === selectedConvIdRef.current;
 
-    if (ev.type === "stream") return;
-    if (ev.type === "task.started") {
-      turn.waiting = false;
-      if (selected) {
-        setWaiting(false);
-        setSending(true);
-      }
-      return;
-    }
-    if (ev.type === "task.waiting") {
-      turn.waiting = true;
-      if (selected) setWaiting(true);
-      return;
-    }
     if (ev.type === "permission.created" || ev.type === "permission.resolved") {
       // 权限创建 / 解决后刷新待确认权限，保证按钮实时出现 / 消失。
       if (selected) loadPermissions(ev.task_id);
@@ -620,6 +676,10 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       return;
     }
     if (ev.type && TERMINAL_EVENT_TYPES.has(ev.type)) {
+      if (selected) {
+        // 终态同时意味着本轮的「等待权限」结束：同步本地状态，避免 UI 卡在 waiting。
+        setWaiting(false);
+      }
       void finalizeTurn(turn, ev.type);
     }
   };
@@ -1044,11 +1104,20 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
               </Flex>
             ))}
 
-            {/* 进行中的任务兜底展示完整实时事件流（reasoning/tool/message）。
-                历史已投影出内容时不重复渲染，避免同一任务出现两份时间线。
-                嵌入模式下由 AgentTaskStream 委托父容器滚动，避免嵌套滚动条。 */}
-            {currentTaskId && !streamedByHistory(currentTaskId) && (
-              <AgentTaskStream taskId={currentTaskId} scrollContainerRef={listRef} />
+            {/* 进行中的任务展示完整实时事件流（reasoning/tool/message）。
+                只要 currentTaskId 存在就渲染：刷新后批准权限需要靠这里继续展示过程。
+                skipCount 传入外层历史已覆盖的条数（本轮已投影到 AgentChat 的历史消息），
+                由时间线组件跳过这些条，避免同一任务出现两份内容。
+                嵌入模式下由 AgentTaskStream 委托父容器滚动，避免嵌套滚动条。
+                seenRef 共享同一张去重表，保证两侧不会各自消费同一个事件。 */}
+
+            {showLiveStream(currentTaskId) && (
+              <AgentTaskStream
+                taskId={currentTaskId}
+                scrollContainerRef={listRef}
+                seenRef={seenRef}
+                skipCount={coveredByHistory(currentTaskId)}
+              />
             )}
             {/* {
               sending && (

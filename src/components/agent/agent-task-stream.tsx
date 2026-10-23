@@ -11,9 +11,12 @@ import {
 } from "@ant-design/icons";
 import {
   AgentPermissionStatus,
+  AgentTaskStatus,
   approveAgentPermissionApi,
   denyAgentPermissionApi,
   getAgentPendingPermissionsApi,
+  getAgentTaskApi,
+  getAgentTaskTimelineApi,
   type AgentEventItem,
   type AgentOperation,
   type AgentPermissionItem,
@@ -50,6 +53,21 @@ const STATUS_META: Record<string, { color: string; text: string }> = {
   "task.canceled": { color: "default", text: "Canceled" },
 };
 
+// 本组件负责消费的事件类型（与 AgentChat 的 CHAT_OWNED_EVENT_TYPES 互补）。
+//
+// 两侧共享同一张去重表，因此每个组件都必须先判断「这个事件归不归我」，
+// 再写去重键；否则先跑的一侧会把事件登记成已见，另一侧永久收不到。
+//   - 本组件：stream 增量、task.started / task.waiting、终态（同时决定头部状态）；
+//   - AgentChat：权限 / 提问事件（驱动卡片与按钮）。
+const STREAM_OWNED_EVENT_TYPES = new Set([
+  "stream",
+  "task.started",
+  "task.waiting",
+  "task.completed",
+  "task.failed",
+  "task.canceled",
+]);
+
 interface StreamMessage {
   key: string;
   kind: string;
@@ -63,6 +81,24 @@ interface AgentTaskStreamProps {
   taskId: string;
   /** 嵌入到父级滚动容器（如 AgentChat 的消息列表）时传入，避免出现嵌套滚动条；自动滚动委托给父容器。 */
   scrollContainerRef?: RefObject<HTMLDivElement | null>;
+  /**
+   * 外部共享的事件去重表（如 AgentChat 的 seenRef）。
+   *
+   * AgentChat 与 AgentTaskStream 会同时订阅同一条 `agent.event`（前者管生命周期 /
+   * 权限 /
+   * 提问，后者管时间线），各自维护 seen 表会导致「同一事件被两个组件各自处理一次」。
+   * 传入共享表后，两层对同一 `event.id` 只处理一次，语义明确不依赖事件类型分流。
+   */
+  seenRef?: RefObject<Set<string>>;
+  /**
+   * 回填时跳过的前 N 条。
+   *
+   * 嵌入 AgentChat 时，本轮已落库的部分条目会先由外层「会话历史气泡」渲染，
+   * 时间线再从头回填就会重复。传入外层已覆盖的条数，回填时跳过���们。
+   */
+  skipCount?: number;
+  /** 时间线回填完成（或失败）后回调，父组件据此驱动滚动 / 状态。 */
+  onLoaded?: () => void;
 }
 
 const renderOperation = (op?: AgentOperation | null) => {
@@ -70,7 +106,43 @@ const renderOperation = (op?: AgentOperation | null) => {
   return op.path || op.command || op.content || op.type || "";
 };
 
-const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId, scrollContainerRef }) => {
+// 把后端任务状态映射为时间线头部展示的状态（复用 STATUS_META 的键）。
+// 中间态事件（task.started / task.waiting / 终态）不落库，刷新后只能靠任务表补回来。
+const statusFromTask = (status?: string): string => {
+  switch (status) {
+    case AgentTaskStatus.WaitingPermission:
+      return "waiting";
+    case AgentTaskStatus.Completed:
+      return "task.completed";
+    case AgentTaskStatus.Failed:
+      return "task.failed";
+    case AgentTaskStatus.Canceled:
+      return "task.canceled";
+    case AgentTaskStatus.Running:
+    case AgentTaskStatus.Created:
+      return "running";
+    default:
+      return "created";
+  }
+};
+
+// 状态优先级：数字越大越「新」。用于避免回填期间到达的实时终态被旧的 HTTP 快照回退。
+const STATUS_RANK: Record<string, number> = {
+  created: 0,
+  running: 1,
+  waiting: 2,
+  "task.completed": 3,
+  "task.failed": 3,
+  "task.canceled": 3,
+};
+
+const AgentTaskStream: FC<AgentTaskStreamProps> = ({
+  taskId,
+  scrollContainerRef,
+  seenRef: externalSeenRef,
+  skipCount = 0,
+  onLoaded,
+}) => {
   const embedded = !!scrollContainerRef;
   const [messages, setMessages] = useState<StreamMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,8 +152,14 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId, scrollContainerRef 
   const [resolvingId, setResolvingId] = useState<string>();
 
   const msgsRef = useRef<StreamMessage[]>([]);
-  const seenRef = useRef<Set<string>>(new Set());
+  // 未传入共享表时退化为组件内私有表（保持独立使用时的行为）。
+  const localSeenRef = useRef<Set<string>>(new Set());
+  const seenRef = externalSeenRef ?? localSeenRef;
   const keySeqRef = useRef(0);
+  // 当前已回填的任务 ID（区分「换任务全量重置」与「skipCount 变化只重排前缀」）。
+  const currentTaskRef = useRef<string>("");
+  // 上一次回填插入的历史条数（实时追加部分从这个下标之后开始）。
+  const backfilledCountRef = useRef(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const autoScrollRef = useRef(true);
@@ -170,6 +248,9 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId, scrollContainerRef 
   // };
 
   const applyEvent = useCallback((ev: AgentEventItem) => {
+    // 所有权判定：权限 / 提问事件归 AgentChat，本组件不处理也不占用去重键。
+    if (!STREAM_OWNED_EVENT_TYPES.has(ev.type ?? "")) return;
+
     const dedupeKey = ev.id ?? "";
     if (seenRef.current.has(dedupeKey)) return;
     seenRef.current.add(dedupeKey);
@@ -187,11 +268,6 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId, scrollContainerRef 
       closeOpen("assistant_final");
       closeOpen("reasoning");
       flush();
-      return;
-    }
-
-    if (ev.type === "permission.created" || ev.type === "permission.resolved") {
-      // void loadPermissions();
       return;
     }
 
@@ -271,14 +347,89 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({ taskId, scrollContainerRef 
     }
   }, []);
 
+  // 挂载 / 切换任务时回填「已落库的事实流」，并用任务状态补中间态。
+  //
+  // 为什么需要回填：增量事件（text / reasoning_delta）只走 WS 广播不落库，刷新页面或
+  // 切换会话后它们已经丢失；如果只等新事件，进行中的任务在这里会是一片空白。
+  // 后端 GET /agent/task/timeline 会按 task_id 返回该轮已落库的完整块
+  // （reasoning / assistant / tool_call / tool_result / error），正好还原执行过程。
+  //
+  // 回填的消息用的是 agent_messages 的 ID，与 WS 事件的雪花 ID 不是同一空间，
+  // 因此不写进共享 WS 去重表（避免误杀同值的实时事件）；回填是幂等的历史快照，
+  // 之后由 WS 追加的事件本身就是新内容。
+  // 同一轮里「回填行 + 新来的完整块事件」可能各出现一次，这不是 bug：轮次结束
+  // （finalizeTurn）时 AgentChat 会以 conversation/get 的投影结果整体覆盖，
+  // 实时区仅用于进行中的临时展示。
   useEffect(() => {
-    setStatus("created");
-    msgsRef.current = [];
-    seenRef.current.clear();
-    keySeqRef.current = 0;
-    setMessages([]);
-    setLoading(false);
-  }, [taskId]);
+    let cancelled = false;
+
+    // taskId 变化时才做全量重置；skipCount 变化只需重排历史前缀（见下方）。
+    // 否则每次外层历史增长都会清空实时区，已到达的增量就丢了。
+    const isNewTask = currentTaskRef.current !== taskId;
+    if (isNewTask) {
+      currentTaskRef.current = taskId;
+      setStatus("created");
+      msgsRef.current = [];
+      keySeqRef.current = 0;
+      setMessages([]);
+      setLoading(true);
+    }
+
+    const backfill = async () => {
+      try {
+        // 1) 已落库的时间线（按 seq 升序，与实时事件的产生顺序一致）。
+        const timeline = await getAgentTaskTimelineApi(taskId);
+        if (cancelled) return;
+
+        // 前 skipCount 条已由外层 AgentChat 的历史气泡渲染，这里跳过避免重复。
+        const history = (timeline.data ?? [])
+          .slice(Math.max(0, skipCount))
+          .map<StreamMessage>((m) => ({
+            key: nextKey(),
+            kind: m.kind ?? "assistant",
+            content: m.content,
+            data: m.data,
+            streaming: false,
+            error: m.kind === "error",
+          }));
+
+        if (isNewTask) {
+          // 历史在前、实时在后：请求期间到达的 WS 事件已经写入 msgsRef，
+          // 直接前置历史而不是清空重写，否则会把这期间的增量 / 完整块丢掉。
+          msgsRef.current = [...history, ...msgsRef.current];
+        } else {
+          // 只是 skipCount 变了：把上一次回填的历史前缀整段替换掉，实时追加部分原样保留。
+          const live = msgsRef.current.slice(backfilledCountRef.current);
+          msgsRef.current = [...history, ...live];
+        }
+        backfilledCountRef.current = history.length;
+        flush();
+
+        // 2) 任务当前状态：补回 task.started / task.waiting / 终态等不落库的中间态。
+        // 若请求期间已经收到更高优先级的实时状态事件（如终态），不要用旧快照回退。
+        const task = await getAgentTaskApi(taskId);
+        if (cancelled) return;
+        const fromTask = statusFromTask(task.data?.status);
+        setStatus((prev) => (STATUS_RANK[prev] > STATUS_RANK[fromTask] ? prev : fromTask));
+      } catch {
+        // 回填失败不阻塞实时订阅：WS 事件仍会继续追加。
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          onLoaded?.();
+        }
+      }
+    };
+
+    void backfill();
+
+    return () => {
+      cancelled = true;
+    };
+    // skipCount 参与依赖：外层历史晚于本组件回填到达时（刷新后会话请求更慢），
+    // 需要重新回填并跳过更多条目，否则同一条事实会出现两份。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId, skipCount]);
 
   useEffect(() => {
     const unsubscribe = sseClient.onMessage((raw: unknown) => {
