@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ApartmentOutlined, BookOutlined, CloseOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, BarChartOutlined, ExperimentOutlined, CodeOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, AppstoreOutlined, BookOutlined, CloseOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, BarChartOutlined, ExperimentOutlined, CodeOutlined } from '@ant-design/icons';
 import { Button, Dropdown, Layout, Segmented, theme } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
@@ -15,10 +15,10 @@ import SplitWorkspace from './components/SplitWorkspace.tsx';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
-type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'analysisScriptStack' | 'analysisWorkflowStack' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'assayProjectPage' | 'projectFilePage';
+type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'analysisScriptStack' | 'analysisWorkflowStack' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'assayProjectPage' | 'projectFilePage' | 'appSessionPage';
 
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
-  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'analysisScriptStack' || key === 'analysisWorkflowStack' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'assayProjectPage' || key === 'projectFilePage';
+  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'analysisScriptStack' || key === 'analysisWorkflowStack' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'assayProjectPage' || key === 'projectFilePage' || key === 'appSessionPage';
 
 // 旧版活动栏 key 与合并后视图的映射：datasetFilePage / analysisNodeFilePage 已合并为 projectFilePage，
 // analysisNodeList / scriptPage 已合并为上下堆叠的 analysisScriptStack，
@@ -60,6 +60,7 @@ const App: React.FC = () => {
         label: locale === 'en_US' ? 'Project Files' : '项目文件',
         icon: <FolderOpenOutlined />,
       },
+     
       // {
       //   key: 'assayProjectPage',
       //   label: locale === 'en_US' ? 'Assays' : '实验/建库',
@@ -91,6 +92,10 @@ const App: React.FC = () => {
         key: 'projectLiterature',
         label: locale === 'en_US' ? 'Literature' : '参考文献',
         icon: <BookOutlined />,
+      }, {
+        key: 'appSessionPage',
+        label: locale === 'en_US' ? 'App' : '应用',
+        icon: <AppstoreOutlined />,
       },
 
     ],
@@ -141,7 +146,6 @@ const App: React.FC = () => {
       //     ...sideOptions
       //   ],
       [{ label: locale === 'en_US' ? 'Assistant' : '助手', value: 'agentChat' },
-      { label: locale === 'en_US' ? 'App' : '应用', value: 'appSessionPage' },
       { label: locale === 'en_US' ? 'Parameters' : '参数', value: 'editParamsPanel' },
         // ...sideOptions
       ],
