@@ -530,12 +530,15 @@
   max-width: none;
 }
 
+/* 分隔条本身就做成 1px 的面板边界线：两侧面板紧贴它，
+   卡片头部的 border-bottom 自然与分隔线相接（左右两侧都一样），不存在空隙。
+   用伪元素向两侧各扩展 4px 作为拖拽热区，既不占布局宽度也不产生空白。 */
 .layout-sharp-pane-divider {
-  width: 8px;
-  cursor: col-resize;
   position: relative;
-  flex: 0 0 8px;
-  background: transparent;
+  flex: 0 0 1px;
+  width: 1px;
+  cursor: col-resize;
+  background: var(--sharp-divider);
 }
 
 .layout-sharp-pane-divider::before {
@@ -543,15 +546,12 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 50%;
-  width: 1px;
-  transform: translateX(-50%);
-  background: var(--sharp-divider);
+  left: -4px;
+  right: -4px;
 }
 
-.layout-sharp-pane-divider:hover::before,
-.layout-sharp-pane-divider.is-resizing::before {
-  width: 2px;
+.layout-sharp-pane-divider:hover,
+.layout-sharp-pane-divider.is-resizing {
   background: var(--sharp-divider-strong);
 }
 
@@ -597,6 +597,12 @@
   border-right: 0;
   border-top: 0;
   border-bottom: 0;
+}
+
+/* antd 默认给 .ant-card-head 设置 margin-bottom: -1px（用于与卡片自身上边框重叠）。
+   这里的卡片是无边框的，负外边距会让 body 的滚动条上移 1px，盖住头部 border-bottom 的右端。 */
+.layout-sharp-side-card .ant-card-head {
+  margin-bottom: 0;
 }
 
 .layout-sharp-side-card .ant-card-body {
