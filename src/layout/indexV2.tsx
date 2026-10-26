@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ApartmentOutlined, BookOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, UnorderedListOutlined, BarChartOutlined, ExperimentOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, BookOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, BarChartOutlined, ExperimentOutlined } from '@ant-design/icons';
 import { Dropdown, Layout, Segmented, theme } from 'antd';
 import { Outlet, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
@@ -15,18 +15,21 @@ import SplitWorkspace from './components/SplitWorkspace.tsx';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
-type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'analysisScriptStack' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'assayProjectPage' | 'projectFilePage';
+type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'analysisScriptStack' | 'analysisWorkflowStack' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'assayProjectPage' | 'projectFilePage';
 
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
-  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'analysisScriptStack' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'assayProjectPage' || key === 'projectFilePage';
+  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'analysisScriptStack' || key === 'analysisWorkflowStack' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'assayProjectPage' || key === 'projectFilePage';
 
 // 旧版活动栏 key 与合并后视图的映射：datasetFilePage / analysisNodeFilePage 已合并为 projectFilePage，
-// analysisNodeList / scriptPage 已合并为上下堆叠的 analysisScriptStack。
+// analysisNodeList / scriptPage 已合并为上下堆叠的 analysisScriptStack，
+// analysisList / workflowPage 已合并为上下堆叠的 analysisWorkflowStack。
 const LEGACY_VIEW_KEY_MAP: Record<string, LeftPanelViewKey> = {
   datasetFilePage: 'projectFilePage',
   analysisNodeFilePage: 'projectFilePage',
   analysisNodeList: 'analysisScriptStack',
   scriptPage: 'analysisScriptStack',
+  analysisList: 'analysisWorkflowStack',
+  workflowPage: 'analysisWorkflowStack',
 };
 
 const App: React.FC = () => {
@@ -67,14 +70,9 @@ const App: React.FC = () => {
         icon: <NodeIndexOutlined />,
       },
       {
-        key: 'workflowPage',
-        label: locale === 'en_US' ? 'Workflow Page' : '流程页',
+        key: 'analysisWorkflowStack',
+        label: locale === 'en_US' ? 'Analyses & Workflows' : '分析与流程',
         icon: <ApartmentOutlined />,
-      },
-      {
-        key: 'analysisList',
-        label: locale === 'en_US' ? 'Analysis List' : '分析列表',
-        icon: <UnorderedListOutlined />,
       },
 
       {

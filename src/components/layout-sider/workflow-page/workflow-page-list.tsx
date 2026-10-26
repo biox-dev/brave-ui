@@ -5,7 +5,7 @@ import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { formatRelativeTime } from "@/utils/time";
-import { ApartmentOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import { ApartmentOutlined, CaretDownOutlined, CaretRightOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Descriptions, Empty, Pagination, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo } from "react";
@@ -78,7 +78,14 @@ const WorkflowDetailCard = ({ item }: { item: WorkflowItem }) => {
   );
 };
 
-const WorkflowPageList: FC<any> = () => {
+export interface WorkflowPageListProps {
+  /** 纵向堆叠布局注入的折叠态：折叠时仅保留标题栏。 */
+  collapsed?: boolean;
+  /** 点击标题栏时切换折叠态（未传入则标题栏不可点击）。 */
+  onToggleCollapse?: () => void;
+}
+
+const WorkflowPageList: FC<WorkflowPageListProps> = ({ collapsed = false, onToggleCollapse }) => {
   const message = useGlobalMessage();
   const navigate = useNavigate();
   const location = useLocation();
@@ -270,9 +277,25 @@ const WorkflowPageList: FC<any> = () => {
   };
 
   return (
-    <div className="project-report-panel">
+    <div className={`project-report-panel${collapsed ? " is-collapsed" : ""}`}>
       <div className="project-report-panel-header">
-        <span className="project-report-panel-title">Workflows</span>
+        {onToggleCollapse ? (
+          <button
+            type="button"
+            className="project-report-panel-title project-report-panel-title-button"
+            aria-expanded={!collapsed}
+            onClick={onToggleCollapse}
+          >
+            {collapsed ? (
+              <CaretRightOutlined className="project-report-panel-chevron" />
+            ) : (
+              <CaretDownOutlined className="project-report-panel-chevron" />
+            )}
+            <span>Workflows</span>
+          </button>
+        ) : (
+          <span className="project-report-panel-title">Workflows</span>
+        )}
         <div className="project-report-panel-actions">
           <Tooltip title="Install Workflow">
             <Button
@@ -315,7 +338,7 @@ const WorkflowPageList: FC<any> = () => {
         </div>
       </div>
 
-      <div className="project-report-panel-body">
+      <div className="project-report-panel-body" style={collapsed ? { display: "none" } : undefined}>
         {data.length === 0 && !isLoading ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -341,7 +364,13 @@ const WorkflowPageList: FC<any> = () => {
         )}
       </div>
 
-      <div style={{ padding: "6px 10px", borderTop: "1px solid var(--sharp-divider)" }}>
+      <div
+        style={{
+          padding: "6px 10px",
+          borderTop: "1px solid var(--sharp-divider)",
+          ...(collapsed ? { display: "none" } : null),
+        }}
+      >
         <Pagination
           size="small"
           current={page}
