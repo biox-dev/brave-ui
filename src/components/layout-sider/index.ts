@@ -9,6 +9,8 @@ const viewLoaders = {
     analysisList: () => import("./analysis-result/analysis-list"),
     workflowPage: () => import("./workflow-page/workflow-page-list"),
     scriptPage: () => import("./script-page/script-page-list"),
+    // VS Code 风格纵向堆叠：上面是分析节点列表，下面是脚本页。
+    analysisScriptStack: () => import("./analysis-script-stack/analysis-script-stack"),
     sysFileBrowser: () => import("./sys-file/sys-file"),
     datasetProjectPage: () => import("./data-dataset-page/dataset-project-page"),
     projectFilePage: () => import("./data-dataset-page/project-file-page"),

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ApartmentOutlined, BookOutlined, FileTextOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, UnorderedListOutlined, BarChartOutlined, ExperimentOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, BookOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, UnorderedListOutlined, BarChartOutlined, ExperimentOutlined } from '@ant-design/icons';
 import { Dropdown, Layout, Segmented, theme } from 'antd';
 import { Outlet, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
@@ -15,15 +15,18 @@ import SplitWorkspace from './components/SplitWorkspace.tsx';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
-type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'assayProjectPage' | 'projectFilePage';
+type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'analysisScriptStack' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'assayProjectPage' | 'projectFilePage';
 
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
-  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'assayProjectPage' || key === 'projectFilePage';
+  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'analysisScriptStack' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'assayProjectPage' || key === 'projectFilePage';
 
-// 旧版活动栏 key 与合并后视图的映射：datasetFilePage / analysisNodeFilePage 已合并为 projectFilePage。
+// 旧版活动栏 key 与合并后视图的映射：datasetFilePage / analysisNodeFilePage 已合并为 projectFilePage，
+// analysisNodeList / scriptPage 已合并为上下堆叠的 analysisScriptStack。
 const LEGACY_VIEW_KEY_MAP: Record<string, LeftPanelViewKey> = {
   datasetFilePage: 'projectFilePage',
   analysisNodeFilePage: 'projectFilePage',
+  analysisNodeList: 'analysisScriptStack',
+  scriptPage: 'analysisScriptStack',
 };
 
 const App: React.FC = () => {
@@ -59,21 +62,16 @@ const App: React.FC = () => {
         icon: <ExperimentOutlined />,
       },
       {
-        key: 'scriptPage',
-        label: locale === 'en_US' ? 'Script Page' : '脚本页',
-        icon: <FileTextOutlined />,
+        key: 'analysisScriptStack',
+        label: locale === 'en_US' ? 'Nodes & Scripts' : '节点与脚本',
+        icon: <NodeIndexOutlined />,
       },
-
       {
         key: 'workflowPage',
         label: locale === 'en_US' ? 'Workflow Page' : '流程页',
         icon: <ApartmentOutlined />,
       },
       {
-        key: 'analysisNodeList',
-        label: locale === 'en_US' ? 'Analysis Node List' : '分析节点列表',
-        icon: <NodeIndexOutlined />,
-      }, {
         key: 'analysisList',
         label: locale === 'en_US' ? 'Analysis List' : '分析列表',
         icon: <UnorderedListOutlined />,

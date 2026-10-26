@@ -1,0 +1,123 @@
+/* VS Code 风格的左侧栏纵向堆叠布局。 */
+
+.sider-stack {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--sharp-panel-bg, #ffffff);
+}
+
+.sider-stack-section {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sider-stack-section.is-collapsed {
+  flex: 0 0 auto;
+}
+
+.sider-stack-section-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 展开态：让面板（.project-report-panel 自带 height:100%）填满分区的剩余高度。 */
+.sider-stack-section:not(.is-collapsed) > .sider-stack-section-body > * {
+  height: 100%;
+  min-height: 0;
+}
+
+/* 折叠态：面板只保留标题栏，交给内容自身的高度。 */
+.sider-stack-section.is-collapsed > .sider-stack-section-body > * {
+  height: auto;
+}
+
+.sider-stack-divider {
+  position: relative;
+  flex: 0 0 6px;
+  cursor: row-resize;
+  background: transparent;
+  touch-action: none;
+}
+
+.sider-stack-divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 1px;
+  transform: translateY(-50%);
+  background: var(--sharp-divider, #d7dbe2);
+}
+
+.sider-stack-divider:hover::before,
+.sider-stack-divider.is-resizing::before {
+  height: 2px;
+  background: var(--sharp-divider-strong, #c7cdd8);
+}
+
+body.sider-stack-resizing {
+  cursor: row-resize;
+  user-select: none;
+}
+
+/* 面板标题栏中的折叠箭头。 */
+.project-report-panel-header .project-report-panel-chevron {
+  margin-inline-end: 4px;
+  font-size: 10px;
+  color: var(--sharp-text-soft, #5d6678);
+}
+
+/* 可点击的标题（折叠开关）：清掉 button 默认样式，保持标题外观。 */
+.project-report-panel-title-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.project-report-panel-title-button:hover,
+.project-report-panel-title-button:focus-visible {
+  color: var(--sharp-text, #1b1f27);
+  outline: none;
+}
+
+.project-report-panel-title-button:focus-visible .project-report-panel-chevron {
+  color: var(--sharp-text, #1b1f27);
+}
+
+/* 折叠后的面板只保留标题栏（body / footer 由组件用 display:none 隐藏）。 */
+.project-report-panel.is-collapsed {
+  height: auto;
+  min-height: 0;
+}
+
+/* 窄屏时左侧栏不再是固定高度容器，退化为纵向自然排列，避免 flex-basis:0 把分区压成 0 高。 */
+@media (max-width: 991px) {
+  .sider-stack {
+    height: auto;
+  }
+
+  .sider-stack-section:not(.is-collapsed) {
+    flex: 0 0 auto !important;
+  }
+
+  .sider-stack-section:not(.is-collapsed) > .sider-stack-section-body > * {
+    height: auto;
+  }
+
+  .sider-stack-divider {
+    display: none;
+  }
+}
