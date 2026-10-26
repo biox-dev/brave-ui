@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ApartmentOutlined, BookOutlined, FileTextOutlined, SettingOutlined, FileSearchOutlined, FolderOpenOutlined, FileDoneOutlined, NodeIndexOutlined, UnorderedListOutlined, BarChartOutlined, ExperimentOutlined, FileOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, BookOutlined, FileTextOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, UnorderedListOutlined, BarChartOutlined, ExperimentOutlined } from '@ant-design/icons';
 import { Dropdown, Layout, Segmented, theme } from 'antd';
 import { Outlet, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
@@ -15,10 +15,16 @@ import SplitWorkspace from './components/SplitWorkspace.tsx';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
-type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'aiSummaryProject' | 'assayProjectPage' | 'datasetFilePage' | 'analysisNodeFilePage';
+type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'assayProjectPage' | 'projectFilePage';
 
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
-  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'aiSummaryProject' || key === 'assayProjectPage' || key === 'datasetFilePage' || key === 'analysisNodeFilePage';
+  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'assayProjectPage' || key === 'projectFilePage';
+
+// 旧版活动栏 key 与合并后视图的映射：datasetFilePage / analysisNodeFilePage 已合并为 projectFilePage。
+const LEGACY_VIEW_KEY_MAP: Record<string, LeftPanelViewKey> = {
+  datasetFilePage: 'projectFilePage',
+  analysisNodeFilePage: 'projectFilePage',
+};
 
 const App: React.FC = () => {
   const { locale } = useI18n();
@@ -43,14 +49,9 @@ const App: React.FC = () => {
   const leftActivityItems = useMemo(
     () => [
       {
-        key: 'datasetFilePage',
-        label: locale === 'en_US' ? 'Dataset Files' : '数据集文件',
+        key: 'projectFilePage',
+        label: locale === 'en_US' ? 'Project Files' : '项目文件',
         icon: <FolderOpenOutlined />,
-      },
-      {
-        key: 'analysisNodeFilePage',
-        label: locale === 'en_US' ? 'Analysis Node Files' : '分析节点文件',
-        icon: <FileSearchOutlined />,
       },
       {
         key: 'assayProjectPage',
@@ -79,10 +80,6 @@ const App: React.FC = () => {
       },
 
       {
-        key: 'aiSummaryProject',
-        label: locale === 'en_US' ? 'AI Summary' : 'AI 摘要',
-        icon: <FileDoneOutlined />,
-      }, {
         key: 'projectReport',
         label: locale === 'en_US' ? 'Project Report' : '项目报告',
         icon: <BarChartOutlined />,
@@ -118,6 +115,14 @@ const App: React.FC = () => {
     const hasMatchedItem = leftActivityItems.some((item) => item.key === leftActivityKey);
     if (hasMatchedItem) {
       setLeftSideView(leftActivityKey);
+      return;
+    }
+
+    // 兼容历史缓存：旧 key 映射到合并后的视图。
+    const legacyView = LEGACY_VIEW_KEY_MAP[leftActivityKey];
+    if (legacyView) {
+      setLeftSideView(legacyView);
+      dispatch(setUserItem({ leftActivityKey: legacyView }));
       return;
     }
 

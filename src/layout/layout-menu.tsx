@@ -5,6 +5,7 @@ import {
   CompassOutlined,
   ContainerOutlined,
   DashboardOutlined,
+  FileDoneOutlined,
   FileTextOutlined,
   FolderOpenOutlined,
   ReadOutlined,
@@ -41,6 +42,7 @@ const iconRegistry: Record<string, ReactNode> = {
   report: <FileTextOutlined />,
   apps: <AppstoreOutlined />,
   literature: <ReadOutlined />,
+  summary: <FileDoneOutlined />,
   container: <ContainerOutlined />,
   code: <CodeOutlined />,
   agent: <RobotOutlined />,
@@ -108,6 +110,14 @@ export const layoutMenuTree: LayoutMenuItem[] = [
     label: {
       zh_CN: '实验/建库',
       en_US: 'Assays',
+    },
+  },
+  {
+    key: '/ai-summary',
+    icon: 'summary',
+    label: {
+      zh_CN: 'AI 摘要',
+      en_US: 'AI Summary',
     },
   },
   {

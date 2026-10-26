@@ -95,6 +95,7 @@ const AgentSkillPage = lazy(() => import("@/pages/agent/agent-skill-page"))
 const AgentProfilePage = lazy(() => import("@/pages/agent/agent-profile-page"))
 const AgentMemoryPage = lazy(() => import("@/pages/agent/agent-memory-page"))
 const ConfigPage = lazy(() => import("@/pages/config"))
+const AISummaryPage = lazy(() => import("@/pages/ai-summary"))
 import axios from "axios";
 import { Skeleton } from "antd";
 import { useDispatch } from "react-redux";
@@ -148,6 +149,9 @@ if (appType == "index") {
         }, {
             path: "assay-project",
             element: <AssayProjectPage />
+        }, {
+            path: "ai-summary",
+            element: <AISummaryPage />
         }, {
             path: "container-template",
             element: <ContainerTemplatePage />

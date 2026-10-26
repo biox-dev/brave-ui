@@ -1,0 +1,119 @@
+/* 文件列表面板（FileListPage / ProjectFilePage）
+ *
+ * 结构与样式：顶部操作区（标题 + 计数 + 操作按钮） -> 视图切换 -> 列表 -> 分页。
+ * 颜色沿用 indexV2.css 定义的 --sharp-* 变量；在抽屉/弹窗等布局外使用时回退到浅色默认值。
+ */
+
+.file-list-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--sharp-panel-bg, #ffffff);
+}
+
+/* 顶部操作区 */
+.file-list-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 8px 6px 14px;
+}
+
+.file-list-toolbar-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.file-list-toolbar-title {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sharp-text, #1b1f27);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-list-toolbar-count {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 9px;
+  background: var(--sharp-panel-muted, #f1f4f9);
+  color: var(--sharp-text-soft, #5d6678);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.file-list-toolbar-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+}
+
+.file-list-toolbar-actions .ant-btn {
+  color: var(--sharp-text-soft, #5d6678);
+  border-radius: 6px;
+}
+
+.file-list-toolbar-actions .ant-btn:hover {
+  color: var(--sharp-text, #1b1f27);
+  background: var(--sharp-panel-muted, #eef2f8);
+}
+
+/* 视图切换（Segmented）单独一行，位于操作区下方 */
+.file-list-switch {
+  padding: 0 10px 8px;
+}
+
+.file-list-switch .ant-segmented {
+  width: 100%;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--sharp-panel-muted, #f1f4f9);
+}
+
+.file-list-switch .ant-segmented-item {
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--sharp-text-soft, #5d6678);
+}
+
+.file-list-switch .ant-segmented-item-selected {
+  color: var(--sharp-text, #1b1f27);
+  font-weight: 600;
+}
+
+.file-list-switch .ant-segmented-thumb {
+  border-radius: 6px;
+}
+
+/* 操作区/切换区与列表之间的分隔线 */
+.file-list-divider {
+  height: 1px;
+  margin: 0 10px;
+  background: var(--sharp-divider, #e2e6ee);
+}
+
+.file-list-empty {
+  padding: 40px 0;
+}
+
+/* 底部分页区 */
+.file-list-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--sharp-divider, #e2e6ee);
+}

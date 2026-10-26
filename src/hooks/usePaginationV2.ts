@@ -312,6 +312,32 @@ export const useAnalysisNodeFilePageQuery = (
 	});
 };
 
+/**
+ * 项目文件列表（合并视图）的分页查询。
+ *
+ * `source` 只决定调用哪个接口：`dataset` = 数据集文件（用户上传），
+ * `analysisNode` = 分析节点产出文件；两个接口的入参/出参结构一致，UI 完全复用。
+ */
+export const useProjectFilePageQuery = (
+	source: "dataset" | "analysisNode",
+	query: DatasetFilePageQuery,
+	options?: Omit<UsePageQueryOptions<DatasetFileItem, DatasetFilePageQuery>, "queryKey" | "query" | "endpoint" | "queryFn">
+) => {
+	return usePageQuery<DatasetFileItem, DatasetFilePageQuery>({
+		queryKey: ["project-file-page", source],
+		query,
+		queryFn: async (payload) => {
+			const response =
+				source === "analysisNode"
+					? await pageFileByProjectViaAnalysisNodeApi(payload)
+					: await pageFileByProjectApi(payload);
+			return response.data;
+		},
+		initialPageSize: 10,
+		...options,
+	});
+};
+
 export const useAssayProjectPageQuery = (
 	query: AssayPageQuery,
 	options?: Omit<UsePageQueryOptions<AssayItem, AssayPageQuery>, "queryKey" | "query" | "endpoint" | "queryFn">
