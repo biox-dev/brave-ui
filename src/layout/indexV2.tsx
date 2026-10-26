@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ApartmentOutlined, BookOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, BarChartOutlined, ExperimentOutlined, CodeOutlined } from '@ant-design/icons';
-import { Dropdown, Layout, Segmented, theme } from 'antd';
+import { ApartmentOutlined, BookOutlined, CloseOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, BarChartOutlined, ExperimentOutlined, CodeOutlined } from '@ant-design/icons';
+import { Button, Dropdown, Layout, Segmented, theme } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { useI18n } from '@/hooks/useI18n';
@@ -208,7 +208,28 @@ const App: React.FC = () => {
                 onLeftWidthCommit={(width) => dispatch(setUserItem({ leftPanelWidth: width }))}
                 onRightWidthCommit={(width) => dispatch(setUserItem({ rightPanelWidth: width }))}
                 left={<ViewResolver view={leftSideView} view_mode="card" />}
-                main={isRootRoute ? null : <Outlet />}
+                main={
+                  isRootRoute ? null : (
+                    <BorderlessCard
+                      size="small"
+                      className="layout-sharp-main-card"
+                      styles={{ body: { padding: 8 } }}
+                      extra={
+                        <Button
+                          type="text"
+                          size="small"
+                          className="layout-sharp-main-close"
+                          icon={<CloseOutlined />}
+                          title={locale === 'en_US' ? 'Close' : '关闭'}
+                          aria-label={locale === 'en_US' ? 'Close' : '关闭'}
+                          onClick={() => navigate('/')}
+                        />
+                      }
+                    >
+                      <Outlet />
+                    </BorderlessCard>
+                  )
+                }
                 expandRight={isRootRoute}
                 right={
 

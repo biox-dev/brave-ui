@@ -488,8 +488,22 @@
 .layout-sharp-main-pane {
   flex: 1;
   min-width: 0;
-  padding: 16px;
-  overflow: auto;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* 主区域与右侧面板一致的卡片头部：右上角关闭按钮 */
+.layout-sharp-main-card {
+  height: 100%;
+}
+
+.layout-sharp-main-close {
+  color: var(--sharp-text-soft);
+}
+
+.layout-sharp-main-close:hover {
+  color: var(--sharp-text) !important;
+  background: color-mix(in srgb, var(--sharp-panel-muted) 65%, transparent) !important;
 }
 
 .layout-sharp-left-pane,
