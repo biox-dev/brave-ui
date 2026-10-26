@@ -508,6 +508,14 @@
   max-width: 640px;
 }
 
+/* 主区域无内容时（根路由），右侧面板撑满剩余空间 */
+.layout-sharp-right-pane.is-expanded {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+}
+
 .layout-sharp-pane-divider {
   width: 8px;
   cursor: col-resize;

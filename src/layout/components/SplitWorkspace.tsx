@@ -2,8 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 
 type SplitWorkspaceProps = {
   left?: React.ReactNode;
-  main: React.ReactNode;
+  main?: React.ReactNode;
   right?: React.ReactNode;
+  /** 主区域无内容时，让右侧面板拉伸占满剩余空间 */
+  expandRight?: boolean;
   leftWidth?: number;
   rightWidth?: number;
   onLeftWidthChange?: (width: number) => void;
@@ -25,6 +27,7 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
   left,
   main,
   right,
+  expandRight = false,
   leftWidth,
   rightWidth,
   onLeftWidthChange,
@@ -50,7 +53,10 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
   const [innerLeftWidth, setInnerLeftWidth] = useState(defaultLeftWidth);
   const [innerRightWidth, setInnerRightWidth] = useState(defaultRightWidth);
   const hasLeftPane = Boolean(left);
+  const hasMainPane = Boolean(main);
   const hasRightPane = Boolean(right);
+  // 主区域没有内容时，右侧面板撑满剩余空间
+  const isRightExpanded = expandRight && !hasMainPane && hasRightPane;
   const currentLeftWidth = Math.min(
     maxLeftWidth,
     Math.max(minLeftWidth, leftWidth ?? innerLeftWidth),
@@ -192,21 +198,26 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
           />
         </>
       )}
-      <div className="layout-sharp-main-pane">{main}</div>
+      {hasMainPane && <div className="layout-sharp-main-pane">{main}</div>}
       {hasRightPane && (
         <>
+          {hasMainPane && !isRightExpanded && (
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label={rightResizeLabel}
+              className={`layout-sharp-pane-divider ${activeDivider === 'right' ? 'is-resizing' : ''}`}
+              onPointerDown={() => onStartResize('right')}
+              onDoubleClick={() => {
+                applyRightWidth(defaultRightWidth);
+                onRightWidthCommit?.(defaultRightWidth);
+              }}
+            />
+          )}
           <div
-            role="separator"
-            aria-orientation="vertical"
-            aria-label={rightResizeLabel}
-            className={`layout-sharp-pane-divider ${activeDivider === 'right' ? 'is-resizing' : ''}`}
-            onPointerDown={() => onStartResize('right')}
-            onDoubleClick={() => {
-              applyRightWidth(defaultRightWidth);
-              onRightWidthCommit?.(defaultRightWidth);
-            }}
-          />
-          <div className="layout-sharp-right-pane" style={{ width: currentRightWidth }}>
+            className={`layout-sharp-right-pane${isRightExpanded ? ' is-expanded' : ''}`}
+            style={isRightExpanded ? undefined : { width: currentRightWidth }}
+          >
             {right}
           </div>
         </>

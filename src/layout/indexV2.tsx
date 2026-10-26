@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ApartmentOutlined, BookOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, BarChartOutlined, ExperimentOutlined, CodeOutlined } from '@ant-design/icons';
 import { Dropdown, Layout, Segmented, theme } from 'antd';
-import { Outlet, useNavigate } from 'react-router';
+import { Outlet, useLocation, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { useI18n } from '@/hooks/useI18n';
 import ViewResolver from '@/core/ui-renderer/ViewResolver';
@@ -35,6 +35,7 @@ const LEGACY_VIEW_KEY_MAP: Record<string, LeftPanelViewKey> = {
 const App: React.FC = () => {
   const { locale } = useI18n();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const dispatch = useDispatch();
   const appTheme = useSelector((state: any) => state.user.theme);
   const leftActivityKey = useSelector((state: any) => state.user.leftActivityKey);
@@ -128,6 +129,8 @@ const App: React.FC = () => {
   }, [dispatch, leftActivityItems, leftActivityKey]);
 
   const currentYear = new Date().getFullYear();
+  // 根路由（无实际内容页）时，主区域留空，由右侧面板撑满剩余空间
+  const isRootRoute = pathname.replace(/\/+$/, '') === '';
   const layoutLocale: LayoutLocale = locale === 'en_US' ? 'en_US' : 'zh_CN';
   const segmentedOptions = useMemo(
     () =>
@@ -205,7 +208,8 @@ const App: React.FC = () => {
                 onLeftWidthCommit={(width) => dispatch(setUserItem({ leftPanelWidth: width }))}
                 onRightWidthCommit={(width) => dispatch(setUserItem({ rightPanelWidth: width }))}
                 left={<ViewResolver view={leftSideView} view_mode="card" />}
-                main={<Outlet />}
+                main={isRootRoute ? null : <Outlet />}
+                expandRight={isRootRoute}
                 right={
 
                   <BorderlessCard
