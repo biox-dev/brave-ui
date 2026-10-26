@@ -20,6 +20,31 @@ const rightPanelWidth = Number(localStorage.getItem('rightPanelWidth'))
 const leftActivityKey = localStorage.getItem('leftActivityKey')
 const sideView = localStorage.getItem('sideView')
 
+// 左侧栏纵向堆叠视图的折叠状态：{ [stackKey]: collapsedSectionKeys[] }
+const parseLeftStackCollapsed = (): Record<string, string[]> => {
+    try {
+        const raw = localStorage.getItem('leftStackCollapsed')
+        if (!raw) {
+            return {}
+        }
+        const parsed = JSON.parse(raw)
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            return {}
+        }
+        return Object.fromEntries(
+            Object.entries(parsed).map(([key, value]) => [
+                key,
+                Array.isArray(value)
+                    ? value.filter((item): item is string => typeof item === 'string')
+                    : [],
+            ])
+        )
+    } catch {
+        return {}
+    }
+}
+const leftStackCollapsed = parseLeftStackCollapsed()
+
 export const loadActiveProject = createAsyncThunk(
     'user/loadActiveProject',
     async (_, { rejectWithValue }) => {
@@ -80,6 +105,8 @@ interface UserState {
     rightPanelWidth:number;
     leftActivityKey:string;
     sideView:string;
+    /** 左侧栏堆叠视图折叠状态：{ [stackKey]: collapsedSectionKeys[] }。 */
+    leftStackCollapsed: Record<string, string[]>;
     userInfo: LoginUserInfo | null;
     componentLayout:"simple"|"complex",
     network:"UNKNOW" | "CONNECT" | "NOT_CONNECT"
@@ -109,6 +136,7 @@ const contextSlice = createSlice({
         rightPanelWidth:Number.isFinite(rightPanelWidth)?rightPanelWidth:360,
         leftActivityKey:leftActivityKey?leftActivityKey:'sysFileBrowser',
         sideView:sideView?sideView:'agentChat',
+        leftStackCollapsed,
         userInfo: null as LoginUserInfo | null,
         componentLayout:"simple",
         network:"UNKNOW",
@@ -182,6 +210,9 @@ const contextSlice = createSlice({
             }
             if (action.payload.leftActivityKey !== undefined) {
                 localStorage.setItem('leftActivityKey', action.payload.leftActivityKey)
+            }
+            if (action.payload.leftStackCollapsed !== undefined) {
+                localStorage.setItem('leftStackCollapsed', JSON.stringify(action.payload.leftStackCollapsed))
             }
             if (action.payload.sideView !== undefined) {
                 if (action.payload.sideView) {

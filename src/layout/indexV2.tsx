@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ApartmentOutlined, BookOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, BarChartOutlined, ExperimentOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, BookOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, BarChartOutlined, ExperimentOutlined, CodeOutlined } from '@ant-design/icons';
 import { Dropdown, Layout, Segmented, theme } from 'antd';
 import { Outlet, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
@@ -59,15 +59,15 @@ const App: React.FC = () => {
         label: locale === 'en_US' ? 'Project Files' : '项目文件',
         icon: <FolderOpenOutlined />,
       },
-      {
-        key: 'assayProjectPage',
-        label: locale === 'en_US' ? 'Assays' : '实验/建库',
-        icon: <ExperimentOutlined />,
-      },
+      // {
+      //   key: 'assayProjectPage',
+      //   label: locale === 'en_US' ? 'Assays' : '实验/建库',
+      //   icon: <ExperimentOutlined />,
+      // },
       {
         key: 'analysisScriptStack',
         label: locale === 'en_US' ? 'Nodes & Scripts' : '节点与脚本',
-        icon: <NodeIndexOutlined />,
+        icon: <CodeOutlined />,
       },
       {
         key: 'analysisWorkflowStack',

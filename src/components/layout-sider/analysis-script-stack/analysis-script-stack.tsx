@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import ViewResolver from '@/core/ui-renderer/ViewResolver';
 import { useI18n } from '@/hooks/useI18n';
 import SiderStackLayout, { type SiderStackSection } from '../sider-stack-layout';
+import { useSiderStackCollapsed } from '../use-sider-stack-collapsed';
 
 /**
  * 左侧栏纵向堆叠视图：上方「分析节点列表」，下方「脚本页」。
@@ -11,6 +12,8 @@ import SiderStackLayout, { type SiderStackSection } from '../sider-stack-layout'
  */
 const AnalysisScriptStack = () => {
   const { locale } = useI18n();
+  // 折叠状态持久化：切换面板 / 刷新浏览器后保持原样。
+  const [collapsedKeys, setCollapsedKeys] = useSiderStackCollapsed('analysisScriptStack');
 
   const sections = useMemo<SiderStackSection[]>(
     () => [
@@ -41,6 +44,8 @@ const AnalysisScriptStack = () => {
   return (
     <SiderStackLayout
       sections={sections}
+      collapsedKeys={collapsedKeys}
+      onCollapsedKeysChange={setCollapsedKeys}
       resizeLabel={locale === 'en_US' ? 'Resize panels' : '调整面板高度'}
     />
   );
