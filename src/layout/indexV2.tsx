@@ -54,8 +54,6 @@ const App: React.FC = () => {
   );
   const [leftWidthDraft, setLeftWidthDraft] = useState<number>(leftPanelWidth);
   const [rightWidthDraft, setRightWidthDraft] = useState<number>(rightPanelWidth);
-  // 主区域标签页数量：undefined 表示接口数据尚未回填，此时不要贸然收起主区域。
-  const [mainTabCount, setMainTabCount] = useState<number | undefined>(undefined);
 
   const leftActivityItems = useMemo(
     () => [
@@ -138,12 +136,20 @@ const App: React.FC = () => {
   }, [dispatch, leftActivityItems, leftActivityKey]);
 
   const currentYear = new Date().getFullYear();
-  // 根路由（无实际内容页）时，主区域不渲染 <Outlet />，只保留标签栏。
+  // 根路由：主区域不渲染 <Outlet />，只有标签栏有意义。
   const normalizedPath = pathname.replace(/\/+$/, '');
   const isRootRoute = normalizedPath === '' || normalizedPath === '/';
-  // 仅当确认「一个标签页都没有」时才收起整个主区域让右侧撑满；
-  // 接口未返回（undefined）时保持主区域可见，避免首屏闪烁。
-  const hideMainPane = isRootRoute && mainTabCount === 0;
+  // 直接从 redux 读取已落库的标签页（由 /auth/me 回填），不依赖 MainTabs 是否已挂载，
+  // 否则 main 为 null 时 MainTabs 不渲染 → 永远拿不到数据 → 死锁。
+  const savedTabs = useSelector((state: any) => state.user.userInfo?.menu_config?.tabs as
+    | Array<{ url?: string }>
+    | undefined);
+  const hasSavedTabs = Boolean(
+    savedTabs?.some((tab) => tab.url && tab.url !== '/'),
+  );
+  // 根路由且后端还没有任何标签时，主区域收收让右侧撑满；
+  // 一旦标签数据回填（或路由离开根路径），主区域自动打开。
+  const hideMainPane = isRootRoute && !hasSavedTabs;
   const layoutLocale: LayoutLocale = locale === 'en_US' ? 'en_US' : 'zh_CN';
   const segmentedOptions = useMemo(
     () =>
@@ -238,7 +244,7 @@ const App: React.FC = () => {
                       size="small"
                       className="layout-sharp-main-card"
                       styles={{ body: { padding: 8 } }}
-                      title={<MainTabs onTabsChange={setMainTabCount} />}
+                      title={<MainTabs />}
                     >
                       {isRootRoute ? (
                         <div className="layout-sharp-main-empty">
