@@ -66,7 +66,8 @@ const MainTabs = forwardRef<MainTabsHandle>((_props, ref) => {
   const serverTabs = useMemo<UserMenuTab[]>(() => menuConfig?.tabs ?? [], [menuConfig]);
 
   // null = 接口数据还没到：此时不渲染标签、也不落库，避免用空列表覆盖后端。
-  const [keys, setKeys] = useState<string[] | null>(null);
+  // 本地状态直接持有 url + title：渲染与落库都用它，redux 里的 menu_config 只是同步出去的副本。
+  const [tabs, setTabs] = useState<UserMenuTab[] | null>(null);
   const tabsRef = useRef<HTMLDivElement | null>(null);
   // 各组件登记的可读名称（如节点名）；没登记的标签页回退到静态标题规则。
   const titleOverrides = useMainTabTitles();
@@ -81,37 +82,51 @@ const MainTabs = forwardRef<MainTabsHandle>((_props, ref) => {
     }
     hydratedUserRef.current = userId;
     seedMainTabTitles(serverTabs);
-    const tabs: UserMenuTab[] = serverTabs
+    const next: UserMenuTab[] = serverTabs
       .map((tab) => ({ url: toMainTabKey(tab.url), title: (tab.title ?? '').trim() }))
       .filter((tab) => tab.url !== '/');
     // 后端已有内容：先记成「已同步」，避免回填后立刻再发一次相同的请求
-    savedSignatureRef.current = JSON.stringify(tabs);
-    if (!isRoot && !tabs.some((tab) => tab.url === currentKey)) {
+    savedSignatureRef.current = JSON.stringify(next);
+    if (!isRoot && !next.some((tab) => tab.url === currentKey)) {
       // 当前深链路由不在后端列表里 → 补一个，由下一轮同步落库
-      tabs.push({ url: currentKey, title: '' });
+      next.push({ url: currentKey, title: '' });
     }
-    setKeys(tabs.slice(-MAX_TABS).map((tab) => tab.url));
+    setTabs(next.slice(-MAX_TABS));
   }, [currentKey, isRoot, serverTabs, userId]);
 
-  // 2) 路由变化时把当前地址加入标签页
+  // 2) 路由变化时把当前地址加入标签页（已存在则不动，避免覆盖已登记的名称）
   useEffect(() => {
     if (isRoot) {
       return;
     }
-    setKeys((prev) =>
-      prev && !prev.includes(currentKey) ? [...prev, currentKey].slice(-MAX_TABS) : prev,
+    setTabs((prev) =>
+      prev && !prev.some((tab) => tab.url === currentKey)
+        ? [...prev, { url: currentKey, title: '' }].slice(-MAX_TABS)
+        : prev,
     );
   }, [currentKey, isRoot]);
 
-  // 3) 新增 / 关闭 / 改名统一在这里同步：先本地乐观更新 redux，再异步落库。
+  // 3) 把本地标签页的显示名同步成最新（页面登记的节点名可能晚于标签页创建）。
+  // 只在名称真的变化时才换状态，避免无意义的重渲染。
   useEffect(() => {
-    if (!keys) {
+    if (!tabs) {
       return;
     }
-    const tabs: UserMenuTab[] = keys.map((url) => ({
-      url,
-      title: titleOverrides[url] ?? '',
+    const next = tabs.map((tab) => ({
+      url: tab.url,
+      title: titleOverrides[tab.url] ?? '',
     }));
+    if (next.every((tab, index) => tab.title === tabs[index].title)) {
+      return;
+    }
+    setTabs(next);
+  }, [tabs, titleOverrides]);
+
+  // 4) 标签页变化后同步到 redux 并异步落库。
+  useEffect(() => {
+    if (!tabs) {
+      return;
+    }
     const signature = JSON.stringify(tabs);
     if (signature === savedSignatureRef.current) {
       return;
@@ -119,35 +134,36 @@ const MainTabs = forwardRef<MainTabsHandle>((_props, ref) => {
     savedSignatureRef.current = signature;
     dispatch(setUserMenuTabs(tabs));
     scheduleSaveMenuTabs(tabs);
-  }, [dispatch, keys, titleOverrides]);
+  }, [dispatch, tabs]);
 
-  // 4) 清理已关闭标签页残留的名称
+  // 5) 清理已关闭标签页残留的名称
   useEffect(() => {
-    if (keys) {
-      pruneMainTabTitles([...keys, currentKey]);
+    if (!tabs) {
+      return;
     }
-  }, [currentKey, keys]);
+    pruneMainTabTitles([...tabs.map((tab) => tab.url), currentKey]);
+  }, [currentKey, tabs]);
 
   const closeTab = useCallback(
     (key: string) => {
-      if (!keys) {
+      if (!tabs) {
         return;
       }
-      const index = keys.indexOf(key);
+      const index = tabs.findIndex((tab) => tab.url === key);
       if (index < 0) {
         return;
       }
-      const next = keys.filter((item) => item !== key);
-      setKeys(next);
+      const next = tabs.filter((tab) => tab.url !== key);
+      setTabs(next);
       // 标签页关闭后同步清理它登记的名称
       clearMainTabTitle(key);
       if (key === currentKey) {
         // 关闭当前标签：优先切到右侧相邻标签，没有则切到左侧，全部关闭后回到根路由
-        const fallback = next[index] ?? next[index - 1] ?? null;
+        const fallback = next[index]?.url ?? next[index - 1]?.url ?? null;
         navigate(fallback ?? '/');
       }
     },
-    [currentKey, keys, navigate],
+    [currentKey, tabs, navigate],
   );
 
   useImperativeHandle(ref, () => ({ closeActiveTab: () => closeTab(currentKey) }), [
@@ -186,13 +202,14 @@ const MainTabs = forwardRef<MainTabsHandle>((_props, ref) => {
       container.querySelectorAll<HTMLElement>('[data-tab-key]'),
     ).find((node) => node.dataset.tabKey === currentKey);
     active?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, [currentKey, isRoot, keys?.length]);
+  }, [currentKey, isRoot, tabs?.length]);
 
   return (
     <div className="layout-sharp-main-tabs" ref={tabsRef} role="tablist">
       <div className="layout-sharp-main-tabs-track">
-        {(keys ?? []).map((key) => {
-          const title = titleOverrides[key] ?? resolveMainTabTitle(key, locale);
+        {(tabs ?? []).map((tab) => {
+          const key = tab.url;
+          const title = tab.title || resolveMainTabTitle(key, locale);
           const isActive = key === currentKey && !isRoot;
           return (
             <div
