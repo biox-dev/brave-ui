@@ -4,6 +4,7 @@ import { useComponentStore } from "@/event-bus/stores/components";
 import { useAnalysisNodePageQuery } from "@/hooks/usePaginationV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
+import { setMainTabTitle } from "@/layout/main-tab-title-store";
 import { formatRelativeTime } from "@/utils/time";
 import { CaretDownOutlined, CaretRightOutlined, DeleteOutlined, ExperimentOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Descriptions, Empty, Pagination, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
@@ -34,6 +35,10 @@ const statusColor = (status: string) => {
 
 const formatDateTime = (value?: string) =>
   value ? new Date(value).toLocaleString() : "-";
+
+/** 节点的人类可读名称：优先 node_name，其次 analysis_node_id，最后回退到 id。 */
+const nodeDisplayName = (node: AnalysisNodeItem) =>
+  node.node_name || node.analysis_node_id || `Node-${node.id}`;
 
 const AnalysisNodeDetailCard = ({ item }: { item: AnalysisNodeItem }) => (
   <div style={{ width: 380 }}>
@@ -188,6 +193,17 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
   };
 
   /**
+   * 打开节点报告标签页。
+   * 统一通过 MainTabs 的标题通道登记节点名：标签页会直接显示节点名称，
+   * 而不是静态规则生成的「节点报告 · <id>」。
+   */
+  const openNodeReport = (node: AnalysisNodeItem) => {
+    const path = `/analsyis-node-report/${node.id}`;
+    setMainTabTitle(path, nodeDisplayName(node));
+    navigate(path);
+  };
+
+  /**
    * invoke 弹窗打开节点报告（与路由 /analsyis-node-report/:analysisNodeId 同一组件：
    * 路由传的是 record.id，这里保持一致）。
    */
@@ -243,7 +259,7 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
         key: "node_name",
         ellipsis: { showTitle: false },
         render: (name: string, record) => {
-          const title = name || record.analysis_node_id || `Node-${record.id}`;
+          const title = nodeDisplayName(record);
           const meta = [
             record.status,
             record.updated_at
@@ -261,9 +277,21 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
             <div className="project-report-item">
               <ExperimentOutlined className="project-report-item-icon" />
               <div className="project-report-item-text">
-                <Tooltip placement="topLeft" title={title}>
+                {/* 详情卡片只在鼠标悬停到标题上时显示，避免整行悬停就弹卡。 */}
+                <Popover
+                  placement="left"
+                  mouseEnterDelay={0.2}
+                  mouseLeaveDelay={0.1}
+                  title={
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <ExperimentOutlined />
+                      {title}
+                    </span>
+                  }
+                  content={<AnalysisNodeDetailCard item={record} />}
+                >
                   <span className="project-report-item-title">{title}</span>
-                </Tooltip>
+                </Popover>
                 {meta && (
                   <span className="project-report-item-meta" title={meta}>
                     {meta}
@@ -312,37 +340,6 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
     ],
     [locale]
   );
-
-  const bodyRow = useMemo(() => {
-    const Row = (props: any) => {
-      const rowKey = props?.["data-row-key"];
-      const record = data.find((item) => String(item.id) === String(rowKey));
-      const rowElement = <tr {...props} />;
-
-      if (!record) {
-        return rowElement;
-      }
-
-      return (
-        <Popover
-          placement="left"
-          mouseEnterDelay={0.2}
-          mouseLeaveDelay={0.1}
-          title={
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <ExperimentOutlined />
-              {record.node_name || record.analysis_node_id || `Node-${record.id}`}
-            </span>
-          }
-          content={<AnalysisNodeDetailCard item={record} />}
-        >
-          {rowElement}
-        </Popover>
-      );
-    };
-
-    return Row;
-  }, [data]);
 
   const selectColumn: ColumnsType<AnalysisNodeItem>[number] = {
     title: "Select",
@@ -416,7 +413,6 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
             loading={isLoading || isFetching}
             pagination={false}
             showHeader={false}
-            components={{ body: { row: bodyRow } }}
             rowClassName={(record) =>
               isPicked(record.id) || String(record.id) === String(selectedId)
                 ? "project-report-row-selected"
@@ -426,7 +422,7 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
               onClick: () =>
                 selectable
                   ? handleSelect(record)
-                  : navigate(`/analsyis-node-report/${record.id}`),
+                  : openNodeReport(record),
             })}
           />
         )}

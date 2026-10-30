@@ -8,6 +8,7 @@ import ViewResolver from "@/core/ui-renderer/ViewResolver";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { runAnalysisNodeApi, stopAnalysisNodeApi } from "@/api/analysisv1";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
+import { useMainTabTitle } from "@/hooks/useMainTabTitle";
 import { http } from "@/api/client/http";
 import { useSelector } from "react-redux";
 import { useStoreRender } from "@/context/render/RenderProvider";
@@ -53,6 +54,9 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
     const { register, unregister } = useComponentStore();
     const message = useGlobalMessage();
     const [selectedSampleDetail, setSelectedSampleDetail] = useState<any>({});
+    // 统一标签页标题通道：详情加载完成后把节点名同步给 MainTabs，
+    // 直接打开/刷新该路由时标签页也能显示节点名。
+    useMainTabTitle(selectedSampleDetail?.node?.node_name);
     // 运行中的节点可以打开容器终端（xterm.js -> WebSocket -> kubectl/docker exec）。
     const [terminalOpen, setTerminalOpen] = useState(false);
     const { containerURL } = useSelector((state: any) => state.user);

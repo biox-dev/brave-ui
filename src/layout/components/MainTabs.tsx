@@ -2,6 +2,8 @@ import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef,
 import { CloseOutlined } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router';
 import { useI18n } from '@/hooks/useI18n';
+import { useMainTabTitles } from '@/hooks/useMainTabTitle';
+import { clearMainTabTitle, pruneMainTabTitles } from '../main-tab-title-store';
 import { normalizeMainTabPath, resolveMainTabTitle } from '../main-tab-title';
 
 const STORAGE_KEY = 'mainTabs';
@@ -39,9 +41,17 @@ const MainTabs = forwardRef<MainTabsHandle>((_props, ref) => {
   const { pathname, search } = useLocation();
   const [keys, setKeys] = useState<string[]>(readStoredKeys);
   const tabsRef = useRef<HTMLDivElement | null>(null);
+  // 各组件登记的可读名称（如节点名）；没登记的标签页回退到静态标题规则。
+  const titleOverrides = useMainTabTitles();
 
   const currentKey = `${normalizeMainTabPath(pathname)}${search}`;
   const isRoot = normalizeMainTabPath(pathname) === '/';
+
+  // 清理历史残留：只保留仍然存在的标签页登记的名称。
+  // 同时保留当前路由，避免页面已登记标题、而本组件还没把该路由写入 keys 时被误删。
+  useEffect(() => {
+    pruneMainTabTitles([...keys, currentKey]);
+  }, [keys, currentKey]);
 
   // 路由变化时把当前地址加入标签页
   useEffect(() => {
@@ -71,6 +81,8 @@ const MainTabs = forwardRef<MainTabsHandle>((_props, ref) => {
       }
       const next = keys.filter((item) => item !== key);
       setKeys(next);
+      // 标签页关闭后同步清理它登记的名称
+      clearMainTabTitle(key);
       if (key === currentKey) {
         // 关闭当前标签：优先切到右侧相邻标签，没有则切到左侧，全部关闭后回到根路由
         const fallback = next[index] ?? next[index - 1] ?? null;
@@ -122,7 +134,7 @@ const MainTabs = forwardRef<MainTabsHandle>((_props, ref) => {
     <div className="layout-sharp-main-tabs" ref={tabsRef} role="tablist">
       <div className="layout-sharp-main-tabs-track">
         {keys.map((key) => {
-          const title = resolveMainTabTitle(key, locale);
+          const title = titleOverrides[key] ?? resolveMainTabTitle(key, locale);
           const isActive = key === currentKey && !isRoot;
           return (
             <div
