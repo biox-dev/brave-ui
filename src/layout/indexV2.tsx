@@ -54,6 +54,8 @@ const App: React.FC = () => {
   );
   const [leftWidthDraft, setLeftWidthDraft] = useState<number>(leftPanelWidth);
   const [rightWidthDraft, setRightWidthDraft] = useState<number>(rightPanelWidth);
+  // 主区域标签页数量：undefined 表示接口数据尚未回填，此时不要贸然收起主区域。
+  const [mainTabCount, setMainTabCount] = useState<number | undefined>(undefined);
 
   const leftActivityItems = useMemo(
     () => [
@@ -136,8 +138,12 @@ const App: React.FC = () => {
   }, [dispatch, leftActivityItems, leftActivityKey]);
 
   const currentYear = new Date().getFullYear();
-  // 根路由（无实际内容页）时，主区域留空，由右侧面板撑满剩余空间
-  const isRootRoute = pathname.replace(/\/+$/, '') === '';
+  // 根路由（无实际内容页）时，主区域不渲染 <Outlet />，只保留标签栏。
+  const normalizedPath = pathname.replace(/\/+$/, '');
+  const isRootRoute = normalizedPath === '' || normalizedPath === '/';
+  // 仅当确认「一个标签页都没有」时才收起整个主区域让右侧撑满；
+  // 接口未返回（undefined）时保持主区域可见，避免首屏闪烁。
+  const hideMainPane = isRootRoute && mainTabCount === 0;
   const layoutLocale: LayoutLocale = locale === 'en_US' ? 'en_US' : 'zh_CN';
   const segmentedOptions = useMemo(
     () =>
@@ -227,18 +233,26 @@ const App: React.FC = () => {
                 onRightWidthCommit={(width) => dispatch(setUserItem({ rightPanelWidth: width }))}
                 left={<ViewResolver view={leftSideView} view_mode="card" />}
                 main={
-                  isRootRoute ? null : (
+                  hideMainPane ? null : (
                     <BorderlessCard
                       size="small"
                       className="layout-sharp-main-card"
                       styles={{ body: { padding: 8 } }}
-                      title={<MainTabs />}
+                      title={<MainTabs onTabsChange={setMainTabCount} />}
                     >
-                      <Outlet />
+                      {isRootRoute ? (
+                        <div className="layout-sharp-main-empty">
+                          {locale === 'en_US'
+                            ? 'Select a tab above to continue'
+                            : '请选择一个标签页继续'}
+                        </div>
+                      ) : (
+                        <Outlet />
+                      )}
                     </BorderlessCard>
                   )
                 }
-                expandRight={isRootRoute}
+                expandRight={hideMainPane}
                 right={
 
                   <BorderlessCard

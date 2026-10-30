@@ -502,6 +502,17 @@
   padding: 0;
 }
 
+/* 根路由下主区域内容为空时的占位提示（标签栏仍然可用） */
+.layout-sharp-main-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--sharp-text-soft);
+  font-size: 12px;
+  user-select: none;
+}
+
 /* 主区域顶部标签页：左对齐，标签之间用 1px 竖线分隔，文字完全居中 */
 .layout-sharp-main-tabs {
   flex: 1 1 auto;

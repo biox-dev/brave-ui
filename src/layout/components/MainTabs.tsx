@@ -43,6 +43,14 @@ export type MainTabsHandle = {
   closeActiveTab: () => void;
 };
 
+type MainTabsProps = {
+  /**
+   * 标签页数量变化时通知父级。
+   * `undefined` 表示接口数据尚未回填，父级应把它当成「未知」而不是「空」。
+   */
+  onTabsChange?: (count: number | undefined) => void;
+};
+
 /**
  * 主区域顶部的标签页。
  * 只记录访问过的路由并负责切换/关闭，页面内容仍由上层 <Outlet /> 渲染，
@@ -51,7 +59,7 @@ export type MainTabsHandle = {
  * 标签页列表的唯一数据源是后端：`/auth/me` 的 `user.menu_config.tabs` 回填，
  * 之后的每次新增 / 关闭 / 改名都异步回写（不阻塞 UI）。
  */
-const MainTabs = forwardRef<MainTabsHandle>((_props, ref) => {
+const MainTabs = forwardRef<MainTabsHandle, MainTabsProps>(({ onTabsChange }, ref) => {
   const { locale } = useI18n();
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -143,6 +151,11 @@ const MainTabs = forwardRef<MainTabsHandle>((_props, ref) => {
     }
     pruneMainTabTitles([...tabs.map((tab) => tab.url), currentKey]);
   }, [currentKey, tabs]);
+
+  // 6) 把标签页数量上报给父级（主区域据此判断是否需要收起）
+  useEffect(() => {
+    onTabsChange?.(tabs ? tabs.length : undefined);
+  }, [onTabsChange, tabs]);
 
   const closeTab = useCallback(
     (key: string) => {
