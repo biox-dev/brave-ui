@@ -303,6 +303,14 @@ export const getProjectReportHtmlApi = (reportId: string, inlineImages = true) =
 		responseType: "text",
 	})
 
+// getProjectReportFileHtmlApi 返回报告自身 markdown 文件（output.md）渲染的独立 HTML 文档字符串。
+// inlineImages=true 时图片以 base64 内嵌（自包含），false 时保留原始 URL。
+export const getProjectReportFileHtmlApi = (reportId: string, inlineImages = true) =>
+	http.get<string>("/project/project-report-file-html", {
+		params: { report_id: reportId, inline_images: inlineImages },
+		responseType: "text",
+	})
+
 export const listProjectReportItemApi = (reportId: string) =>
 	http.get<ProjectReportItemNode[]>(`/project/list-project-report-item?report_id=${encodeURIComponent(reportId)}`)
 export const addProjectReportItemApi = (payload: AddProjectReportItemRequest) => http.post<ProjectReportItem>("/project/add-project-report-item", payload)

@@ -1,18 +1,20 @@
 import { FC, useEffect, useState } from "react";
 import { Button, Card, Flex, Segmented, Skeleton, Spin, Tag } from "antd";
-import { ArrowLeftOutlined, ReloadOutlined, SaveOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, FilePdfOutlined, ReloadOutlined, SaveOutlined } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router";
 import { useSelector } from "react-redux";
 import ComponentsDetailsRender from "@/core/ui-renderer/ViewResolver";
 import {
   getProjectReportDetailApi,
   getProjectReportFileApi,
+  getProjectReportFileHtmlApi,
   updateProjectReportFileApi,
   type ProjectReportDetail,
 } from "@/api/project";
 import ProjectReportGitActions from "@/components/project-report-git/project-report-git-actions";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { LLMEnvType, setLLMEnv } from "@/utils/llm-env";
+import { printHtmlDocument } from "@/utils/print-html";
 
 type ReportFileView = "view" | "update";
 
@@ -31,6 +33,8 @@ const ReportFile: FC<any> = () => {
   const [view, setView] = useState<ReportFileView>("view");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  // 导出 PDF：复用 HTML 导出能力（内嵌图片）后送入浏览器打印流程。
+  const [pdfExporting, setPdfExporting] = useState(false);
   const [report, setReport] = useState<ProjectReportDetail>();
   // content 是已保存的内容（用于查看视图），draft 是编辑器中的草稿。
   const [content, setContent] = useState("");
@@ -64,6 +68,25 @@ const ReportFile: FC<any> = () => {
   useEffect(() => {
     load(reportId);
   }, [reportId]);
+
+  // handleExportPdf 拉取报告自身文件的 HTML（内嵌图片）并交给浏览器打印为 PDF。
+  const handleExportPdf = async () => {
+    if (!reportId) {
+      message.warning("No report loaded");
+      return;
+    }
+
+    setPdfExporting(true);
+    try {
+      // 使用内嵌图片版本，导出时无需网络、图片不缺失。
+      const resp = await getProjectReportFileHtmlApi(reportId, true);
+      printHtmlDocument(resp.data);
+    } catch {
+      // Error is surfaced globally by the http client interceptor.
+    } finally {
+      setPdfExporting(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!reportId) {
@@ -142,6 +165,16 @@ const ReportFile: FC<any> = () => {
               { label: "更新", value: "update" },
             ]}
           />
+          {/* 导出报告文件（output.md）为 PDF：后端渲染自包含 HTML 后走浏览器打印。 */}
+          <Button
+            size="small"
+            icon={<FilePdfOutlined />}
+            loading={pdfExporting}
+            disabled={!reportId}
+            onClick={handleExportPdf}
+          >
+            PDF
+          </Button>
           {view === "update" && (
             <Button
               size="small"
