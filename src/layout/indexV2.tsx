@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ApartmentOutlined, AppstoreOutlined, BookOutlined, CloseOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, BarChartOutlined, ExperimentOutlined, CodeOutlined } from '@ant-design/icons';
-import { Button, Dropdown, Layout, Segmented, theme } from 'antd';
+import { ApartmentOutlined, AppstoreOutlined, BookOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, BarChartOutlined, ExperimentOutlined, CodeOutlined } from '@ant-design/icons';
+import { Dropdown, Layout, Segmented, theme } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { useI18n } from '@/hooks/useI18n';
@@ -12,6 +12,7 @@ import { buildLayoutMenus, type LayoutLocale } from './layout-menu';
 import AppHeader from './components/AppHeader';
 import ActivityBar from './components/ActivityBar';
 import SplitWorkspace from './components/SplitWorkspace.tsx';
+import MainTabs from './components/MainTabs';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
@@ -231,17 +232,7 @@ const App: React.FC = () => {
                       size="small"
                       className="layout-sharp-main-card"
                       styles={{ body: { padding: 8 } }}
-                      extra={
-                        <Button
-                          type="text"
-                          size="small"
-                          className="layout-sharp-main-close"
-                          icon={<CloseOutlined />}
-                          title={locale === 'en_US' ? 'Close' : '关闭'}
-                          aria-label={locale === 'en_US' ? 'Close' : '关闭'}
-                          onClick={() => navigate('/')}
-                        />
-                      }
+                      title={<MainTabs />}
                     >
                       <Outlet />
                     </BorderlessCard>

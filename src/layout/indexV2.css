@@ -497,13 +497,109 @@
   height: 100%;
 }
 
-.layout-sharp-main-close {
-  color: var(--sharp-text-soft);
+/* 主区域头部去掉左右间距，标签栏贴住面板左右边界 */
+.layout-sharp-main-card .layout-sharp-side-card-head {
+  padding: 0;
 }
 
-.layout-sharp-main-close:hover {
-  color: var(--sharp-text) !important;
-  background: color-mix(in srgb, var(--sharp-panel-muted) 65%, transparent) !important;
+/* 主区域顶部标签页：左对齐，标签之间用 1px 竖线分隔，文字完全居中 */
+.layout-sharp-main-tabs {
+  flex: 1 1 auto;
+  height: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.layout-sharp-main-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.layout-sharp-main-tabs-track {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+}
+
+.layout-sharp-main-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 0;
+  padding: 0 28px;
+  color: var(--sharp-text-soft);
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  transition: color 0.15s ease;
+}
+
+/* 每个标签右侧一条竖线（最右侧标签也保留） */
+.layout-sharp-main-tab {
+  border-right: 1px solid var(--sharp-divider);
+}
+
+.layout-sharp-main-tab:hover {
+  color: var(--sharp-text);
+}
+
+.layout-sharp-main-tab:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--sharp-divider-strong);
+}
+
+/* 激活态只做颜色高亮 */
+.layout-sharp-main-tab.is-active {
+  color: var(--sharp-text);
+  font-weight: 600;
+}
+
+.layout-sharp-main-tab-label {
+  display: block;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.layout-sharp-main-tab-close {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--sharp-text-soft);
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.layout-sharp-main-tab:hover .layout-sharp-main-tab-close,
+.layout-sharp-main-tab.is-active .layout-sharp-main-tab-close,
+.layout-sharp-main-tab-close:focus-visible {
+  opacity: 1;
+}
+
+.layout-sharp-main-tab-close:hover {
+  color: var(--sharp-text);
+  background: color-mix(in srgb, var(--sharp-panel-muted) 80%, transparent);
 }
 
 .layout-sharp-left-pane,
@@ -654,28 +750,70 @@
   border-inline-end: 0;
 }
 
+/* 面板容器：纵向 flex，头部固定高度（1px 分隔线），body 撑满剩余空间 */
 .layout-sharp-side-card {
+  display: flex;
+  flex-direction: column;
   height: 100%;
-  border-left: 0;
-  border-right: 0;
-  border-top: 0;
-  border-bottom: 0;
+  min-height: 0;
+  background: var(--sharp-panel-bg);
 }
 
-/* antd 默认给 .ant-card-head 设置 margin-bottom: -1px（用于与卡片自身上边框重叠）。
-   这里的卡片是无边框的，负外边距会让 body 的滚动条上移 1px，盖住头部 border-bottom 的右端。 */
-.layout-sharp-side-card .ant-card-head {
-  margin-bottom: 0;
+.layout-sharp-side-card-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--sharp-divider);
+  overflow: hidden;
 }
 
-.layout-sharp-side-card .ant-card-body {
-  height: calc(100% - 38px);
+.layout-sharp-side-card-head-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  /* 撑满头部高度，标签页的竖线才能贯穿整个头部 */
+  align-self: stretch;
 }
 
-/* .layout-sharp-side-card-body {
+.layout-sharp-side-card-head-extra {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 居中头部：标题内容（标签页）在头部的几何中心，extra 绝对定位到右侧不参与居中计算 */
+.layout-sharp-side-card-head.is-center {
+  position: relative;
+  justify-content: center;
+  padding: 0 40px;
+}
+
+.layout-sharp-side-card-head.is-center .layout-sharp-side-card-head-title {
+  flex: 0 1 auto;
+  max-width: 100%;
   height: 100%;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.layout-sharp-side-card-head.is-center .layout-sharp-side-card-head-extra {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+}
+
+.layout-sharp-side-card-body {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
-} */
+}
 
 .layout-sharp-side-card-placeholder {
   height: 100%;
@@ -727,12 +865,12 @@ body.layout-sharp-resizing {
 
   .layout-sharp-side-card {
     height: auto;
-    border-left: 0;
   }
 
-  /* .layout-sharp-side-card .ant-card-body,
-  .layout-sharp-side-card-body {
-    height: auto;
-    max-height: 50vh;
-  } */
+  /* 移动端左右面板上下堆叠，面板内容限制高度，主区域不受影响 */
+  .layout-sharp-left-pane .layout-sharp-side-card-body,
+  .layout-sharp-right-pane .layout-sharp-side-card-body {
+    flex: 0 1 auto;
+    max-height: 60vh;
+  }
 }
