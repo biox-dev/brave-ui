@@ -517,6 +517,15 @@
   max-width: 560px;
 }
 
+/* 左侧面板折叠：宽度归零但保留 DOM，避免丢失滚动位置与展开状态 */
+.layout-sharp-left-pane.is-collapsed {
+  width: 0 !important;
+  min-width: 0;
+  max-width: 0;
+  border: 0;
+  overflow: hidden;
+}
+
 .layout-sharp-right-pane {
   min-width: 280px;
   max-width: 640px;
@@ -537,11 +546,17 @@
   position: relative;
   flex: 0 0 1px;
   width: 1px;
+}
+
+/* 真正的 1px 分隔线与拖拽热区（外层容器留给折叠按钮定位） */
+.layout-sharp-pane-divider-line {
+  position: absolute;
+  inset: 0;
   cursor: col-resize;
   background: var(--sharp-divider);
 }
 
-.layout-sharp-pane-divider::before {
+.layout-sharp-pane-divider-line::before {
   content: '';
   position: absolute;
   top: 0;
@@ -550,9 +565,57 @@
   right: -4px;
 }
 
-.layout-sharp-pane-divider:hover,
-.layout-sharp-pane-divider.is-resizing {
+.layout-sharp-pane-divider:hover .layout-sharp-pane-divider-line,
+.layout-sharp-pane-divider.is-resizing .layout-sharp-pane-divider-line {
   background: var(--sharp-divider-strong);
+}
+
+/* 折叠后左侧面板宽度为 0，分隔线会紧贴活动栏的右边框，形成并排的两条线。
+   此时隐藏分隔线，只保留 8px 悬停热区（用于唤起折叠按钮）与活动栏边框这一条线。 */
+.layout-sharp-pane-divider.is-left-collapsed .layout-sharp-pane-divider-line,
+.layout-sharp-pane-divider.is-left-collapsed:hover .layout-sharp-pane-divider-line,
+.layout-sharp-pane-divider.is-left-collapsed.is-resizing .layout-sharp-pane-divider-line {
+  background: transparent;
+  cursor: default;
+}
+
+/* 面板折叠/展开按钮：默认隐藏，仅在鼠标移到分隔条上时出现 */
+.layout-sharp-pane-toggle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 40px;
+  padding: 0;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--sharp-divider);
+  border-radius: 9px;
+  background: var(--sharp-panel-bg);
+  color: var(--sharp-text-soft);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.15s ease, visibility 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.layout-sharp-pane-divider:hover .layout-sharp-pane-toggle,
+.layout-sharp-pane-divider:focus-within .layout-sharp-pane-toggle,
+.layout-sharp-pane-toggle:focus-visible {
+  visibility: visible;
+  opacity: 1;
+  color: var(--sharp-text);
+  border-color: var(--sharp-divider-strong);
+}
+
+.layout-sharp-pane-toggle:focus-visible {
+  outline: 2px solid #1890ff;
+  outline-offset: 1px;
 }
 
 .layout-sharp-footer {

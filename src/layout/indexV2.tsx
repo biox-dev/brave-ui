@@ -41,6 +41,7 @@ const App: React.FC = () => {
   const leftActivityKey = useSelector((state: any) => state.user.leftActivityKey);
   const leftPanelWidth = useSelector((state: any) => state.user.leftPanelWidth);
   const rightPanelWidth = useSelector((state: any) => state.user.rightPanelWidth);
+  const leftPanelCollapsed = useSelector((state: any) => state.user.leftPanelCollapsed);
   const layoutTheme: 'light' | 'dark' = appTheme === 'dark' ? 'dark' : 'light';
   const isDark = layoutTheme === 'dark';
   const {
@@ -171,7 +172,13 @@ const App: React.FC = () => {
                 return;
               }
               setLeftSideView(key);
-              dispatch(setUserItem({ leftActivityKey: key }));
+              // 折叠状态下点击活动栏图标，直接展开左侧面板
+              dispatch(
+                setUserItem({
+                  leftActivityKey: key,
+                  ...(leftPanelCollapsed ? { leftPanelCollapsed: false } : {}),
+                }),
+              );
             }}
           />
           <div className="layout-activitybar-settings">
@@ -205,6 +212,12 @@ const App: React.FC = () => {
               <SplitWorkspace
                 leftResizeLabel={locale === 'en_US' ? 'Resize left panel' : '调整左侧面板'}
                 rightResizeLabel={locale === 'en_US' ? 'Resize right panel' : '调整右侧面板'}
+                leftCollapsed={Boolean(leftPanelCollapsed)}
+                onLeftCollapsedChange={(collapsed) =>
+                  dispatch(setUserItem({ leftPanelCollapsed: collapsed }))
+                }
+                leftCollapseLabel={locale === 'en_US' ? 'Hide left panel' : '隐藏左侧面板'}
+                leftExpandLabel={locale === 'en_US' ? 'Show left panel' : '显示左侧面板'}
                 leftWidth={leftWidthDraft}
                 rightWidth={rightWidthDraft}
                 onLeftWidthChange={setLeftWidthDraft}

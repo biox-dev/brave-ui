@@ -17,6 +17,8 @@ const activeProjectReportId = localStorage.getItem('activeProjectReportId')
 const activeLLMSessionId = localStorage.getItem('activeLLMSessionId')
 const leftPanelWidth = Number(localStorage.getItem('leftPanelWidth'))
 const rightPanelWidth = Number(localStorage.getItem('rightPanelWidth'))
+// 左侧面板是否折叠隐藏
+const leftPanelCollapsed = localStorage.getItem('leftPanelCollapsed') === 'true'
 const leftActivityKey = localStorage.getItem('leftActivityKey')
 const sideView = localStorage.getItem('sideView')
 
@@ -103,6 +105,8 @@ interface UserState {
     llmEnv:any;
     leftPanelWidth:number;
     rightPanelWidth:number;
+    /** 左侧面板是否折叠隐藏 */
+    leftPanelCollapsed:boolean;
     leftActivityKey:string;
     sideView:string;
     /** 左侧栏堆叠视图折叠状态：{ [stackKey]: collapsedSectionKeys[] }。 */
@@ -134,6 +138,7 @@ const contextSlice = createSlice({
         llmEnv:null,
         leftPanelWidth:Number.isFinite(leftPanelWidth)?leftPanelWidth:320,
         rightPanelWidth:Number.isFinite(rightPanelWidth)?rightPanelWidth:360,
+        leftPanelCollapsed,
         leftActivityKey:leftActivityKey?leftActivityKey:'sysFileBrowser',
         sideView:sideView?sideView:'agentChat',
         leftStackCollapsed,
@@ -207,6 +212,9 @@ const contextSlice = createSlice({
             }
             if (action.payload.rightPanelWidth !== undefined) {
                 localStorage.setItem('rightPanelWidth', String(action.payload.rightPanelWidth))
+            }
+            if (action.payload.leftPanelCollapsed !== undefined) {
+                localStorage.setItem('leftPanelCollapsed', String(action.payload.leftPanelCollapsed))
             }
             if (action.payload.leftActivityKey !== undefined) {
                 localStorage.setItem('leftActivityKey', action.payload.leftActivityKey)
