@@ -56,7 +56,12 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
     const [selectedSampleDetail, setSelectedSampleDetail] = useState<any>({});
     // 统一标签页标题通道：详情加载完成后把节点名同步给 MainTabs，
     // 直接打开/刷新该路由时标签页也能显示节点名。
-    useMainTabTitle(selectedSampleDetail?.node?.node_name);
+    // 只在「已加载数据确实属于当前节点」时登记：本组件在 /analsyis-node-report/:id 之间
+    // 切换时不会重新挂载，旧数据会残留一帧，否则会把上一个节点的名称写到新标签页上。
+    const detailNode = selectedSampleDetail?.node;
+    const detailMatchesRoute =
+        String(detailNode?.id ?? '') === String(analysis_node_id ?? '');
+    useMainTabTitle(detailMatchesRoute ? detailNode?.node_name : undefined);
     // 运行中的节点可以打开容器终端（xterm.js -> WebSocket -> kubectl/docker exec）。
     const [terminalOpen, setTerminalOpen] = useState(false);
     const { containerURL } = useSelector((state: any) => state.user);

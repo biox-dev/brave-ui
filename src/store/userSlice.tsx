@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { getActiveProjectApi } from '@/api/project'
-import { getCurrentUserApi, type AgentProfileInfo, type AgentUserConfig } from '@/api/auth'
+import { getCurrentUserApi, type AgentProfileInfo, type AgentUserConfig, type UserMenuTab } from '@/api/auth'
 import { getPathname } from "@/utils/utils";
 
 const locale = localStorage.getItem('locale')
@@ -78,6 +78,8 @@ export interface LoginUserInfo {
     avatar: string;
     profile?: string;
     agent_config?: AgentUserConfig;
+    /** 主区域标签页配置（url + 显示名），刷新后由 MainTabs 回填。 */
+    menu_config?: { tabs?: UserMenuTab[] };
     /** 当前 agent_config.profile_id 对应的 Profile 摘要（由 /auth/me 解析返回）。 */
     agent_profile?: AgentProfileInfo;
     is_active: boolean;
@@ -232,6 +234,17 @@ const contextSlice = createSlice({
             // userInfo 不再持久化到 localStorage，刷新时由 loadCurrentUser 从后台获取
             // debugger
         },
+        /**
+         * 乐观更新当前用户的主区域标签页配置（MainTabs 在本地变更时立即调用）。
+         * 真正的落库由 MainTabs 异步调用 /auth/menu-config 完成，这里只保证 redux 内的数据是最新的，
+         * 避免用户信息重新拉取前读到旧值。
+         */
+        setUserMenuTabs(state, action: PayloadAction<UserMenuTab[]>) {
+            if (!state.userInfo) {
+                return;
+            }
+            state.userInfo.menu_config = { tabs: action.payload };
+        },
         clearUserSession(state) {
             state.authorization = null;
             state.refreshToken = null;
@@ -258,7 +271,7 @@ const contextSlice = createSlice({
 })
 
 
-export const { setUserItem, clearUserSession } = contextSlice.actions
+export const { setUserItem, setUserMenuTabs, clearUserSession } = contextSlice.actions
 export default contextSlice.reducer
 
 

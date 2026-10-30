@@ -27,6 +27,17 @@ export interface AgentProfileInfo {
 	is_builtin?: boolean;
 }
 
+// 主区域一个标签页：url = 路由地址（pathname + search），title = 最近一次登记的显示名（可空）。
+export interface UserMenuTab {
+	url: string;
+	title?: string;
+}
+
+// 用户的菜单配置（后端 users.menu_config），目前只有主区域标签页。
+export interface UserMenuConfig {
+	tabs?: UserMenuTab[];
+}
+
 export interface LoginUser {
 	id: string;
 	username: string;
@@ -34,6 +45,8 @@ export interface LoginUser {
 	avatar: string;
 	profile?: string;
 	agent_config?: AgentUserConfig;
+	/** 主区域标签页配置：刷新后据此回填标签栏与名称。 */
+	menu_config?: UserMenuConfig;
 	/** 当前 agent_config.profile_id 对应的 Profile 摘要（由 /auth/me 解析返回）。 */
 	agent_profile?: AgentProfileInfo;
 	is_active: boolean;
@@ -121,5 +134,18 @@ export const updateAgentEnvApi = (payload: { env_id?: string; env_type?: string 
 	return http.post<{ success: boolean; message: string; user: LoginUser }>(
 		"/auth/agent-env",
 		payload
+	);
+};
+
+/**
+ * 保存当前用户的主区域标签页配置（整体替换，数组顺序即标签栏顺序）。
+ *
+ * 前端以「本地乐观更新 + 后台异步落库」方式使用：调用方不要 await，也不要用它驱动 loading/提示。
+ */
+export const updateMenuConfigApi = (tabs: UserMenuTab[]) => {
+	return http.post<{ success: boolean; message: string; tabs: UserMenuTab[] }>(
+		"/auth/menu-config",
+		{ tabs },
+		{ skipGlobalError: true }
 	);
 };

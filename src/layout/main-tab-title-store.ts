@@ -1,19 +1,17 @@
 import { normalizeMainTabPath } from './main-tab-title';
 
 /**
- * 主区域标签页「显示名称」通道（统一格式）。
+ * 主区域标签页「显示名称」通道（纯内存）。
  *
- * 约定：任何组件/页面都可以用 `toMainTabKey(pathname + search)` 得到标签页 key，
- * 再用 `setMainTabTitle(key, 可读名称)` 登记名称。MainTabs 渲染标签时优先使用
- * 这里登记的名称，只有没登记时才回退到 `resolveMainTabTitle` 的静态规则。
+ * 标签页列表（顺序 + url + 名称）的唯一数据源是后端 `users.menu_config`：
+ * MainTabs 在 `/auth/me` 返回时用 `seedMainTabTitles` 回填一次，之后页面可以用
+ * `setMainTabTitle(key, 可读名称)` 登记运行期的名字（如节点名）。
+ * 渲染时优先用这里登记的名称，没登记才回退 `resolveMainTabTitle` 的静态规则。
  *
- * 名称保存在模块级 Map 中，并同步到 sessionStorage（刷新后仍能显示，会话结束失效）。
- * 组件卸载或标签页关闭时应调用 `clearMainTabTitle` 清理，避免残留旧名称。
+ * 不做任何本地存储：刷新即从接口重建，避免本地缓存与后端不一致。
  * React 侧的封装见 `@/hooks/useMainTabTitle`。
  */
 export type MainTabTitleMap = Record<string, string>;
-
-const STORAGE_KEY = 'mainTabTitles';
 
 /**
  * 把 pathname 或完整路径（含 query/hash）统一成标签页 key。
@@ -28,55 +26,16 @@ export const toMainTabKey = (pathOrUrl: string): string => {
   return `${normalizeMainTabPath(pathname)}${search}`;
 };
 
-const readStoredTitles = (): MainTabTitleMap => {
-  if (typeof window === 'undefined') {
-    return {};
-  }
-  try {
-    const raw = window.sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return {};
-    }
-    const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return {};
-    }
-    return Object.fromEntries(
-      Object.entries(parsed as Record<string, unknown>).filter(
-        (entry): entry is [string, string] =>
-          typeof entry[1] === 'string' && entry[1].trim() !== '',
-      ),
-    );
-  } catch {
-    return {};
-  }
-};
-
-let titles: MainTabTitleMap = readStoredTitles();
+let titles: MainTabTitleMap = {};
 const listeners = new Set<() => void>();
 
-const persist = () => {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    if (Object.keys(titles).length === 0) {
-      window.sessionStorage.removeItem(STORAGE_KEY);
-    } else {
-      window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(titles));
-    }
-  } catch {
-    // 忽略存储失败（隐私模式 / 配额不足）
-  }
-};
-
+/** 提交新名称表：换引用并通知订阅者。 */
 const commit = (next: MainTabTitleMap) => {
   titles = next;
-  persist();
   listeners.forEach((listener) => listener());
 };
 
-/** 订阅名称表变化，返回取消订阅函数。 */
+/** 订阅名称表变化，返回取消订阅函数（配合 `useSyncExternalStore` 使用）。 */
 export const subscribeMainTabTitles = (listener: () => void): (() => void) => {
   listeners.add(listener);
   return () => {
@@ -87,36 +46,27 @@ export const subscribeMainTabTitles = (listener: () => void): (() => void) => {
 /** 当前名称表快照（引用稳定：只有内容变化时才更换对象）。 */
 export const getMainTabTitles = (): MainTabTitleMap => titles;
 
-/** 读取某个标签页登记的名称；未登记时返回 undefined。 */
-export const getMainTabTitle = (key: string): string | undefined => {
-  const tabKey = toMainTabKey(key);
-  return titles[tabKey];
-};
-
-/** 登记标签页名称；传入空值等价于清除。 */
+/**
+ * 登记标签页名称：`setMainTabTitle(path, '节点 A')`。
+ * 传空值（'' / null / undefined）等价于清除，标签页回退到 `resolveMainTabTitle` 的静态规则。
+ */
 export const setMainTabTitle = (key: string, title?: string | null): void => {
   const tabKey = toMainTabKey(key);
   const next = (title ?? '').trim();
-  if (!next) {
-    clearMainTabTitle(tabKey);
-    return;
+  if ((titles[tabKey] ?? '') === next) {
+    return; // 值没变化，跳过：避免无意义的重渲染与落库
   }
-  if (titles[tabKey] === next) {
-    return;
+  const draft = { ...titles };
+  if (next) {
+    draft[tabKey] = next;
+  } else {
+    delete draft[tabKey];
   }
-  commit({ ...titles, [tabKey]: next });
+  commit(draft);
 };
 
-/** 清除标签页登记的名称，回退到静态标题规则。 */
-export const clearMainTabTitle = (key: string): void => {
-  const tabKey = toMainTabKey(key);
-  if (!(tabKey in titles)) {
-    return;
-  }
-  const next = { ...titles };
-  delete next[tabKey];
-  commit(next);
-};
+/** 清除标签页登记的名称，回退到静态标题规则（等价于 `setMainTabTitle(key, null)`）。 */
+export const clearMainTabTitle = (key: string): void => setMainTabTitle(key, null);
 
 /** 清除名称表中所有已不存在的标签页（MainTabs 启动时清理历史残留）。 */
 export const pruneMainTabTitles = (validKeys: string[]): void => {
@@ -128,4 +78,27 @@ export const pruneMainTabTitles = (validKeys: string[]): void => {
     return;
   }
   commit(next);
+};
+
+/**
+ * 用后端保存的标签页列表回填名称表。
+ *
+ * MainTabs 拿到 `/auth/me` 返回的 `user.menu_config.tabs` 后调用一次：标签名在页面数据加载前
+ * 就能显示正确，不会先闪静态名称。空标题的项直接跳过（回退到 `resolveMainTabTitle`）。
+ */
+export const seedMainTabTitles = (tabs: Array<{ url: string; title?: string }>): void => {
+  const next = { ...titles };
+  let changed = false;
+  tabs.forEach((tab) => {
+    const key = toMainTabKey(tab.url);
+    const value = (tab.title ?? '').trim();
+    if (!value || next[key] === value) {
+      return;
+    }
+    next[key] = value;
+    changed = true;
+  });
+  if (changed) {
+    commit(next);
+  }
 };
