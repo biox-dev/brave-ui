@@ -18,10 +18,10 @@ import { hydrateBottomPanel, useBottomPanelStore } from './bottom-panel-store';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
-type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'analysisScriptStack' | 'analysisWorkflowStack' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'assayProjectPage' | 'projectFilePage' | 'appSessionPage' | 'containerTemplateList';
+type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'analysisScriptStack' | 'analysisWorkflowStack' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'assayProjectPage' | 'projectFilePage' | 'appSessionPage' | 'containerTemplateList' | 'containerTemplateStack';
 
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
-  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'analysisScriptStack' || key === 'analysisWorkflowStack' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'assayProjectPage' || key === 'projectFilePage' || key === 'appSessionPage' || key === 'containerTemplateList';
+  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'analysisScriptStack' || key === 'analysisWorkflowStack' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'assayProjectPage' || key === 'projectFilePage' || key === 'appSessionPage' || key === 'containerTemplateList' || key === 'containerTemplateStack';
 
 // 旧版活动栏 key 与合并后视图的映射：datasetFilePage / analysisNodeFilePage 已合并为 projectFilePage，
 // analysisNodeList / scriptPage 已合并为上下堆叠的 analysisScriptStack，
@@ -33,6 +33,8 @@ const LEGACY_VIEW_KEY_MAP: Record<string, LeftPanelViewKey> = {
   scriptPage: 'analysisScriptStack',
   analysisList: 'analysisWorkflowStack',
   workflowPage: 'analysisWorkflowStack',
+  // 容器模板列表已合并为上下堆叠的 containerTemplateStack（模板 + 终端会话）。
+  containerTemplateList: 'containerTemplateStack',
 };
 
 const App: React.FC = () => {
@@ -97,7 +99,7 @@ const App: React.FC = () => {
         label: locale === 'en_US' ? 'Literature' : '参考文献',
         icon: <BookOutlined />,
       },  {
-        key: 'containerTemplateList',
+        key: 'containerTemplateStack',
         label: locale === 'en_US' ? 'Container Templates' : '容器模板',
         icon: <ContainerOutlined />,
       },{

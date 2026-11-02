@@ -203,8 +203,8 @@ export const closeBottomTab = (key: string) => {
   scheduleSave();
 
   // 显式关闭终端标签：调 DELETE 立即回收容器。
-  // terminal_close_policy=explicit 时这是唯一的「立即删除」入口（刷新不会触发）；
-  // ws_disconnect 策略下后端可能已删过，接口幂等，重复调用无副作用。
+  // 前端接入过的会话是「持久会话」，断开 WS 不会回收，因此这里是用户主动释放容器的入口；
+  // 不调用的话会话会由空闲 TTL 兜底回收。接口幂等，重复调用无副作用。
   if (closing?.kind === 'terminal') {
     const templateId = String(closing.params?.template_id ?? '').trim();
     if (templateId) {

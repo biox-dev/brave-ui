@@ -29,6 +29,11 @@ const viewLoaders = {
     // 容器模板列表（左侧栏面板形态）+ 模板临时终端弹窗。
     containerTemplateList: () => import("./container-template/container-template-list"),
     containerTemplateTerminal: () => import("./container-template/container-template-terminal"),
+    // 终端会话列表：展示当前用户存活的会话（join 容器模板得到展示名 / 镜像名）。
+    containerTerminalSessionList: () =>
+        import("./container-template/container-terminal-session-list"),
+    // VS Code 风格纵向堆叠：上面是容器模板列表，下面是终端会话列表。
+    containerTemplateStack: () => import("./container-template/container-template-stack"),
 };
 
 declare module "@/core/component-registry/registry-types" {

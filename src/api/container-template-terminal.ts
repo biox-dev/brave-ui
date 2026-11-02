@@ -5,8 +5,9 @@ import { getPathname } from "@/utils/utils";
  * xterm.js 连接「容器模板终端」的 WebSocket 地址。
  *
  * 会话由后端注册表持有（userID + projectID + templateID 唯一），同一个模板重复打开
- * 只会 attach 到同一个 PTY；断开后默认立即删除容器（可用 container.terminal_idle_grace_seconds
- * 配置保留时长），保留期间重新打开会回放历史输出。
+ * 只会 attach 到同一个 PTY。前端一旦接入，该会话即被标记为「持久」：刷新/断网/关标签
+ * 都不会删除容器，只有空闲 TTL（container.terminal_session_ttl_minutes）到期或
+ * 调 DELETE 才回收；重连时用 since 回放历史输出。
  */
 export const containerTemplateTerminalUrl = (
   templateId: string | number,
@@ -68,4 +69,38 @@ export const closeContainerTemplateTerminalApi = (templateId: string | number) =
   return http.delete<{ closed: boolean }>(
     `/container/template/${encodeURIComponent(String(templateId))}/terminal`,
   );
+};
+
+/**
+ * 终端会话列表项：后端把内存注册表里的会话状态与容器模板绑定行 join 起来。
+ * DisplayName 优先取绑定行 display_name，为空时回退模板名，再回退到 session_id。
+ */
+export interface ContainerTerminalSessionItem {
+  session_id: string;
+  exists: boolean;
+  alive: boolean;
+  subscribers: number;
+  seq: number;
+  user_id?: string;
+  project_id?: string;
+  template_id?: string;
+  /** 持久会话：只能由空闲 TTL 或显式关闭回收。 */
+  persistent: boolean;
+  /** 当前有命令在执行（此时不会因空闲被回收）。 */
+  busy: boolean;
+  runtime_id?: string;
+  runtime_name?: string;
+  created_at?: string;
+  last_active?: string;
+  display_name: string;
+  template_name: string;
+  image_name: string;
+  app_type: string;
+}
+
+/** 列出当前用户的终端会话；默认只返回当前激活项目下的会话。 */
+export const listContainerTerminalSessionsApi = (options?: { allProjects?: boolean }) => {
+  return http.get<ContainerTerminalSessionItem[]>("/container/terminal/session/list", {
+    params: options?.allProjects ? { all_projects: true } : undefined,
+  });
 };
