@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { updateBottomPanelApi, type UserBottomPanel } from '@/api/auth';
+import { closeContainerTemplateTerminalApi } from '@/api/container-template-terminal';
 
 /**
  * 主区域底部面板（终端 / 日志 …）的共享状态。
@@ -158,7 +159,7 @@ export const openBottomTab = (tab: BottomTab) => {
  * 打开容器模板临时终端。
  *
  * key 用 `terminal:<templateId>`：同一模板重复点击只会聚焦已有标签，
- * 不会重复创建容器终端（后端每次 WebSocket 连接都会新建一个临时容器）。
+ * 后端按 (userID, projectID, templateId) 复用同一个会话。
  */
 export const openBottomTerminal = (templateId: string | number, name?: string) => {
   const id = String(templateId);
@@ -189,6 +190,7 @@ export const closeBottomTab = (key: string) => {
   if (index < 0) {
     return;
   }
+  const closing = state.tabs[index];
   const tabs = state.tabs.filter((tab) => tab.key !== key);
   // 关闭当前标签：优先切到右侧相邻标签，没有则切到左侧，全部关闭后收起面板。
   const active =
@@ -199,6 +201,18 @@ export const closeBottomTab = (key: string) => {
     open: tabs.length > 0 ? state.open : false,
   });
   scheduleSave();
+
+  // 显式关闭终端标签：调 DELETE 立即回收容器。
+  // terminal_close_policy=explicit 时这是唯一的「立即删除」入口（刷新不会触发）；
+  // ws_disconnect 策略下后端可能已删过，接口幂等，重复调用无副作用。
+  if (closing?.kind === 'terminal') {
+    const templateId = String(closing.params?.template_id ?? '').trim();
+    if (templateId) {
+      closeContainerTemplateTerminalApi(templateId).catch(() => {
+        // 回收失败不影响前端；会话会由空闲 TTL 兜底。
+      });
+    }
+  }
 };
 
 export const setBottomPanelOpen = (open: boolean) => {

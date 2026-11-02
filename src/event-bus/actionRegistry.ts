@@ -3,6 +3,7 @@ import { useUIStore } from "@/event-bus/stores/ui";
 import { useFormStore } from "@/event-bus/stores/form";
 import { useRouterStore } from "@/event-bus/stores/router";
 import { useComponentStore } from "@/event-bus/stores/components";
+import { openBottomTerminal } from "@/layout/bottom-panel-store";
 
 
 // 定义各 Action payload 类型
@@ -11,6 +12,17 @@ export type ShowNotificationPayload = { type: "success" | "error" | "info" | "wa
 export type RouterGoPayload = { path: string, state?: any };
 export type FormSetValuePayload = { form: string; field: string; value: any };
 export type FormResetPayload = { form: string };
+
+/** 后端容器终端事件：Agent 在某个模板的终端里执行命令。 */
+export type TerminalExecPayload = {
+  template_id?: string | number;
+  session_id?: string;
+  command?: string;
+  source?: string;
+  phase?: "start" | "end";
+  exit_code?: number;
+  timed_out?: boolean;
+};
 
 export function registerActions() {
   // UI
@@ -50,7 +62,22 @@ export function registerActions() {
     useRouterStore.getState().go(payload.path, payload.state);
   });
 
-  // Form
+  // Container terminal：Agent 执行命令时把底部终端调到前台（会话已在后端创建，
+  // 打开连接会自动回放历史输出）。
+  ActionDispatcher.register("terminal.exec", (payload: TerminalExecPayload) => {
+    const templateId =
+      payload?.template_id == null ? "" : String(payload.template_id).trim();
+    if (!templateId || payload?.phase !== "start") {
+      return;
+    }
+    openBottomTerminal(templateId, `Terminal ${templateId}`);
+    const ui = useUIStore.getState();
+    ui.notificationApi?.info({
+      message: "Agent is running a command in the terminal",
+      description: payload?.command,
+    });
+  });
+
   ActionDispatcher.register("form.set_value", (payload: FormSetValuePayload) => {
     // useFormStore.getState().setValue(payload.form, payload.field, payload.value);
   });

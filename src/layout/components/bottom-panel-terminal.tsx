@@ -7,7 +7,8 @@ import type { BottomTabRenderProps } from './bottom-panel-registry';
  * 底部面板的容器模板终端标签。
  *
  * 参数来自标签的 `params.template_id`（后端保存的就是这个值），
- * 因此刷新页面后恢复标签会重新建立 WebSocket —— 后端会为每个连接新建一次性容器。
+ * 因此刷新页面后恢复标签会重新建立 WebSocket；后端的会话注册表按
+ * (userID, projectID, templateID) 复用同一个 PTY，关闭标签默认立即删除容器。
  */
 const BottomPanelTerminal = ({ tab }: BottomTabRenderProps) => {
   const raw = tab.params?.template_id;

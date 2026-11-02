@@ -3,6 +3,8 @@ import {
   Button,
   Descriptions,
   Empty,
+  Input,
+  Modal,
   Pagination,
   Popconfirm,
   Popover,
@@ -27,6 +29,7 @@ import {
   exportContainerTemplateApi,
   type ContainerTemplateItem,
 } from "@/api/container";
+import { execContainerTemplateTerminalApi } from "@/api/container-template-terminal";
 import { useContainerTemplatePageQuery } from "@/hooks/usePaginationV2";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
@@ -161,6 +164,11 @@ const ContainerTemplateList = ({
 
   const [selectedId, setSelectedId] = useState<string>();
   const [deletingId, setDeletingId] = useState<string>();
+  // 「运行命令」弹窗：把命令写入该模板的持久终端（后端会话注册表），
+  // 提交后自动打开底部终端标签，输出通过该终端的 WebSocket 实时显示。
+  const [runTarget, setRunTarget] = useState<ContainerTemplateItem | null>(null);
+  const [runCommand, setRunCommand] = useState("");
+  const [runSubmitting, setRunSubmitting] = useState(false);
 
   // 作为选择器（通过 invoke 打开）时使用本地选中态，普通模式点击行跳转终端。
   const selectable = Boolean(onOk || onCancel);
@@ -237,6 +245,44 @@ const ContainerTemplateList = ({
     }
   }, [message, refetch]);
 
+  /**
+   * 打开「运行命令」弹窗：命令会写入该模板的持久终端会话。
+   *
+   * 后端按 (userID, projectID, templateID) 复用同一个 PTY，因此这里不需要关心
+   * 终端是否已打开：提交后自动调到前台即可看到输出。
+   */
+  const handleOpenRun = useCallback((record: ContainerTemplateItem) => {
+    setRunTarget(record);
+    setRunCommand(record.command?.trim() || "pwd");
+  }, []);
+
+  const handleSubmitRun = useCallback(async () => {
+    if (!runTarget) {
+      return;
+    }
+    const command = runCommand.trim();
+    if (!command) {
+      message.warning("Please input a command");
+      return;
+    }
+    setRunSubmitting(true);
+    try {
+      // wait_seconds=0：只投递命令，输出走终端 WebSocket 实时回传。
+      await execContainerTemplateTerminalApi(runTarget.id, {
+        command,
+        wait_seconds: 0,
+        create_if_missing: true,
+      });
+      openBottomTerminal(runTarget.id, templateDisplayName(runTarget));
+      message.success("Command submitted to terminal");
+      setRunTarget(null);
+    } catch (error) {
+      message.error(getErrorMessage(error, "Failed to run command"));
+    } finally {
+      setRunSubmitting(false);
+    }
+  }, [message, runCommand, runTarget]);
+
   const handleExport = useCallback(async (record: ContainerTemplateItem) => {
     try {
       const resp = await exportContainerTemplateApi({ id: record.id });
@@ -262,7 +308,7 @@ const ContainerTemplateList = ({
     }
   }, [refetch]);
 
-  /** 右侧 Terminal 按钮：invoke 打开临时容器终端弹窗（关闭即删除容器）。 */
+  /** 右侧 Terminal 按钮：invoke 打开容器模板终端弹窗（关闭后按后端配置立即删除或保留容器）。 */
   const handleOpenTerminal = useCallback((record: ContainerTemplateItem) => {
     invoke.containerTemplateTerminal.open(
       { template_id: record.id, name: templateDisplayName(record) },
@@ -341,7 +387,7 @@ const ContainerTemplateList = ({
       {
         title: "Actions",
         key: "actions",
-        width: 152,
+        width: 190,
         align: "right",
         render: (_: unknown, record) => (
           <span className="project-report-item-actions" onClick={(e) => e.stopPropagation()}>
@@ -351,6 +397,14 @@ const ContainerTemplateList = ({
                 size="small"
                 icon={<CodeOutlined />}
                 onClick={() => handleOpenTerminal(record)}
+              />
+            </Tooltip>
+            <Tooltip title="Run command in terminal">
+              <Button
+                type="text"
+                size="small"
+                icon={<CaretRightOutlined />}
+                onClick={() => handleOpenRun(record)}
               />
             </Tooltip>
             <Tooltip title="Edit">
@@ -383,7 +437,7 @@ const ContainerTemplateList = ({
         ),
       },
     ],
-    [locale, deletingId, handleOpenTerminal, handleEdit, handleExport, handleDelete]
+    [locale, deletingId, handleOpenTerminal, handleOpenRun, handleEdit, handleExport, handleDelete]
   );
 
   const selectColumn: ColumnsType<ContainerTemplateItem>[number] = {
@@ -522,6 +576,34 @@ const ContainerTemplateList = ({
           </Button>
         </div>
       )}
+
+      <Modal
+        open={Boolean(runTarget)}
+        title={`Run in terminal - ${runTarget ? templateDisplayName(runTarget) : ""}`}
+        okText="Run"
+        confirmLoading={runSubmitting}
+        onOk={handleSubmitRun}
+        onCancel={() => setRunTarget(null)}
+        destroyOnClose
+      >
+        <Input.TextArea
+          autoSize={{ minRows: 4, maxRows: 12 }}
+          value={runCommand}
+          onChange={(e) => setRunCommand(e.target.value)}
+          placeholder="例如：R --version"
+          style={{ fontFamily: '"Menlo", "Consolas", monospace', fontSize: 13 }}
+          onPressEnter={(e) => {
+            // Enter 直接提交；Shift+Enter 换行。
+            if (!e.shiftKey) {
+              e.preventDefault();
+              void handleSubmitRun();
+            }
+          }}
+        />
+        <div style={{ marginTop: 8, color: "var(--ant-color-text-secondary)", fontSize: 12 }}>
+          命令会写入该模板的持久终端（同一模板复用同一个容器），提交后自动打开底部终端面板。
+        </div>
+      </Modal>
     </div>
   );
 };
