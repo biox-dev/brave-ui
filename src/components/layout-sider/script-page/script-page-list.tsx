@@ -4,6 +4,7 @@ import { http } from "@/api/client/http";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
+import { setMainTabTitle } from "@/layout/main-tab-title-store";
 import { formatRelativeTime } from "@/utils/time";
 import { CaretDownOutlined, CaretRightOutlined, CodeOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Descriptions, Empty, Pagination, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
@@ -17,6 +18,10 @@ import { useSelector } from "react-redux";
 //     .split(/[,;|\s]+/)
 //     .map((tag) => tag.trim())
 //     .filter(Boolean);
+
+/** 脚本的人类可读名称：优先 name，其次 component_id，最后回退到 id。 */
+const scriptDisplayName = (script: ScriptItem) =>
+  script.name || script.component_id || `Script-${script.id}`;
 
 const ScriptDetailCard = ({ item }: { item: ScriptItem }) => {
   // const tags = splitTags(item.tags);
@@ -114,11 +119,18 @@ const ScriptPageList: FC<ScriptPageListProps> = ({ collapsed = false, onToggleCo
     }
   );
 
+  /**
+   * 打开脚本详情标签页。
+   * 统一通过 MainTabs 的标题通道登记脚本名：标签页直接显示脚本名称，
+   * 而不是静态规则生成的「脚本 · <id>」。
+   */
   const handleOpen = (script: ScriptItem) => {
     if (!script?.id) {
       return;
     }
-    navigate(`/c/scripts/${encodeURIComponent(script.id)}`);
+    const path = `/c/scripts/${encodeURIComponent(script.id)}`;
+    setMainTabTitle(path, scriptDisplayName(script));
+    navigate(path);
   };
 
   const columns = useMemo<ColumnsType<ScriptItem>>(
@@ -129,7 +141,7 @@ const ScriptPageList: FC<ScriptPageListProps> = ({ collapsed = false, onToggleCo
         key: "name",
         ellipsis: { showTitle: false },
         render: (name: string, record) => {
-          const title = name || record.component_id || `Script-${record.id}`;
+          const title = scriptDisplayName(record);
           const meta = [
             record.updated_at
               ? formatRelativeTime(record.updated_at, locale)
@@ -189,7 +201,7 @@ const ScriptPageList: FC<ScriptPageListProps> = ({ collapsed = false, onToggleCo
           title={
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
               <CodeOutlined />
-              {record.name || record.component_id || `Script-${record.id}`}
+              {scriptDisplayName(record)}
             </span>
           }
           content={<ScriptDetailCard item={record} />}
@@ -208,7 +220,7 @@ const ScriptPageList: FC<ScriptPageListProps> = ({ collapsed = false, onToggleCo
     width: 130,
     align: "right",
     render: (_: unknown, record) => {
-      const title = record.name || record.component_id || `Script-${record.id}`;
+      const title = scriptDisplayName(record);
       // Every action opens the same views the script-panel tabs use, but as a
       // drawer via `invoke` — edit/create, main file code, and README.md.
       const drawerProps = { width: 960, title, footer: null };

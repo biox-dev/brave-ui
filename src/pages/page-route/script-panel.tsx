@@ -1,6 +1,6 @@
 import { Button, Card, Empty, Popconfirm, Segmented, Skeleton, Spin, Tag, Tooltip } from "antd"
 import { DeleteOutlined, FileTextOutlined, ReloadOutlined } from "@ant-design/icons"
-import { FC, useCallback, useEffect, useState } from "react"
+import { FC, useCallback, useEffect, useMemo, useState } from "react"
 import { useParams } from "react-router"
 import { useModal } from "@/hooks/useModal"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
@@ -9,6 +9,7 @@ import ViewResolver from "@/core/ui-renderer/ViewResolver"
 import Markdown from "@/components/markdown"
 import GitStateActions from "../components-relation/components/git-state-actions"
 import { useI18n } from "@/hooks/useI18n"
+import { useMainTabTitle } from "@/hooks/useMainTabTitle"
 import { http } from "@/api/client/http"
 import "./script-panel.css"
 
@@ -61,6 +62,22 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
+
+    // 统一标签页标题通道：详情加载完成后把脚本名同步给 MainTabs，
+    // 直接打开/刷新该路由时标签页也能显示脚本名。
+    // 只在「已加载数据确实属于当前路由」时登记：本组件在 /c/scripts/:script_id 之间
+    // 切换时不会重新挂载，旧数据会残留一帧，否则会把上一个脚本的名称写到新标签页上。
+    const routeScriptId = useMemo(
+        () => (script_id ? decodeURIComponent(script_id) : undefined),
+        [script_id]
+    )
+    const scriptMatchesRoute =
+        String(script?.id ?? "") !== "" && String(script?.id ?? "") === String(routeScriptId ?? "")
+    useMainTabTitle(
+        scriptMatchesRoute
+            ? script?.name || script?.script_path || undefined
+            : undefined
+    )
 
     // Static tab list, mirroring workflow-panel: every script shows the same tabs.
     const views: { label: string; value: ScriptViewKey }[] = [
