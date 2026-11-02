@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ApartmentOutlined, AppstoreOutlined, BookOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, BarChartOutlined, ExperimentOutlined, CodeOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, AppstoreOutlined, BookOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, BarChartOutlined, ExperimentOutlined, CodeOutlined, ContainerOutlined } from '@ant-design/icons';
 import { Dropdown, Layout, Segmented, theme } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
@@ -16,10 +16,10 @@ import MainTabs from './components/MainTabs';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
-type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'analysisScriptStack' | 'analysisWorkflowStack' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'assayProjectPage' | 'projectFilePage' | 'appSessionPage';
+type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'analysisScriptStack' | 'analysisWorkflowStack' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'assayProjectPage' | 'projectFilePage' | 'appSessionPage' | 'containerTemplateList';
 
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
-  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'analysisScriptStack' || key === 'analysisWorkflowStack' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'assayProjectPage' || key === 'projectFilePage' || key === 'appSessionPage';
+  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'analysisScriptStack' || key === 'analysisWorkflowStack' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'assayProjectPage' || key === 'projectFilePage' || key === 'appSessionPage' || key === 'containerTemplateList';
 
 // 旧版活动栏 key 与合并后视图的映射：datasetFilePage / analysisNodeFilePage 已合并为 projectFilePage，
 // analysisNodeList / scriptPage 已合并为上下堆叠的 analysisScriptStack，
@@ -94,7 +94,11 @@ const App: React.FC = () => {
         key: 'projectLiterature',
         label: locale === 'en_US' ? 'Literature' : '参考文献',
         icon: <BookOutlined />,
-      }, {
+      },  {
+        key: 'containerTemplateList',
+        label: locale === 'en_US' ? 'Container Templates' : '容器模板',
+        icon: <ContainerOutlined />,
+      },{
         key: 'appSessionPage',
         label: locale === 'en_US' ? 'App' : '应用',
         icon: <AppstoreOutlined />,

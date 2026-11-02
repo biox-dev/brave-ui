@@ -26,6 +26,9 @@ const viewLoaders = {
     editFilePage: () => import("./data-dataset-page/edit-file-page"),
     editDatasetFileRole: () => import("./data-dataset-page/edit-datasetfile-role"),
     importAssayTsvPage: () => import("./data-dataset-page/import-assay-tsv-page"),
+    // 容器模板列表（左侧栏面板形态）+ 模板临时终端弹窗。
+    containerTemplateList: () => import("./container-template/container-template-list"),
+    containerTemplateTerminal: () => import("./container-template/container-template-terminal"),
 };
 
 declare module "@/core/component-registry/registry-types" {

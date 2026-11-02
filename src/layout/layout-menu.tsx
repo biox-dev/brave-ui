@@ -153,14 +153,14 @@ export const layoutMenuTree: LayoutMenuItem[] = [
           en_US: 'Outbox Event',
         },
       },
-      {
-        key: '/container-template',
-        icon: 'container',
-        label: {
-          zh_CN: '容器模板',
-          en_US: 'Container Template',
-        },
-      },
+      // {
+      //   key: '/container-template',
+      //   icon: 'container',
+      //   label: {
+      //     zh_CN: '容器模板',
+      //     en_US: 'Container Template',
+      //   },
+      // },
       {
         key: '/container-template-spec',
         icon: 'container',

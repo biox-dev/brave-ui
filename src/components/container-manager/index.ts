@@ -3,7 +3,8 @@ import type { InferViewRegistryFromLoaders } from "@/core/component-registry/reg
 
 const viewLoaders = {
 
-  containerTemplatePage: () => import("./container-template-page"),
+  // 列表已迁移到 layout-sider（左侧栏面板形态），这里保留 view key 兼容既有 invoke 调用。
+  containerTemplatePage: () => import("../layout-sider/container-template/container-template-list"),
   containerTemplateForm: () => import("./container-template-form"),
   containerTemplateSpecPage: () => import("./container-template-spec-page"),
   containerTemplateSpecForm: () => import("./container-template-spec-form"),

@@ -52,6 +52,7 @@ const dynamicTitles: Array<{ prefix: string; label: TabLabel }> = [
   { prefix: '/analysis-report', label: { zh_CN: '分析报告', en_US: 'Analysis Report' } },
   { prefix: '/analysis-result', label: { zh_CN: '分析结果', en_US: 'Analysis Result' } },
   { prefix: '/software-analysis-editor', label: { zh_CN: '软件分析', en_US: 'Software Analysis' } },
+  { prefix: '/container-template-terminal', label: { zh_CN: '容器模板终端', en_US: 'Container Template Terminal' } },
   { prefix: '/dataset-file', label: { zh_CN: '数据文件', en_US: 'Dataset File' } },
   { prefix: '/c/ai-summaries', label: { zh_CN: 'AI 摘要', en_US: 'AI Summary' } },
   { prefix: '/c/scripts', label: { zh_CN: '脚本', en_US: 'Scripts' } },

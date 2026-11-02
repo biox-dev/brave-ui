@@ -7,6 +7,8 @@ import { analysisNodeTerminalUrl } from "@/api/analysis-node-terminal";
 interface AnalysisNodeTerminalProps {
   id: string | number;
   name?: string;
+  /** 可选：覆盖默认的分析节点终端地址（容器模板临时终端复用本组件）。 */
+  terminalUrl?: string;
 }
 
 /**
@@ -16,7 +18,7 @@ interface AnalysisNodeTerminalProps {
  *   - 浏览器 -> 后端：二进制/文本都是按键输入；文本 {"type":"resize",...} 是终端尺寸控制帧。
  *   - 后端 -> 浏览器：二进制输出字节流。
  */
-const AnalysisNodeTerminal = ({ id, name }: AnalysisNodeTerminalProps) => {
+const AnalysisNodeTerminal = ({ id, name, terminalUrl }: AnalysisNodeTerminalProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -39,7 +41,7 @@ const AnalysisNodeTerminal = ({ id, name }: AnalysisNodeTerminalProps) => {
     fitAddon.fit();
     term.writeln(`\x1b[90mconnecting to ${name || id}...\x1b[0m`);
 
-    const socket = new WebSocket(analysisNodeTerminalUrl(id));
+    const socket = new WebSocket(terminalUrl || analysisNodeTerminalUrl(id));
     socket.binaryType = "arraybuffer";
     const decoder = new TextDecoder("utf-8");
 
@@ -103,7 +105,7 @@ const AnalysisNodeTerminal = ({ id, name }: AnalysisNodeTerminalProps) => {
       socket.close();
       term.dispose();
     };
-  }, [id, name]);
+  }, [id, name, terminalUrl]);
 
   return (
     <div
