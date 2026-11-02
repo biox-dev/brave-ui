@@ -1,4 +1,4 @@
-import { FC, useEffect, useRef, type ReactNode } from "react";
+import { FC, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { Sender, type SenderProps } from "@ant-design/x";
 import { Button, Flex, GetRef } from "antd";
 import {
@@ -6,11 +6,13 @@ import {
   DatabaseOutlined,
   FileOutlined,
   PartitionOutlined,
+  ReadOutlined,
   TableOutlined,
 } from "@ant-design/icons";
 import { invoke } from "@/core/ui-system/invokeV2";
 import type { DatasetFileItem, DatasetItem } from "@/api/data";
 import type { ContainerTemplateItem } from "@/api/container";
+import { useAgentSenderStore, type AgentRefKind } from "./agent-sender.store";
 
 /** Sender slot 模式的 slotConfig 类型（可插入 tag 引用）。 */
 type SlotConfig = NonNullable<SenderProps["slotConfig"]>;
@@ -24,8 +26,16 @@ type SlotConfig = NonNullable<SenderProps["slotConfig"]>;
  */
 const SLOT_CONFIG: SlotConfig = [];
 
+/** 每种引用类型在 chip 上的图标（外部页面只传 kind，图标在这里统一维护）。 */
+const REF_ICONS: Record<AgentRefKind, ReactNode> = {
+  file: <FileOutlined />,
+  dataset: <TableOutlined />,
+  container: <CloudServerOutlined />,
+  report: <ReadOutlined />,
+};
+
 export interface AgentSenderProps {
-  /** 当前输入文本（受控）：插入的引用 chip 也以 `@file:<id>` / `@dataset:<id>` / `@container:<id>` 文本参与拼接。 */
+  /** 当前输入文本（受控）：插入的引用 chip 也以 `@file:<id>` / `@dataset:<id>` / `@container:<id>` / `@report:<id>` 文本参与拼接。 */
   value: string;
   /** 输入变化（含插入 / 删除引用 chip）。 */
   onChange: (value: string) => void;
@@ -49,6 +59,10 @@ export interface AgentSenderProps {
  *   - Node Files：`invoke.analysisNodeFilePage`，分析节点产物文件（`@file:<id>`）；
  *   - Datasets：`invoke.datasetProjectPage`，数据集（go_dataset），`@dataset:<id>`；
  *   - Containers：`invoke.containerTemplatePage`，容器模板（go_container_template_definition），`@container:<id>`。
+ *
+ * 另外支持「外部页面把引用插进来」：任意页面调用 hooks/useInsertAgentRef
+ * （如报告文件页插入 `@report:<id>`），请求经 agent-sender.store 落到本组件，
+ * 本组件消费后插入 chip —— 面板当时未打开也不会丢请求。
  * 其余 Sender 扩展（深度思考开关 / Agent 选择 / 附件 / API 设置等）先不添加。
  */
 const AgentSender: FC<AgentSenderProps> = ({
@@ -72,31 +86,40 @@ const AgentSender: FC<AgentSenderProps> = ({
   }, [value]);
 
   // 插入引用 chip：以 tag 形式插到光标处（定位不到光标时追加到末尾）。
-  // kind 决定提交时拼进消息文本的前缀（file / dataset / container）。
-  const insertRef = (kind: "file" | "dataset" | "container", value: string, label: string, icon: ReactNode) => {
-    senderRef.current?.insert?.([
-      {
-        type: "tag",
-        key: `${kind}_ref_${Date.now()}`,
-        props: {
-          label: (
-            <Flex align="center" gap={4} style={{ display: "inline-flex" }}>
-              {icon}
-              {label}
-            </Flex>
-          ),
-          value,
+  // kind 决定提交时拼进消息文本的前缀（file / dataset / container / report）。
+  // 图标默认按 kind 取 REF_ICONS，调用方一般不用传。
+  const insertRef = useCallback(
+    (
+      kind: AgentRefKind,
+      value: string,
+      label: string,
+      icon: ReactNode = REF_ICONS[kind]
+    ) => {
+      senderRef.current?.insert?.([
+        {
+          type: "tag",
+          key: `${kind}_ref_${Date.now()}`,
+          props: {
+            label: (
+              <Flex align="center" gap={4} style={{ display: "inline-flex" }}>
+                {icon}
+                {label}
+              </Flex>
+            ),
+            value,
+          },
+          formatResult: () => `@${kind}:${value} `,
         },
-        formatResult: () => `@${kind}:${value} `,
-      },
-    ]);
-  };
+      ]);
+    },
+    []
+  );
 
   // 选择结果统一处理：用户取消（reject）或条目没有 id 时什么都不插入。
   const insertPickedFile = (file?: DatasetFileItem) => {
     const path = String(file?.id ?? "").trim();
     if (!path) return;
-    insertRef("file", path, file?.file_name || file?.file_id || path, <FileOutlined />);
+    insertRef("file", path, file?.file_name || file?.file_id || path);
   };
 
   // 选择抽屉收起后把焦点交还输入框。
@@ -116,6 +139,18 @@ const AgentSender: FC<AgentSenderProps> = ({
     };
     requestAnimationFrame(tryFocus);
   };
+
+  // 消费外部页面发起的「插入引用」请求（见 hooks/useInsertAgentRef）。
+  // 请求先落在 store 里，因此即使 Agent 面板是刚被切出来、本组件刚挂载也能插入。
+  const pendingRef = useAgentSenderStore((state) => state.pendingRef);
+  const consumePendingRef = useAgentSenderStore((state) => state.consumePendingRef);
+  useEffect(() => {
+    if (!pendingRef) return;
+    insertRef(pendingRef.kind, pendingRef.value, pendingRef.label);
+    consumePendingRef();
+    // 插入后把光标留在输入框末尾，方便直接继续输入。
+    senderRef.current?.focus({ cursor: "end" });
+  }, [pendingRef, consumePendingRef, insertRef]);
 
   // Data Files：invoke 弹出 dataset-file-page 的选择模式（单选 + Confirm），
   // Confirm 时该页面用 onOk 回传选中的 DatasetFileItem，openDrawerAsync 据此 resolve。
@@ -163,8 +198,7 @@ const AgentSender: FC<AgentSenderProps> = ({
       insertRef(
         "dataset",
         datasetId,
-        dataset?.dataset_name || `Dataset-${datasetId}`,
-        <TableOutlined />
+        dataset?.dataset_name || `Dataset-${datasetId}`
       );
     } catch {
       // 用户取消选择，无需处理。
@@ -187,8 +221,7 @@ const AgentSender: FC<AgentSenderProps> = ({
       insertRef(
         "container",
         templateId,
-        template?.display_name || template?.name || `Container-${templateId}`,
-        <CloudServerOutlined />
+        template?.display_name || template?.name || `Container-${templateId}`
       );
     } catch {
       // 用户取消选择，无需处理。

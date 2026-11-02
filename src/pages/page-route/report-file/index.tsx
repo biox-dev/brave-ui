@@ -1,6 +1,12 @@
 import { FC, useEffect, useState } from "react";
 import { Button, Card, Flex, Segmented, Skeleton, Spin, Tag, Tooltip } from "antd";
-import { ArrowLeftOutlined, FilePdfOutlined, ReloadOutlined, SaveOutlined } from "@ant-design/icons";
+import {
+  ArrowLeftOutlined,
+  FilePdfOutlined,
+  ReloadOutlined,
+  RobotOutlined,
+  SaveOutlined,
+} from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router";
 import { useSelector } from "react-redux";
 import ComponentsDetailsRender from "@/core/ui-renderer/ViewResolver";
@@ -13,6 +19,7 @@ import {
 } from "@/api/project";
 import ProjectReportGitActions from "@/components/project-report-git/project-report-git-actions";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
+import { useInsertAgentRef } from "@/hooks/useInsertAgentRef";
 import { LLMEnvType, setLLMEnv } from "@/utils/llm-env";
 import { printHtmlDocument } from "@/utils/print-html";
 
@@ -25,6 +32,8 @@ type ReportFileView = "view" | "update";
 const ReportFile: FC<any> = () => {
   const navigate = useNavigate();
   const message = useGlobalMessage();
+  // 把本报告的 @report:<id> 引用 chip 插进 Agent 输入框（面板未打开时会自动切过去）。
+  const insertAgentRef = useInsertAgentRef();
   const { project } = useSelector((state: any) => state.user);
   const projectId = typeof project === "string" ? project : project?.project_id;
 
@@ -139,8 +148,22 @@ const ReportFile: FC<any> = () => {
       }
       extra={
         <Flex gap="small" align="center">
-          {/* 把当前报告绑定为当前用户的 Agent 业务上下文（llmEnv）。 */}
+          {/* 把当前报告作为 @report:<id> 引用插进 Agent 输入框（相当于手动打一个引用 chip）。 */}
           <Button
+            size="small"
+            icon={<RobotOutlined />}
+            disabled={!reportId}
+            onClick={() => {
+              const ok = insertAgentRef("report", reportId, {
+                label: report?.title || `Report-${reportId}`,
+              });
+              if (ok) message.success("Reference added to Agent input");
+            }}
+          >
+            Ask Agent
+          </Button>
+          {/* 把当前报告绑定为当前用户的 Agent 业务上下文（llmEnv）。 */}
+          {/* <Button
             size="small"
             color="geekblue"
             variant="solid"
@@ -151,7 +174,7 @@ const ReportFile: FC<any> = () => {
             }}
           >
             Use as Agent Context
-          </Button>
+          </Button> */}
           {/* 报告目录的 git 操作：查看变化 / 提交 / 撤回修改。 */}
           <ProjectReportGitActions
             key={`${reportId}-${gitVersion}`}
