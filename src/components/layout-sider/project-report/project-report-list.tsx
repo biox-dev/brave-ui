@@ -8,20 +8,22 @@ import ProjectReportItemsPanel from "./project-report-items-panel";
 import { useProjectReportPageQuery } from "@/hooks/usePaginationV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
+import { useOpenMainTab } from "@/hooks/useMainTabTitle";
 import { formatRelativeTime } from "@/utils/time";
 import { DeleteOutlined, EditOutlined, EyeOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined, SendOutlined } from "@ant-design/icons";
 import { Button, Empty, Pagination, Popconfirm, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { useLocation } from "react-router";
 import { useSelector } from "react-redux";
 import { invoke } from "@/core/ui-system/invokeV2";
 
 const ProjectReportList: FC<any> = () => {
-  const navigate = useNavigate();
   const location = useLocation();
   const message = useGlobalMessage();
   const { locale } = useI18n();
+  // 跳转 + 登记标签页名称一步完成（报告实体有 title 字段，默认标题规则即可）。
+  const openMainTab = useOpenMainTab();
   const { project } = useSelector((state: any) => state.user);
   const projectId = typeof project === "string" ? project : project?.project_id;
   const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([]);
@@ -66,7 +68,7 @@ const ProjectReportList: FC<any> = () => {
       );
       await refetch();
       if (created?.id) {
-        navigate(`/report/${created.id}`);
+        openMainTab(`/report/${created.id}`, created);
       }
     } catch {
       // User canceled the create modal.
@@ -154,7 +156,7 @@ const ProjectReportList: FC<any> = () => {
               type="text"
               size="small"
               icon={<EyeOutlined />}
-              onClick={() => navigate(`/report/${record.id}`)}
+              onClick={() => openMainTab(`/report/${record.id}`, record)}
             />
           </Tooltip>
           <Button
@@ -181,7 +183,7 @@ const ProjectReportList: FC<any> = () => {
       ),
     },
   ],
-    [locale, publishingReportId]
+    [locale, publishingReportId, openMainTab]
   );
 
   return (
@@ -212,7 +214,7 @@ const ProjectReportList: FC<any> = () => {
             // 点击行跳转到报告文件页面；展开图标单独阻止冒泡以免误触发跳转。
             onRow={(record) => ({
               style: { cursor: "pointer" },
-              onClick: () => navigate(`/report-file/${record.id}`),
+              onClick: () => openMainTab(`/report-file/${record.id}`, record),
             })}
             expandable={{
               expandedRowKeys,
@@ -233,7 +235,7 @@ const ProjectReportList: FC<any> = () => {
               expandedRowRender: (record) => (
                 <ProjectReportItemsPanel
                   reportId={record.id}
-                  onOpenItem={(item) => navigate(`/report-item/${item.id}`)}
+                  onOpenItem={(item) => openMainTab(`/report-item/${item.id}`, item)}
                   onChanged={refetch}
                 />
               ),
