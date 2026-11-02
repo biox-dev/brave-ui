@@ -9,6 +9,12 @@ interface AnalysisNodeTerminalProps {
   name?: string;
   /** 可选：覆盖默认的分析节点终端地址（容器模板临时终端复用本组件）。 */
   terminalUrl?: string;
+  /**
+   * 终端容器高度。弹窗里用默认 70vh；嵌入底部面板时传 "100%"（父级已定高）。
+   */
+  height?: number | string;
+  /** 终端内边距。底部面板需要铺满时传 0。 */
+  padding?: number;
 }
 
 /**
@@ -18,7 +24,13 @@ interface AnalysisNodeTerminalProps {
  *   - 浏览器 -> 后端：二进制/文本都是按键输入；文本 {"type":"resize",...} 是终端尺寸控制帧。
  *   - 后端 -> 浏览器：二进制输出字节流。
  */
-const AnalysisNodeTerminal = ({ id, name, terminalUrl }: AnalysisNodeTerminalProps) => {
+const AnalysisNodeTerminal = ({
+  id,
+  name,
+  terminalUrl,
+  height = "70vh",
+  padding = 8,
+}: AnalysisNodeTerminalProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -112,10 +124,12 @@ const AnalysisNodeTerminal = ({ id, name, terminalUrl }: AnalysisNodeTerminalPro
       ref={containerRef}
       style={{
         width: "100%",
-        height: "70vh",
-        padding: 8,
+        height,
+        padding,
         background: "#1e1e1e",
         borderRadius: 6,
+        boxSizing: "border-box",
+        overflow: "hidden",
       }}
     />
   );

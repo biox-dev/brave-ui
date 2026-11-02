@@ -31,7 +31,7 @@ import { useContainerTemplatePageQuery } from "@/hooks/usePaginationV2";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
-import { useOpenMainTab } from "@/hooks/useMainTabTitle";
+import { openBottomTerminal } from "@/layout/bottom-panel-store";
 import { formatRelativeTime } from "@/utils/time";
 
 export interface ContainerTemplateListProps {
@@ -136,7 +136,7 @@ const ContainerTemplateDetailCard = ({ item }: { item: ContainerTemplateItem }) 
  * 容器模板列表（左侧栏面板形态）。
  *
  * - 标题栏可折叠（由父级堆叠布局注入 collapsed / onToggleCollapse）。
- * - 点击行：路由跳转到容器模板临时终端页面（`/container-template-terminal/:templateId`）。
+ * - 点击行：在主区域底部面板打开临时终端标签（不跳路由，`hideMainPane` 会自动展开）。
  * - 右侧 Terminal 按钮：通过 invoke 打开临时终端弹窗。
  * - 作为选择器（invoke 打开且注入 onOk）时，点击行改为本地选中。
  */
@@ -158,8 +158,6 @@ const ContainerTemplateList = ({
 }: ContainerTemplateListProps) => {
   const message = useGlobalMessage();
   const { locale } = useI18n();
-  // 跳转 + 登记标签页名称一步完成；名称以详情页/模板名称为准。
-  const openMainTab = useOpenMainTab();
 
   const [selectedId, setSelectedId] = useState<string>();
   const [deletingId, setDeletingId] = useState<string>();
@@ -276,13 +274,11 @@ const ContainerTemplateList = ({
     );
   }, []);
 
-  /** 点击行：路由跳转到临时终端页面。 */
-  const openTerminalTab = useCallback(
-    (record: ContainerTemplateItem) => {
-      openMainTab(`/container-template-terminal/${record.id}`, templateDisplayName(record));
-    },
-    [openMainTab]
-  );
+  /** 点击行：在主区域底部面板打开临时终端（不跳路由）。 */
+  const openTerminalTab = useCallback((record: ContainerTemplateItem) => {
+    // 同一模板重复点击只会聚焦已有标签，不会重复创建容器。
+    openBottomTerminal(record.id, templateDisplayName(record));
+  }, []);
 
   const handleRowClick = useCallback(
     (record: ContainerTemplateItem) => {

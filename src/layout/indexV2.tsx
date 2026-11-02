@@ -13,6 +13,8 @@ import AppHeader from './components/AppHeader';
 import ActivityBar from './components/ActivityBar';
 import SplitWorkspace from './components/SplitWorkspace.tsx';
 import MainTabs from './components/MainTabs';
+import BottomPanel from './components/BottomPanel';
+import { hydrateBottomPanel, useBottomPanelStore } from './bottom-panel-store';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
@@ -151,9 +153,16 @@ const App: React.FC = () => {
   const hasSavedTabs = Boolean(
     savedTabs?.some((tab) => tab.url && tab.url !== '/'),
   );
-  // 根路由且后端还没有任何标签时，主区域收收让右侧撑满；
-  // 一旦标签数据回填（或路由离开根路径），主区域自动打开。
-  const hideMainPane = isRootRoute && !hasSavedTabs;
+  // 底部面板同理：在布局层（始终挂载）回填，不依赖 BottomPanel 是否已渲染。
+  const userId = useSelector((state: any) => state.user.userInfo?.id as string | undefined);
+  const savedBottomPanel = useSelector((state: any) => state.user.userInfo?.menu_config?.bottom);
+  useEffect(() => {
+    hydrateBottomPanel(userId, savedBottomPanel);
+  }, [userId, savedBottomPanel]);
+  // 只订阅布尔值：底部面板拖动高度会高频更新 store，整页布局不需要跟着重渲染。
+  const hasBottomTabs = useBottomPanelStore((state) => state.tabs.length > 0);  // 根路由且后端还没有任何标签时，主区域收收让右侧撑满；
+  // 一旦标签数据回填、底部面板打开了标签（如容器终端）或路由离开根路径，主区域自动打开。
+  const hideMainPane = isRootRoute && !hasSavedTabs && !hasBottomTabs;
   const layoutLocale: LayoutLocale = locale === 'en_US' ? 'en_US' : 'zh_CN';
   const segmentedOptions = useMemo(
     () =>
@@ -244,22 +253,25 @@ const App: React.FC = () => {
                 left={<ViewResolver view={leftSideView} view_mode="card" />}
                 main={
                   hideMainPane ? null : (
-                    <BorderlessCard
-                      size="small"
-                      className="layout-sharp-main-card"
-                      styles={{ body: { padding: 8 } }}
-                      title={<MainTabs />}
-                    >
-                      {isRootRoute ? (
-                        <div className="layout-sharp-main-empty">
-                          {locale === 'en_US'
-                            ? 'Select a tab above to continue'
-                            : '请选择一个标签页继续'}
-                        </div>
-                      ) : (
-                        <Outlet />
-                      )}
-                    </BorderlessCard>
+                    <div className="layout-sharp-main-stack">
+                      <BorderlessCard
+                        size="small"
+                        className="layout-sharp-main-card"
+                        styles={{ body: { padding: 8 } }}
+                        title={<MainTabs />}
+                      >
+                        {isRootRoute ? (
+                          <div className="layout-sharp-main-empty">
+                            {locale === 'en_US'
+                              ? 'Select a tab above to continue'
+                              : '请选择一个标签页继续'}
+                          </div>
+                        ) : (
+                          <Outlet />
+                        )}
+                      </BorderlessCard>
+                      <BottomPanel />
+                    </div>
                   )
                 }
                 expandRight={hideMainPane}

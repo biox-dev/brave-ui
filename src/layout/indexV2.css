@@ -613,6 +613,207 @@
   background: color-mix(in srgb, var(--sharp-panel-muted) 80%, transparent);
 }
 
+/* 主区域：上方页面内容 + 下方底部面板（终端 / 日志），整体撑满主面板高度 */
+.layout-sharp-main-stack {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.layout-sharp-main-stack > .layout-sharp-main-card {
+  flex: 1 1 0;
+  height: auto;
+  min-height: 0;
+}
+
+/* 底部面板：内容高度由 inline style 控制；收起时只保留标签栏 */
+.layout-bottom-panel {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 32px;
+  border-top: 1px solid var(--sharp-divider);
+  background: var(--sharp-panel-bg);
+}
+
+.layout-bottom-panel.is-open {
+  max-height: 85%;
+}
+
+/* 拖拽条：贴着面板顶部，双击恢复默认高度 */
+.layout-bottom-panel-resizer {
+  flex: 0 0 auto;
+  height: 5px;
+  margin-top: -4px;
+  cursor: row-resize;
+  background: transparent;
+  outline: none;
+}
+
+.layout-bottom-panel-resizer:hover,
+.layout-bottom-panel-resizer:focus-visible {
+  background: var(--sharp-divider-strong);
+}
+
+body.layout-bottom-panel-resizing {
+  cursor: row-resize;
+  user-select: none;
+}
+
+.layout-bottom-panel-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  min-height: 32px;
+  padding-right: 6px;
+  border-bottom: 1px solid var(--sharp-divider);
+  overflow: hidden;
+}
+
+.layout-bottom-panel-tabs {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.layout-bottom-panel-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.layout-bottom-panel-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 0 28px;
+  border-right: 1px solid var(--sharp-divider);
+  color: var(--sharp-text-soft);
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  transition: color 0.15s ease;
+}
+
+.layout-bottom-panel-tab:hover {
+  color: var(--sharp-text);
+}
+
+.layout-bottom-panel-tab:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--sharp-divider-strong);
+}
+
+.layout-bottom-panel-tab.is-active {
+  color: var(--sharp-text);
+  font-weight: 600;
+}
+
+.layout-bottom-panel-tab-label {
+  display: block;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.layout-bottom-panel-tab-close {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--sharp-text-soft);
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.layout-bottom-panel-tab:hover .layout-bottom-panel-tab-close,
+.layout-bottom-panel-tab.is-active .layout-bottom-panel-tab-close,
+.layout-bottom-panel-tab-close:focus-visible {
+  opacity: 1;
+}
+
+.layout-bottom-panel-tab-close:hover {
+  color: var(--sharp-text);
+  background: color-mix(in srgb, var(--sharp-panel-muted) 80%, transparent);
+}
+
+.layout-bottom-panel-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.layout-bottom-panel-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--sharp-text-soft);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.layout-bottom-panel-action:hover {
+  color: var(--sharp-text);
+  background: color-mix(in srgb, var(--sharp-panel-muted) 80%, transparent);
+}
+
+/* 内容区：各标签按 display 切换，组件保持挂载（终端连接不会断） */
+.layout-bottom-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--sharp-panel-bg);
+}
+
+.layout-bottom-panel-pane {
+  width: 100%;
+  height: 100%;
+}
+
+.layout-bottom-panel-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--sharp-text-soft);
+  font-size: 12px;
+  user-select: none;
+}
+
 .layout-sharp-left-pane,
 .layout-sharp-right-pane {
   flex: 0 0 auto;

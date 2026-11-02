@@ -33,9 +33,26 @@ export interface UserMenuTab {
 	title?: string;
 }
 
-// 用户的菜单配置（后端 users.menu_config），目前只有主区域标签页。
+// 底部面板一个标签页：kind 决定前端渲染器（terminal / log / …），params 是该渲染器的参数。
+export interface UserBottomTab {
+	key: string;
+	kind: string;
+	title?: string;
+	params?: Record<string, unknown>;
+}
+
+// 底部面板状态：open = 是否展开（收起时只保留标签栏），active = 当前激活标签的 key。
+export interface UserBottomPanel {
+	open?: boolean;
+	active?: string;
+	height?: number;
+	tabs?: UserBottomTab[];
+}
+
+// 用户的菜单配置（后端 users.menu_config）：主区域标签页 + 底部面板。
 export interface UserMenuConfig {
 	tabs?: UserMenuTab[];
+	bottom?: UserBottomPanel;
 }
 
 export interface LoginUser {
@@ -148,4 +165,17 @@ export const updateMenuConfigApi = (tabs: UserMenuTab[]) => {
 		{ tabs },
 		{ skipGlobalError: true }
 	);
+};
+
+/**
+ * 保存当前用户的底部面板状态（整体替换：标签列表 + 激活标签 + 展开态 + 高度）。
+ *
+ * 与 `updateMenuConfigApi` 同构：调用方做本地乐观更新，后台异步落库，失败不影响使用。
+ */
+export const updateBottomPanelApi = (payload: UserBottomPanel) => {
+	return http.post<{
+		success: boolean;
+		message: string;
+		bottom: UserBottomPanel | null;
+	}>("/auth/bottom-panel", payload, { skipGlobalError: true });
 };
