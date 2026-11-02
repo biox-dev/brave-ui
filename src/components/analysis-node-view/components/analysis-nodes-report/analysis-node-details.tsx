@@ -44,9 +44,10 @@ const statusColorMap: Record<string, string> = {
 
 export interface AnalysisNodeDetailsProps {
     analysis_node_id?: string;
+    useTitle?: boolean;
 }
 
-const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id }) => {
+const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, useTitle }) => {
     const [detailLoading, setDetailLoading] = useState(false);
     const [sampleDetailMap, setSampleDetailMap] = useState<Record<string, Partial<AnalysisNodeSample>>>({});
     const { analysisNodeId, setAnalysisNodeId } = useStoreRender();
@@ -61,7 +62,11 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id })
     const detailNode = selectedSampleDetail?.node;
     const detailMatchesRoute =
         String(detailNode?.id ?? '') === String(analysis_node_id ?? '');
-    useMainTabTitle(detailMatchesRoute ? detailNode?.node_name : undefined);
+    // useTitle === false 时不参与标签页改名（交给上层/其它页面控制标题）。
+    useMainTabTitle(
+        detailMatchesRoute ? detailNode?.node_name : undefined,
+        useTitle !== false
+    );
     // 运行中的节点可以打开容器终端（xterm.js -> WebSocket -> kubectl/docker exec）。
     const [terminalOpen, setTerminalOpen] = useState(false);
     const { containerURL } = useSelector((state: any) => state.user);

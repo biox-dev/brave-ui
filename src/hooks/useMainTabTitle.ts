@@ -24,16 +24,19 @@ export const useMainTabTitles = (): MainTabTitleMap =>
  * 直接登记就会先把上一个标签页的名称写到新标签上（表现为「先闪一下旧名称」）。
  * 这类页面请按 id 过滤后再传：
  * `useMainTabTitle(node?.id === routeId ? node.node_name : undefined)`。
+ *
+ * 需要按条件开关时用第二个参数 `enabled`（不要在调用处写 `if (...)`，hook 不能条件调用）：
+ * `useMainTabTitle(name, useTitle)`
  */
-export const useMainTabTitle = (title?: string | null): void => {
+export const useMainTabTitle = (title?: string | null, enabled = true): void => {
   const { pathname, search } = useLocation();
   const key = toMainTabKey(`${pathname}${search}`);
   const value = (title ?? '').trim();
 
   useEffect(() => {
-    if (!value) {
+    if (!enabled || !value) {
       return;
     }
     setMainTabTitle(key, value);
-  }, [key, value]);
+  }, [key, value, enabled]);
 };
