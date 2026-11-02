@@ -4,6 +4,7 @@ import { http } from "@/api/client/http";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
+import { setMainTabTitle } from "@/layout/main-tab-title-store";
 import { formatRelativeTime } from "@/utils/time";
 import { ApartmentOutlined, CaretDownOutlined, CaretRightOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Descriptions, Empty, Pagination, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
@@ -17,6 +18,10 @@ import { useSelector } from "react-redux";
 //     .split(/[,;|\s]+/)
 //     .map((tag) => tag.trim())
 //     .filter(Boolean);
+
+/** 工作流的人类可读名称：优先 name，其次 workflow_id，最后回退到 id。 */
+const workflowDisplayName = (workflow: WorkflowItem) =>
+  workflow.name || workflow.workflow_id || `Workflow-${workflow.id}`;
 
 const WorkflowDetailCard = ({ item }: { item: WorkflowItem }) => {
   // const tags = splitTags(item.tags);
@@ -117,11 +122,18 @@ const WorkflowPageList: FC<WorkflowPageListProps> = ({ collapsed = false, onTogg
     }
   );
 
+  /**
+   * 打开工作流详情标签页。
+   * 统一通过 MainTabs 的标题通道登记工作流名：标签页直接显示工作流名称，
+   * 而不是静态规则生成的「流程 · <id>」。
+   */
   const handleOpen = (workflow: WorkflowItem) => {
     if (!workflow?.workflow_id) {
       return;
     }
-    navigate(`/c/tools/${encodeURIComponent(String(workflow.id))}`);
+    const path = `/c/tools/${encodeURIComponent(String(workflow.id))}`;
+    setMainTabTitle(path, workflowDisplayName(workflow));
+    navigate(path);
   };
 
   const columns = useMemo<ColumnsType<WorkflowItem>>(
@@ -132,7 +144,7 @@ const WorkflowPageList: FC<WorkflowPageListProps> = ({ collapsed = false, onTogg
         key: "name",
         ellipsis: { showTitle: false },
         render: (name: string, record) => {
-          const title = name || record.workflow_id || `Workflow-${record.id}`;
+          const title = workflowDisplayName(record);
           const meta = [
             record.updated_at
               ? formatRelativeTime(record.updated_at, locale)
@@ -192,7 +204,7 @@ const WorkflowPageList: FC<WorkflowPageListProps> = ({ collapsed = false, onTogg
           title={
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
               <ApartmentOutlined />
-              {record.name || record.workflow_id || `Workflow-${record.id}`}
+              {workflowDisplayName(record)}
             </span>
           }
           content={<WorkflowDetailCard item={record} />}
@@ -211,7 +223,7 @@ const WorkflowPageList: FC<WorkflowPageListProps> = ({ collapsed = false, onTogg
     width: 130,
     align: "right",
     render: (_: unknown, record) => {
-      const title = record.name || record.workflow_id || `Workflow-${record.id}`;
+      const title = workflowDisplayName(record);
       // Every action opens the same views the workflow-panel tabs use, but as a
       // drawer via `invoke` — edit, workflow visualization/DAG, and README.md.
       const drawerProps = { width: 960, title, footer: null };

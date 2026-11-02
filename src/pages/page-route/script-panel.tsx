@@ -62,6 +62,7 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
+    
 
     // 统一标签页标题通道：详情加载完成后把脚本名同步给 MainTabs，
     // 直接打开/刷新该路由时标签页也能显示脚本名。
