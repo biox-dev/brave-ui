@@ -19,6 +19,7 @@ import {
   ReloadOutlined,
 } from "@ant-design/icons";
 import { closeContainerTemplateTerminalApi } from "@/api/container-template-terminal";
+import { useComponentStore } from "@/event-bus/stores/components";
 import { useContainerTerminalSessionListQuery } from "@/hooks/usePaginationV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
@@ -109,6 +110,7 @@ const ContainerTerminalSessionList = ({
 }: ContainerTerminalSessionListProps) => {
   const message = useGlobalMessage();
   const { locale } = useI18n();
+  const { register, unregister, invoke } = useComponentStore();
   const [deletingId, setDeletingId] = useState<string>();
   // 默认只显示当前激活项目下的会话（后端用 GetActiveProjectByUserID 过滤）。
   const [onlyCurrentProject, setOnlyCurrentProject] = useState(true);
@@ -123,6 +125,27 @@ const ContainerTerminalSessionList = ({
   useEffect(() => {
     refetch();
   }, [onlyCurrentProject, refetch]);
+
+  // 会话增删事件：终端组件挂载（创建会话）/ 卸载（关闭会话）与手动删除时都会刷新列表。
+  // 用法与 app-session-page.tsx 一致：以 "*" 注册，任意组件 invoke 都能通知到本面板。
+  const realtimeInstance = useMemo(
+    () => ({
+      sessionCreated: (_args?: any) => {
+        refetch();
+      },
+      sessionDeleted: (_args?: any) => {
+        refetch();
+      },
+    }),
+    [refetch]
+  );
+
+  useEffect(() => {
+    register("container-terminal-session", "*", realtimeInstance);
+    return () => {
+      unregister("container-terminal-session", "*", realtimeInstance);
+    };
+  }, [register, unregister, realtimeInstance]);
 
   /**
    * 打开底部终端标签。
@@ -148,6 +171,8 @@ const ContainerTerminalSessionList = ({
         await closeContainerTemplateTerminalApi(record.template_id);
         // 关闭标签：closeBottomTab 内也会再调一次 DELETE（幂等），这里主要是通知 UI。
         closeBottomTab(`terminal:${record.template_id}`);
+        // 广播删除事件：其它终端会话列表（如另一侧栏实例）同步刷新。
+        invoke("container-terminal-session", "*", "sessionDeleted", [{ template_id: record.template_id }]);
         message.success("Terminal session closed");
         refetch();
       } catch (error) {

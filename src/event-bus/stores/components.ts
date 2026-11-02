@@ -7,6 +7,17 @@ export type ModalInstance = { open: () => void; close: () => void; setLoading: (
 export type FormInstance = { reload: () => void; setValue: (name: string, v: any) => void; reset: () => void, updateFormStatus: () => void };
 export type ChartInstance = { refresh: () => void };
 
+/**
+ * 允许多个实例同时注册在同一 category + id 上的类目。
+ *
+ * 这些类目里，同一个 id（通常是 "*"）可能被多个面板实例注册（左栏分栈布局、
+ * 弹窗与左栏共存、HMR 重挂载等）。用 Set 保存，避免一个实例卸载时把其它
+ * 仍在挂载的监听者一并删掉（那会让后端推送的实时事件静默丢失）。
+ */
+const MULTI_INSTANCE_CATEGORIES = new Set<string>(["analysis", "container-terminal-session"]);
+
+const isMultiCategory = (category: string) => MULTI_INSTANCE_CATEGORIES.has(category);
+
 // 统一的组件 store
 export type ComponentStore = {
     tables: Record<string, TableInstance>;
@@ -16,6 +27,7 @@ export type ComponentStore = {
     charts: Record<string, ChartInstance>;
     analysis: Record<string, Set<any>>; 
     "app-session": Record<string, any>;
+    "container-terminal-session": Record<string, Set<any> | any>;
     "analysis-node": Record<string, any>;
     "ai-summary": Record<string, any>;
     graph: Record<string, any>; 
@@ -36,6 +48,7 @@ export const useComponentStore = create<ComponentStore>((set, get) => ({
     charts: {},
     analysis: {},
     "app-session": {},
+    "container-terminal-session": {},
     "analysis-node": {},
     "ai-summary": {},
     graph: {},
@@ -56,7 +69,7 @@ export const useComponentStore = create<ComponentStore>((set, get) => ({
 
 
             // ⭐ multi
-            if (category === "analysis") {
+            if (isMultiCategory(category)) {
                 // debugger
                 if (!map[id]) {
                     map[id] = new Set();
@@ -82,13 +95,16 @@ export const useComponentStore = create<ComponentStore>((set, get) => ({
         set((state) => {
             const map = { ...(state as any)[category] };
 
-            if (category === "analysis") {
+            if (isMultiCategory(category)) {
                 const setInst = map[id];
                 if (setInst) {
                     if (instance) {
                         setInst.delete(instance);
                     }
-                    if (!instance || setInst.size === 0) {
+                    // 只有当集合里已经没有监听者时才删除这个 key。
+                    // 否则一个面板实例卸载会把其它仍在挂载的实例一并清掉，
+                    // 导致后端推送的实时事件全部静默丢失（例如终端会话列表不刷新）。
+                    if (setInst.size === 0) {
                         delete map[id];
                     }
                 }
