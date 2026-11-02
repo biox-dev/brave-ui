@@ -99,6 +99,24 @@ const AgentSender: FC<AgentSenderProps> = ({
     insertRef("file", path, file?.file_name || file?.file_id || path, <FileOutlined />);
   };
 
+  // 选择抽屉收起后把焦点交还输入框。
+  // ⚠️ 不能在 await resolve 之后立即 focus：rc-drawer 会在关闭动画结束时的
+  // afterOpenChange(false) 里把焦点还给「打开前的元素」，也就是触发的那个按钮
+  // （Drawer 内部 lastActiveRef），立即 focus 会被它盖掉。
+  // 所以这里轮询等待 Drawer 从 DOM 上真正卸载（= 它已经还过焦点了）再抢回来。
+  const focusInputAfterPicker = () => {
+    const startedAt = Date.now();
+    const tryFocus = () => {
+      // 兜底：最多等 1s，避免页面里存在常驻 Drawer 时永远聚焦不上。
+      if (document.querySelector(".ant-drawer") && Date.now() - startedAt < 1000) {
+        requestAnimationFrame(tryFocus);
+        return;
+      }
+      senderRef.current?.focus({ cursor: "end" });
+    };
+    requestAnimationFrame(tryFocus);
+  };
+
   // Data Files：invoke 弹出 dataset-file-page 的选择模式（单选 + Confirm），
   // Confirm 时该页面用 onOk 回传选中的 DatasetFileItem，openDrawerAsync 据此 resolve。
   const handleSelectDatasetFile = async () => {
@@ -110,6 +128,9 @@ const AgentSender: FC<AgentSenderProps> = ({
       insertPickedFile(file);
     } catch {
       // 用户取消选择，无需处理。
+    } finally {
+      // 无论选中还是取消，都把焦点交还输入框。
+      focusInputAfterPicker();
     }
   };
 
@@ -123,6 +144,9 @@ const AgentSender: FC<AgentSenderProps> = ({
       insertPickedFile(file);
     } catch {
       // 用户取消选择，无需处理。
+    } finally {
+      // 无论选中还是取消，都把焦点交还输入框。
+      focusInputAfterPicker();
     }
   };
 
@@ -144,6 +168,9 @@ const AgentSender: FC<AgentSenderProps> = ({
       );
     } catch {
       // 用户取消选择，无需处理。
+    } finally {
+      // 无论选中还是取消，都把焦点交还输入框。
+      focusInputAfterPicker();
     }
   };
 
@@ -165,6 +192,9 @@ const AgentSender: FC<AgentSenderProps> = ({
       );
     } catch {
       // 用户取消选择，无需处理。
+    } finally {
+      // 无论选中还是取消，都把焦点交还输入框。
+      focusInputAfterPicker();
     }
   };
 

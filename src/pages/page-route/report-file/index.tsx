@@ -1,5 +1,5 @@
 import { FC, useEffect, useState } from "react";
-import { Button, Card, Flex, Segmented, Skeleton, Spin, Tag } from "antd";
+import { Button, Card, Flex, Segmented, Skeleton, Spin, Tag, Tooltip } from "antd";
 import { ArrowLeftOutlined, FilePdfOutlined, ReloadOutlined, SaveOutlined } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router";
 import { useSelector } from "react-redux";
@@ -132,7 +132,9 @@ const ReportFile: FC<any> = () => {
       title={
         <Flex align="center" gap="small">
           {/* <Button size="small" type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} /> */}
-          <span>{report?.title || "Report File"}</span>
+          <Tooltip title={report?.id}>
+             <span>{report?.title || "Report File"}</span>
+          </Tooltip>
         </Flex>
       }
       extra={
