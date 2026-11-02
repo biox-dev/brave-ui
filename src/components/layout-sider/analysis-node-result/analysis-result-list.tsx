@@ -4,13 +4,13 @@ import { useComponentStore } from "@/event-bus/stores/components";
 import { useAnalysisNodePageQuery } from "@/hooks/usePaginationV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
-import { setMainTabTitle } from "@/layout/main-tab-title-store";
+import { useOpenMainTab } from "@/hooks/useMainTabTitle";
 import { formatRelativeTime } from "@/utils/time";
 import { CaretDownOutlined, CaretRightOutlined, DeleteOutlined, ExperimentOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Descriptions, Empty, Pagination, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { useLocation } from "react-router";
 import { useSelector } from "react-redux";
 
 const statusColor = (status: string) => {
@@ -108,10 +108,11 @@ export interface AnalysisResultListProps {
 }
 
 const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel, close, multiple = false, collapsed = false, onToggleCollapse }) => {
-  const navigate = useNavigate();
   const location = useLocation();
   const message = useGlobalMessage();
   const { locale } = useI18n();
+  // 跳转 + 登记标签页名称一步完成；名称最终以详情页登记的真实数据为准。
+  const openMainTab = useOpenMainTab();
 
   // Derive the selected node id from the current route so the selection
   // survives a full page refresh.
@@ -198,9 +199,7 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
    * 而不是静态规则生成的「节点报告 · <id>」。
    */
   const openNodeReport = (node: AnalysisNodeItem) => {
-    const path = `/analsyis-node-report/${node.id}`;
-    setMainTabTitle(path, nodeDisplayName(node));
-    navigate(path);
+    openMainTab(`/analsyis-node-report/${node.id}`, nodeDisplayName(node));
   };
 
   /**

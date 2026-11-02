@@ -4,13 +4,13 @@ import { http } from "@/api/client/http";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
-import { setMainTabTitle } from "@/layout/main-tab-title-store";
+import { useOpenMainTab } from "@/hooks/useMainTabTitle";
 import { formatRelativeTime } from "@/utils/time";
 import { ApartmentOutlined, CaretDownOutlined, CaretRightOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Descriptions, Empty, Pagination, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { useLocation } from "react-router";
 import { useSelector } from "react-redux";
 
 // const splitTags = (tags?: string) =>
@@ -92,9 +92,10 @@ export interface WorkflowPageListProps {
 
 const WorkflowPageList: FC<WorkflowPageListProps> = ({ collapsed = false, onToggleCollapse }) => {
   const message = useGlobalMessage();
-  const navigate = useNavigate();
   const location = useLocation();
   const { locale } = useI18n();
+  // 跳转 + 登记标签页名称一步完成；名称最终以详情页登记的真实数据为准。
+  const openMainTab = useOpenMainTab();
 
   // Derive the selected workflow id from the current route so the selection
   // survives a full page refresh.
@@ -131,9 +132,7 @@ const WorkflowPageList: FC<WorkflowPageListProps> = ({ collapsed = false, onTogg
     if (!workflow?.workflow_id) {
       return;
     }
-    const path = `/c/tools/${encodeURIComponent(String(workflow.id))}`;
-    setMainTabTitle(path, workflowDisplayName(workflow));
-    navigate(path);
+    openMainTab(`/c/tools/${encodeURIComponent(String(workflow.id))}`, workflowDisplayName(workflow));
   };
 
   const columns = useMemo<ColumnsType<WorkflowItem>>(

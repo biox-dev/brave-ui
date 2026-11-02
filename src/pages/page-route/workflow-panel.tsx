@@ -28,7 +28,7 @@ import { invoke } from "@/core/ui-system/invokeV2"
 import { http } from "@/api/client/http"
 import GitStateActions from "../components-relation/components/git-state-actions"
 import { useI18n } from "@/hooks/useI18n"
-import { useMainTabTitle } from "@/hooks/useMainTabTitle"
+import { useRouteMainTabTitle } from "@/hooks/useMainTabTitle"
 import "./workflow-panel.css"
 
 const Pipeline: FC<any> = ({ }) => {
@@ -372,19 +372,9 @@ const Pipeline: FC<any> = ({ }) => {
 
     // 统一标签页标题通道：详情加载完成后把工作流名同步给 MainTabs，
     // 直接打开/刷新该路由时标签页也能显示工作流名。
-    // 只在「已加载数据确实属于当前路由」时登记：本组件在 /c/tools/:workflow_id 之间
-    // 切换时不会重新挂载，旧数据会残留一帧，否则会把上一个工作流的名称写到新标签页上。
-    const routeWorkflowId = useMemo(
-        () => (workflow_id ? decodeURIComponent(workflow_id) : undefined),
-        [workflow_id]
-    )
-    const workflowMatchesRoute =
-        String(component?.id ?? "") !== "" && String(component?.id ?? "") === String(routeWorkflowId ?? "")
-    useMainTabTitle(
-        workflowMatchesRoute
-            ? component?.name || component?.workflow_path || undefined
-            : undefined
-    )
+    // useRouteMainTabTitle 只登记「id 与当前路由一致」的数据：本组件在 /c/tools/:workflow_id
+    // 之间切换时不会重新挂载，旧数据会残留一帧，不加判断会把上一个工作流的名称写到新标签页上。
+    useRouteMainTabTitle(component, { fields: ["name", "workflow_path"] })
 
     const views = [
         { label: zh ? "分析" : "Analysis", value: "analysisPage" },

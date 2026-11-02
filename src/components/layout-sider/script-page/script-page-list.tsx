@@ -4,13 +4,13 @@ import { http } from "@/api/client/http";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
-import { setMainTabTitle } from "@/layout/main-tab-title-store";
+import { useOpenMainTab } from "@/hooks/useMainTabTitle";
 import { formatRelativeTime } from "@/utils/time";
 import { CaretDownOutlined, CaretRightOutlined, CodeOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Descriptions, Empty, Pagination, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { useLocation } from "react-router";
 import { useSelector } from "react-redux";
 
 // const splitTags = (tags?: string) =>
@@ -89,9 +89,10 @@ export interface ScriptPageListProps {
 
 const ScriptPageList: FC<ScriptPageListProps> = ({ collapsed = false, onToggleCollapse }) => {
   const message = useGlobalMessage();
-  const navigate = useNavigate();
   const location = useLocation();
   const { locale } = useI18n();
+  // 跳转 + 登记标签页名称一步完成；名称最终以详情页登记的真实数据为准。
+  const openMainTab = useOpenMainTab();
 
   // Derive the selected script id from the current route so the selection
   // survives a full page refresh.
@@ -128,9 +129,7 @@ const ScriptPageList: FC<ScriptPageListProps> = ({ collapsed = false, onToggleCo
     if (!script?.id) {
       return;
     }
-    const path = `/c/scripts/${encodeURIComponent(script.id)}`;
-    setMainTabTitle(path, scriptDisplayName(script));
-    navigate(path);
+    openMainTab(`/c/scripts/${encodeURIComponent(script.id)}`, scriptDisplayName(script));
   };
 
   const columns = useMemo<ColumnsType<ScriptItem>>(
