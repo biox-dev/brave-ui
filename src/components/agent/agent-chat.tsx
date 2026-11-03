@@ -1,4 +1,4 @@
-import { FC, useCallback, useEffect, useRef, useState } from "react";
+import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Button, Empty, Flex, Popconfirm, Select, Space, Spin, Tag, Typography } from "antd";
 import {
   CheckOutlined,
@@ -73,6 +73,12 @@ interface AgentWSMessage {
 // 任务终态事件类型。
 const TERMINAL_EVENT_TYPES = new Set(["task.completed", "task.failed", "task.canceled"]);
 
+// 会话消息分页大小：首屏 / 每次向上滚动加载的条数（与后端默认值对齐）。
+const MESSAGE_PAGE_SIZE = 30;
+
+// 空集合常量：没有进行中任务时保持引用稳定，避免时间线组件重复回填。
+const EMPTY_MESSAGE_IDS: ReadonlySet<string> = new Set<string>();
+
 // AgentChat 负责处理的事件类型（与 AgentTaskStream 的所有权划分）。
 //
 // 两个组件订阅同一条 `agent.event` 并共享去重表，必须先声明所有权再写去重键：
@@ -115,6 +121,22 @@ function conversationLabel(c: AgentConversationItem): string {
   return c.id;
 }
 
+// 把后端消息映射为本地气泡。
+//
+// 分页拼接（向上加载更早消息）时索引会变化，因此 key 优先用消息雪花 ID；
+// 缺失时回退到 seq / 下标，保证同一消息在多次拼接后仍是同一个 key。
+// kind=error 是后端在任务失败时写入历史的错误消息，需要以错误样式渲染。
+const mapMessages = (conv: AgentConversationItem): ChatMessage[] =>
+  (conv.messages ?? []).map((m, i) => ({
+    id: m.id ?? `${conv.id}-${m.task_id ?? "0"}-${m.kind ?? "assistant"}-${m.seq ?? i}`,
+    role: m.role === "user" ? "user" : "assistant",
+    content: m.content,
+    kind: m.kind,
+    taskId: m.task_id,
+    data: m.data,
+    error: m.kind === "error",
+  }));
+
 // 活跃轮次（running / waiting_permission）的中间态，按 taskID 索引，
 // 跨会话切换与浏览器刷新保留，以便恢复实时流。
 interface ActiveTurn {
@@ -140,7 +162,8 @@ interface AgentChatProps {
  *   - 进行中的任务用 AgentTaskStream 渲染完整过程（reasoning/tool/message 流式）；
  *   - 任务终态后刷新会话，展示后端投影后的 assistant_final/reasoning/tool_* 历史。
  *
- * 历史恢复：刷新 / 切换会话后，会话消息由 conversation/get 投影，
+ * 历史恢复：刷新 / 切换会话后，首屏只拉取最新一页会话消息；
+ * 用户向上滚动时按 next_cursor 增量加载更早的消息（避免一次性渲染全部历史），
  * 进行中任务的执行过程由 GET /agent/task/timeline 回填（AgentTaskStream 内部完成），
  * 增量事件（text / reasoning_delta）只广播不落库，因此不参与恢复。
  */
@@ -157,6 +180,10 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   // 业务上下文解析中的加载态（供刷新按钮展示）。
   const [envLoading, setEnvLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // 当前会话是否还有更早的历史消息（向上滚动时继续加载）。
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  // 向上加载更早消息的进行中状态（顶部展示 loading）。
+  const [loadingMoreMessages, setLoadingMoreMessages] = useState(false);
   const [input, setInput] = useState("");
   // 当前选中会话是否有一轮进行中（running / waiting_permission）。
   const [sending, setSending] = useState(false);
@@ -187,6 +214,14 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   const [clearingEnv, setClearingEnv] = useState(false);
 
   const listRef = useRef<HTMLDivElement>(null);
+  // 向上翻页游标：已加载的最早一条消息的 seq（后端 next_cursor）。
+  const oldestSeqRef = useRef(0);
+  // 向上加载的去重锁（state 只用于展示，避免并发重复请求）。
+  const loadingMoreRef = useRef(false);
+  // prepend 历史消息后恢复滚动位置，避免视口跳动。
+  const scrollRestoreRef = useRef<{ height: number; top: number } | null>(null);
+  // 上一次的 scrollTop：用于区分「用户向上滚动」与「程序化贴底」。
+  const lastScrollTopRef = useRef(0);
   // 当前选中的会话 ID（ref 镜像，供 WS 回调读取最新值）。
   const selectedConvIdRef = useRef<string | undefined>(initialConversationId);
   // 活跃轮次表：taskID → 该轮次中间态，跨会话切换与浏览器刷新保留。
@@ -195,10 +230,27 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   // 只被处理一次（两侧都订阅 agent.event，各维护一份会造成状态与时间线不一致）。
   const seenRef = useRef<Set<string>>(new Set());
 
-  // 自动滚动到底部。
+  // 消息变化时的滚动策略：
+  //   - 向上加载更早消息（prepend）后恢复原视口位置，避免页面跳动；
+  //   - 其余情况（新消息 / 实时输出）保持贴底；
+  //   - 内容不足一屏且还有更早消息时继续加载，保证滚动条出现后仍可向上翻。
   useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, waiting, currentTaskId]);
+    const el = listRef.current;
+    if (!el) return;
+    const restore = scrollRestoreRef.current;
+    if (restore) {
+      scrollRestoreRef.current = null;
+      el.scrollTop = el.scrollHeight - restore.height + restore.top;
+      // 同步基准值：恢复位置本身不应被当成一次「向上滚动」。
+      lastScrollTopRef.current = el.scrollTop;
+    } else {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    }
+    if (hasMoreMessages && el.scrollHeight <= el.clientHeight + 8) {
+      void loadOlderMessages();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, waiting, currentTaskId, hasMoreMessages]);
 
   // 加载可用 Agent Profile 列表（顶部选择框数据源）。
   useEffect(() => {
@@ -257,18 +309,63 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     }
   };
 
-  // 把后端消息映射为本地气泡。
-  // kind=error 是后端在任务失败时写入历史的错误消息，需要以错误样式渲染。
-  const mapMessages = (conv: AgentConversationItem): ChatMessage[] =>
-    conv.messages.map((m, i) => ({
-      id: `${conv.id}-${m.task_id ?? "0"}-${m.kind ?? "assistant"}-${i}`,
-      role: m.role === "user" ? "user" : "assistant",
-      content: m.content,
-      kind: m.kind,
-      taskId: m.task_id,
-      data: m.data,
-      error: m.kind === "error",
-    }));
+  // 加载会话首屏 / 最新一页：切换会话、手动刷新、轮次结束时使用（重置分页状态）。
+  const applySessionPage = (conv: AgentConversationItem) => {
+    setMessages(mapMessages(conv));
+    setHasMoreMessages(!!conv.has_more);
+    oldestSeqRef.current = conv.next_cursor ?? 0;
+    scrollRestoreRef.current = null;
+    lastScrollTopRef.current = 0;
+  };
+
+  // 向上加载更早的一页历史消息（滚动到顶部时触发）。
+  //
+  // 请求前记录 scrollHeight / scrollTop，合并后由消息变更 effect 恢复视口，
+  // 使用户停留在原本阅读的位置；按消息 ID 去重，避免与实时追加的消息重复。
+  const loadOlderMessages = async () => {
+    const el = listRef.current;
+    const convId = selectedConvIdRef.current;
+    const cursor = oldestSeqRef.current;
+    if (!el || !convId || !cursor || !hasMoreMessages || loadingMoreRef.current) return;
+
+    loadingMoreRef.current = true;
+    setLoadingMoreMessages(true);
+    const restore = { height: el.scrollHeight, top: el.scrollTop };
+    try {
+      const res = await getConversationApi(convId, {
+        before_seq: cursor,
+        limit: MESSAGE_PAGE_SIZE,
+      });
+      const conv = res.data;
+      // 请求期间用户已切换会话：丢弃本次结果。
+      if (conv.id !== selectedConvIdRef.current) return;
+      const older = mapMessages(conv);
+      setMessages((prev) => {
+        const seen = new Set(prev.map((m) => m.id));
+        return [...older.filter((m) => !seen.has(m.id)), ...prev];
+      });
+      scrollRestoreRef.current = restore;
+      setHasMoreMessages(!!conv.has_more);
+      if (conv.next_cursor) oldestSeqRef.current = conv.next_cursor;
+    } catch {
+      // 错误由全局拦截器提示。
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMoreMessages(false);
+    }
+  };
+
+  // 鼠标向上滚动到接近顶部时加载更早的消息。
+  // 只处理向上滚动：程序化贴底（切换会话 / 新消息）是向下增大 scrollTop，不触发翻页。
+  const handleListScroll = () => {
+    const el = listRef.current;
+    if (!el) return;
+    const top = el.scrollTop;
+    const prev = lastScrollTopRef.current;
+    lastScrollTopRef.current = top;
+    if (top > prev || top > 80) return;
+    void loadOlderMessages();
+  };
 
   // 错误消息（如模型未配置 / 厂商鉴权失败）提供「配置 Agent」入口：
   // 先关闭承载本视图的 Modal / Drawer，再跳到配置页的 AI Agent 段。
@@ -298,17 +395,23 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     );
 
   // 实时区是否渲染：进行中的任务始终渲染；没有进行中任务时不渲染。
-  // 历史与实时区的重复由 AgentTaskStream 的回填跳过逻辑消除（skipCount）。
+  // 历史与实时区的重复由 AgentTaskStream 的回填跳过逻辑消除（coveredIds）。
   const showLiveStream = (taskId?: string) => isValidTaskId(taskId);
 
-  // 本轮已被 AgentChat 历史消息覆盖的条数（reasoning / tool_call / tool_result 等）。
-  // 时间线组件回填时跳过前 N 条，避免同一条事实在历史区与实时区各出现一份。
-  const coveredByHistory = (taskId?: string) =>
-    isValidTaskId(taskId)
-      ? messages.filter(
-        (m) => m.taskId === taskId && m.role === "assistant" && m.kind !== "error"
-      ).length
-      : 0;
+  // 本轮已由历史气泡渲染的消息 ID 集合（与 agent_messages ID 一致）。
+  //
+  // 历史是分页加载的：首屏 / 向上加载的页面可能只覆盖任务时间线的「最后一段」，
+  // 因此按 ID 精确跳过，不能用条数跳过前缀（任务跨度超过一页时会重复渲染）。
+  const coveredIds = useMemo(() => {
+    if (!isValidTaskId(currentTaskId)) return EMPTY_MESSAGE_IDS;
+    const ids = new Set<string>();
+    for (const m of messages) {
+      if (m.taskId === currentTaskId && m.role === "assistant" && m.kind !== "error") {
+        ids.add(m.id);
+      }
+    }
+    return ids;
+  }, [messages, currentTaskId]);
 
   // 权限 / 提问决策后兜底登记「活跃轮次」。
   //
@@ -472,7 +575,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     return typeof value === "string" ? value : "";
   };
 
-  // 切换会话：加载对应消息；若存在活跃轮次则恢复实时流。
+  // 切换会话：加载最新一页消息；若存在活跃轮次则恢复实时流。
   const handleSwitchConversation = async (id: string) => {
     if (!id || id === conversationId) return;
     try {
@@ -481,7 +584,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
 
       selectedConvIdRef.current = conv.id;
       setConversationId(conv.id);
-      setMessages(mapMessages(conv));
+      applySessionPage(conv);
       // 切换会话时先重置续跑提示，后续按目标任务状态重新判定。
       setResumableTaskId(undefined);
 
@@ -568,7 +671,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     }
   };
 
-  // 重新拉取当前会话（含完整历史消息）：用于手动同步后端最新状态。
+  // 重新拉取当前会话（最新一页消息）：用于手动同步后端最新状态。
   const handleReloadConversation = async () => {
     const id = conversationId;
     if (!id) return;
@@ -578,7 +681,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
       const conv = res.data;
       // 仅在仍是同一会话时回填，避免请求期间用户已切换会话造成覆盖。
       if (conv.id !== selectedConvIdRef.current) return;
-      setMessages(mapMessages(conv));
+      applySessionPage(conv);
       // 同步刷新待确认权限 / 待作答提问，保证按钮与卡片与后端一致。
       if (isValidTaskId(conv.current_task_id)) {
         void loadPermissions(conv.current_task_id);
@@ -621,7 +724,8 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     if (selected) {
       try {
         const res = await getConversationApi(turn.convId);
-        const nextMessages = mapMessages(res.data);
+        const conv = res.data;
+        const nextMessages = mapMessages(conv);
         if (type === "task.failed") {
           await appendTaskError(nextMessages, turn.taskId);
           // 后端重启 / 崩溃导致的中断可以续跑：保留一个 Continue 入口。
@@ -630,6 +734,10 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
           setResumableTaskId(undefined);
         }
         setMessages(nextMessages);
+        // 轮次结束后回到最新一页（与后续向上滚动加载的游标保持一致）。
+        setHasMoreMessages(!!conv.has_more);
+        oldestSeqRef.current = conv.next_cursor ?? 0;
+        scrollRestoreRef.current = null;
       } catch {
         // API errors are shown globally by the http interceptor.
       }
@@ -839,6 +947,11 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     setConversationId(undefined);
     setCurrentTaskId(undefined);
     setMessages([]);
+    // 新建会话：重置分页状态，避免把上个会话的游标带入。
+    setHasMoreMessages(false);
+    oldestSeqRef.current = 0;
+    scrollRestoreRef.current = null;
+    lastScrollTopRef.current = 0;
     setSending(false);
     setWaiting(false);
     setPendingPermissions([]);
@@ -1035,6 +1148,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
           否则展示流式输出气泡。 */}
       <div
         ref={listRef}
+        onScroll={handleListScroll}
         style={{
           flex: 1,
           overflowY: "auto",
@@ -1052,6 +1166,20 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
           />
         ) : (
           <Flex vertical gap="small">
+            {/* 向上加载更早消息：滚动到顶部自动触发，同时保留手动入口。 */}
+            {loadingMoreMessages ? (
+              <Flex justify="center" style={{ padding: "4px 0" }}>
+                <Spin size="small" indicator={<LoadingOutlined spin />} />
+              </Flex>
+            ) : (
+              hasMoreMessages && (
+                <Flex justify="center">
+                  <Button type="link" size="small" onClick={() => void loadOlderMessages()}>
+                    Load earlier messages
+                  </Button>
+                </Flex>
+              )
+            )}
             {messages.map((m) => (
               <Flex
                 key={m.id}
@@ -1106,8 +1234,8 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
 
             {/* 进行中的任务展示完整实时事件流（reasoning/tool/message）。
                 只要 currentTaskId 存在就渲染：刷新后批准权限需要靠这里继续展示过程。
-                skipCount 传入外层历史已覆盖的条数（本轮已投影到 AgentChat 的历史消息），
-                由时间线组件跳过这些条，避免同一任务出现两份内容。
+                coveredIds 传入外层历史已覆盖的消息 ID（本轮已投影到 AgentChat 的历史消息），
+                由时间线组件按 ID 跳过，避免同一任务出现两份内容。
                 嵌入模式下由 AgentTaskStream 委托父容器滚动，避免嵌套滚动条。
                 seenRef 共享同一张去重表，保证两侧不会各自消费同一个事件。 */}
 
@@ -1116,7 +1244,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
                 taskId={currentTaskId}
                 scrollContainerRef={listRef}
                 seenRef={seenRef}
-                skipCount={coveredByHistory(currentTaskId)}
+                coveredIds={coveredIds}
               />
             )}
             {/* {

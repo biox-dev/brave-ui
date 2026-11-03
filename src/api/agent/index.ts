@@ -259,16 +259,32 @@ export interface AgentConversationItem {
   model?: string;
   messages: AgentConversationMessageItem[];
   current_task_id?: string;
+  /** 是否还有更早的消息（向上滚动时继续加载）。 */
+  has_more?: boolean;
+  /** 向上翻页游标：下次请求传 before_seq=next_cursor。 */
+  next_cursor?: number;
   created_at: string;
   updated_at: string;
 }
 
 export interface AgentConversationMessageItem {
+  /** 消息雪花 ID（稳定 key，分页拼接时用于去重）。 */
+  id?: string;
+  /** 会话内自增序号（升序，分页游标）。 */
+  seq?: number;
   role: string;
   content: string;
   kind?: string;
   task_id?: string;
   data?: unknown;
+}
+
+// 获取会话的分页参数：不传表示取最新一页。
+export interface AgentConversationGetQuery {
+  /** 向上翻页游标（上一页返回的 next_cursor）；0 / 不传表示最新一页。 */
+  before_seq?: number;
+  /** 本页最大条数（后端默认 30，最大 200）。 */
+  limit?: number;
 }
 
 // 已落库的时间线消息（对应后端 agenttypes.Message，GET /agent/task/timeline）。
@@ -290,9 +306,13 @@ export const pageConversationApi = (payload: PageRequest<AgentConversationPageQu
   return http.post<PageResponse<AgentConversationItem>>("/agent/conversation/page", payload);
 };
 
-// 获取会话（含完整历史消息）。
-export const getConversationApi = (id: string) => {
-  return http.get<AgentConversationItem>("/agent/conversation/get", { params: { id } });
+// 获取会话（含一页历史消息）。
+//
+// 后端默认只返回最新一页；向上滚动时把上一页的 next_cursor 作为 before_seq 继续加载。
+export const getConversationApi = (id: string, params?: AgentConversationGetQuery) => {
+  return http.get<AgentConversationItem>("/agent/conversation/get", {
+    params: { id, ...(params ?? {}) },
+  });
 };
 
 // 获取单个 Agent 任务。

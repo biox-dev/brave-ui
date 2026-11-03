@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ApartmentOutlined, AppstoreOutlined, BookOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, BarChartOutlined, ExperimentOutlined, CodeOutlined, ContainerOutlined } from '@ant-design/icons';
-import { Dropdown, Layout, Segmented, theme } from 'antd';
+import { ApartmentOutlined, AppstoreOutlined, BookOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, BarChartOutlined, ExperimentOutlined, CodeOutlined, ContainerOutlined, ControlOutlined } from '@ant-design/icons';
+import { Button, Dropdown, Flex, Layout, Segmented, theme, Tooltip } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { useI18n } from '@/hooks/useI18n';
@@ -15,6 +15,7 @@ import SplitWorkspace from './components/SplitWorkspace.tsx';
 import MainTabs from './components/MainTabs';
 import BottomPanel from './components/BottomPanel';
 import { hydrateBottomPanel, useBottomPanelStore } from './bottom-panel-store';
+import { invoke } from '@/core/ui-system/invokeV2';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
@@ -283,12 +284,35 @@ const App: React.FC = () => {
                     size="small"
                     styles={{ body: { padding: 8 } }}
                     extra={
-                      <Segmented
-                        size="small"
-                        value={sideView}
-                        options={segmentedOptions}
-                        onChange={(value) => dispatch(setUserItem({ sideView: value as string }))}
-                      />
+                      <Flex align="center" gap={8}>
+                        {/* 左侧按钮：通过 invoke 以抽屉方式打开参数面板，不打断当前右侧视图 */}
+                        <Tooltip
+                          title={locale === 'en_US' ? 'Open parameters in drawer' : '在抽屉中打开参数'}
+                        >
+                          <Button
+                            size="small"
+                            type="text"
+                            icon={<ControlOutlined />}
+                            aria-label={locale === 'en_US' ? 'Parameters' : '参数'}
+                            onClick={() =>
+                              invoke.editParamsPanel.drawer(
+                                {},
+                                {
+                                  title: locale === 'en_US' ? 'Parameters' : '参数',
+                                  width: 520,
+                                  placement: 'right',
+                                },
+                              )
+                            }
+                          />
+                        </Tooltip>
+                        <Segmented
+                          size="small"
+                          value={sideView}
+                          options={segmentedOptions}
+                          onChange={(value) => dispatch(setUserItem({ sideView: value as string }))}
+                        />
+                      </Flex>
                     }
                   >
                     <ViewResolver view={sideView} view_mode="card" />

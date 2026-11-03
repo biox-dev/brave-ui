@@ -91,12 +91,13 @@ interface AgentTaskStreamProps {
    */
   seenRef?: RefObject<Set<string>>;
   /**
-   * 回填时跳过的前 N 条。
+   * 回填时跳过的消息 ID 集合。
    *
    * 嵌入 AgentChat 时，本轮已落库的部分条目会先由外层「会话历史气泡」渲染，
-   * 时间线再从头回填就会重复。传入外层已覆盖的条数，回填时跳过���们。
+   * 时间线再从头回填就会重复。历史是分页加载的（可能只包含任务时间线的最后一段），
+   * 因此按 agent_messages ID 精确跳过，而不是按条数跳过前缀。
    */
-  skipCount?: number;
+  coveredIds?: ReadonlySet<string>;
   /** 时间线回填完成（或失败）后回调，父组件据此驱动滚动 / 状态。 */
   onLoaded?: () => void;
 }
@@ -140,7 +141,7 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({
   taskId,
   scrollContainerRef,
   seenRef: externalSeenRef,
-  skipCount = 0,
+  coveredIds,
   onLoaded,
 }) => {
   const embedded = !!scrollContainerRef;
@@ -156,7 +157,7 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({
   const localSeenRef = useRef<Set<string>>(new Set());
   const seenRef = externalSeenRef ?? localSeenRef;
   const keySeqRef = useRef(0);
-  // 当前已回填的任务 ID（区分「换任务全量重置」与「skipCount 变化只重排前缀」）。
+  // 当前已回填的任务 ID（区分「换任务全量重置」与「coveredIds 变化只重排前缀」）。
   const currentTaskRef = useRef<string>("");
   // 上一次回填插入的历史条数（实时追加部分从这个下标之后开始）。
   const backfilledCountRef = useRef(0);
@@ -363,7 +364,7 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({
   useEffect(() => {
     let cancelled = false;
 
-    // taskId 变化时才做全量重置；skipCount 变化只需重排历史前缀（见下方）。
+    // taskId 变化时才做全量重置；coveredIds 变化只需重排历史前缀（见下方）。
     // 否则每次外层历史增长都会清空实时区，已到达的增量就丢了。
     const isNewTask = currentTaskRef.current !== taskId;
     if (isNewTask) {
@@ -381,9 +382,10 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({
         const timeline = await getAgentTaskTimelineApi(taskId);
         if (cancelled) return;
 
-        // 前 skipCount 条已由外层 AgentChat 的历史气泡渲染，这里跳过避免重复。
+        // 已由外层 AgentChat 历史气泡渲染的条目按消息 ID 跳过，避免重复。
+        // 历史分页加载时它可能是任务时间线的“最后一段”，按条数跳过前缀会错位。
         const history = (timeline.data ?? [])
-          .slice(Math.max(0, skipCount))
+          .filter((m) => !(m.id && coveredIds?.has(m.id)))
           .map<StreamMessage>((m) => ({
             key: nextKey(),
             kind: m.kind ?? "assistant",
@@ -426,10 +428,10 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({
     return () => {
       cancelled = true;
     };
-    // skipCount 参与依赖：外层历史晚于本组件回填到达时（刷新后会话请求更慢），
+    // coveredIds 参与依赖：外层历史晚于本组件回填到达时（刷新后会话请求更慢），
     // 需要重新回填并跳过更多条目，否则同一条事实会出现两份。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskId, skipCount]);
+  }, [taskId, coveredIds]);
 
   useEffect(() => {
     const unsubscribe = sseClient.onMessage((raw: unknown) => {
