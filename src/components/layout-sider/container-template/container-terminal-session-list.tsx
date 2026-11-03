@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   Descriptions,
@@ -126,8 +126,35 @@ const ContainerTerminalSessionList = ({
     refetch();
   }, [onlyCurrentProject, refetch]);
 
-  // 会话增删事件：后端实时通道推送 sessionCreated / sessionDeleted（含 shell 退出、
-  // TTL 回收、手动删除），面板据此刷新，不再轮询。
+  // 会话增删 / 状态变化都由后端实时通道推送（含 shell 退出、TTL 回收、手动删除），
+  // 面板据此刷新，不再轮询。
+  //
+  // - sessionCreated / sessionDeleted：会话增删；
+  // - sessionRunning / sessionIdle：命令开始 / 结束（busy）；
+  // - sessionAttached / sessionDetached：WebSocket 接入 / 断开（subscribers）。
+  //
+  // 一次 terminal_exec 往往会连续推 attached + running（结束时再推 idle + detached），
+  // 所以状态事件用短防抖合并成一次 refetch，避免多个请求打满后端。
+  const refetchTimer = useRef<number | undefined>(undefined);
+  const scheduleRefetch = useCallback(() => {
+    if (refetchTimer.current) {
+      window.clearTimeout(refetchTimer.current);
+    }
+    refetchTimer.current = window.setTimeout(() => {
+      refetchTimer.current = undefined;
+      refetch();
+    }, 300);
+  }, [refetch]);
+
+  useEffect(
+    () => () => {
+      if (refetchTimer.current) {
+        window.clearTimeout(refetchTimer.current);
+      }
+    },
+    []
+  );
+
   const realtimeInstance = useMemo(
     () => ({
       sessionCreated: (_args?: any) => {
@@ -136,8 +163,20 @@ const ContainerTerminalSessionList = ({
       sessionDeleted: (_args?: any) => {
         refetch();
       },
+      sessionRunning: (_args?: any) => {
+        scheduleRefetch();
+      },
+      sessionIdle: (_args?: any) => {
+        scheduleRefetch();
+      },
+      sessionAttached: (_args?: any) => {
+        scheduleRefetch();
+      },
+      sessionDetached: (_args?: any) => {
+        scheduleRefetch();
+      },
     }),
-    [refetch]
+    [refetch, scheduleRefetch]
   );
 
   useEffect(() => {
