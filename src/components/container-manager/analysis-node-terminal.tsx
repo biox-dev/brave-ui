@@ -57,8 +57,29 @@ const AnalysisNodeTerminal = ({
     let disposed = false;
     let socket: WebSocket | null = null;
     let reconnectTimer: number | null = null;
-    // 断线重连时带上「已消费的字节序号」，后端从该位置重放，避免整屏重复。
-    let consumedBytes = 0;
+    // 续传位置统一以「服务端序号」为准：
+    //   - 服务端每次 attach 都会先下发 {type:"session", seq, reset, truncated, ...}；
+    //   - seq 是本次回放结束时的输出序号（环形缓冲里的全局偏移，不是本地字节计数）；
+    //   - 之后再收到多少字节就往下加多少，重连时把 seq + 新字节数 作为 since 传回去。
+    // 不要自己从 0 数字节：缓冲滚动（bufStart>0）或会话被重建/认领后序号基准会变，
+    // 那样会续传到错误位置，甚至 since 超出当前序号导致空回放、历史全丢。
+    let hasServerSeq = false;
+    let serverSeq = 0;
+    let bytesSinceSeq = 0;
+    // true = 终端宽度已锁定为服务端 PTY 的宽度（见 session 事件处理）。
+    // 锁定后不再 fit / 不再发 resize：PTY 宽度一变，bash 就会按旧宽度重绘提示符，
+    // 把已经回放出来的历史行覆盖掉。
+    let lockToPty = false;
+
+    /** 把当前 xterm 尺寸同步给后端；锁定 PTY 宽度后不再发送。 */
+    const pushResize = () => {
+      if (lockToPty || socket?.readyState !== WebSocket.OPEN) {
+        return;
+      }
+      socket.send(
+        JSON.stringify({ type: "resize", rows: term.rows, cols: term.cols }),
+      );
+    };
 
     const decoder = new TextDecoder("utf-8");
 
@@ -78,6 +99,41 @@ const AnalysisNodeTerminal = ({
       const type = typeof event?.type === "string" ? event.type : "";
       if (!type) {
         term.write(text);
+        return;
+      }
+      if (type === "session") {
+        // 回放元信息（服务端在回放字节之前下发）。
+        const firstMeta = !hasServerSeq;
+        const seq = Number(event.seq ?? 0);
+        if (Number.isFinite(seq) && seq >= 0) {
+          serverSeq = seq;
+          hasServerSeq = true;
+        }
+        bytesSinceSeq = 0;
+        // PTY 宽度决定历史输出的换行位置，也决定了 bash 认为提示符占几行。
+        // 和本终端宽度不一致时，先把终端调到 PTY 尺寸再回放并锁定，
+        // 否则 bash 收到 resize 后会按旧宽度重绘提示符，把历史行覆盖掉。
+        const ptyRows = Number(event.rows ?? 0);
+        const ptyCols = Number(event.cols ?? 0);
+        if (
+          firstMeta &&
+          ptyRows > 0 &&
+          ptyCols > 0 &&
+          (term.rows !== ptyRows || term.cols !== ptyCols)
+        ) {
+          lockToPty = true;
+          term.resize(ptyCols, ptyRows);
+        }
+        if (event.reset === true) {
+          // 服务端持有的序号与当前会话对不上（会话被重建 / 认领），已整段重放：
+          // 先清屏，否则会和上次残留的画面重复。
+          term.reset();
+        }
+        if (event.truncated === true) {
+          term.writeln(
+            "\r\n\x1b[90m[earlier output was truncated by the scrollback buffer]\x1b[0m",
+          );
+        }
         return;
       }
       if (type === "exec") {
@@ -106,23 +162,26 @@ const AnalysisNodeTerminal = ({
         return;
       }
       const baseUrl = terminalUrl || analysisNodeTerminalUrl(id);
-      const url =
-        consumedBytes > 0
-          ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}since=${consumedBytes}`
-          : baseUrl;
+      // since：从服务端给出的序号续传（首次连接不带，让后端整段回放）。
+      // rows/cols：会话由本次连接创建时用它建 PTY；锁定 PTY 宽度后不再上报，
+      // 避免把终端尺寸和 PTY 尺寸弄成不一致。
+      const params = new URLSearchParams();
+      if (hasServerSeq) {
+        params.set("since", String(serverSeq + bytesSinceSeq));
+      }
+      if (!lockToPty) {
+        params.set("rows", String(term.rows));
+        params.set("cols", String(term.cols));
+      }
+      const query = params.toString();
+      const url = query
+        ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${query}`
+        : baseUrl;
       socket = new WebSocket(url);
       socket.binaryType = "arraybuffer";
 
-      const sendResize = () => {
-        if (socket?.readyState === WebSocket.OPEN) {
-          socket.send(
-            JSON.stringify({ type: "resize", rows: term.rows, cols: term.cols }),
-          );
-        }
-      };
-
       socket.onopen = () => {
-        sendResize();
+        pushResize();
         term.focus();
       };
       socket.onmessage = (event) => {
@@ -131,7 +190,7 @@ const AnalysisNodeTerminal = ({
           return;
         }
         const chunk = decoder.decode(event.data, { stream: true });
-        consumedBytes += (event.data as ArrayBuffer).byteLength;
+        bytesSinceSeq += (event.data as ArrayBuffer).byteLength;
         term.write(chunk);
       };
       socket.onerror = () => {
@@ -158,14 +217,14 @@ const AnalysisNodeTerminal = ({
       }
     });
     const resizeDisposable = term.onResize(() => {
-      if (socket?.readyState === WebSocket.OPEN) {
-        socket.send(
-          JSON.stringify({ type: "resize", rows: term.rows, cols: term.cols }),
-        );
-      }
+      pushResize();
     });
 
     const observer = new ResizeObserver(() => {
+      // 已锁定 PTY 宽度：不能再 fit，否则终端宽度会和 PTY 不一致。
+      if (lockToPty) {
+        return;
+      }
       try {
         fitAddon.fit();
       } catch {
@@ -176,13 +235,12 @@ const AnalysisNodeTerminal = ({
 
     // 首次打开后 fit 一次，避免 modal 动画期间尺寸为 0。
     const timer = window.setTimeout(() => {
+      if (lockToPty) {
+        return;
+      }
       try {
         fitAddon.fit();
-        if (socket?.readyState === WebSocket.OPEN) {
-          socket.send(
-            JSON.stringify({ type: "resize", rows: term.rows, cols: term.cols }),
-          );
-        }
+        pushResize();
       } catch {
         // ignore
       }
