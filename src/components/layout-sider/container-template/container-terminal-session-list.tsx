@@ -110,14 +110,14 @@ const ContainerTerminalSessionList = ({
 }: ContainerTerminalSessionListProps) => {
   const message = useGlobalMessage();
   const { locale } = useI18n();
-  const { register, unregister, invoke } = useComponentStore();
+  const { register, unregister } = useComponentStore();
   const [deletingId, setDeletingId] = useState<string>();
   // 默认只显示当前激活项目下的会话（后端用 GetActiveProjectByUserID 过滤）。
   const [onlyCurrentProject, setOnlyCurrentProject] = useState(true);
 
+  // 不轮询：会话增删由后端 component.invoke 实时事件驱动（含 shell 退出 / TTL 回收）。
   const { data = [], isLoading, isFetching, refetch } = useContainerTerminalSessionListQuery({
     allProjects: !onlyCurrentProject,
-    refetchInterval: 15_000,
     staleTime: 5_000,
   });
 
@@ -126,8 +126,8 @@ const ContainerTerminalSessionList = ({
     refetch();
   }, [onlyCurrentProject, refetch]);
 
-  // 会话增删事件：终端组件挂载（创建会话）/ 卸载（关闭会话）与手动删除时都会刷新列表。
-  // 用法与 app-session-page.tsx 一致：以 "*" 注册，任意组件 invoke 都能通知到本面板。
+  // 会话增删事件：后端实时通道推送 sessionCreated / sessionDeleted（含 shell 退出、
+  // TTL 回收、手动删除），面板据此刷新，不再轮询。
   const realtimeInstance = useMemo(
     () => ({
       sessionCreated: (_args?: any) => {
@@ -169,11 +169,10 @@ const ContainerTerminalSessionList = ({
       setDeletingId(record.session_id);
       try {
         await closeContainerTemplateTerminalApi(record.template_id);
-        // 关闭标签：closeBottomTab 内也会再调一次 DELETE（幂等），这里主要是通知 UI。
+        // 关闭标签：closeBottomTab 内也会再调一次 DELETE（幂等）。
         closeBottomTab(`terminal:${record.template_id}`);
-        // 广播删除事件：其它终端会话列表（如另一侧栏实例）同步刷新。
-        invoke("container-terminal-session", "*", "sessionDeleted", [{ template_id: record.template_id }]);
         message.success("Terminal session closed");
+        // 后端会在 CloseSession 时推送 sessionDeleted；这里再拉一次做即时反馈。
         refetch();
       } catch (error) {
         message.error(getErrorMessage(error, "Failed to close terminal session"));

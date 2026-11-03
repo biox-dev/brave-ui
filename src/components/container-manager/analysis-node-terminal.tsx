@@ -3,7 +3,6 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import { analysisNodeTerminalUrl } from "@/api/analysis-node-terminal";
-import { useComponentStore } from "@/event-bus/stores/components";
 
 interface AnalysisNodeTerminalProps {
   id: string | number;
@@ -34,7 +33,6 @@ const AnalysisNodeTerminal = ({
   padding = 8,
 }: AnalysisNodeTerminalProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const invoke = useComponentStore((state) => state.invoke);
 
   useEffect(() => {
     const element = containerRef.current;
@@ -99,11 +97,8 @@ const AnalysisNodeTerminal = ({
         }
       } else if (type === "exit") {
         term.writeln("\r\n\x1b[90msession exited\x1b[0m");
-      } else if (type === "session") {
-        // 后端会话注册表已确保会话存在（可能是新建）：通知终端会话列表刷新。
-        invoke("container-terminal-session", "*", "sessionCreated", [{ id, session_id: event.session_id }]);
       }
-      // session / 其它事件只用于内部状态同步，不打印。
+      // 会话增删由后端实时事件统一广播，这里不再重复通知。
     };
 
     const connect = () => {
@@ -195,8 +190,6 @@ const AnalysisNodeTerminal = ({
 
     return () => {
       disposed = true;
-      // 标签关闭会触发 DELETE 回收会话：广播删除事件让终端会话列表刷新。
-      invoke("container-terminal-session", "*", "sessionDeleted", [{ id }]);
       window.clearTimeout(timer);
       if (reconnectTimer !== null) {
         window.clearTimeout(reconnectTimer);
@@ -207,7 +200,7 @@ const AnalysisNodeTerminal = ({
       socket?.close();
       term.dispose();
     };
-  }, [id, name, terminalUrl, invoke]);
+  }, [id, name, terminalUrl]);
 
   return (
     <div
