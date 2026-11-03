@@ -10,7 +10,8 @@ const viewLoaders = {
   containerTemplateSpecForm: () => import("./container-template-spec-form"),
   containerTemplateExportDialog: () => import("./container-template-export-dialog"),
   containerTemplateImportDialog: () => import("./container-template-import-dialog"),
-  appSessionPage: () => import("./app-session-page"),
+  // 应用会话列表已迁移到 layout-sider/container-template（左侧栏面板形态）。
+  appSessionPage: () => import("../layout-sider/container-template/app-session-page"),
   containerInstancePage: () => import("./container-instance-page"),
   containerInstanceDescribeDialog: () => import("./container-instance-describe-dialog"),
   containerEventPage: () => import("./container-event-page"),

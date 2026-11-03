@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { updateBottomPanelApi, type UserBottomPanel } from '@/api/auth';
-import { closeContainerTemplateTerminalApi } from '@/api/container-template-terminal';
 
 /**
  * 主区域底部面板（终端 / 日志 …）的共享状态。
@@ -190,7 +189,6 @@ export const closeBottomTab = (key: string) => {
   if (index < 0) {
     return;
   }
-  const closing = state.tabs[index];
   const tabs = state.tabs.filter((tab) => tab.key !== key);
   // 关闭当前标签：优先切到右侧相邻标签，没有则切到左侧，全部关闭后收起面板。
   const active =
@@ -201,18 +199,10 @@ export const closeBottomTab = (key: string) => {
     open: tabs.length > 0 ? state.open : false,
   });
   scheduleSave();
-
-  // 显式关闭终端标签：调 DELETE 立即回收容器。
-  // 前端接入过的会话是「持久会话」，断开 WS 不会回收，因此这里是用户主动释放容器的入口；
-  // 不调用的话会话会由空闲 TTL 兜底回收。接口幂等，重复调用无副作用。
-  if (closing?.kind === 'terminal') {
-    const templateId = String(closing.params?.template_id ?? '').trim();
-    if (templateId) {
-      closeContainerTemplateTerminalApi(templateId).catch(() => {
-        // 回收失败不影响前端；会话会由空闲 TTL 兜底。
-      });
-    }
-  }
+  // 注意：这里只关闭前端标签，不调用 DELETE。
+  // 会话是「持久会话」，断开 WebSocket 不会回收容器；显式释放（关闭 shell + 删除容器）
+  // 只能由左侧栏「终端会话」列表的删除按钮触发（它显式调用 closeContainerTemplateTerminalApi），
+  // 否则关闭标签就会误删其它入口仍在使用的容器。
 };
 
 export const setBottomPanelOpen = (open: boolean) => {

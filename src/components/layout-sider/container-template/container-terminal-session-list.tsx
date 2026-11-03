@@ -3,6 +3,8 @@ import {
   Button,
   Descriptions,
   Empty,
+  Input,
+  Modal,
   Popconfirm,
   Popover,
   Switch,
@@ -16,9 +18,16 @@ import {
   CaretRightOutlined,
   CodeOutlined,
   DeleteOutlined,
+  PlayCircleOutlined,
+  PlusOutlined,
   ReloadOutlined,
 } from "@ant-design/icons";
-import { closeContainerTemplateTerminalApi } from "@/api/container-template-terminal";
+import {
+  closeContainerTemplateTerminalApi,
+  execContainerTemplateTerminalApi,
+} from "@/api/container-template-terminal";
+import type { ContainerTemplateItem } from "@/api/container";
+import { invoke } from "@/core/ui-system/invokeV2";
 import { useComponentStore } from "@/event-bus/stores/components";
 import { useContainerTerminalSessionListQuery } from "@/hooks/usePaginationV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
@@ -92,6 +101,13 @@ const SessionDetailCard = ({ item }: { item: ContainerTerminalSessionItem }) => 
   </div>
 );
 
+/** 「运行命令」弹窗的目标：可以是会话行，也可以是新选的容器模板。 */
+type RunTarget = {
+  templateId: string;
+  displayName: string;
+  command?: string;
+};
+
 /**
  * 「终端会话」列表（左侧栏面板形态）。
  *
@@ -99,8 +115,11 @@ const SessionDetailCard = ({ item }: { item: ContainerTerminalSessionItem }) => 
  * 与容器模板绑定行 join 起来（`DisplayName` / `ImageName`），并附带
  * `TerminalSessionStatus`（存活 / 订阅者 / running / 序号）。
  *
+ * - 标题栏「+」按钮：通过 invoke 打开容器模板列表选择模板 → 创建（或复用）该模板的
+ *   终端会话 → 在底部面板打开对应标签；
  * - 点击行：在底部面板打开（或聚焦）同名终端标签，与容器模板列表的点击行为一致；
  * - 右侧 Terminal 按钮：同上（显式图标入口）；
+ * - 右侧 Run 按钮：以 invoke 方式打开「Run in terminal」弹窗，把命令投递到该会话；
  * - 右侧 Delete 按钮：删除会话（后端关闭 shell 并删除容器）并关闭对应的底部标签。
  */
 const ContainerTerminalSessionList = ({
@@ -112,9 +131,14 @@ const ContainerTerminalSessionList = ({
   const { locale } = useI18n();
   const { register, unregister } = useComponentStore();
   const [deletingId, setDeletingId] = useState<string>();
+  const [creating, setCreating] = useState(false);
+  // 「运行命令」弹窗：命令写入该模板的持久终端（同一模板复用同一个容器），
+  // 提交后自动打开底部终端标签，输出通过该终端的 WebSocket 实时显示。
+  const [runTarget, setRunTarget] = useState<RunTarget | null>(null);
+  const [runCommand, setRunCommand] = useState("");
+  const [runSubmitting, setRunSubmitting] = useState(false);
   // 默认只显示当前激活项目下的会话（后端用 GetActiveProjectByUserID 过滤）。
   const [onlyCurrentProject, setOnlyCurrentProject] = useState(true);
-
   // 不轮询：会话增删由后端 component.invoke 实时事件驱动（含 shell 退出 / TTL 回收）。
   const { data = [], isLoading, isFetching, refetch } = useContainerTerminalSessionListQuery({
     allProjects: !onlyCurrentProject,
@@ -187,17 +211,28 @@ const ContainerTerminalSessionList = ({
   }, [register, unregister, realtimeInstance]);
 
   /**
-   * 打开底部终端标签。
+   * 按「模板 ID + 展示名」打开底部终端标签。
    *
    * key 与容器模板列表一致（`terminal:<templateId>`），因此两边点击同一个模板
    * 只会聚焦同一个标签，不会重复建容器。
    */
-  const openTerminalTab = useCallback((record: ContainerTerminalSessionItem) => {
-    if (!record.template_id) {
+  const openTemplateTerminal = useCallback((templateId: string, displayName?: string) => {
+    if (!templateId) {
       return;
     }
-    openBottomTerminal(record.template_id, record.display_name);
+    openBottomTerminal(templateId, displayName);
   }, []);
+
+  /** 打开会话行对应的底部终端标签。 */
+  const openTerminalTab = useCallback(
+    (record: ContainerTerminalSessionItem) => {
+      if (!record.template_id) {
+        return;
+      }
+      openTemplateTerminal(record.template_id, record.display_name);
+    },
+    [openTemplateTerminal]
+  );
 
   /** 删除会话：先调后端（关 shell + 删容器），再关掉前端标签。 */
   const handleDelete = useCallback(
@@ -207,8 +242,9 @@ const ContainerTerminalSessionList = ({
       }
       setDeletingId(record.session_id);
       try {
+        // 这里是「显式释放」的唯一入口：关闭 shell 并删除容器。
+        // closeBottomTab 只关闭前端标签，不会调用删除接口。
         await closeContainerTemplateTerminalApi(record.template_id);
-        // 关闭标签：closeBottomTab 内也会再调一次 DELETE（幂等）。
         closeBottomTab(`terminal:${record.template_id}`);
         message.success("Terminal session closed");
         // 后端会在 CloseSession 时推送 sessionDeleted；这里再拉一次做即时反馈。
@@ -221,6 +257,74 @@ const ContainerTerminalSessionList = ({
     },
     [message, refetch]
   );
+
+  /**
+   * 标题栏「+」：invoke 打开容器模板列表选模板，选中后直接在底部面板打开该模板的终端标签。
+   *
+   * 与容器模板列表点击行完全一致（复用 `openTemplateTerminal`）：
+   * - key 为 `terminal:<templateId>`，重复选择同一模板只会聚焦已有标签；
+   * - 容器 / PTY 由底部终端 WebSocket 首次接入时创建，这里不需要额外调 exec 预建会话；
+   * - 新会话建立后后端会推送 sessionCreated（attach 时还有状态事件），列表自动刷新。
+   */
+  const handleCreateSession = useCallback(async () => {
+    let selected: ContainerTemplateItem | undefined;
+    try {
+      selected = (await invoke.containerTemplatePage.openAsync(
+        {},
+        { title: "Select Container Template", width: 1200, footer: false }
+      )) as ContainerTemplateItem | undefined;
+    } catch {
+      // 用户取消时 openAsync 会 reject，无需处理。
+      return;
+    }
+    if (!selected?.id) {
+      return;
+    }
+
+    setCreating(true);
+    try {
+      openTemplateTerminal(
+        String(selected.id),
+        selected.display_name || selected.name || String(selected.id),
+      );
+      message.success("Terminal opened");
+    } finally {
+      setCreating(false);
+    }
+  }, [message, openTemplateTerminal]);
+
+  /** 打开「Run in terminal」弹窗（命令写入该会话的持久终端）。 */
+  const handleOpenRun = useCallback((target: RunTarget) => {
+    setRunTarget(target);
+    setRunCommand(target.command?.trim() || "pwd");
+  }, []);
+
+  const handleSubmitRun = useCallback(async () => {
+    if (!runTarget) {
+      return;
+    }
+    const command = runCommand.trim();
+    if (!command) {
+      message.warning("Please input a command");
+      return;
+    }
+    setRunSubmitting(true);
+    try {
+      await execContainerTemplateTerminalApi(runTarget.templateId, {
+        command,
+        wait_seconds: 0,
+        create_if_missing: true,
+      });
+      openBottomTerminal(runTarget.templateId, runTarget.displayName);
+      message.success("Command submitted to terminal");
+      setRunTarget(null);
+      refetch();
+    } catch (error) {
+      message.error(getErrorMessage(error, "Failed to run command"));
+    } finally {
+      setRunSubmitting(false);
+    }
+  }, [message, refetch, runCommand, runTarget]);
 
   const columns = useMemo<ColumnsType<ContainerTerminalSessionItem>>(
     () => [
@@ -278,7 +382,7 @@ const ContainerTerminalSessionList = ({
       {
         title: "Actions",
         key: "actions",
-        width: 80,
+        width: 120,
         align: "right",
         render: (_: unknown, record) => (
           <span className="project-report-item-actions" onClick={(e) => e.stopPropagation()}>
@@ -288,6 +392,19 @@ const ContainerTerminalSessionList = ({
                 size="small"
                 icon={<CodeOutlined />}
                 onClick={() => openTerminalTab(record)}
+              />
+            </Tooltip>
+            <Tooltip title="Run in terminal">
+              <Button
+                type="text"
+                size="small"
+                icon={<PlayCircleOutlined />}
+                onClick={() =>
+                  handleOpenRun({
+                    templateId: String(record.template_id),
+                    displayName: record.display_name || record.template_name || String(record.template_id),
+                  })
+                }
               />
             </Tooltip>
             <Popconfirm
@@ -304,7 +421,7 @@ const ContainerTerminalSessionList = ({
         ),
       },
     ],
-    [locale, deletingId, openTerminalTab, handleDelete]
+    [locale, deletingId, openTerminalTab, handleDelete, handleOpenRun]
   );
 
   return (
@@ -328,6 +445,15 @@ const ContainerTerminalSessionList = ({
           <span className="project-report-panel-title">{title || "Terminal Sessions"}</span>
         )}
         <div className="project-report-panel-actions">
+          <Tooltip title="New terminal session">
+            <Button
+              type="text"
+              size="small"
+              icon={<PlusOutlined />}
+              loading={creating}
+              onClick={handleCreateSession}
+            />
+          </Tooltip>
           <Tooltip
             title={
               onlyCurrentProject
@@ -378,6 +504,34 @@ const ContainerTerminalSessionList = ({
           />
         )}
       </div>
+
+      <Modal
+        open={Boolean(runTarget)}
+        title={`Run in terminal - ${runTarget?.displayName ?? ""}`}
+        okText="Run"
+        confirmLoading={runSubmitting}
+        onOk={handleSubmitRun}
+        onCancel={() => setRunTarget(null)}
+        destroyOnClose
+      >
+        <Input.TextArea
+          autoSize={{ minRows: 4, maxRows: 12 }}
+          value={runCommand}
+          onChange={(e) => setRunCommand(e.target.value)}
+          placeholder="例如：R --version"
+          style={{ fontFamily: '"Menlo", "Consolas", monospace', fontSize: 13 }}
+          onPressEnter={(e) => {
+            // Enter 直接提交；Shift+Enter 换行。
+            if (!e.shiftKey) {
+              e.preventDefault();
+              void handleSubmitRun();
+            }
+          }}
+        />
+        <div style={{ marginTop: 8, color: "var(--ant-color-text-secondary)", fontSize: 12 }}>
+          命令会写入该模板的持久终端（同一模板复用同一个容器），提交后自动打开底部终端面板。
+        </div>
+      </Modal>
     </div>
   );
 };

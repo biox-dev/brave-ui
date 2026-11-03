@@ -19,10 +19,10 @@ import { invoke } from '@/core/ui-system/invokeV2';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
-type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'analysisScriptStack' | 'analysisWorkflowStack' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'assayProjectPage' | 'projectFilePage' | 'appSessionPage' | 'containerTemplateList' | 'containerTemplateStack';
+type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'analysisScriptStack' | 'analysisWorkflowStack' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'assayProjectPage' | 'projectFilePage' | 'containerTemplateList' | 'containerTemplateStack';
 
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
-  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'analysisScriptStack' || key === 'analysisWorkflowStack' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'assayProjectPage' || key === 'projectFilePage' || key === 'appSessionPage' || key === 'containerTemplateList' || key === 'containerTemplateStack';
+  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'analysisScriptStack' || key === 'analysisWorkflowStack' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'assayProjectPage' || key === 'projectFilePage' || key === 'containerTemplateList' || key === 'containerTemplateStack';
 
 // 旧版活动栏 key 与合并后视图的映射：datasetFilePage / analysisNodeFilePage 已合并为 projectFilePage，
 // analysisNodeList / scriptPage 已合并为上下堆叠的 analysisScriptStack，
@@ -34,8 +34,10 @@ const LEGACY_VIEW_KEY_MAP: Record<string, LeftPanelViewKey> = {
   scriptPage: 'analysisScriptStack',
   analysisList: 'analysisWorkflowStack',
   workflowPage: 'analysisWorkflowStack',
-  // 容器模板列表已合并为上下堆叠的 containerTemplateStack（模板 + 终端会话）。
+  // 容器模板列表已合并为上下堆叠的 containerTemplateStack（应用会话 + 终端会话）。
   containerTemplateList: 'containerTemplateStack',
+  // 应用会话已并入 containerTemplateStack 的上半栏，旧 key 兼容映射到堆叠视图。
+  appSessionPage: 'containerTemplateStack',
 };
 
 const App: React.FC = () => {
@@ -103,10 +105,6 @@ const App: React.FC = () => {
         key: 'containerTemplateStack',
         label: locale === 'en_US' ? 'Container Templates' : '容器模板',
         icon: <ContainerOutlined />,
-      },{
-        key: 'appSessionPage',
-        label: locale === 'en_US' ? 'App' : '应用',
-        icon: <AppstoreOutlined />,
       },
 
     ],

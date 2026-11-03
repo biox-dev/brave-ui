@@ -85,7 +85,7 @@ const AssayProjectPage = lazy(() => import("@/components/layout-sider/data-datas
 const ContainerTemplatePage = lazy(() => import("@/components/layout-sider/container-template/container-template-list"))
 const ContainerTemplateTerminalPage = lazy(() => import("@/pages/page-route/container-template-terminal"))
 const ContainerTemplateSpecPage = lazy(() => import("@/components/container-manager/container-template-spec-page"))
-const AppSessionPage = lazy(() => import("@/components/container-manager/app-session-page"))
+const AppSessionPage = lazy(() => import("@/components/layout-sider/container-template/app-session-page"))
 const ContainerInstancePage = lazy(() => import("@/components/container-manager/container-instance-page"))
 const ContainerEventPage = lazy(() => import("@/components/container-manager/container-event-page"))
 const OutboxEventPage = lazy(() => import("@/components/container-manager/outbox-event-page"))

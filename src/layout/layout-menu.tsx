@@ -120,15 +120,8 @@ export const layoutMenuTree: LayoutMenuItem[] = [
       en_US: 'AI Summary',
     },
   },
-  {
-    key: '/app-session',
-    icon: 'container',
-    label: {
-      zh_CN: '应用会话',
-      en_US: 'App Session',
-    },
-  },
-
+  // 「应用会话」不再作为独立路由：已并入左侧栏「容器模板」堆叠视图
+  // （container-template-stack 的 appSessionPage 分栏）。
   {
     key: '/container',
     icon: 'container',
@@ -153,14 +146,14 @@ export const layoutMenuTree: LayoutMenuItem[] = [
           en_US: 'Outbox Event',
         },
       },
-      // {
-      //   key: '/container-template',
-      //   icon: 'container',
-      //   label: {
-      //     zh_CN: '容器模板',
-      //     en_US: 'Container Template',
-      //   },
-      // },
+      {
+        key: '/container-template',
+        icon: 'container',
+        label: {
+          zh_CN: '容器模板',
+          en_US: 'Container Template',
+        },
+      },
       {
         key: '/container-template-spec',
         icon: 'container',

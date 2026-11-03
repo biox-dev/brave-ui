@@ -1,7 +1,33 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Card, Empty, Flex, Pagination, Popconfirm, Space, Switch, Table, Tag, Tooltip, Typography, message } from "antd";
+import {
+  Button,
+  Card,
+  Empty,
+  Flex,
+  Pagination,
+  Popconfirm,
+  Space,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+  message,
+} from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import {
+  AppstoreOutlined,
+  CaretDownOutlined,
+  CaretRightOutlined,
+  DeleteOutlined,
+  InfoCircleOutlined,
+  LinkOutlined,
+  NodeIndexOutlined,
+  PauseCircleOutlined,
+  PlayCircleOutlined,
+  PlusOutlined,
+  RedoOutlined,
+  ReloadOutlined,
+} from "@ant-design/icons";
 import { useAppSessionPageQuery } from "@/hooks/usePaginationV2";
 import {
   createAppSessionApi,
@@ -36,6 +62,10 @@ export interface AppSessionPageProps {
   onOk?: (item: AppSessionItem) => void;
   onCancel?: () => void;
   close?: () => void;
+  /** 纵向堆叠布局注入的折叠态：折叠时仅保留标题栏。 */
+  collapsed?: boolean;
+  /** 点击标题栏时切换折叠态（未传入则标题栏不可点击）。 */
+  onToggleCollapse?: () => void;
 }
 
 const normalizeText = (value?: string) => {
@@ -117,6 +147,8 @@ const AppSessionPage = ({
   onOk,
   onCancel,
   close,
+  collapsed = false,
+  onToggleCollapse,
 }: AppSessionPageProps) => {
   const { register, unregister } = useComponentStore();
   const { locale } = useI18n();
@@ -130,6 +162,10 @@ const AppSessionPage = ({
   const isCardMode = activeViewMode === "card";
   const { containerURL } = useSelector((state: any) => state.user);
   // const resolvedProjectID = normalizeText(projectIdProp) || normalizeText(currentProjectID);
+
+  // 左侧栏纵向堆叠形态（由 container-template-stack 注入）：没有卡片外壳，
+  // 只渲染列表主体，标题栏 / 折叠由堆叠布局负责。
+  const isStackPanel = Boolean(onToggleCollapse);
 
   const {
     data,
@@ -421,6 +457,136 @@ const AppSessionPage = ({
     ];
   }, [selectable, selectedId, renderOperationButtons, columns]);
 
+  /**
+   * 左侧栏（堆叠形态）的紧凑列：与容器模板列表 / 终端会话列表同一视觉语言 ——
+   * 标题 + 次要信息一行，右侧悬停出现操作按钮，不显示宽表格的字段列。
+   */
+  const sidebarColumns = useMemo<ColumnsType<AppSessionItem>>(
+    () => [
+      {
+        title: "Session",
+        dataIndex: "name",
+        key: "name",
+        ellipsis: { showTitle: false },
+        render: (_: unknown, record) => {
+          const displayName = record.name || record.id || "-";
+          const meta = [
+            record.status,
+            record.node_name?.trim(),
+            record.started_at ? formatRelativeTime(record.started_at, locale) : undefined,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+
+          return (
+            <div className="project-report-item">
+              <AppstoreOutlined className="project-report-item-icon" />
+              <div className="project-report-item-text">
+                <Tooltip title={record.id || "-"} placement="left">
+                  <span className="project-report-item-title">{displayName}</span>
+                </Tooltip>
+                {meta && (
+                  <span className="project-report-item-meta" title={meta}>
+                    {meta}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        title: "Status",
+        key: "status",
+        width: 92,
+        align: "center",
+        render: (_: unknown, record) => (
+          <Tag color={getStatusColor(record.status)} style={{ marginInlineEnd: 0 }}>
+            {record.status || "unknown"}
+          </Tag>
+        ),
+      },
+      {
+        title: "Actions",
+        key: "actions",
+        width: 190,
+        align: "right",
+        render: (_: unknown, record) => {
+          const appUrl = buildAppUrl(containerURL, record);
+          const running = isRunningStatus(record.status);
+          const stopped = isStoppedStatus(record.status);
+          return (
+            <span className="project-report-item-actions" onClick={(e) => e.stopPropagation()}>
+              <Tooltip title="Open">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<LinkOutlined />}
+                  disabled={!running || !appUrl}
+                  onClick={() => window.open(appUrl, "_blank", "noopener,noreferrer")}
+                />
+              </Tooltip>
+              <Tooltip title="Describe">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<InfoCircleOutlined />}
+                  disabled={!record.container_instance_id}
+                  onClick={() => handleDescribe(record)}
+                />
+              </Tooltip>
+              <Tooltip title="Start">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<PlayCircleOutlined />}
+                  disabled={running}
+                  loading={pendingAction === `start-${record.id}`}
+                  onClick={() => runAction("start", record)}
+                />
+              </Tooltip>
+              <Tooltip title="Stop">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<PauseCircleOutlined />}
+                  disabled={stopped}
+                  loading={pendingAction === `stop-${record.id}`}
+                  onClick={() => runAction("stop", record)}
+                />
+              </Tooltip>
+              <Popconfirm
+                title="Recreate this app session container?"
+                description="This will delete and create a new container for this app session."
+                onConfirm={() => runAction("recreate", record)}
+                okButtonProps={{ loading: pendingAction === `recreate-${record.id}` }}
+              >
+                <Tooltip title="Recreate">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<RedoOutlined />}
+                    loading={pendingAction === `recreate-${record.id}`}
+                  />
+                </Tooltip>
+              </Popconfirm>
+              <Popconfirm
+                title="Delete this app session?"
+                onConfirm={() => runAction("delete", record)}
+                okButtonProps={{ loading: pendingAction === `delete-${record.id}` }}
+              >
+                <Tooltip title="Delete">
+                  <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                </Tooltip>
+              </Popconfirm>
+            </span>
+          );
+        },
+      },
+    ],
+    [containerURL, locale, pendingAction, runAction, handleDescribe]
+  );
+
   const handleConfirm = () => {
     if (!selectedItem || !onOk) {
       return;
@@ -499,43 +665,92 @@ const AppSessionPage = ({
     }
   };
 
-  return (
-    <Card
-      size="small"
-      title={title || "App Session List"}
-      extra={
-        <Space>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenTemplatePage}>
-            Create
-          </Button>
-          {normalizeText(analysis_node_id) && (
-            <Button
-              type="default"
-              onClick={handleCreateByAnalysisNode}
-              loading={creatingFromAnalysisNode}
-            >
-              Create from Analysis Node
-            </Button>
-          )}
-          {/* <Space size={6}>
-            <Text type="secondary">Only current project</Text>
-            <Switch
-              size="small"
-              checked={onlyCurrentProject}
-              onChange={(checked) => {
-                setOnlyCurrentProject(checked);
-                setPage(1);
-              }}
-              disabled={!resolvedProjectID}
-            />
-          </Space> */}
-          <Text type="secondary">Total: {total}</Text>
-          <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
-            Refresh
-          </Button>
-        </Space>
-      }
-    >
+  /**
+   * 左侧栏（堆叠形态）的标题栏动作：与容器模板列表 / 终端会话列表一致，
+   * 只保留图标按钮，避免在窄侧边栏里撑破标题栏。
+   */
+  const sidebarActions = (
+    <>
+      <Tooltip title="Create app session">
+        <Button
+          type="text"
+          size="small"
+          icon={<PlusOutlined />}
+          onClick={handleOpenTemplatePage}
+        />
+      </Tooltip>
+      {normalizeText(analysis_node_id) && (
+        <Tooltip title="Create from analysis node">
+          <Button
+            type="text"
+            size="small"
+            icon={<NodeIndexOutlined />}
+            loading={creatingFromAnalysisNode}
+            onClick={handleCreateByAnalysisNode}
+          />
+        </Tooltip>
+      )}
+      <Tooltip title="Refresh">
+        <Button
+          type="text"
+          size="small"
+          icon={<ReloadOutlined />}
+          loading={isFetching}
+          onClick={() => refetch()}
+        />
+      </Tooltip>
+      <Tooltip title={`Total: ${total}`}>
+        <span
+          style={{
+            fontSize: 11,
+            color: "var(--sharp-text-soft)",
+            padding: "0 4px",
+            userSelect: "none",
+          }}
+        >
+          {total}
+        </span>
+      </Tooltip>
+    </>
+  );
+
+  /** 标题栏右上角动作按钮（卡片形态与堆叠形态共用）。 */
+  const headerActions = (
+    <Space>
+      <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenTemplatePage}>
+        Create
+      </Button>
+      {normalizeText(analysis_node_id) && (
+        <Button
+          type="default"
+          onClick={handleCreateByAnalysisNode}
+          loading={creatingFromAnalysisNode}
+        >
+          Create from Analysis Node
+        </Button>
+      )}
+      {/* <Space size={6}>
+        <Text type="secondary">Only current project</Text>
+        <Switch
+          size="small"
+          checked={onlyCurrentProject}
+          onChange={(checked) => {
+            setOnlyCurrentProject(checked);
+            setPage(1);
+          }}
+          disabled={!resolvedProjectID}
+        />
+      </Space> */}
+      <Text type="secondary">Total: {total}</Text>
+      <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
+        Refresh
+      </Button>
+    </Space>
+  );
+
+  /** 列表主体：卡片形态与堆叠形态共用。 */
+  const listBody = (
+    <>
       {contextHolder}
       {isCardMode ? (
         <>
@@ -682,6 +897,110 @@ const AppSessionPage = ({
           </Button>
         </Flex>
       )}
+    </>
+  );
+
+  // 堆叠形态（左侧栏）：与容器模板列表 / 终端会话列表保持同一套面板骨架 +
+  // 同样的紧凑行样式（不渲染 Card，也不渲染宽表格）。
+  if (isStackPanel) {
+    return (
+      <div className={`project-report-panel${collapsed ? " is-collapsed" : ""}`}>
+        <div className="project-report-panel-header">
+          <button
+            type="button"
+            className="project-report-panel-title project-report-panel-title-button"
+            aria-expanded={!collapsed}
+            onClick={onToggleCollapse}
+          >
+            {collapsed ? (
+              <CaretRightOutlined className="project-report-panel-chevron" />
+            ) : (
+              <CaretDownOutlined className="project-report-panel-chevron" />
+            )}
+            <span>{title || "App Sessions"}</span>
+          </button>
+          <div className="project-report-panel-actions">{sidebarActions}</div>
+        </div>
+
+        <div
+          className="project-report-panel-body"
+          style={collapsed ? { display: "none" } : undefined}
+        >
+          {contextHolder}
+          {data.length === 0 && !isLoading ? (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description={error ? "Failed to load app sessions" : "No app session"}
+            />
+          ) : (
+            <Table<AppSessionItem>
+              rowKey="id"
+              size="small"
+              columns={sidebarColumns}
+              dataSource={data}
+              loading={isLoading || isFetching}
+              pagination={false}
+              showHeader={false}
+              rowClassName={(record) =>
+                String(record.id) === String(selectedId) ? "project-report-row-selected" : ""
+              }
+              onRow={
+                selectable
+                  ? (record) => ({ onClick: () => setSelectedID(record.id) })
+                  : undefined
+              }
+            />
+          )}
+        </div>
+
+        <div
+          style={{
+            padding: "6px 10px",
+            borderTop: "1px solid var(--sharp-divider)",
+            ...(collapsed ? { display: "none" } : null),
+          }}
+        >
+          <Pagination
+            size="small"
+            current={page}
+            pageSize={pageSize}
+            total={total}
+            showSizeChanger
+            pageSizeOptions={[20, 50, 100, 200, 500, 1000]}
+            showTotal={(value) => `${value} sessions`}
+            onChange={(nextPage, nextSize) => {
+              if (nextSize !== pageSize) {
+                setPageSize(nextSize);
+              } else {
+                setPage(nextPage);
+              }
+            }}
+          />
+        </div>
+
+        {selectable && (
+          <div
+            style={{
+              display: collapsed ? "none" : "flex",
+              justifyContent: "flex-end",
+              gap: 8,
+              padding: "8px 10px",
+              borderTop: "1px solid var(--sharp-divider)",
+            }}
+          >
+            <Button onClick={handleCancel}>Cancel</Button>
+            <Button type="primary" disabled={!selectedItem} onClick={handleConfirm}>
+              Confirm
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <Card size="small" title={title || "App Session List"} extra={headerActions}>
+      {listBody}
     </Card>
   );
 };
