@@ -20,6 +20,7 @@ import { FilesRender } from "../result-render/components/files-render";
 import { AnalysisNodeFilesRender } from "../result-render/components/analysis-node-files-render";
 import { NodeParamsRender } from "../result-render/components/node-params-render";
 import { LLMEnvType, setLLMEnv } from "@/utils/llm-env";
+import { openBottomTerminal } from "@/layout/bottom-panel-store";
 
 type NodeResultAsset = {
     images?: any[];
@@ -180,6 +181,16 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
     // 节点 id / 脚本 id 在多个视图间复用，先算好避免重复书写。
     const nodeId = String(selectedSampleDetail.node?.id ?? analysis_node_id ?? "");
     const scriptId = selectedSampleDetail.node?.script_id;
+
+    // 节点详情里的 container_id 是容器模板（go_container_template_definition）的主键，
+    // 也就是左侧栏「终端会话」/ 容器模板列表用的那个 template_id：
+    // 底部面板按 `terminal:<template_id>` 打开并复用同一个持久终端（会话由后端注册表按
+    // 用户 + 项目 + 模板持有），重复点击只会聚焦已有标签，不会重复创建容器。
+    const nodeContainerId = String(selectedSampleDetail.node?.container_id ?? "").trim();
+    const nodeTerminalTitle =
+        selectedSampleDetail.node?.node_name ||
+        selectedSampleDetail.node?.node_id ||
+        `AnalysisNode-${nodeId}`;
 
     // 结果区视图参数：view 与 props 一起由 resultView 决定，用 switch 代替嵌套三元，
     // 新增视图时只要补一个 case。所有视图共用底部同一个 ViewResolver。
@@ -428,6 +439,28 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
                                         </Popconfirm>
                                     )}
 
+                                    {/* 底部面板终端（terminal-session）：按节点绑定的容器模板打开 / 聚焦持久终端标签。
+                                        终端容器由模板单独创建，与节点是否 running 无关，因此不做状态限制；
+                                        切页签、收起面板都不会断开 PTY，重复点击只会聚焦已有标签。 */}
+                                    <Tooltip
+                                        title={
+                                            nodeContainerId
+                                                ? `Open terminal session in the bottom panel (container template ${nodeContainerId})`
+                                                : "container_id is missing from the node detail"
+                                        }
+                                    >
+                                        <Button
+                                            size="small"
+                                            color="cyan"
+                                            variant="solid"
+                                            disabled={!nodeContainerId}
+                                            onClick={() => openBottomTerminal(nodeContainerId, nodeTerminalTitle)}
+                                        >
+                                            Terminal Session
+                                        </Button>
+                                    </Tooltip>
+
+                                    {/* 弹窗终端直接 exec 进该节点自身的容器，必须节点 running 才可用。 */}
                                     {selectedSampleDetail.node?.status == "running" && (
                                         <Button
                                             size="small"
