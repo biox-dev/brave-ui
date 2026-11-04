@@ -49,7 +49,7 @@ export interface UserBottomPanel {
 	tabs?: UserBottomTab[];
 }
 
-// 用户的菜单配置（后端 users.menu_config）：主区域标签页 + 底部面板。
+// 当前激活项目下的菜单配置（后端 user_project.menu_config）：主区域标签页 + 底部面板。
 export interface UserMenuConfig {
 	tabs?: UserMenuTab[];
 	bottom?: UserBottomPanel;

@@ -3,6 +3,7 @@ import { Avatar, Button, Dropdown, Layout, Tag, Typography, message } from 'antd
 import type { MenuProps } from 'antd';
 import { SettingOutlined, UserOutlined } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router';
 import axios from 'axios';
 import { useSSE } from '@/context/sse/useSSE';
 import { invoke } from '@/core/ui-system/invokeV2';
@@ -19,6 +20,7 @@ const { Header } = Layout;
 
 const AppHeader: React.FC<AppHeaderProps> = ({ backgroundColor }) => {
     const dispatch = useDispatch();
+    const navigate = useNavigate();
     const project = useSelector((state: any) => state.user.project);
     const userInfo = useSelector((state: any) => state.user.userInfo);
     const [messageApi, messageContextHolder] = message.useMessage();
@@ -70,6 +72,12 @@ const AppHeader: React.FC<AppHeaderProps> = ({ backgroundColor }) => {
             if (!value?.project_id) return;
 
             await activateProjectApi({ project_id: value.project_id });
+            // 切换项目后回到首页：当前深链路由属于上一个项目，不应带到新项目里去。
+            // 必须在刷新菜单配置前跳转，否则新项目的标签页会先把旧路由补进去并落库。
+            navigate('/');
+            // 菜单配置（标签页 / 底部面板）按项目落库，切换后先刷新 userInfo
+            // （/auth/me 会按新的激活项目返回 menu_config），再刷新项目信息。
+            await dispatch(loadCurrentUser() as any);
             await dispatch(loadActiveProject() as any);
             messageApi.success(`Switching Project: ${value.project_name}`);
         } catch (error) {

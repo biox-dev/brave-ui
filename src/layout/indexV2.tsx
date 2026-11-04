@@ -156,10 +156,12 @@ const App: React.FC = () => {
   );
   // 底部面板同理：在布局层（始终挂载）回填，不依赖 BottomPanel 是否已渲染。
   const userId = useSelector((state: any) => state.user.userInfo?.id as string | undefined);
+  // 菜单配置是项目维度的：切换激活项目后需要按新项目重新回填。
+  const projectId = useSelector((state: any) => state.user.projectId as string | undefined);
   const savedBottomPanel = useSelector((state: any) => state.user.userInfo?.menu_config?.bottom);
   useEffect(() => {
-    hydrateBottomPanel(userId, savedBottomPanel);
-  }, [userId, savedBottomPanel]);
+    hydrateBottomPanel(userId, projectId, savedBottomPanel);
+  }, [userId, projectId, savedBottomPanel]);
   // 只订阅布尔值：底部面板拖动高度会高频更新 store，整页布局不需要跟着重渲染。
   const hasBottomTabs = useBottomPanelStore((state) => state.tabs.length > 0);  // 根路由且后端还没有任何标签时，主区域收收让右侧撑满；
   // 一旦标签数据回填、底部面板打开了标签（如容器终端）或路由离开根路径，主区域自动打开。

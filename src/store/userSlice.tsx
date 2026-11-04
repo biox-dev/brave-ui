@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { getActiveProjectApi } from '@/api/project'
-import { getCurrentUserApi, type AgentProfileInfo, type AgentUserConfig, type UserMenuTab } from '@/api/auth'
+import { getCurrentUserApi, type AgentProfileInfo, type AgentUserConfig, type UserMenuConfig, type UserMenuTab } from '@/api/auth'
 import { getPathname } from "@/utils/utils";
 
 const locale = localStorage.getItem('locale')
@@ -78,8 +78,8 @@ export interface LoginUserInfo {
     avatar: string;
     profile?: string;
     agent_config?: AgentUserConfig;
-    /** 主区域标签页配置（url + 显示名），刷新后由 MainTabs 回填。 */
-    menu_config?: { tabs?: UserMenuTab[] };
+    /** 当前激活项目下的菜单配置（url + 显示名 + 底部面板），由 MainTabs 回填。 */
+    menu_config?: UserMenuConfig;
     /** 当前 agent_config.profile_id 对应的 Profile 摘要（由 /auth/me 解析返回）。 */
     agent_profile?: AgentProfileInfo;
     is_active: boolean;
@@ -243,7 +243,8 @@ const contextSlice = createSlice({
             if (!state.userInfo) {
                 return;
             }
-            state.userInfo.menu_config = { tabs: action.payload };
+            // 只覆盖标签页，保留底部面板配置（菜单配置整体存在同一个字段里）。
+            state.userInfo.menu_config = { ...state.userInfo.menu_config, tabs: action.payload };
         },
         clearUserSession(state) {
             state.authorization = null;

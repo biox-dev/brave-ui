@@ -5,7 +5,7 @@ import { updateBottomPanelApi, type UserBottomPanel } from '@/api/auth';
  * 主区域底部面板（终端 / 日志 …）的共享状态。
  *
  * 数据流与主区域标签页（MainTabs）保持一致：
- * - 唯一数据源是后端 `users.menu_config.bottom`，`/auth/me` 返回后由 `hydrateBottomPanel` 回填；
+ * - 唯一数据源是后端 `user_project.menu_config.bottom`（当前激活项目），`/auth/me` 返回后由 `hydrateBottomPanel` 回填；
  * - 之后的每次打开 / 关闭 / 切换 / 拖动高度都先更新本地状态（乐观更新），
  *   再由 `scheduleSave` 防抖异步落库，不阻塞 UI、失败也不打扰用户；
  * - 刷新即从接口重建，不做 localStorage 缓存，避免本地与后端不一致。
@@ -88,23 +88,39 @@ const scheduleSave = () => {
   }, SAVE_DELAY);
 };
 
-let hydratedUserId: string | null = null;
+/**
+ * 已回填过的 `userId::projectId`。
+ * 菜单配置是项目维度的：切换激活项目后需要按新项目重新回填。
+ */
+let hydratedKey: string | null = null;
 
 /**
- * 用 `/auth/me` 返回的 `menu_config.bottom` 回填一次。
+ * 用 `/auth/me` 返回的 `menu_config.bottom` 回填。
  *
  * 与 MainTabs 的坑一致：从未保存过时后端返回 `menu_config: {}`（Bottom 为 undefined），
- * 因此回填只看「用户 ID 是否变化」，不能因为 bottom 为空就跳过，否则永远不会 hydrate，
+ * 因此回填只看「用户 + 项目」是否变化，不能因为 bottom 为空就跳过，否则永远不会 hydrate，
  * 后续变更也会被 `hydrated` 门控挡住、一次都不落库。
+ *
+ * 首次回填（登录 / 刷新）会把回填前已打开的本地标签合并进来；
+ * 切换项目后的回填直接整体替换，避免把上一个项目的标签写到新项目。
  */
 export const hydrateBottomPanel = (
   userId: string | null | undefined,
+  projectId: string | null | undefined,
   panel?: UserBottomPanel | null,
 ) => {
-  if (!userId || hydratedUserId === userId) {
+  const key = `${userId ?? ''}::${projectId ?? ''}`;
+  if (!userId || hydratedKey === key) {
     return;
   }
-  hydratedUserId = userId;
+  const isFirstHydration = hydratedKey === null;
+  hydratedKey = key;
+
+  // 切换项目：丢弃上一个项目尚未落库的防抖请求，避免写入新项目。
+  if (!isFirstHydration && saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
 
   const serverTabs: BottomTab[] = (panel?.tabs ?? [])
     .filter((tab) => Boolean(tab && tab.key?.trim() && tab.kind?.trim()))
@@ -114,17 +130,19 @@ export const hydrateBottomPanel = (
       title: (tab.title ?? '').trim(),
       params: tab.params,
     }));
-  // 兼容回填前就打开过标签的情况（/auth/me 返回前点了列表项）：本地标签排在后面并去重。
+  // 首次回填时兼容「回填前就打开过标签」的情况（/auth/me 返回前点了列表项）：
+  // 本地标签排在后面并去重；切换项目时不做合并。
   const local = useBottomPanelStore.getState();
-  const merged = [...serverTabs];
-  local.tabs.forEach((tab) => {
-    if (!merged.some((item) => item.key === tab.key)) {
-      merged.push(tab);
-    }
-  });
-  const tabs = merged.slice(-MAX_BOTTOM_TABS);
+  const tabs = (
+    isFirstHydration
+      ? [
+          ...serverTabs,
+          ...local.tabs.filter((tab) => !serverTabs.some((item) => item.key === tab.key)),
+        ]
+      : serverTabs
+  ).slice(-MAX_BOTTOM_TABS);
 
-  const preferredActive = local.active || panel?.active || '';
+  const preferredActive = (isFirstHydration ? local.active : '') || panel?.active || '';
   const active = tabs.some((tab) => tab.key === preferredActive)
     ? preferredActive
     : tabs[0]?.key ?? '';
@@ -132,12 +150,15 @@ export const hydrateBottomPanel = (
   useBottomPanelStore.setState({
     tabs,
     active,
-    open: local.tabs.length > 0 ? local.open : panel?.open ?? tabs.length > 0,
+    open:
+      isFirstHydration && local.tabs.length > 0
+        ? local.open
+        : panel?.open ?? tabs.length > 0,
     height: clampHeight(panel?.height),
     hydrated: true,
   });
 
-  if (local.tabs.length > 0) {
+  if (isFirstHydration && local.tabs.length > 0) {
     // 回填前就打开过标签：合并结果需要补一次落库（这些标签后端还不知道）。
     scheduleSave();
   }

@@ -3,7 +3,7 @@ import { normalizeMainTabPath } from './main-tab-title';
 /**
  * 主区域标签页「显示名称」通道（纯内存）。
  *
- * 标签页列表（顺序 + url + 名称）的唯一数据源是后端 `users.menu_config`：
+ * 标签页列表（顺序 + url + 名称）的唯一数据源是后端 `user_project.menu_config`（当前激活项目）：
  * MainTabs 在 `/auth/me` 返回时用 `seedMainTabTitles` 回填一次，之后页面可以用
  * `setMainTabTitle(key, 可读名称)` 登记运行期的名字（如节点名）。
  * 渲染时优先用这里登记的名称，没登记才回退 `resolveMainTabTitle` 的静态规则。

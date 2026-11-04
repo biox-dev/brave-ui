@@ -56,7 +56,7 @@ type MainTabsProps = {
  * 只记录访问过的路由并负责切换/关闭，页面内容仍由上层 <Outlet /> 渲染，
  * 因此切换标签页等价于路由跳转（页面组件会重新挂载）。
  *
- * 标签页列表的唯一数据源是后端：`/auth/me` 的 `user.menu_config.tabs` 回填，
+ * 标签页列表的唯一数据源是后端：`/auth/me` 的 `user.menu_config.tabs`（当前激活项目）回填，
  * 之后的每次新增 / 关闭 / 改名都异步回写（不阻塞 UI）。
  */
 const MainTabs = forwardRef<MainTabsHandle, MainTabsProps>(({ onTabsChange }, ref) => {
@@ -69,9 +69,13 @@ const MainTabs = forwardRef<MainTabsHandle, MainTabsProps>(({ onTabsChange }, re
   const isRoot = normalizeMainTabPath(pathname) === '/';
 
   const userId = useSelector((state: any) => state.user.userInfo?.id as string | undefined);
+  // 菜单配置是项目维度的：切换激活项目后，用新项目的 menu_config 重新回填。
+  const projectId = useSelector((state: any) => state.user.projectId as string | undefined);
   // 注意：selector 必须返回稳定引用，否则每次 render 都会被当成变化。
   const menuConfig = useSelector((state: any) => state.user.userInfo?.menu_config);
   const serverTabs = useMemo<UserMenuTab[]>(() => menuConfig?.tabs ?? [], [menuConfig]);
+  // 「同一用户的不同项目」是两份独立的配置，因此回填的 key 是 user + project。
+  const hydrationKey = `${userId ?? ''}::${projectId ?? ''}`;
 
   // null = 接口数据还没到：此时不渲染标签、也不落库，避免用空列表覆盖后端。
   // 本地状态直接持有 url + title：渲染与落库都用它，redux 里的 menu_config 只是同步出去的副本。
@@ -85,10 +89,16 @@ const MainTabs = forwardRef<MainTabsHandle, MainTabsProps>(({ onTabsChange }, re
 
   // 1) 回填：/auth/me 返回后，用后端列表 + 名称建立标签栏，并补上当前深链路由。
   useEffect(() => {
-    if (!userId || hydratedUserRef.current === userId) {
+    if (!userId || hydratedUserRef.current === hydrationKey) {
       return;
     }
-    hydratedUserRef.current = userId;
+    hydratedUserRef.current = hydrationKey;
+    // 切换项目：丢弃上一个项目尚未落库的防抖请求，避免写到新项目。
+    if (saveMenuTabsTimer) {
+      clearTimeout(saveMenuTabsTimer);
+      saveMenuTabsTimer = null;
+      pendingMenuTabs = [];
+    }
     seedMainTabTitles(serverTabs);
     const next: UserMenuTab[] = serverTabs
       .map((tab) => ({ url: toMainTabKey(tab.url), title: (tab.title ?? '').trim() }))
@@ -100,7 +110,7 @@ const MainTabs = forwardRef<MainTabsHandle, MainTabsProps>(({ onTabsChange }, re
       next.push({ url: currentKey, title: '' });
     }
     setTabs(next.slice(-MAX_TABS));
-  }, [currentKey, isRoot, serverTabs, userId]);
+  }, [currentKey, hydrationKey, isRoot, serverTabs, userId]);
 
   // 2) 路由变化时把当前地址加入标签页（已存在则不动，避免覆盖已登记的名称）
   useEffect(() => {
