@@ -63,14 +63,17 @@ export function registerActions() {
   });
 
   // Container terminal：Agent 执行命令时把底部终端调到前台（会话已在后端创建，
-  // 打开连接会自动回放历史输出）。
+  // 打开连接会自动回放历史输出）。终端会话按会话 ID 寻址。
   ActionDispatcher.register("terminal.exec", (payload: TerminalExecPayload) => {
-    const templateId =
-      payload?.template_id == null ? "" : String(payload.template_id).trim();
-    if (!templateId || payload?.phase !== "start") {
+    const sessionId = payload?.session_id == null ? "" : String(payload.session_id).trim();
+    if (!sessionId || payload?.phase !== "start") {
       return;
     }
-    openBottomTerminal(templateId, `Terminal ${templateId}`);
+    const templateId =
+      payload?.template_id == null ? undefined : String(payload.template_id).trim();
+    openBottomTerminal(sessionId, `Terminal ${sessionId}`, {
+      templateId: templateId || undefined,
+    });
     const ui = useUIStore.getState();
     ui.notificationApi?.info({
       message: "Agent is running a command in the terminal",

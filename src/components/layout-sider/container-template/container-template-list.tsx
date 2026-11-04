@@ -29,7 +29,10 @@ import {
   exportContainerTemplateApi,
   type ContainerTemplateItem,
 } from "@/api/container";
-import { execContainerTemplateTerminalApi } from "@/api/container-template-terminal";
+import {
+  createContainerTerminalSessionApi,
+  execContainerTerminalSessionApi,
+} from "@/api/container-template-terminal";
 import { useContainerTemplatePageQuery } from "@/hooks/usePaginationV2";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
@@ -246,10 +249,10 @@ const ContainerTemplateList = ({
   }, [message, refetch]);
 
   /**
-   * 打开「运行命令」弹窗：命令会写入该模板的持久终端会话。
+   * 打开「运行命令」弹窗：命令会写入该模板新建的终端会话。
    *
-   * 后端按 (userID, projectID, templateID) 复用同一个 PTY，因此这里不需要关心
-   * 终端是否已打开：提交后自动调到前台即可看到输出。
+   * 终端会话由 `/container/terminal/session/create` 创建（一个模板可以有多条会话），
+   * 提交时先建会话再投递命令，最后按会话 ID 打开底部终端标签。
    */
   const handleOpenRun = useCallback((record: ContainerTemplateItem) => {
     setRunTarget(record);
@@ -267,13 +270,18 @@ const ContainerTemplateList = ({
     }
     setRunSubmitting(true);
     try {
+      const created = (await createContainerTerminalSessionApi({
+        container_template_id: runTarget.id,
+        name: templateDisplayName(runTarget),
+      })).data;
       // wait_seconds=0：只投递命令，输出走终端 WebSocket 实时回传。
-      await execContainerTemplateTerminalApi(runTarget.id, {
+      await execContainerTerminalSessionApi(created.session_id, {
         command,
         wait_seconds: 0,
-        create_if_missing: true,
       });
-      openBottomTerminal(runTarget.id, templateDisplayName(runTarget));
+      openBottomTerminal(created.session_id, created.display_name || templateDisplayName(runTarget), {
+        templateId: String(runTarget.id),
+      });
       message.success("Command submitted to terminal");
       setRunTarget(null);
     } catch (error) {
@@ -308,23 +316,56 @@ const ContainerTemplateList = ({
     }
   }, [refetch]);
 
-  /** 右侧 Terminal 按钮：invoke 打开容器模板终端弹窗（关闭后按后端配置立即删除或保留容器）。 */
-  const handleOpenTerminal = useCallback((record: ContainerTemplateItem) => {
-    invoke.containerTemplateTerminal.open(
-      { template_id: record.id, name: templateDisplayName(record) },
-      {
-        title: `Terminal - ${templateDisplayName(record)}`,
-        width: 960,
-        footer: null,
+  /**
+   * 右侧 Terminal 按钮：先新建一条终端会话（创建即启动容器），再打开该会话的终端弹窗。
+   *
+   * 会话创建与 WebSocket 连接分开后，弹窗只认会话 ID；关闭弹窗不会删除容器，
+   * 需要在左侧栏「终端会话」列表里显式关闭。
+   */
+  const handleOpenTerminal = useCallback(
+    async (record: ContainerTemplateItem) => {
+      try {
+        const created = (await createContainerTerminalSessionApi({
+          container_template_id: record.id,
+          name: templateDisplayName(record),
+        })).data;
+        invoke.containerTemplateTerminal.open(
+          { session_id: created.session_id, name: created.display_name },
+          {
+            title: `Terminal - ${created.display_name || templateDisplayName(record)}`,
+            width: 960,
+            footer: null,
+          }
+        );
+      } catch (error) {
+        message.error(getErrorMessage(error, "Failed to create terminal session"));
       }
-    );
-  }, []);
+    },
+    [message]
+  );
 
-  /** 点击行：在主区域底部面板打开临时终端（不跳路由）。 */
-  const openTerminalTab = useCallback((record: ContainerTemplateItem) => {
-    // 同一模板重复点击只会聚焦已有标签，不会重复创建容器。
-    openBottomTerminal(record.id, templateDisplayName(record));
-  }, []);
+  /**
+   * 点击行：在主区域底部面板新建一个终端会话并打开它（不跳路由）。
+   *
+   * 会话创建与连接分开：每次都建一条新会话（容器已启动），再按会话 ID 打开标签，
+   * 因此左侧栏「终端会话」列表能看到并管理这些会话。
+   */
+  const openTerminalTab = useCallback(
+    async (record: ContainerTemplateItem) => {
+      try {
+        const created = (await createContainerTerminalSessionApi({
+          container_template_id: record.id,
+          name: templateDisplayName(record),
+        })).data;
+        openBottomTerminal(created.session_id, created.display_name || templateDisplayName(record), {
+          templateId: String(record.id),
+        });
+      } catch (error) {
+        message.error(getErrorMessage(error, "Failed to create terminal session"));
+      }
+    },
+    [message]
+  );
 
   const handleRowClick = useCallback(
     (record: ContainerTemplateItem) => {
@@ -332,7 +373,7 @@ const ContainerTemplateList = ({
         setSelectedId(record.id);
         return;
       }
-      openTerminalTab(record);
+      void openTerminalTab(record);
     },
     [selectable, openTerminalTab]
   );
@@ -396,7 +437,7 @@ const ContainerTemplateList = ({
                 type="text"
                 size="small"
                 icon={<CodeOutlined />}
-                onClick={() => handleOpenTerminal(record)}
+                onClick={() => void handleOpenTerminal(record)}
               />
             </Tooltip>
             <Tooltip title="Run command in terminal">

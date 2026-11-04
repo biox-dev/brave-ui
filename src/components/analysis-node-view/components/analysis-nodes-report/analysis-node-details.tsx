@@ -22,6 +22,7 @@ import { FilesRender } from "../result-render/components/files-render";
 import { AnalysisNodeFilesRender } from "../result-render/components/analysis-node-files-render";
 import { NodeParamsRender } from "../result-render/components/node-params-render";
 import { LLMEnvType, setLLMEnv } from "@/utils/llm-env";
+import { createContainerTerminalSessionApi } from "@/api/container-template-terminal";
 import { openBottomTerminal } from "@/layout/bottom-panel-store";
 
 type NodeResultAsset = {
@@ -201,10 +202,9 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
     const nodeId = String(selectedSampleDetail.node?.id ?? analysis_node_id ?? "");
     const scriptId = selectedSampleDetail.node?.script_id;
 
-    // 节点详情里的 container_id 是容器模板（go_container_template_definition）的主键，
-    // 也就是左侧栏「终端会话」/ 容器模板列表用的那个 template_id：
-    // 底部面板按 `terminal:<template_id>` 打开并复用同一个持久终端（会话由后端注册表按
-    // 用户 + 项目 + 模板持有），重复点击只会聚焦已有标签，不会重复创建容器。
+    // 节点详情里的 container_id 是容器模板（go_container_template_definition）的主键。
+    // 点击时先按该模板新建一条终端会话（创建即启动容器），再按会话 ID 打开底部终端标签：
+    // 会话创建与 WebSocket 连接分开，一个模板可以有多条会话，彼此独立。
     const nodeContainerId = String(selectedSampleDetail.node?.container_id ?? "").trim();
     const nodeTerminalTitle =
         selectedSampleDetail.node?.node_name ||
@@ -473,7 +473,22 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
                                             color="cyan"
                                             variant="solid"
                                             disabled={!nodeContainerId}
-                                            onClick={() => openBottomTerminal(nodeContainerId, nodeTerminalTitle)}
+                                            onClick={() => {
+                                                void createContainerTerminalSessionApi({
+                                                    container_template_id: nodeContainerId,
+                                                    name: nodeTerminalTitle,
+                                                })
+                                                    .then((resp) => {
+                                                        openBottomTerminal(
+                                                            resp.data.session_id,
+                                                            resp.data.display_name || nodeTerminalTitle,
+                                                            { templateId: nodeContainerId },
+                                                        );
+                                                    })
+                                                    .catch(() => {
+                                                        message.error("Failed to create terminal session");
+                                                    });
+                                            }}
                                         >
                                             Terminal Session
                                         </Button>

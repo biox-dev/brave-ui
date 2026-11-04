@@ -5,15 +5,16 @@ import { containerTemplateTerminalUrl } from "@/api/container-template-terminal"
 import AnalysisNodeTerminal from "@/components/container-manager/analysis-node-terminal";
 
 /**
- * 容器模板临时终端页面（路由形态）。
+ * 终端会话页面（路由形态）：`/container-template-terminal/:sessionId`。
  *
- * 从容器模板列表点击行进入：`/container-template-terminal/:templateId`。
- * 与 invoke 弹窗共用同一个 WebSocket 地址，关闭标签页/离开路由即断开连接并删除容器。
+ * 终端会话由 `/container/terminal/session/create` 创建（容器已启动），这里只按会话 ID
+ * 连接 WebSocket；离开路由只是断开连接，不会删除容器——
+ * 显式关闭请到左侧栏「终端会话」列表。
  */
 const ContainerTemplateTerminalRoute: FC = () => {
-  const { templateId } = useParams<{ templateId: string }>();
+  const { sessionId } = useParams<{ sessionId: string }>();
 
-  if (!templateId) {
+  if (!sessionId) {
     return null;
   }
 
@@ -23,12 +24,9 @@ const ContainerTemplateTerminalRoute: FC = () => {
         type="info"
         showIcon
         style={{ marginBottom: 8 }}
-        message="This terminal runs in a temporary container created from this template. Closing the terminal deletes the container."
+        message="Leaving this page only detaches the terminal session. Close the session from the Terminal Sessions panel to delete its container."
       />
-      <AnalysisNodeTerminal
-        id={templateId}
-        terminalUrl={containerTemplateTerminalUrl(templateId)}
-      />
+      <AnalysisNodeTerminal id={sessionId} terminalUrl={containerTemplateTerminalUrl(sessionId)} />
     </div>
   );
 };

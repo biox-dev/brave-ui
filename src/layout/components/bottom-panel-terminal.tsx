@@ -4,20 +4,21 @@ import AnalysisNodeTerminal from '@/components/container-manager/analysis-node-t
 import type { BottomTabRenderProps } from './bottom-panel-registry';
 
 /**
- * 底部面板的容器模板终端标签。
+ * 底部面板的终端会话标签。
  *
- * 参数来自标签的 `params.template_id`（后端保存的就是这个值），
- * 因此刷新页面后恢复标签会重新建立 WebSocket；后端的会话注册表按
- * (userID, projectID, templateID) 复用同一个 PTY，关闭标签默认立即删除容器。
+ * 参数来自标签的 `params.session_id`：终端会话由后端 create 接口创建（容器已启动），
+ * 这里只按会话 ID 建立 WebSocket 连接；刷新页面后恢复标签会重连同一会话并回放历史输出。
+ *
+ * `params.template_id` 只用于排查 / 展示，连接地址不再依赖模板 ID。
  */
 const BottomPanelTerminal = ({ tab }: BottomTabRenderProps) => {
-  const raw = tab.params?.template_id;
-  const templateId = raw == null ? '' : String(raw).trim();
+  const raw = tab.params?.session_id;
+  const sessionId = raw == null ? '' : String(raw).trim();
 
-  if (!templateId) {
+  if (!sessionId) {
     return (
       <div className="layout-bottom-panel-placeholder">
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Missing template_id" />
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Missing session_id" />
       </div>
     );
   }
@@ -25,9 +26,9 @@ const BottomPanelTerminal = ({ tab }: BottomTabRenderProps) => {
   return (
     <div className="layout-bottom-panel-terminal-frame">
       <AnalysisNodeTerminal
-        id={templateId}
+        id={sessionId}
         name={tab.title}
-        terminalUrl={containerTemplateTerminalUrl(templateId)}
+        terminalUrl={containerTemplateTerminalUrl(sessionId)}
         height="100%"
         padding={6}
         borderRadius={0}

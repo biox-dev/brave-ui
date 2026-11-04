@@ -2,29 +2,81 @@ import { http } from "@/api/client/http";
 import { getPathname } from "@/utils/utils";
 
 /**
- * xterm.js 连接「容器模板终端」的 WebSocket 地址。
+ * 终端会话模型
  *
- * 会话由后端注册表持有（userID + projectID + templateID 唯一），同一个模板重复打开
- * 只会 attach 到同一个 PTY。前端一旦接入，该会话即被标记为「持久」：刷新/断网/关标签
- * 都不会删除容器，只有空闲 TTL（container.terminal_session_ttl_minutes）到期或
- * 调 DELETE 才回收；重连时用 since 回放历史输出。
+ * 容器模板终端会话的创建与 WebSocket 连接是分开的：
+ * - `createContainerTerminalSessionApi` 按容器模板新建一条会话（创建时即启动容器与 shell），
+ *   返回会话 ID；
+ * - `containerTemplateTerminalUrl` 用会话 ID 建 WebSocket（不再按 templateId 连接）；
+ * - `execContainerTerminalSessionApi` / `closeContainerTerminalSessionApi` 也只认会话 ID。
+ *
+ * 一个容器模板可以有多条会话（每次「新建」都是独立容器）；WS 断开不会删除容器，
+ * 只有空闲 TTL 到期或显式关闭才回收。
  */
+
+/** xterm.js 连接「终端会话」的 WebSocket 地址（按会话 ID）。 */
 export const containerTemplateTerminalUrl = (
-  templateId: string | number,
+  sessionId: string | number,
   options?: { since?: number },
 ) => {
   const base = getPathname().replace(/^http/, "ws");
-  const url = `${base}/api/v1/container/template/${encodeURIComponent(String(templateId))}/terminal`;
+  const url = `${base}/api/v1/container/terminal/session/${encodeURIComponent(String(sessionId))}/terminal`;
   const since = options?.since;
   return since === undefined || since === null ? url : `${url}?since=${since}`;
+};
+
+/** 终端会话的只读状态（与后端 manager.TerminalSessionStatus 对应）。 */
+export interface ContainerTerminalSessionStatus {
+  session_id: string;
+  exists: boolean;
+  alive: boolean;
+  subscribers: number;
+  seq: number;
+  user_id?: string;
+  project_id?: string;
+  template_id?: string;
+  /** 创建该会话的 Agent 会话 ID；为空 / "0" 表示 UI 手动创建。 */
+  agent_session_id?: string;
+  /** 会话展示名。 */
+  name?: string;
+  /** 持久会话：只能由空闲 TTL 或显式关闭回收。 */
+  persistent: boolean;
+  /** 当前有命令在执行（此时不会因空闲被回收）。 */
+  busy: boolean;
+  runtime_id?: string;
+  runtime_name?: string;
+  created_at?: string;
+  last_active?: string;
+}
+
+export interface ContainerTerminalSessionCreateRequest {
+  container_template_id: string | number;
+  /** 会话展示名；为空时由后端回退到模板展示名 / 模板名 / ID。 */
+  name?: string;
+  /** 前端 xterm 尺寸：新建会话直接用它建 PTY（可选）。 */
+  rows?: number;
+  cols?: number;
+}
+
+export interface ContainerTerminalSessionCreateResponse extends ContainerTerminalSessionStatus {
+  display_name: string;
+  template_name: string;
+  image_name: string;
+  app_type: string;
+}
+
+/** 按容器模板新建一条终端会话并立即启动容器，返回会话 ID。 */
+export const createContainerTerminalSessionApi = (payload: ContainerTerminalSessionCreateRequest) => {
+  return http.post<ContainerTerminalSessionCreateResponse>(
+    "/container/terminal/session/create",
+    payload,
+  );
 };
 
 export interface ContainerTemplateTerminalExecRequest {
   command: string;
   /** 0（默认）= 只投递命令并立即返回；>0 = 等待命令结束（秒）。 */
   wait_seconds?: number;
-  /** 会话不存在时是否自动创建，默认 true。 */
-  create_if_missing?: boolean;
 }
 
 export interface ContainerTemplateTerminalExecResponse {
@@ -38,60 +90,36 @@ export interface ContainerTemplateTerminalExecResponse {
   output_truncated?: boolean;
 }
 
-/** 向容器模板终端写入一条命令（UI 按钮 / Agent 共用同一后端实现）。 */
-export const execContainerTemplateTerminalApi = (
-  templateId: string | number,
+/** 向指定终端会话写入一条命令（命令输出走该会话的 WebSocket 实时回传）。 */
+export const execContainerTerminalSessionApi = (
+  sessionId: string | number,
   payload: ContainerTemplateTerminalExecRequest,
 ) => {
   return http.post<ContainerTemplateTerminalExecResponse>(
-    `/container/template/${encodeURIComponent(String(templateId))}/terminal/exec`,
+    `/container/terminal/session/${encodeURIComponent(String(sessionId))}/terminal/exec`,
     payload,
   );
 };
 
-export interface ContainerTemplateTerminalStatus {
-  session_id: string;
-  exists: boolean;
-  alive: boolean;
-  subscribers: number;
-  seq: number;
-}
-
 /** 读取终端会话状态（不存在时 exists=false）。 */
-export const getContainerTemplateTerminalStatusApi = (templateId: string | number) => {
-  return http.get<ContainerTemplateTerminalStatus>(
-    `/container/template/${encodeURIComponent(String(templateId))}/terminal/status`,
+export const getContainerTerminalSessionStatusApi = (sessionId: string | number) => {
+  return http.get<ContainerTerminalSessionStatus>(
+    `/container/terminal/session/${encodeURIComponent(String(sessionId))}/status`,
   );
 };
 
-/** 主动关闭终端会话（关闭 shell 并删除临时容器）。 */
-export const closeContainerTemplateTerminalApi = (templateId: string | number) => {
+/** 主动关闭终端会话（关闭 shell 并删除容器）。 */
+export const closeContainerTerminalSessionApi = (sessionId: string | number) => {
   return http.delete<{ closed: boolean }>(
-    `/container/template/${encodeURIComponent(String(templateId))}/terminal`,
+    `/container/terminal/session/${encodeURIComponent(String(sessionId))}`,
   );
 };
 
 /**
  * 终端会话列表项：后端把内存注册表里的会话状态与容器模板绑定行 join 起来。
- * DisplayName 优先取绑定行 display_name，为空时回退模板名，再回退到 session_id。
+ * DisplayName 优先取会话名，为空时回退模板展示名 / 模板名 / session_id。
  */
-export interface ContainerTerminalSessionItem {
-  session_id: string;
-  exists: boolean;
-  alive: boolean;
-  subscribers: number;
-  seq: number;
-  user_id?: string;
-  project_id?: string;
-  template_id?: string;
-  /** 持久会话：只能由空闲 TTL 或显式关闭回收。 */
-  persistent: boolean;
-  /** 当前有命令在执行（此时不会因空闲被回收）。 */
-  busy: boolean;
-  runtime_id?: string;
-  runtime_name?: string;
-  created_at?: string;
-  last_active?: string;
+export interface ContainerTerminalSessionItem extends ContainerTerminalSessionStatus {
   display_name: string;
   template_name: string;
   image_name: string;

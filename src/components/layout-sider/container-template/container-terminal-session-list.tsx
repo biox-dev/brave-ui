@@ -23,8 +23,9 @@ import {
   ReloadOutlined,
 } from "@ant-design/icons";
 import {
-  closeContainerTemplateTerminalApi,
-  execContainerTemplateTerminalApi,
+  closeContainerTerminalSessionApi,
+  createContainerTerminalSessionApi,
+  execContainerTerminalSessionApi,
 } from "@/api/container-template-terminal";
 import type { ContainerTemplateItem } from "@/api/container";
 import { invoke } from "@/core/ui-system/invokeV2";
@@ -101,9 +102,10 @@ const SessionDetailCard = ({ item }: { item: ContainerTerminalSessionItem }) => 
   </div>
 );
 
-/** 「运行命令」弹窗的目标：可以是会话行，也可以是新选的容器模板。 */
+/** 「运行命令」弹窗的目标：终端会话列表里的一行（命令只能投递到已存在的会话）。 */
 type RunTarget = {
-  templateId: string;
+  sessionId: string;
+  templateId?: string;
   displayName: string;
   command?: string;
 };
@@ -211,41 +213,45 @@ const ContainerTerminalSessionList = ({
   }, [register, unregister, realtimeInstance]);
 
   /**
-   * 按「模板 ID + 展示名」打开底部终端标签。
+   * 按「终端会话 ID」打开底部终端标签。
    *
-   * key 与容器模板列表一致（`terminal:<templateId>`），因此两边点击同一个模板
-   * 只会聚焦同一个标签，不会重复建容器。
+   * 终端会话由后端 create 接口创建（容器已启动），key 为 `terminal:<sessionId>`，
+   * 重复点击同一会话只聚焦已有标签，不会重复连接。同一模板可以有多条会话，
+   * 因此这里必须用会话 ID 而不是模板 ID。
    */
-  const openTemplateTerminal = useCallback((templateId: string, displayName?: string) => {
-    if (!templateId) {
-      return;
-    }
-    openBottomTerminal(templateId, displayName);
-  }, []);
+  const openSessionTerminal = useCallback(
+    (sessionId: string, displayName?: string, templateId?: string) => {
+      if (!sessionId) {
+        return;
+      }
+      openBottomTerminal(sessionId, displayName, { templateId });
+    },
+    []
+  );
 
   /** 打开会话行对应的底部终端标签。 */
   const openTerminalTab = useCallback(
     (record: ContainerTerminalSessionItem) => {
-      if (!record.template_id) {
+      if (!record.session_id) {
         return;
       }
-      openTemplateTerminal(record.template_id, record.display_name);
+      openSessionTerminal(record.session_id, record.display_name, record.template_id);
     },
-    [openTemplateTerminal]
+    [openSessionTerminal]
   );
 
   /** 删除会话：先调后端（关 shell + 删容器），再关掉前端标签。 */
   const handleDelete = useCallback(
     async (record: ContainerTerminalSessionItem) => {
-      if (!record.template_id) {
+      if (!record.session_id) {
         return;
       }
       setDeletingId(record.session_id);
       try {
         // 这里是「显式释放」的唯一入口：关闭 shell 并删除容器。
         // closeBottomTab 只关闭前端标签，不会调用删除接口。
-        await closeContainerTemplateTerminalApi(record.template_id);
-        closeBottomTab(`terminal:${record.template_id}`);
+        await closeContainerTerminalSessionApi(record.session_id);
+        closeBottomTab(`terminal:${record.session_id}`);
         message.success("Terminal session closed");
         // 后端会在 CloseSession 时推送 sessionDeleted；这里再拉一次做即时反馈。
         refetch();
@@ -259,12 +265,11 @@ const ContainerTerminalSessionList = ({
   );
 
   /**
-   * 标题栏「+」：invoke 打开容器模板列表选模板，选中后直接在底部面板打开该模板的终端标签。
+   * 标题栏「+」：invoke 打开容器模板列表选模板，先在后端新建终端会话（创建即启动容器），
+   * 再用返回的会话 ID 打开底部终端标签。
    *
-   * 与容器模板列表点击行完全一致（复用 `openTemplateTerminal`）：
-   * - key 为 `terminal:<templateId>`，重复选择同一模板只会聚焦已有标签；
-   * - 容器 / PTY 由底部终端 WebSocket 首次接入时创建，这里不需要额外调 exec 预建会话；
-   * - 新会话建立后后端会推送 sessionCreated（attach 时还有状态事件），列表自动刷新。
+   * 与旧实现的区别：会话创建与 WebSocket 连接分开——先 create 拿到 session_id，
+   * 因此每一步都在「终端会话列表」里可见、可关闭；一个模板可以建多条会话。
    */
   const handleCreateSession = useCallback(async () => {
     let selected: ContainerTemplateItem | undefined;
@@ -283,15 +288,23 @@ const ContainerTerminalSessionList = ({
 
     setCreating(true);
     try {
-      openTemplateTerminal(
+      const created = (await createContainerTerminalSessionApi({
+        container_template_id: selected.id,
+        name: selected.display_name || selected.name || String(selected.id),
+      })).data;
+      openSessionTerminal(
+        created.session_id,
+        created.display_name || created.name,
         String(selected.id),
-        selected.display_name || selected.name || String(selected.id),
       );
-      message.success("Terminal opened");
+      message.success("Terminal session created");
+      refetch();
+    } catch (error) {
+      message.error(getErrorMessage(error, "Failed to create terminal session"));
     } finally {
       setCreating(false);
     }
-  }, [message, openTemplateTerminal]);
+  }, [message, openSessionTerminal, refetch]);
 
   /** 打开「Run in terminal」弹窗（命令写入该会话的持久终端）。 */
   const handleOpenRun = useCallback((target: RunTarget) => {
@@ -310,12 +323,14 @@ const ContainerTerminalSessionList = ({
     }
     setRunSubmitting(true);
     try {
-      await execContainerTemplateTerminalApi(runTarget.templateId, {
+      // 命令只投递到「已存在的终端会话」：会话由列表里的「新建」创建（容器已启动）。
+      await execContainerTerminalSessionApi(runTarget.sessionId, {
         command,
         wait_seconds: 0,
-        create_if_missing: true,
       });
-      openBottomTerminal(runTarget.templateId, runTarget.displayName);
+      openBottomTerminal(runTarget.sessionId, runTarget.displayName, {
+        templateId: runTarget.templateId,
+      });
       message.success("Command submitted to terminal");
       setRunTarget(null);
       refetch();
@@ -401,8 +416,10 @@ const ContainerTerminalSessionList = ({
                 icon={<PlayCircleOutlined />}
                 onClick={() =>
                   handleOpenRun({
-                    templateId: String(record.template_id),
-                    displayName: record.display_name || record.template_name || String(record.template_id),
+                    sessionId: record.session_id,
+                    templateId: record.template_id,
+                    displayName:
+                      record.display_name || record.template_name || record.session_id,
                   })
                 }
               />
@@ -529,7 +546,7 @@ const ContainerTerminalSessionList = ({
           }}
         />
         <div style={{ marginTop: 8, color: "var(--ant-color-text-secondary)", fontSize: 12 }}>
-          命令会写入该模板的持久终端（同一模板复用同一个容器），提交后自动打开底部终端面板。
+          命令会写入所选终端会话（会话在「新建」时已创建容器），提交后自动打开底部终端面板。
         </div>
       </Modal>
     </div>

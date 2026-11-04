@@ -189,22 +189,29 @@ export const openBottomTab = (tab: BottomTab) => {
 };
 
 /**
- * 打开容器模板临时终端。
+ * 打开容器模板终端会话。
  *
- * key 用 `terminal:<templateId>`：同一模板重复点击只会聚焦已有标签，
- * 后端按 (userID, projectID, templateId) 复用同一个会话。
+ * key 用 `terminal:<sessionId>`：终端会话由后端 create 接口创建（容器已启动），
+ * 这里只是按会话 ID 打开（或聚焦）对应的底部标签；同一会话重复点击不会重复连接。
+ *
+ * params 里同时保留 `template_id` 便于展示，但真正的连接地址是 `session_id`。
  */
-export const openBottomTerminal = (templateId: string | number, name?: string) => {
-  const id = String(templateId);
+export const openBottomTerminal = (
+  sessionId: string | number,
+  name?: string,
+  options?: { templateId?: string | number },
+) => {
+  const id = String(sessionId);
   if (!id) {
     return;
   }
   const title = (name ?? '').trim() || `Terminal ${id}`;
+  const templateId = options?.templateId == null ? undefined : String(options.templateId);
   openBottomTab({
     key: `terminal:${id}`,
     kind: 'terminal',
     title,
-    params: { template_id: id },
+    params: { session_id: id, ...(templateId ? { template_id: templateId } : {}) },
   });
 };
 
@@ -240,9 +247,9 @@ export const closeBottomTab = (key: string) => {
   });
   scheduleSave();
   // 注意：这里只关闭前端标签，不调用 DELETE。
-  // 会话是「持久会话」，断开 WebSocket 不会回收容器；显式释放（关闭 shell + 删除容器）
-  // 只能由左侧栏「终端会话」列表的删除按钮触发（它显式调用 closeContainerTemplateTerminalApi），
-  // 否则关闭标签就会误删其它入口仍在使用的容器。
+  // 终端会话是「持久会话」，断开 WebSocket 不会回收容器；显式释放（关闭 shell + 删除容器）
+  // 只能由左侧栏「终端会话」列表的删除按钮触发（它显式调用 closeContainerTerminalSessionApi），
+  // 否则关闭标签就会误删仍在使用的容器。
 };
 
 export const setBottomPanelOpen = (open: boolean) => {

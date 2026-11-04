@@ -3,20 +3,20 @@ import { containerTemplateTerminalUrl } from "@/api/container-template-terminal"
 import AnalysisNodeTerminal from "@/components/container-manager/analysis-node-terminal";
 
 export interface ContainerTemplateTerminalProps {
-  /** 容器模板定义 ID（后端据此创建一次性容器并 exec bash）。 */
-  template_id: string | number;
-  /** 弹窗标题里展示的模板名称。 */
+  /** 终端会话 ID（会话由 `/container/terminal/session/create` 创建，容器已启动）。 */
+  session_id: string | number;
+  /** 弹窗标题里展示的名称。 */
   name?: string;
 }
 
 /**
- * 容器模板临时终端（invoke 弹窗形态）。
+ * 终端会话（invoke 弹窗形态）。
  *
- * 后端按当前用户激活项目 + 模板创建一次性容器并 exec /bin/bash -l；
- * WebSocket 关闭时自动删除该容器，因此关闭弹窗即完成清理。
+ * 只按会话 ID 连接 WebSocket；会话与容器在「新建终端会话」时已创建，
+ * 关闭弹窗只是断开连接，不会删除容器（需在左侧栏「终端会话」列表里显式关闭）。
  */
-const ContainerTemplateTerminal = ({ template_id, name }: ContainerTemplateTerminalProps) => {
-  if (!template_id) {
+const ContainerTemplateTerminal = ({ session_id, name }: ContainerTemplateTerminalProps) => {
+  if (!session_id) {
     return null;
   }
 
@@ -26,12 +26,12 @@ const ContainerTemplateTerminal = ({ template_id, name }: ContainerTemplateTermi
         type="info"
         showIcon
         style={{ marginBottom: 8 }}
-        message="This terminal runs in a temporary container created from this template. Closing the terminal deletes the container."
+        message="Detaching from this terminal does not delete the container. Close the session from the Terminal Sessions panel."
       />
       <AnalysisNodeTerminal
-        id={template_id}
+        id={String(session_id)}
         name={name}
-        terminalUrl={containerTemplateTerminalUrl(template_id)}
+        terminalUrl={containerTemplateTerminalUrl(session_id)}
       />
     </>
   );

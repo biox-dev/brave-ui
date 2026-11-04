@@ -157,7 +157,7 @@ if (appType == "index") {
             path: "container-template",
             element: <ContainerTemplatePage />
         }, {
-            path: "container-template-terminal/:templateId",
+            path: "container-template-terminal/:sessionId",
             element: <ContainerTemplateTerminalPage />
         }, {
             path: "container-template-spec",
