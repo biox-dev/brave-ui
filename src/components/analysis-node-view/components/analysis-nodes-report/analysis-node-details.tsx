@@ -1,7 +1,7 @@
 import { Button, Card, Flex, Modal, Popconfirm, Skeleton, Space, Tag, Tooltip, Typography } from "antd";
 import axios from "axios";
 import { FC, useCallback, useEffect, useMemo, useState } from "react";
-import { CloseOutlined, EditOutlined, ExportOutlined, FileTextOutlined, RedoOutlined } from "@ant-design/icons";
+import { CloseOutlined, EditOutlined, ExportOutlined, FileTextOutlined, RedoOutlined, RobotOutlined } from "@ant-design/icons";
 import AnalysisNodeTerminal from "@/components/container-manager/analysis-node-terminal";
 import AISummaryPanel from "@/components/ai-summary/ai-summary-panel";
 import ViewResolver from "@/core/ui-renderer/ViewResolver";
@@ -9,6 +9,7 @@ import type { ViewRenderProps } from "@/core/component-registry/registry-types";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { runAnalysisNodeApi, stopAnalysisNodeApi } from "@/api/analysisv1";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
+import { useInsertAgentRef } from "@/hooks/useInsertAgentRef";
 import { useRouteMainTabTitle } from "@/hooks/useMainTabTitle";
 import { http } from "@/api/client/http";
 import { useSelector } from "react-redux";
@@ -74,6 +75,12 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
     // 底部 ViewResolver 当前展示的视图，点击 Code 时切到脚本代码而不是弹窗。
     const [resultView, setResultView] = useState<ResultViewKey>("analysisResultDisplay");
     const { containerURL } = useSelector((state: any) => state.user);
+
+    // 把当前分析节点作为 @analysis_node:<id> 引用 chip 插进 Agent 输入框（面板未打开时自动切过去）。
+    // Agent 侧用 get_analysis_node 调研：节点名称 / 类型 / 工作目录 / params.json / 脚本参数。
+    const insertAgentRef = useInsertAgentRef();
+    // 优先用详情接口返回的节点 id，详情未加载完时回退到路由传入的 id。
+    const agentRefNodeId = String(selectedSampleDetail?.node?.id ?? analysis_node_id ?? "").trim();
 
     // const loadSampleDetail = useCallback(async (targetAnalysisNodeId?: string, force = false) => {
     //     if (!targetAnalysisNodeId || (sampleDetailMap[targetAnalysisNodeId] && !force)) {
@@ -192,7 +199,7 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
             title={selectedSampleDetail?.node?.script_name || "Result Report"}
             extra={
                 <Space>
-                    <Tooltip title="Bind this analysis node as the current Agent context">
+                    {/* <Tooltip title="Bind this analysis node as the current Agent context">
                         <Button
                             size="small"
                             color="geekblue"
@@ -205,7 +212,34 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
                         >
                             Agent
                         </Button>
+                    </Tooltip> */}
+
+                    {/* 把当前分析节点作为 @analysis_node:<id> 引用插进 Agent 输入框，
+                        模型收到引用后会用 get_analysis_node 读取节点名称 / 类型 / 工作目录与参数。 */}
+                    <Tooltip
+                        title={
+                            agentRefNodeId
+                                ? `Ask Agent about analysis node ${agentRefNodeId}`
+                                : "Analysis node is not loaded yet"
+                        }
+                    >
+                        <Button
+                            size="small"
+                            icon={<RobotOutlined />}
+                            disabled={!agentRefNodeId}
+                            onClick={() => {
+                                const ok = insertAgentRef("analysis_node", agentRefNodeId, {
+                                    label:
+                                        selectedSampleDetail?.node?.node_name ||
+                                        `AnalysisNode-${agentRefNodeId}`,
+                                });
+                                if (ok) message.success("Reference added to Agent input");
+                            }}
+                        >
+                            Ask Agent
+                        </Button>
                     </Tooltip>
+
                     {selectedSampleDetail && (
                         <Space>
 

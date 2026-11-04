@@ -84,6 +84,10 @@ const App: React.FC = () => {
         key: 'analysisWorkflowStack',
         label: locale === 'en_US' ? 'Analyses & Workflows' : '分析与流程',
         icon: <ApartmentOutlined />,
+      },{
+        key: 'containerTemplateStack',
+        label: locale === 'en_US' ? 'Container Templates' : '容器模板',
+        icon: <ContainerOutlined />,
       },
 
       {
@@ -101,11 +105,7 @@ const App: React.FC = () => {
         key: 'projectLiterature',
         label: locale === 'en_US' ? 'Literature' : '参考文献',
         icon: <BookOutlined />,
-      },  {
-        key: 'containerTemplateStack',
-        label: locale === 'en_US' ? 'Container Templates' : '容器模板',
-        icon: <ContainerOutlined />,
-      },
+      },  
 
     ],
     [locale],
