@@ -17,8 +17,12 @@ export interface PageResponse<TItem> {
 export interface DatasetItem {
 	id: string;
 	dataset_name: string;
+	dataset_key?: string;
 	description: string;
 	metadata: string;
+	// path is the dataset workspace directory (utils.GetDatasetDir); derived
+	// server-side and present on project-scoped dataset responses.
+	path?: string;
 	created_at: string;
 	updated_at: string;
 }
@@ -209,6 +213,9 @@ export const listFileByProjectGroupApi = (projectId: string) => {
 
 export interface CreateDatasetRequest {
 	dataset_name: string;
+	// dataset_key is optional; system datasets use well-known keys (e.g.
+	// "DATABASES") and ordinary user datasets leave it empty.
+	dataset_key?: string;
 	description?: string;
 	metadata?: string;
 }
