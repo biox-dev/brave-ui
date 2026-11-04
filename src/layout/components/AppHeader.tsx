@@ -11,6 +11,8 @@ import { activateProjectApi, type ProjectItem } from '@/api/project';
 import { clearUserSession, loadActiveProject, loadCurrentUser } from '@/store/userSlice';
 import { logoutApi } from '@/api/auth';
 import { getPathname } from '@/utils/utils';
+import { cancelPendingMenuTabsSave } from '../main-tab-config-save';
+import { cancelPendingBottomPanelSave } from '../bottom-panel-store';
 
 type AppHeaderProps = {
     backgroundColor: string;
@@ -70,6 +72,11 @@ const AppHeader: React.FC<AppHeaderProps> = ({ backgroundColor }) => {
             })) as ProjectItem;
 
             if (!value?.project_id) return;
+
+            // 菜单配置写入的是「服务端当前激活项目」：切换前先丢弃还在防抖中、尚未发出的
+            // 旧项目配置，否则它们会在切换完成后到达，被写到新项目上。
+            cancelPendingMenuTabsSave();
+            cancelPendingBottomPanelSave();
 
             await activateProjectApi({ project_id: value.project_id });
             // 切换项目后回到首页：当前深链路由属于上一个项目，不应带到新项目里去。

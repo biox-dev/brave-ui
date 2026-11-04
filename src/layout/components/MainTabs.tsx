@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { useI18n } from '@/hooks/useI18n';
 import { useMainTabTitles } from '@/hooks/useMainTabTitle';
-import { updateMenuConfigApi, type UserMenuTab } from '@/api/auth';
+import type { UserMenuTab } from '@/api/auth';
 import { setUserMenuTabs } from '@/store/userSlice';
 import {
   clearMainTabTitle,
@@ -12,35 +12,36 @@ import {
   seedMainTabTitles,
   toMainTabKey,
 } from '../main-tab-title-store';
+import { cancelPendingMenuTabsSave, scheduleSaveMenuTabs } from '../main-tab-config-save';
 import { normalizeMainTabPath, resolveMainTabTitle } from '../main-tab-title';
 
 const MAX_TABS = 16;
-/** 标签页配置落库的防抖窗口：连续开关标签 / 改名只提交最后一次。 */
-const SAVE_MENU_TABS_DELAY = 800;
-
-let saveMenuTabsTimer: ReturnType<typeof setTimeout> | null = null;
-let pendingMenuTabs: UserMenuTab[] = [];
-
-/**
- * 后台异步保存标签页配置：不 await、不弹提示、不驱动 loading。
- * redux 里已是最新状态，落库失败不影响使用，下次变更会重新提交整份列表。
- */
-const scheduleSaveMenuTabs = (tabs: UserMenuTab[]) => {
-  pendingMenuTabs = tabs;
-  if (saveMenuTabsTimer) {
-    clearTimeout(saveMenuTabsTimer);
-  }
-  saveMenuTabsTimer = setTimeout(() => {
-    saveMenuTabsTimer = null;
-    updateMenuConfigApi(pendingMenuTabs).catch(() => {
-      // 忽略：菜单配置属体验性数据，不打扰用户
-    });
-  }, SAVE_MENU_TABS_DELAY);
-};
 
 export type MainTabsHandle = {
   /** 关闭当前激活的标签页（用于主卡片头部的关闭按钮）。 */
   closeActiveTab: () => void;
+};
+
+/**
+ * 判断本次回填是否属于「首次回填」。回填 key 形如 `userId::projectId`：
+ *
+ * - 首次挂载（没有旧 key）→ 首次；
+ * - 换账号（userId 变化）→ 首次；
+ * - 启动时 `/project/active-project` 比 `/auth/me` 晚返回（同一用户、projectId 由空变为有值）→ 仍属首次；
+ * - 真正的「切换项目」（同一用户、projectId 从一个非空值变成另一个）→ 不是首次。
+ *
+ * 只有首次回填才会把当前深链路由补进标签栏，避免切换项目时把上一个项目的路由写进新项目。
+ */
+const isFirstHydrationKey = (prevKey: string | null, nextKey: string): boolean => {
+  if (!prevKey) {
+    return true;
+  }
+  const [prevUser, prevProject = ''] = prevKey.split('::');
+  const [nextUser, nextProject = ''] = nextKey.split('::');
+  if (prevUser !== nextUser) {
+    return true;
+  }
+  return prevProject === '' && nextProject !== '';
 };
 
 type MainTabsProps = {
@@ -83,7 +84,7 @@ const MainTabs = forwardRef<MainTabsHandle, MainTabsProps>(({ onTabsChange }, re
   const tabsRef = useRef<HTMLDivElement | null>(null);
   // 各组件登记的可读名称（如节点名）；没登记的标签页回退到静态标题规则。
   const titleOverrides = useMainTabTitles();
-  // 已回填过的用户 ID（换账号时重新回填）与最近一次已同步的标签页快照（避免重复请求）。
+  // 已回填过的「用户+项目」key（换账号 / 切项目时重新回填）与最近一次已同步的标签页快照（避免重复请求）。
   const hydratedUserRef = useRef<string | null>(null);
   const savedSignatureRef = useRef<string | null>(null);
 
@@ -92,20 +93,19 @@ const MainTabs = forwardRef<MainTabsHandle, MainTabsProps>(({ onTabsChange }, re
     if (!userId || hydratedUserRef.current === hydrationKey) {
       return;
     }
+    // 只有首次回填（登录 / 刷新 / 换账号 / 启动时 projectId 稍后才知道）才补当前深链路由。
+    // 切换项目时调用方会跳回 /，这里也不能把上一个项目正在浏览的路由写进新项目。
+    const isFirstHydration = isFirstHydrationKey(hydratedUserRef.current, hydrationKey);
     hydratedUserRef.current = hydrationKey;
     // 切换项目：丢弃上一个项目尚未落库的防抖请求，避免写到新项目。
-    if (saveMenuTabsTimer) {
-      clearTimeout(saveMenuTabsTimer);
-      saveMenuTabsTimer = null;
-      pendingMenuTabs = [];
-    }
+    cancelPendingMenuTabsSave();
     seedMainTabTitles(serverTabs);
     const next: UserMenuTab[] = serverTabs
       .map((tab) => ({ url: toMainTabKey(tab.url), title: (tab.title ?? '').trim() }))
       .filter((tab) => tab.url !== '/');
     // 后端已有内容：先记成「已同步」，避免回填后立刻再发一次相同的请求
     savedSignatureRef.current = JSON.stringify(next);
-    if (!isRoot && !next.some((tab) => tab.url === currentKey)) {
+    if (isFirstHydration && !isRoot && !next.some((tab) => tab.url === currentKey)) {
       // 当前深链路由不在后端列表里 → 补一个，由下一轮同步落库
       next.push({ url: currentKey, title: '' });
     }

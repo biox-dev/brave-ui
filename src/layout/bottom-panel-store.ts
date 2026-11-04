@@ -60,6 +60,19 @@ export const useBottomPanelStore = create<BottomPanelStore>(() => ({
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
+/**
+ * 丢弃尚未发出的底部面板保存请求。
+ *
+ * 与 `cancelPendingMenuTabsSave` 同理：菜单配置写入「服务端当前激活项目」，
+ * 切项目必须在 activate 之前调用，避免旧项目的面板状态被写到新项目。
+ */
+export const cancelPendingBottomPanelSave = () => {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+};
+
 /** 防抖落库：调用方不 await、不提示、不驱动 loading（失败下次变更会整份重发）。 */
 const scheduleSave = () => {
   const state = useBottomPanelStore.getState();
