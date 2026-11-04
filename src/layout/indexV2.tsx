@@ -283,8 +283,7 @@ const App: React.FC = () => {
                     styles={{ body: { padding: 8 } }}
                     extra={
                       <Flex align="center" gap={8}>
-                        {/* 左侧按钮：通过 invoke 以抽屉方式打开参数面板，不打断当前右侧视图 */}
-                        <Tooltip
+                        {/* <Tooltip
                           title={locale === 'en_US' ? 'Open parameters in drawer' : '在抽屉中打开参数'}
                         >
                           <Button
@@ -303,7 +302,7 @@ const App: React.FC = () => {
                               )
                             }
                           />
-                        </Tooltip>
+                        </Tooltip> */}
                         <Segmented
                           size="small"
                           value={sideView}

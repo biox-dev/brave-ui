@@ -1,79 +1,57 @@
 // yarn add @monaco-editor/react
 // yarn add monaco-editor
 
-import { useEffect, type FC } from 'react'
+import { type FC } from 'react'
 import Editor from '@monaco-editor/react';
-import { loader } from '@monaco-editor/react';
-import * as monaco from 'monaco-editor';
-
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
-import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker';
-import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker';
-import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
-// import pythonWorker from 'monaco-editor/esm/vs/language/python/ts.worker?worker';
-import { Drawer } from 'antd';
 import { useSelector } from 'react-redux';
+// 必须排在最前：在任何 <Editor> 渲染之前把本地打包的 Monaco 绑定到 loader。
+// 之前这些配置放在 useEffect 里，子组件 <Editor> 的 effect 先执行并触发了 loader.init()，
+// 于是 loader 往页面注入 CDN 脚本（https://cdn.jsdelivr.net/npm/monaco-editor/.../loader.js），
+// 内网 / 离线 / CDN 不可达时编辑器会一直停在 “Loading...”。
+import './monaco-setup';
 
-const MonacoEditorComp: FC<any> = ({ onChange, value, editorRef, defaultLanguage, format, height, onEditorMount }) => {
-    // const editorRef = useRef<any>(null);
+const MonacoEditorComp: FC<any> = ({
+    onChange,
+    value,
+    editorRef,
+    defaultLanguage,
+    language,
+    format,
+    height,
+    options,
+    path,
+    onEditorMount,
+}) => {
     const { theme } = useSelector((state: any) => state.user);
 
-    useEffect(() => {
-        self.MonacoEnvironment = {
-            getWorker(_, label) {
-                if (label === 'json') {
-                    return new jsonWorker();
-                }
-                if (label === 'css' || label === 'scss' || label === 'less') {
-                    return new cssWorker();
-                }
-                if (label === 'html' || label === 'handlebars' || label === 'razor') {
-                    return new htmlWorker();
-                }
-                if (label === 'typescript' || label === 'javascript') {
-                    return new tsWorker();
-                }
-                // if (label === 'python') {
-                //     return new pythonWorker();
-                // }
-                return new editorWorker();
-            },
-        };
-        loader.config({ monaco });
-    }, [])
-    // loader.init().then(/* ... */);
     function handleEditorDidMount(editor: any, monaco: any) {
         if (editorRef) {
             editorRef.current = editor;
             if (format) {
                 editor.onDidChangeModelDecorations(async () => {
-                    await editorRef.current.getAction('editor.action.formatDocument').run();
+                    await editorRef.current?.getAction('editor.action.formatDocument')?.run();
                 });
-
             }
         }
         onEditorMount?.(editor, monaco);
-
     }
 
-
-    return <>
-        {/* <button onClick={showValue}>Show value</button> */}
-        <Editor
-            height={height ? height : "65vh"}
-            value={value}
-            theme={theme === 'dark' ? 'vs-dark' : 'vs-light'}
-            onChange={onChange}
-            defaultLanguage={defaultLanguage}
-            //   defaultValue={defaultValue}
-            onMount={handleEditorDidMount}
-            options={{
-                wordWrap: 'on',
-                formatOnPaste: true
-            }}
-        />
-    </>
+    return <Editor
+        height={height ? height : "65vh"}
+        value={value}
+        // path 让不同脚本各自拥有独立的 model（撤销栈、滚动位置互不干扰）。
+        path={path}
+        language={language || defaultLanguage}
+        theme={theme === 'dark' ? 'vs-dark' : 'vs-light'}
+        onChange={onChange}
+        loading={<div style={{ padding: 16, color: '#999' }}>Loading editor…</div>}
+        onMount={handleEditorDidMount}
+        options={{
+            wordWrap: 'on',
+            formatOnPaste: true,
+            ...options,
+        }}
+    />
 }
 
 export default MonacoEditorComp
