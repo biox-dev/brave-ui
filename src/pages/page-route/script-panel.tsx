@@ -10,11 +10,17 @@ import Markdown from "@/components/markdown"
 import GitStateActions from "../components-relation/components/git-state-actions"
 import { useI18n } from "@/hooks/useI18n"
 import { useRouteMainTabTitle } from "@/hooks/useMainTabTitle"
+import { useRouteView } from "@/hooks/useRouteView"
+import type { ScriptPanelView } from "@/routes/route-view"
 import { http } from "@/api/client/http"
 import "./script-panel.css"
 
-/** Views the script panel can switch between. */
-type ScriptViewKey = "analysisNodePage" | "createOrUpdateScript" | "scriptCode" | "scriptReadme" | "PublishToolsV2"
+/**
+ * Views the script panel can switch between.
+ * 视图名同时是路由的「视图段」（/c/scripts/:script_id/:view?），白名单登记在
+ * @/routes/route-view 的 ROUTE_VIEWS；布局层用同一份配置把视图段从标签页身份里去掉。
+ */
+type ScriptViewKey = ScriptPanelView
 
 /** Default view; the tab list is static so this is always a valid value. */
 const DEFAULT_VIEW: ScriptViewKey = "analysisNodePage"
@@ -29,7 +35,10 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
     const { openModal } = useModal()
     const { script, setScript, clear } = useStoreRender()
 
-    const [view, setView] = useState<ScriptViewKey>(DEFAULT_VIEW)
+    // 当前视图由路由视图段决定（/c/scripts/:script_id/:view?）：刷新、前进后退、切标签页都能恢复；
+    // 切换到另一个脚本时地址里不带视图段，会自动回到默认视图。
+    // 路由不是 /c/scripts/:id（例如 /c/scripts 列表页、/c/file）时 hook 自动退化为本地状态。
+    const [view, setView] = useRouteView<ScriptViewKey>({ defaultView: DEFAULT_VIEW })
     const [loading, setLoading] = useState(false)
 
     const loadScript = useCallback(async (scriptId: string) => {
@@ -103,7 +112,6 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
                                         {script.script_type ? (
                                             <Tag color="blue" style={{ marginInlineEnd: 0 }}>{script.script_type}</Tag>
                                         ) : null}
-                                        <GitStateActions entity="script" item={script} onReload={reload} />
                                     </div>
                                     {/* {script.script_path ? (
                                         <Tooltip title={script.script_path}>
@@ -113,12 +121,9 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
                                 </div>
 
                                 <div className="script-panel-actions">
-                                    <Segmented
-                                        size="small"
-                                        value={view}
-                                        options={views}
-                                        onChange={(value) => setView(value as ScriptViewKey)}
-                                    />
+                                    {/* Git 状态与主操作并列：标题行只放「身份信息」，避免长标题把
+                                        状态标签和按钮挤到下一行、或者把标题本身挤成省略号。 */}
+                                    <GitStateActions entity="script" item={script} onReload={reload} />
                                     <Tooltip title={zh ? "刷新" : "Refresh"}>
                                         <Button size="small" icon={<ReloadOutlined />} onClick={reload} />
                                     </Tooltip>
@@ -135,6 +140,17 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
                                     </Popconfirm>
                                 </div>
                             </header>
+
+                            {/* 视图切换单独占一行：脚本标题长度不可控，和 Segmented 同排时
+                                要么标签被挤换行、要么整块被压到下面，视觉上很不稳定。 */}
+                            <nav className="script-panel-tabs" aria-label={zh ? "脚本视图" : "Script views"}>
+                                <Segmented
+                                    size="small"
+                                    value={view}
+                                    options={views}
+                                    onChange={(value) => setView(value as ScriptViewKey)}
+                                />
+                            </nav>
 
                             {script.description ? (
                                 <div className="script-panel-description">

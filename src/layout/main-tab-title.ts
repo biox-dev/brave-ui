@@ -1,7 +1,4 @@
-import { layoutMenuTree, type LayoutMenuItem, type LayoutLocale } from './layout-menu';
 import { splitRouteView } from '@/routes/route-view';
-
-type TabLabel = { zh_CN: string; en_US: string };
 
 const normalizePath = (path: string) => {
   const withoutQuery = path.split('?')[0].split('#')[0];
@@ -9,66 +6,8 @@ const normalizePath = (path: string) => {
   return trimmed === '' ? '/' : trimmed;
 };
 
-/** 菜单里有固定 key 的路径，直接用菜单文案作为标签标题。 */
-const menuTitleMap = (() => {
-  const map = new Map<string, TabLabel>();
-  const walk = (items: LayoutMenuItem[]) => {
-    items.forEach((item) => {
-      if (!item.hidden) {
-        map.set(normalizePath(item.key), item.label);
-      }
-      if (item.children?.length) {
-        walk(item.children);
-      }
-    });
-  };
-  walk(layoutMenuTree);
-  return map;
-})();
-
-/** 路由中存在但菜单里没有的固定路径。 */
-const extraTitles: Record<string, TabLabel> = {
-  '/dataset-file': { zh_CN: '数据文件', en_US: 'Dataset Files' },
-  '/sample': { zh_CN: '样本', en_US: 'Sample' },
-  '/sample-qc': { zh_CN: '样本 QC', en_US: 'Sample QC' },
-  '/analysis-result': { zh_CN: '分析结果', en_US: 'Analysis Result' },
-  '/preview/file': { zh_CN: '文件预览', en_US: 'File Preview' },
-  '/workflow-card': { zh_CN: '流程', en_US: 'Workflows' },
-  '/tools-card': { zh_CN: '工具', en_US: 'Tools' },
-  '/pipeline-card': { zh_CN: '流程', en_US: 'Pipelines' },
-  '/software-card': { zh_CN: '软件', en_US: 'Software' },
-  '/file-card': { zh_CN: '文件', en_US: 'Files' },
-  '/script-card': { zh_CN: '脚本', en_US: 'Scripts' },
-  '/componentsV2/script': { zh_CN: '脚本', en_US: 'Scripts' },
-  '/componentsV2/file': { zh_CN: '文件', en_US: 'Files' },
-};
-
-/** 带参数的路由：按前缀匹配，标题后缀会拼上 id 便于区分多个标签页。 */
-const dynamicTitles: Array<{ prefix: string; label: TabLabel }> = [
-  { prefix: '/report-file', label: { zh_CN: '报告文件', en_US: 'Report File' } },
-  { prefix: '/report-item', label: { zh_CN: '报告条目', en_US: 'Report Item' } },
-  { prefix: '/report', label: { zh_CN: '报告撰写', en_US: 'Report Writing' } },
-  { prefix: '/literature-writing', label: { zh_CN: '文献撰写', en_US: 'Literature Writing' } },
-  { prefix: '/analsyis-node-report', label: { zh_CN: '节点报告', en_US: 'Node Report' } },
-  { prefix: '/analysis-report', label: { zh_CN: '分析报告', en_US: 'Analysis Report' } },
-  { prefix: '/analysis-result', label: { zh_CN: '分析结果', en_US: 'Analysis Result' } },
-  { prefix: '/software-analysis-editor', label: { zh_CN: '软件分析', en_US: 'Software Analysis' } },
-  { prefix: '/container-template-terminal', label: { zh_CN: '容器模板终端', en_US: 'Container Template Terminal' } },
-  { prefix: '/dataset-file', label: { zh_CN: '数据文件', en_US: 'Dataset File' } },
-  { prefix: '/c/ai-summaries', label: { zh_CN: 'AI 摘要', en_US: 'AI Summary' } },
-  { prefix: '/c/scripts', label: { zh_CN: '脚本', en_US: 'Scripts' } },
-  { prefix: '/c/tools', label: { zh_CN: '流程', en_US: 'Workflow' } },
-  { prefix: '/c/file', label: { zh_CN: '文件', en_US: 'Files' } },
-  { prefix: '/relation', label: { zh_CN: '关联组件', en_US: 'Relation' } },
-  { prefix: '/component', label: { zh_CN: '流程组件', en_US: 'Component' } },
-  { prefix: '/software', label: { zh_CN: '软件', en_US: 'Software' } },
-  { prefix: '/file', label: { zh_CN: '文件', en_US: 'File' } },
-  { prefix: '/script', label: { zh_CN: '脚本', en_US: 'Script' } },
-];
-
-const pickLabel = (label: TabLabel, locale: LayoutLocale) => label[locale];
-
-const prettifySegment = (segment: string) => {
+/** 路径末段解码后截断：只保留「最后几个字符串」，够区分不同标签即可。 */
+const shortSegment = (segment: string): string => {
   const decoded = (() => {
     try {
       return decodeURIComponent(segment);
@@ -76,67 +15,41 @@ const prettifySegment = (segment: string) => {
       return segment;
     }
   })();
-  return decoded
-    .replace(/[-_]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-};
-
-const shortId = (segment?: string) => {
-  if (!segment) {
-    return '';
-  }
-  return segment.length > 6 ? segment.slice(0, 6) : segment;
+  return decoded.length > 8 ? decoded.slice(0, 8) : decoded;
 };
 
 /**
- * 解析主区域标签页标题。
- * 依次尝试：菜单标题 → 固定路由标题 → 动态路由前缀 → 路径最后一段。
+ * 标签页的兜底标题。
+ *
+ * ⚠️ 这里**不做任何静态映射**（菜单文案 / 固定路径表 / 路由前缀表都已删除）：
+ * 标签名由跳转方负责——
+ * - 列表 / 跳转入口：`useOpenMainTab(path, name)` 一步完成跳转 + 命名；
+ * - 详情页：`useRouteMainTabTitle(entity)` 在数据到达后覆盖；
+ * - 任何页面都可以直接 `setMainTabTitle(path, name)` 登记。
+ *
+ * 两者都没有登记时才会走到这里，先显示「路径最后几个字符串」作为占位，
+ * 方便一眼看出哪些跳转还没传名称，后续逐个补齐。
  */
 export const resolveMainTabTitle = (path: string, locale: string): string => {
-  const layoutLocale: LayoutLocale = locale === 'en_US' ? 'en_US' : 'zh_CN';
   const normalized = normalizePath(path);
   if (normalized === '/') {
-    return layoutLocale === 'en_US' ? 'Home' : '首页';
+    return locale === 'en_US' ? 'Home' : '首页';
   }
 
-  // 带查询参数的页面（如文件预览）用查询参数里的标题区分同名标签
-  if (normalized === '/preview/file') {
-    const queryIndex = path.indexOf('?');
-    const previewTitle =
-      queryIndex >= 0 ? new URLSearchParams(path.slice(queryIndex + 1)).get('title') : null;
-    if (previewTitle) {
-      return previewTitle;
-    }
+  // 调用方可以通过 `?title=` 直接给出名称（如文件预览：/preview/file?url=…&title=…）
+  const queryIndex = path.indexOf('?');
+  const queryTitle =
+    queryIndex >= 0 ? new URLSearchParams(path.slice(queryIndex + 1)).get('title') : null;
+  if (queryTitle) {
+    return queryTitle;
   }
 
-  const menuLabel = menuTitleMap.get(normalized);
-  if (menuLabel) {
-    return pickLabel(menuLabel, layoutLocale);
-  }
-
-  const extraLabel = extraTitles[normalized];
-  if (extraLabel) {
-    return pickLabel(extraLabel, layoutLocale);
-  }
-
-  const matched = dynamicTitles.find(
-    (rule) => normalized === rule.prefix || normalized.startsWith(`${rule.prefix}/`),
-  );
-  if (matched) {
-    // 视图段（/analsyis-node-report/:id/:view）不属于标签页身份：取 id 时要跳过末段，
-    // 否则标签名会变成「节点报告 · scriptCo」，切视图时看起来像换了一个页面。
-    const { basePath, view } = splitRouteView(normalized);
-    const rest = (view ? basePath : normalized).slice(matched.prefix.length).replace(/^\/+/, '');
-    const id = shortId(rest.split('/').filter(Boolean).pop());
-    const base = pickLabel(matched.label, layoutLocale);
-    return id ? `${base} · ${id}` : base;
-  }
-
-  const segments = normalized.split('/').filter(Boolean);
+  // 视图段（/c/scripts/:id/scriptCode）不是页面身份的一部分：取尾段时跳过，
+  // 否则标签会显示成「scriptCode」这类无意义文案。
+  const { basePath, view } = splitRouteView(normalized);
+  const segments = (view ? basePath : normalized).split('/').filter(Boolean);
   const last = segments[segments.length - 1];
-  return last ? prettifySegment(last) : normalized;
+  return last ? shortSegment(last) : normalized;
 };
 
 export const normalizeMainTabPath = normalizePath;

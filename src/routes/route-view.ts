@@ -38,18 +38,57 @@ export const ANALYSIS_NODE_REPORT_VIEWS = [
 
 export type AnalysisNodeReportView = (typeof ANALYSIS_NODE_REPORT_VIEWS)[number];
 
-/** 已接入「视图段」的路由表：key 为一级路径。 */
+/** 脚本面板（/c/scripts/:script_id）顶部 Segmented 切换的视图。 */
+export const SCRIPT_PANEL_VIEWS = [
+    "analysisNodePage",
+    "createOrUpdateScript",
+    "scriptCode",
+    "scriptReadme",
+    "PublishToolsV2",
+] as const;
+
+export type ScriptPanelView = (typeof SCRIPT_PANEL_VIEWS)[number];
+
+/**
+ * 已接入「视图段」的路由表：key 是路由前缀，可以多段（按最长前缀匹配，
+ * 所以 `/c/scripts` 不会把同级的 `/c/tools`、`/c/file` 一起拽进来）。
+ */
 export const ROUTE_VIEWS: Record<string, RouteViewConfig> = {
     "/analsyis-node-report": {
         views: ANALYSIS_NODE_REPORT_VIEWS,
         defaultView: "analysisResultDisplay",
     },
+    "/c/scripts": {
+        views: SCRIPT_PANEL_VIEWS,
+        defaultView: "analysisNodePage",
+    },
 };
 
-/** 一级路径，如 `/analsyis-node-report/123/scriptCode` → `/analsyis-node-report`。 */
-const routeRootKey = (pathname: string): string => {
-    const first = pathname.split("/").find(Boolean);
-    return first ? `/${first}` : "/";
+type ResolvedRouteViewConfig = {
+    key: string;
+    config: RouteViewConfig;
+    /** 前缀自身的段数，用于「最长前缀优先」。 */
+    depth: number;
+};
+
+/** 找到 pathname 前缀命中的最长配置（`/c/scripts/1` 命中 `/c/scripts` 而不是 `/c`）。 */
+const matchRouteViewConfig = (segments: string[]): ResolvedRouteViewConfig | undefined => {
+    let best: ResolvedRouteViewConfig | undefined;
+    for (const [key, config] of Object.entries(ROUTE_VIEWS)) {
+        const keySegments = key.split("/").filter(Boolean);
+        if (keySegments.length === 0) {
+            continue;
+        }
+        // 前缀之后至少还要有 id 段，否则这个 pathname 还没到「带视图段」的层级。
+        if (segments.length < keySegments.length + 1) {
+            continue;
+        }
+        const hit = keySegments.every((part, index) => segments[index] === part);
+        if (hit && (!best || keySegments.length > best.depth)) {
+            best = { key, config, depth: keySegments.length };
+        }
+    }
+    return best;
 };
 
 export type RouteViewSplit = {
@@ -70,15 +109,12 @@ export type RouteViewSplit = {
 export const splitRouteView = (pathname: string): RouteViewSplit => {
     const trimmed = (pathname || "/").replace(/\/+$/, "");
     const basePath = trimmed || "/";
-    const config = ROUTE_VIEWS[routeRootKey(basePath)];
-    if (!config) {
+    const segments = basePath.split("/").filter(Boolean);
+    const resolved = matchRouteViewConfig(segments);
+    if (!resolved) {
         return { basePath };
     }
-    const segments = basePath.split("/").filter(Boolean);
-    // 只有一级路径（/:view）时没有 id 段，不可能是视图段。
-    if (segments.length < 2) {
-        return { basePath, config };
-    }
+    const { config } = resolved;
     const last = segments[segments.length - 1];
     if (!config.views.includes(last)) {
         return { basePath, config };

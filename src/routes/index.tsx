@@ -211,7 +211,9 @@ if (appType == "index") {
             path: "/c/scripts",
             element: <ComponentsV3 component_type={"script"} />
         }, {
-            path: "/c/scripts/:script_id",
+            // 第三个可选段是「视图段」：/c/scripts/:script_id/:view?
+            // Segmented 上的 分析节点 / 编辑 / 代码 / README / 发布 写在 URL 里，刷新与标签页切换都能恢复。
+            path: "/c/scripts/:script_id/:view?",
             element: <ComponentsV3 component_type={"script"} />
         },
         {

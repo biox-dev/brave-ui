@@ -12,7 +12,7 @@ import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useInsertAgentRef } from "@/hooks/useInsertAgentRef";
 import { useRouteMainTabTitle } from "@/hooks/useMainTabTitle";
 import { useRouteView } from "@/hooks/useRouteView";
-import { ANALYSIS_NODE_REPORT_VIEWS, type AnalysisNodeReportView } from "@/routes/route-view";
+import type { AnalysisNodeReportView } from "@/routes/route-view";
 import { http } from "@/api/client/http";
 import { useSelector } from "react-redux";
 import { useStoreRender } from "@/context/render/RenderProvider";
@@ -96,9 +96,9 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
     const [terminalOpen, setTerminalOpen] = useState(false);
     // 底部 ViewResolver 当前展示的视图：由路由视图段决定（刷新 / 前进后退 / 切标签页都能恢复），
     // 点击按钮时通过 setResultView 改 URL，不再用 useState 保存，避免"状态只活在内存里"。
+    // 视图白名单由 ROUTE_VIEWS（@/routes/route-view）统一提供，这里不再重复传 views；
     // 默认视图（analysisResultDisplay）不写进 URL，节点报告地址保持干净。
     const [resultView, setResultView] = useRouteView<ResultViewKey>({
-        views: ANALYSIS_NODE_REPORT_VIEWS,
         defaultView: "analysisResultDisplay",
         enabled: viewFromRoute === true,
     });

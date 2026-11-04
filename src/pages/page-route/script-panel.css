@@ -12,24 +12,24 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px 16px;
+  gap: 10px 16px;
   flex-wrap: wrap;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--sharp-divider, #eceff4);
+  padding: 14px 16px 12px;
 }
 
 .script-panel-heading {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-width: 220px;
-  flex: 1 1 auto;
+  flex: 1 1 320px;
+  min-width: 0;
 }
 
 .script-panel-title-row {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
   min-width: 0;
 }
 
@@ -43,7 +43,10 @@
   font-weight: 600;
   line-height: 1.4;
   color: var(--sharp-text, rgba(0, 0, 0, 0.88));
-  max-width: 420px;
+  /* 长标题只在必要时收缩并省略，不再被固定 420px 截断，也不会把右侧操作挤走。 */
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: min(640px, 100%);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -64,9 +67,31 @@
 .script-panel-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* View switcher strip: always its own row, so an over-long script name can never
+   push the tabs (or be pushed by them) onto unexpected lines.
+   白底 + 一条发丝线：和卡片同色，头部与内容区视觉上连成一体，只靠分割线分层；
+   灰色块容易被误读成「另一块内容区」，也会和下方 description 的灰底叠成两条色带。 */
+.script-panel-tabs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--sharp-divider, #eceff4);
+  border-bottom: 1px solid var(--sharp-divider, #eceff4);
+  background: var(--sharp-panel-bg, #ffffff);
+}
+
+.script-panel-tabs .ant-segmented {
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .script-panel-description {
