@@ -13,8 +13,12 @@ interface AnalysisNodeTerminalProps {
    * 终端容器高度。弹窗里用默认 70vh；嵌入底部面板时传 "100%"（父级已定高）。
    */
   height?: number | string;
-  /** 终端内边距。底部面板需要铺满时传 0。 */
+  /** 终端内边距（xterm 与容器边框之间的留白）。 */
   padding?: number;
+  /** 终端容器圆角。底部面板使用直角时传 0。 */
+  borderRadius?: number;
+  /** 追加到终端容器上的类名（用于按主题绘制边框 / 背景）。 */
+  className?: string;
 }
 
 /**
@@ -31,6 +35,8 @@ const AnalysisNodeTerminal = ({
   terminalUrl,
   height = "70vh",
   padding = 8,
+  borderRadius = 6,
+  className,
 }: AnalysisNodeTerminalProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -263,12 +269,13 @@ const AnalysisNodeTerminal = ({
   return (
     <div
       ref={containerRef}
+      className={className}
       style={{
         width: "100%",
         height,
         padding,
         background: "#1e1e1e",
-        borderRadius: 6,
+        borderRadius,
         boxSizing: "border-box",
         overflow: "hidden",
       }}

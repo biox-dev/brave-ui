@@ -641,6 +641,12 @@
   max-height: 85%;
 }
 
+/* 折叠后标签栏本身就是面板最底部，它自己的 border-bottom 会和 footer 的 border-top
+   叠成 2px 粗线；此时把它设为透明，底部只保留 footer 那一条 1px 分割线。 */
+.layout-bottom-panel.is-collapsed .layout-bottom-panel-head {
+  border-bottom-color: transparent;
+}
+
 /* 拖拽条：贴着面板顶部，双击恢复默认高度 */
 .layout-bottom-panel-resizer {
   flex: 0 0 auto;
@@ -740,7 +746,7 @@ body.layout-bottom-panel-resizing {
   padding: 0;
   transform: translateY(-50%);
   border: 0;
-  border-radius: 2px;
+  border-radius: 0;
   background: transparent;
   color: var(--sharp-text-soft);
   font-size: 9px;
@@ -776,7 +782,7 @@ body.layout-bottom-panel-resizing {
   height: 24px;
   padding: 0;
   border: 0;
-  border-radius: 2px;
+  border-radius: 0;
   background: transparent;
   color: var(--sharp-text-soft);
   font-size: 11px;
@@ -801,6 +807,24 @@ body.layout-bottom-panel-resizing {
 .layout-bottom-panel-pane {
   width: 100%;
   height: 100%;
+}
+
+/* 终端标签：与面板边界不留外间隙（直角、1px 线条边框），
+   只在终端内部留出 6px 给 xterm，避免文字紧贴边框。 */
+.layout-bottom-panel-terminal-frame {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  box-sizing: border-box;
+  background: var(--sharp-panel-bg);
+}
+
+.layout-bottom-panel-terminal-surface {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--sharp-divider);
 }
 
 .layout-bottom-panel-placeholder {
@@ -849,19 +873,23 @@ body.layout-bottom-panel-resizing {
 
 /* 分隔条本身就做成 1px 的面板边界线：两侧面板紧贴它，
    卡片头部的 border-bottom 自然与分隔线相接（左右两侧都一样），不存在空隙。
-   用伪元素向两侧各扩展 4px 作为拖拽热区，既不占布局宽度也不产生空白。 */
+   这里用 border 绘制（而不是 background），与 sider / footer 等分割线保持同一种绘制方式：
+   在非整数像素位置（125%、150% 缩放或高 DPR）不会被渲染成 2px，左右两侧粗细一致。
+   拖拽热区由内部伪元素向两侧各扩展 4px，既不占布局宽度也不产生空白。 */
 .layout-sharp-pane-divider {
   position: relative;
   flex: 0 0 1px;
   width: 1px;
+  box-sizing: border-box;
+  border-left: 1px solid var(--sharp-divider);
 }
 
-/* 真正的 1px 分隔线与拖拽热区（外层容器留给折叠按钮定位） */
+/* 拖拽热区（外层容器留给折叠按钮定位），本身不绘制任何线条 */
 .layout-sharp-pane-divider-line {
   position: absolute;
   inset: 0;
   cursor: col-resize;
-  background: var(--sharp-divider);
+  background: transparent;
 }
 
 .layout-sharp-pane-divider-line::before {
@@ -873,17 +901,20 @@ body.layout-bottom-panel-resizing {
   right: -4px;
 }
 
-.layout-sharp-pane-divider:hover .layout-sharp-pane-divider-line,
-.layout-sharp-pane-divider.is-resizing .layout-sharp-pane-divider-line {
-  background: var(--sharp-divider-strong);
+.layout-sharp-pane-divider:hover,
+.layout-sharp-pane-divider.is-resizing {
+  border-left-color: var(--sharp-divider-strong);
 }
 
 /* 折叠后左侧面板宽度为 0，分隔线会紧贴活动栏的右边框，形成并排的两条线。
    此时隐藏分隔线，只保留 8px 悬停热区（用于唤起折叠按钮）与活动栏边框这一条线。 */
-.layout-sharp-pane-divider.is-left-collapsed .layout-sharp-pane-divider-line,
-.layout-sharp-pane-divider.is-left-collapsed:hover .layout-sharp-pane-divider-line,
-.layout-sharp-pane-divider.is-left-collapsed.is-resizing .layout-sharp-pane-divider-line {
-  background: transparent;
+.layout-sharp-pane-divider.is-left-collapsed,
+.layout-sharp-pane-divider.is-left-collapsed:hover,
+.layout-sharp-pane-divider.is-left-collapsed.is-resizing {
+  border-left-color: transparent;
+}
+
+.layout-sharp-pane-divider.is-left-collapsed .layout-sharp-pane-divider-line {
   cursor: default;
 }
 

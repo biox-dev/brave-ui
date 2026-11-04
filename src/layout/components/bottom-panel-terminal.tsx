@@ -23,13 +23,17 @@ const BottomPanelTerminal = ({ tab }: BottomTabRenderProps) => {
   }
 
   return (
-    <AnalysisNodeTerminal
-      id={templateId}
-      name={tab.title}
-      terminalUrl={containerTemplateTerminalUrl(templateId)}
-      height="100%"
-      padding={0}
-    />
+    <div className="layout-bottom-panel-terminal-frame">
+      <AnalysisNodeTerminal
+        id={templateId}
+        name={tab.title}
+        terminalUrl={containerTemplateTerminalUrl(templateId)}
+        height="100%"
+        padding={6}
+        borderRadius={0}
+        className="layout-bottom-panel-terminal-surface"
+      />
+    </div>
   );
 };
 

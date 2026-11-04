@@ -208,9 +208,15 @@ export const openBottomTerminal = (templateId: string | number, name?: string) =
   });
 };
 
+/**
+ * 激活一个底部标签；点击（含点击当前标签）始终确保面板展开。
+ *
+ * 面板收起时标签栏仍可见，此时点击标签应当先展开面板 —— 所以
+ * 只有「已经是当前标签且已展开」才视为无变化。
+ */
 export const setActiveBottomTab = (key: string) => {
   const state = useBottomPanelStore.getState();
-  if (!key || state.active === key) {
+  if (!key || (state.active === key && state.open)) {
     return;
   }
   useBottomPanelStore.setState({ active: key, open: true });
