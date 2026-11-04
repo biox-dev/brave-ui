@@ -47,6 +47,14 @@ const statusColorMap: Record<string, string> = {
 // 底部结果区可切换的视图：运行结果 / 脚本代码 / 编辑脚本 / 节点参数（都通过 ViewResolver 内联渲染）。
 type ResultViewKey = "analysisResultDisplay" | "scriptCode" | "createOrUpdateScript" | "nodeParams";
 
+// Code 视图（components/script/code）默认按「填满视口剩余高度」自适应，
+// 那套算法只适合 script-panel 这类从页面顶部开始的整页面板。
+// 本组件内联在可滚动的长卡片底部，编辑器顶部通常已经接近或超出视口底部，
+// 自适应结果会被钳到最小 320px，代码区又矮又难读。
+// 这里显式给一个稳定高度：视口高度的 62%，下限 420px（至少看得到十几行），
+// 上限 760px（宽屏下不至于长得离谱）。
+const CODE_VIEW_HEIGHT = "clamp(420px, 62vh, 760px)";
+
 export interface AnalysisNodeDetailsProps {
     analysis_node_id?: string;
     useTitle?: boolean;
@@ -181,6 +189,8 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
                 return {
                     view: "scriptCode",
                     script_id: scriptId,
+                    // 内联渲染的高度由调用方决定，见上方 CODE_VIEW_HEIGHT 的说明。
+                    height: CODE_VIEW_HEIGHT,
                 };
             case "createOrUpdateScript":
                 return {

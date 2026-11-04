@@ -61,8 +61,12 @@ const pickErrorMessage = (err: any) =>
  * 之前这里只有 `data` 一个状态：请求失败只弹一次全局提示，界面会永久停在
  * “Loading script...”。现在区分 loading / error / not-found，并提供「轻量 / Monaco」
  * 两种编辑器：轻量模式零依赖、秒开（默认），Monaco 挂载超时会自动降级，不再无限等待。
+ *
+ * height：可选。不传时按“填满视口剩余高度”自适应（整页面板场景，如 script-panel）；
+ * 内联渲染在可滚动长页面（如分析节点详情卡片底部）时，wrap 的 top 往往已接近/超出
+ * 视口底部，自适应结果会被钳到最小 320px，此时应由调用方显式传入高度（px 或 CSS 长度）。
  */
-const Code: FC<any> = ({ script_id, component_id }) => {
+const Code: FC<any> = ({ script_id, component_id, height }) => {
     const scriptId = script_id || component_id
     const { token } = theme.useToken()
     const [messageApi, contextHolder] = message.useMessage()
@@ -119,7 +123,9 @@ const Code: FC<any> = ({ script_id, component_id }) => {
     }, [load])
 
     // 高度自适应：编辑器始终填满当前可视区域中它下方的剩余空间。
+    // 调用方显式传了 height 时不做测量，避免内联在长页面底部时被钳到最小高度。
     useLayoutEffect(() => {
+        if (height != null) return
         const sync = () => {
             const el = wrapRef.current
             if (!el) return
@@ -129,7 +135,7 @@ const Code: FC<any> = ({ script_id, component_id }) => {
         sync()
         window.addEventListener("resize", sync)
         return () => window.removeEventListener("resize", sync)
-    }, [content, loading, error])
+    }, [height, content, loading, error])
 
     // 兜底：Monaco 加载失败或极慢时不要让界面卡在 “Loading editor…”，直接降级到轻量编辑器。
     useEffect(() => {
@@ -172,6 +178,8 @@ const Code: FC<any> = ({ script_id, component_id }) => {
     const lineCount = useMemo(() => (content ? content.split("\n").length : 0), [content])
     const language = useMemo(() => languageFromPath(path), [path])
     const dirty = content !== savedContent
+    // 显式传入的高度优先，未传时用视口测量结果。
+    const resolvedHeight = height != null ? height : editorHeight
 
     return <Flex vertical gap={12}>
         {contextHolder}
@@ -227,9 +235,9 @@ const Code: FC<any> = ({ script_id, component_id }) => {
                         action={<Button size="small" icon={<ReloadOutlined />} onClick={load}>Retry</Button>}
                     ></Alert>
                     : mode === "light"
-                        ? <LightweightEditor height={editorHeight} value={content} onChange={setContent} />
+                        ? <LightweightEditor height={resolvedHeight} value={content} onChange={setContent} />
                         : <MonacoEditor
-                            height={editorHeight}
+                            height={resolvedHeight}
                             value={content}
                             path={path}
                             language={language}

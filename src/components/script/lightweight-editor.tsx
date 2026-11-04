@@ -13,8 +13,8 @@ const TAB_SIZE = 4
 type LightweightEditorProps = {
     /** 编辑器内容（受控）。 */
     value: string
-    /** 编辑器高度（px）。 */
-    height: number
+    /** 编辑器高度：px 数值或任意 CSS 长度（如 "clamp(420px, 62vh, 760px)"）。 */
+    height: number | string
     /** 内容变化回调。 */
     onChange?: (value: string) => void
     /** 只读模式。 */
