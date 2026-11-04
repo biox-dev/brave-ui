@@ -1,7 +1,7 @@
 import { Button, Card, Flex, Modal, Popconfirm, Skeleton, Space, Tag, Tooltip, Typography } from "antd";
 import axios from "axios";
 import { FC, useCallback, useEffect, useMemo, useState } from "react";
-import { CloseOutlined, EditOutlined, ExportOutlined, FileTextOutlined, RedoOutlined, RobotOutlined } from "@ant-design/icons";
+import { CloseOutlined, EditOutlined, ExportOutlined, RedoOutlined, RobotOutlined } from "@ant-design/icons";
 import AnalysisNodeTerminal from "@/components/container-manager/analysis-node-terminal";
 import AISummaryPanel from "@/components/ai-summary/ai-summary-panel";
 import ViewResolver from "@/core/ui-renderer/ViewResolver";
@@ -44,8 +44,8 @@ const statusColorMap: Record<string, string> = {
     skipped: "warning",
 };
 
-// 底部结果区可切换的视图：运行结果 / 脚本代码 / 节点参数（都通过 ViewResolver 内联渲染）。
-type ResultViewKey = "analysisResultDisplay" | "scriptCode" | "nodeParams";
+// 底部结果区可切换的视图：运行结果 / 脚本代码 / 编辑脚本 / 节点参数（都通过 ViewResolver 内联渲染）。
+type ResultViewKey = "analysisResultDisplay" | "scriptCode" | "createOrUpdateScript" | "nodeParams";
 
 export interface AnalysisNodeDetailsProps {
     analysis_node_id?: string;
@@ -169,24 +169,45 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
         }
     }, [selectedSampleDetail?.node?.container_id, register, unregister]);
 
-    // 结果区视图参数：view 和 props 由同一个变量决定，点击按钮只改 resultView，
-    // ViewResolver 的 view 就跟着切（不再区分多个 ViewResolver 实例）。
-    const resultViewProps: ViewRenderProps = resultView === "scriptCode"
-        ? {
-            view: "scriptCode",
-            script_id: selectedSampleDetail.node?.script_id,
+    // 节点 id / 脚本 id 在多个视图间复用，先算好避免重复书写。
+    const nodeId = String(selectedSampleDetail.node?.id ?? analysis_node_id ?? "");
+    const scriptId = selectedSampleDetail.node?.script_id;
+
+    // 结果区视图参数：view 与 props 一起由 resultView 决定，用 switch 代替嵌套三元，
+    // 新增视图时只要补一个 case。所有视图共用底部同一个 ViewResolver。
+    const buildResultViewProps = (): ViewRenderProps => {
+        switch (resultView) {
+            case "scriptCode":
+                return {
+                    view: "scriptCode",
+                    script_id: scriptId,
+                };
+            case "createOrUpdateScript":
+                return {
+                    view: "createOrUpdateScript",
+                    script_id: scriptId,
+                    // 内联渲染没有弹窗壳会自动关闭：保存后刷新节点详情并切回代码视图。
+                    callback: () => {
+                        loadSampleDetail(analysis_node_id);
+                        setResultView("scriptCode");
+                    },
+                };
+            case "nodeParams":
+                return {
+                    view: "nodeParams",
+                    analysis_node_id: nodeId,
+                    // 内联渲染时没有弹窗壳自动关闭，回“关闭”就切回结果视图。
+                    close: () => setResultView("analysisResultDisplay"),
+                };
+            default:
+                return {
+                    view: "analysisResultDisplay",
+                    analsyisResult: selectedSampleDetail.result || { images: [], tables: [], htmls: [], files: [] },
+                };
         }
-        : resultView === "nodeParams"
-            ? {
-                view: "nodeParams",
-                analysis_node_id: String(selectedSampleDetail.node?.id ?? analysis_node_id ?? ""),
-                // 内联渲染时没有弹窗壳自动关闭，回“关闭”就切回结果视图。
-                close: () => setResultView("analysisResultDisplay"),
-            }
-            : {
-                view: "analysisResultDisplay",
-                analsyisResult: selectedSampleDetail.result || { images: [], tables: [], htmls: [], files: [] },
-            };
+    };
+
+    const resultViewProps: ViewRenderProps = buildResultViewProps();
 
     // 按钮与结果视图之间互切：再次点击当前按钮或点 Result 都回到结果视图。
     const toggleResultView = (target: Exclude<ResultViewKey, "analysisResultDisplay">) => {
@@ -262,70 +283,26 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
                                     {resultView === "nodeParams" ? "Result" : "Params"}
                                 </Button>
                             </Tooltip>
-                            <Button
-                                size="small"
-                                color="cyan"
-                                variant="solid"
-                                onClick={() => {
-                                    invoke.nodeLogs.open({ analysis_node_id: selectedSampleDetail.node?.id },
-                                        {
-                                            title: `Logs - ${selectedSampleDetail.node?.node_name}`,
-                                            width: 800,
-                                            footer: null,
-                                        })
-                                }}
-                            >
-                                Logs
-                            </Button>
-                            <Tooltip title={`run.sh - ${selectedSampleDetail.node?.command_path || ""}`}>
-                                <Button
-                                    size="small"
-                                    color="cyan"
-                                    variant="solid"
-                                    icon={<FileTextOutlined />}
-                                    onClick={() => {
-                                        invoke.nodeCommand.open(
-                                            {
-                                                analysis_node_id: String(
-                                                    selectedSampleDetail.node?.id ?? analysis_node_id ?? ""
-                                                ),
-                                                node_name: selectedSampleDetail.node?.node_name,
-                                            },
-                                            {
-                                                width: "60%",
-                                                title: `Command - ${selectedSampleDetail.node?.node_id}`,
-                                                footer: null,
-                                            }
-                                        );
-                                    }}
-                                >
-                                    Command
-                                </Button>
-                            </Tooltip>
                             {/* 命令节点（Agent 创建、无 script）没有脚本可编辑，隐藏编辑入口。 */}
                             {!selectedSampleDetail.node?.is_command_node && (
                                 <>
-                                    <Tooltip title={`Edit Script ${selectedSampleDetail.node?.script_id}`}>
+                                    <Tooltip
+                                        title={
+                                            resultView === "createOrUpdateScript"
+                                                ? "Back to the result view"
+                                                : `Edit Script ${selectedSampleDetail.node?.script_id}`
+                                        }
+                                    >
                                         <Button
                                             size="small"
                                             color="cyan"
-                                            variant="solid"
-                                            onClick={async () => {
-                                                await invoke.createOrUpdateScript.openAsync(
-                                                    {
-                                                        script_id: selectedSampleDetail.node?.script_id,
-                                                    },
-                                                    {
-                                                        width: "60%",
-                                                        title: `Edit - ${selectedSampleDetail.node?.node_id}`,
-                                                    }
-                                                );
-                                                if (analysis_node_id) {
-                                                    loadSampleDetail(analysis_node_id);
-                                                }
+                                            variant={resultView === "createOrUpdateScript" ? "outlined" : "solid"}
+                                            onClick={() => {
+                                                // 与 Params / Code 一致：不弹窗，直接在底部 ViewResolver 里切换视图。
+                                                toggleResultView("createOrUpdateScript");
                                             }}
                                         >
-                                            Edit Script
+                                            {resultView === "createOrUpdateScript" ? "Result" : "Edit Script"}
                                         </Button>
                                     </Tooltip>
 
@@ -632,21 +609,38 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
                                     </Tag>
                                 )} */}
 
-
-
-
-                                {/* 
                                 <Tag
                                     style={{ cursor: "pointer" }}
                                     onClick={() => {
 
-                                        invoke.nodeLogs.open({ analysis_node_id: selectedSampleDetail.node.analysis_node_id },
+                                        invoke.nodeLogs.open({ analysis_node_id: selectedSampleDetail.node?.id },
                                             {
                                                 title: `Logs - ${selectedSampleDetail.node?.node_name}`,
                                                 width: 800,
                                                 footer: null,
                                             })
-                                    }}>Logs</Tag> */}
+                                    }}>Logs</Tag>
+
+                                <Tooltip title={`run.sh - ${selectedSampleDetail.node?.command_path || ""}`}>
+                                    <Tag
+                                        style={{ cursor: "pointer" }}
+                                        onClick={() => {
+
+                                            invoke.nodeCommand.open(
+                                                {
+                                                    analysis_node_id: String(
+                                                        selectedSampleDetail.node?.id ?? analysis_node_id ?? ""
+                                                    ),
+                                                    node_name: selectedSampleDetail.node?.node_name,
+                                                },
+                                                {
+                                                    width: "60%",
+                                                    title: `Command - ${selectedSampleDetail.node?.node_id}`,
+                                                    footer: null,
+                                                }
+                                            );
+                                        }}>Command</Tag>
+                                </Tooltip>
                             </Space>
                         </Flex>
                     </Card>
