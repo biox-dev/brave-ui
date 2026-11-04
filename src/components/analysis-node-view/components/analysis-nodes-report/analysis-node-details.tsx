@@ -5,6 +5,7 @@ import { CloseOutlined, EditOutlined, ExportOutlined, FileTextOutlined, RedoOutl
 import AnalysisNodeTerminal from "@/components/container-manager/analysis-node-terminal";
 import AISummaryPanel from "@/components/ai-summary/ai-summary-panel";
 import ViewResolver from "@/core/ui-renderer/ViewResolver";
+import type { ViewRenderProps } from "@/core/component-registry/registry-types";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { runAnalysisNodeApi, stopAnalysisNodeApi } from "@/api/analysisv1";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
@@ -42,6 +43,9 @@ const statusColorMap: Record<string, string> = {
     skipped: "warning",
 };
 
+// 底部结果区可切换的视图：运行结果 / 脚本代码 / 节点参数（都通过 ViewResolver 内联渲染）。
+type ResultViewKey = "analysisResultDisplay" | "scriptCode" | "nodeParams";
+
 export interface AnalysisNodeDetailsProps {
     analysis_node_id?: string;
     useTitle?: boolean;
@@ -67,6 +71,8 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
     });
     // 运行中的节点可以打开容器终端（xterm.js -> WebSocket -> kubectl/docker exec）。
     const [terminalOpen, setTerminalOpen] = useState(false);
+    // 底部 ViewResolver 当前展示的视图，点击 Code 时切到脚本代码而不是弹窗。
+    const [resultView, setResultView] = useState<ResultViewKey>("analysisResultDisplay");
     const { containerURL } = useSelector((state: any) => state.user);
 
     // const loadSampleDetail = useCallback(async (targetAnalysisNodeId?: string, force = false) => {
@@ -121,6 +127,8 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
     }, [analysis_node_id]);
 
     useEffect(() => {
+        // 切换节点时回到结果视图，避免上一个节点的代码残留在新节点下。
+        setResultView("analysisResultDisplay");
         loadSampleDetail(analysis_node_id);
     }, [analysis_node_id]);
 
@@ -154,6 +162,30 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
         }
     }, [selectedSampleDetail?.node?.container_id, register, unregister]);
 
+    // 结果区视图参数：view 和 props 由同一个变量决定，点击按钮只改 resultView，
+    // ViewResolver 的 view 就跟着切（不再区分多个 ViewResolver 实例）。
+    const resultViewProps: ViewRenderProps = resultView === "scriptCode"
+        ? {
+            view: "scriptCode",
+            script_id: selectedSampleDetail.node?.script_id,
+        }
+        : resultView === "nodeParams"
+            ? {
+                view: "nodeParams",
+                analysis_node_id: String(selectedSampleDetail.node?.id ?? analysis_node_id ?? ""),
+                // 内联渲染时没有弹窗壳自动关闭，回“关闭”就切回结果视图。
+                close: () => setResultView("analysisResultDisplay"),
+            }
+            : {
+                view: "analysisResultDisplay",
+                analsyisResult: selectedSampleDetail.result || { images: [], tables: [], htmls: [], files: [] },
+            };
+
+    // 按钮与结果视图之间互切：再次点击当前按钮或点 Result 都回到结果视图。
+    const toggleResultView = (target: Exclude<ResultViewKey, "analysisResultDisplay">) => {
+        setResultView((prev) => (prev === target ? "analysisResultDisplay" : target));
+    };
+
     return (
         <Card
             size="small"
@@ -177,22 +209,25 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
                     {selectedSampleDetail && (
                         <Space>
 
-                            <Button
-                                size="small"
-                                color="cyan"
-                                variant="solid"
-                                onClick={() => {
-                                    invoke.nodeParams.open(
-                                        { analysis_node_id: selectedSampleDetail.node?.id },
-                                        {
-                                            width: "60%",
-                                            title: `Params - ${selectedSampleDetail.node?.id}`,
-                                        }
-                                    );
-                                }}
+                            <Tooltip
+                                title={
+                                    resultView === "nodeParams"
+                                        ? "Back to the result view"
+                                        : `Node Params - ${selectedSampleDetail.node?.id}`
+                                }
                             >
-                                Params
-                            </Button>
+                                <Button
+                                    size="small"
+                                    color="cyan"
+                                    variant={resultView === "nodeParams" ? "outlined" : "solid"}
+                                    onClick={() => {
+                                        // 不弹窗：直接在底部 ViewResolver 里切换视图。
+                                        toggleResultView("nodeParams");
+                                    }}
+                                >
+                                    {resultView === "nodeParams" ? "Result" : "Params"}
+                                </Button>
+                            </Tooltip>
                             <Button
                                 size="small"
                                 color="cyan"
@@ -260,25 +295,23 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
                                         </Button>
                                     </Tooltip>
 
-                                    <Tooltip title={`Script Code ${selectedSampleDetail.node?.script_id}`}>
+                                    <Tooltip
+                                        title={
+                                            resultView === "scriptCode"
+                                                ? "Back to the result view"
+                                                : `Script Code ${selectedSampleDetail.node?.script_id}`
+                                        }
+                                    >
                                         <Button
                                             size="small"
                                             color="cyan"
-                                            variant="solid"
+                                            variant={resultView === "scriptCode" ? "outlined" : "solid"}
                                             onClick={() => {
-                                                console.log("selectedSampleDetail: ", selectedSampleDetail)
-                                                invoke.scriptCode.openAsync(
-                                                    {
-                                                        script_id: selectedSampleDetail.node?.script_id,
-                                                    },
-                                                    {
-                                                        width: "60%",
-                                                        title: `Code - ${selectedSampleDetail.node?.node_id}`,
-                                                    }
-                                                );
+                                                // 不弹窗：直接在底部 ViewResolver 里切换视图。
+                                                toggleResultView("scriptCode");
                                             }}
                                         >
-                                            Code
+                                            {resultView === "scriptCode" ? "Result" : "Code"}
                                         </Button>
                                     </Tooltip>
                                 </>
@@ -588,17 +621,15 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
                         ownerId={analysis_node_id}
                     />
                     <AnalysisNodeFilesRender analysis_node_id={analysis_node_id} name="Node Files" />
-                    <NodeParamsRender analysis_node_id={analysis_node_id} name="Node Params" />
+                    {/* <NodeParamsRender analysis_node_id={analysis_node_id} name="Node Params" /> */}
                     {selectedSampleDetail?.result?.output_files && <FilesRender analysis_node_id={analysis_node_id} name="Output Files" files={selectedSampleDetail.result.output_files}></FilesRender>}
                     {selectedSampleDetail?.result?.cache_files && <FilesRender analysis_node_id={analysis_node_id} name="Cache Files" files={selectedSampleDetail?.result?.cache_files}></FilesRender>}
 
-                    {selectedSampleDetail.status == "running" || detailLoading ? (
+                    {/* 结果还在跑 / 正在刷新时，结果视图用 Skeleton；代码视图不受影响。 */}
+                    {resultView === "analysisResultDisplay" && (selectedSampleDetail.status == "running" || detailLoading) ? (
                         <Skeleton active paragraph={{ rows: 6 }} />
                     ) : (
-                        <ViewResolver
-                            analsyisResult={selectedSampleDetail.result || { images: [], tables: [], htmls: [], files: [] }}
-                            view={"analysisResultDisplay"}
-                        ></ViewResolver>
+                        <ViewResolver {...resultViewProps}></ViewResolver>
                     )}
 
 
