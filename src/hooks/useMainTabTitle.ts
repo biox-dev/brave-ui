@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { useLocation, useNavigate } from 'react-router';
+import { splitRouteView } from '@/routes/route-view';
 import {
   getMainTabTitles,
   setMainTabTitle,
@@ -47,9 +48,13 @@ export const resolveMainTabEntityTitle = (
   return undefined;
 };
 
-/** 取 pathname 的最后一段并解码，得到「路由里的实体 id」。 */
+/**
+ * 取 pathname 的最后一段并解码，得到「路由里的实体 id」。
+ * 末段是视图段（`/analsyis-node-report/:id/:view`）时跳过它，否则会把 `scriptCode` 当成 id，
+ * 导致实体 id 校验永远不通过、标签页标题一直停在静态名称。
+ */
 const routeIdFromPathname = (pathname: string): string => {
-  const trimmed = pathname.replace(/\/+$/, '');
+  const trimmed = splitRouteView(pathname).basePath.replace(/\/+$/, '');
   const index = trimmed.lastIndexOf('/');
   const segment = index >= 0 ? trimmed.slice(index + 1) : trimmed;
   try {

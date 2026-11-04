@@ -37,7 +37,9 @@ const AnalysisNodeReportRoute: FC = () => {
 
   }, [analysisNodeId]);
 
-  return <AnalysisNodeDetails analysis_node_id={analysisNodeId} />;
+  // viewFromRoute：当前路由自带视图段（/:view?），让详情里的 ViewResolver 视图从 URL 读取并写回 URL，
+  // 刷新 / 前进后退 / 标签页切换都不会丢掉「正在看 Code 还是 Result」这类状态。
+  return <AnalysisNodeDetails analysis_node_id={analysisNodeId} viewFromRoute />;
 };
 
 export default AnalysisNodeReportRoute;

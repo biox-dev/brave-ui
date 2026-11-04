@@ -1,4 +1,5 @@
 import { layoutMenuTree, type LayoutMenuItem, type LayoutLocale } from './layout-menu';
+import { splitRouteView } from '@/routes/route-view';
 
 type TabLabel = { zh_CN: string; en_US: string };
 
@@ -124,7 +125,10 @@ export const resolveMainTabTitle = (path: string, locale: string): string => {
     (rule) => normalized === rule.prefix || normalized.startsWith(`${rule.prefix}/`),
   );
   if (matched) {
-    const rest = normalized.slice(matched.prefix.length).replace(/^\/+/, '');
+    // 视图段（/analsyis-node-report/:id/:view）不属于标签页身份：取 id 时要跳过末段，
+    // 否则标签名会变成「节点报告 · scriptCo」，切视图时看起来像换了一个页面。
+    const { basePath, view } = splitRouteView(normalized);
+    const rest = (view ? basePath : normalized).slice(matched.prefix.length).replace(/^\/+/, '');
     const id = shortId(rest.split('/').filter(Boolean).pop());
     const base = pickLabel(matched.label, layoutLocale);
     return id ? `${base} · ${id}` : base;

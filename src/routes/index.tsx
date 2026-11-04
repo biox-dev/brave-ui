@@ -185,7 +185,10 @@ if (appType == "index") {
             path: "/analysis-report/:analysisId",
             element: <AnalysisReport />
         }, {
-            path: "/analsyis-node-report/:analysisNodeId",
+            // 第二个可选段是「视图段」（/analsyis-node-report/:id/:view?）：
+            // 底部 ViewResolver 的当前视图写在 URL 里，刷新 / 分享 / 切标签页都能恢复。
+            // 白名单与默认视图登记在 src/routes/route-view.ts。
+            path: "/analsyis-node-report/:analysisNodeId/:view?",
             element: <AnalysisNodeReport />
         },{
             path: "/report/:project-report-id",

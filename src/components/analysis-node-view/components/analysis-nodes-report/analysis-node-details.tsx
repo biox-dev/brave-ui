@@ -11,6 +11,8 @@ import { runAnalysisNodeApi, stopAnalysisNodeApi } from "@/api/analysisv1";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useInsertAgentRef } from "@/hooks/useInsertAgentRef";
 import { useRouteMainTabTitle } from "@/hooks/useMainTabTitle";
+import { useRouteView } from "@/hooks/useRouteView";
+import { ANALYSIS_NODE_REPORT_VIEWS, type AnalysisNodeReportView } from "@/routes/route-view";
 import { http } from "@/api/client/http";
 import { useSelector } from "react-redux";
 import { useStoreRender } from "@/context/render/RenderProvider";
@@ -46,7 +48,10 @@ const statusColorMap: Record<string, string> = {
 };
 
 // 底部结果区可切换的视图：运行结果 / 脚本代码 / 编辑脚本 / 节点参数（都通过 ViewResolver 内联渲染）。
-type ResultViewKey = "analysisResultDisplay" | "scriptCode" | "createOrUpdateScript" | "nodeParams";
+// 视图名写成路由的「视图段」：/analsyis-node-report/:analysisNodeId/:view?
+// 白名单与默认视图登记在 @/routes/route-view，布局层用同一份配置把视图段从标签页身份里去掉，
+// 所以切视图既不会丢状态，也不会多出一个标签页。
+type ResultViewKey = AnalysisNodeReportView;
 
 // Code 视图（components/script/code）默认按「填满视口剩余高度」自适应，
 // 那套算法只适合 script-panel 这类从页面顶部开始的整页面板。
@@ -59,9 +64,17 @@ const CODE_VIEW_HEIGHT = "clamp(420px, 62vh, 760px)";
 export interface AnalysisNodeDetailsProps {
     analysis_node_id?: string;
     useTitle?: boolean;
+    /**
+     * 当前组件是否由「带视图段的路由」渲染（/analsyis-node-report/:id/:view?）。
+     *
+     * 只有路由页打开时才把底部视图同步到 URL；弹窗（invoke.analysisNodeDetails）、
+     * 内嵌复用（analysis-node-page / analysis-nodes-report）不开启，hook 内部退化为本地状态，
+     * 避免把用户在看的那个页面的地址改成 `…/scriptCode`。
+     */
+    viewFromRoute?: boolean;
 }
 
-const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, useTitle }) => {
+const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, useTitle, viewFromRoute }) => {
     const [detailLoading, setDetailLoading] = useState(false);
     const [sampleDetailMap, setSampleDetailMap] = useState<Record<string, Partial<AnalysisNodeSample>>>({});
     const { analysisNodeId, setAnalysisNodeId } = useStoreRender();
@@ -81,8 +94,14 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
     });
     // 运行中的节点可以打开容器终端（xterm.js -> WebSocket -> kubectl/docker exec）。
     const [terminalOpen, setTerminalOpen] = useState(false);
-    // 底部 ViewResolver 当前展示的视图，点击 Code 时切到脚本代码而不是弹窗。
-    const [resultView, setResultView] = useState<ResultViewKey>("analysisResultDisplay");
+    // 底部 ViewResolver 当前展示的视图：由路由视图段决定（刷新 / 前进后退 / 切标签页都能恢复），
+    // 点击按钮时通过 setResultView 改 URL，不再用 useState 保存，避免"状态只活在内存里"。
+    // 默认视图（analysisResultDisplay）不写进 URL，节点报告地址保持干净。
+    const [resultView, setResultView] = useRouteView<ResultViewKey>({
+        views: ANALYSIS_NODE_REPORT_VIEWS,
+        defaultView: "analysisResultDisplay",
+        enabled: viewFromRoute === true,
+    });
     const { containerURL } = useSelector((state: any) => state.user);
 
     // 把当前分析节点作为 @analysis_node:<id> 引用 chip 插进 Agent 输入框（面板未打开时自动切过去）。
@@ -143,8 +162,8 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
     }, [analysis_node_id]);
 
     useEffect(() => {
-        // 切换节点时回到结果视图，避免上一个节点的代码残留在新节点下。
-        setResultView("analysisResultDisplay");
+        // 节点切换：视图由 URL 决定（/analsyis-node-report/:id/:view?），
+        // 调用方跳转到新节点时通常不带视图段，因此会自动回到默认视图，不需要在这里重置。
         loadSampleDetail(analysis_node_id);
     }, [analysis_node_id]);
 

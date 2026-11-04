@@ -1,4 +1,5 @@
 import { normalizeMainTabPath } from './main-tab-title';
+import { splitRouteView } from '@/routes/route-view';
 
 /**
  * 主区域标签页「显示名称」通道（纯内存）。
@@ -24,6 +25,21 @@ export const toMainTabKey = (pathOrUrl: string): string => {
   const pathname = queryIndex >= 0 ? withoutHash.slice(0, queryIndex) : withoutHash;
   const search = queryIndex >= 0 ? withoutHash.slice(queryIndex) : '';
   return `${normalizeMainTabPath(pathname)}${search}`;
+};
+
+/**
+ * 标签页「身份」key：在 {@link toMainTabKey} 的基础上去掉「视图段」。
+ *
+ * 视图段（如 `/analsyis-node-report/:id/scriptCode` 里的 `scriptCode`）是页面内部状态，
+ * 不是新的页面：切视图时标签页应该原地更新地址（保留最后停留的视图），而不是多出一个标签页。
+ * 没登记视图段的路由，base key 与 `toMainTabKey` 完全一致。
+ */
+export const toMainTabBaseKey = (pathOrUrl: string): string => {
+  const key = toMainTabKey(pathOrUrl);
+  const queryIndex = key.indexOf('?');
+  const pathname = queryIndex >= 0 ? key.slice(0, queryIndex) : key;
+  const search = queryIndex >= 0 ? key.slice(queryIndex) : '';
+  return `${splitRouteView(pathname).basePath}${search}`;
 };
 
 let titles: MainTabTitleMap = {};

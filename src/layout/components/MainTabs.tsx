@@ -10,6 +10,7 @@ import {
   clearMainTabTitle,
   pruneMainTabTitles,
   seedMainTabTitles,
+  toMainTabBaseKey,
   toMainTabKey,
 } from '../main-tab-title-store';
 import { cancelPendingMenuTabsSave, scheduleSaveMenuTabs } from '../main-tab-config-save';
@@ -67,6 +68,8 @@ const MainTabs = forwardRef<MainTabsHandle, MainTabsProps>(({ onTabsChange }, re
   const { pathname, search } = useLocation();
 
   const currentKey = `${normalizeMainTabPath(pathname)}${search}`;
+  // 标签页「身份」：去掉页面内部的视图段（…/:id/scriptCode），切视图不新增标签页。
+  const currentBaseKey = toMainTabBaseKey(currentKey);
   const isRoot = normalizeMainTabPath(pathname) === '/';
 
   const userId = useSelector((state: any) => state.user.userInfo?.id as string | undefined);
@@ -105,24 +108,37 @@ const MainTabs = forwardRef<MainTabsHandle, MainTabsProps>(({ onTabsChange }, re
       .filter((tab) => tab.url !== '/');
     // 后端已有内容：先记成「已同步」，避免回填后立刻再发一次相同的请求
     savedSignatureRef.current = JSON.stringify(next);
-    if (isFirstHydration && !isRoot && !next.some((tab) => tab.url === currentKey)) {
+    if (isFirstHydration && !isRoot && !next.some((tab) => toMainTabBaseKey(tab.url) === currentBaseKey)) {
       // 当前深链路由不在后端列表里 → 补一个，由下一轮同步落库
       next.push({ url: currentKey, title: '' });
     }
     setTabs(next.slice(-MAX_TABS));
-  }, [currentKey, hydrationKey, isRoot, serverTabs, userId]);
+  }, [currentBaseKey, currentKey, hydrationKey, isRoot, serverTabs, userId]);
 
-  // 2) 路由变化时把当前地址加入标签页（已存在则不动，避免覆盖已登记的名称）
+  // 2) 路由变化时把当前地址写入标签页：
+  //    - 新路由 → 追加一个标签页；
+  //    - 同一路由的不同「视图段」（…/:id/scriptCode）→ 原地更新地址，不新增标签页。
+  //      这样切视图后标签页地址跟着走，切回来还能恢复上一次停留的视图。
   useEffect(() => {
     if (isRoot) {
       return;
     }
-    setTabs((prev) =>
-      prev && !prev.some((tab) => tab.url === currentKey)
-        ? [...prev, { url: currentKey, title: '' }].slice(-MAX_TABS)
-        : prev,
-    );
-  }, [currentKey, isRoot]);
+    setTabs((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      const index = prev.findIndex((tab) => toMainTabBaseKey(tab.url) === currentBaseKey);
+      if (index < 0) {
+        return [...prev, { url: currentKey, title: '' }].slice(-MAX_TABS);
+      }
+      if (prev[index].url === currentKey) {
+        return prev;
+      }
+      const next = [...prev];
+      next[index] = { ...next[index], url: currentKey };
+      return next;
+    });
+  }, [currentBaseKey, currentKey, isRoot]);
 
   // 3) 把本地标签页的显示名同步成最新（页面登记的节点名可能晚于标签页创建）。
   // 只在名称真的变化时才换状态，避免无意义的重渲染。
@@ -180,13 +196,13 @@ const MainTabs = forwardRef<MainTabsHandle, MainTabsProps>(({ onTabsChange }, re
       setTabs(next);
       // 标签页关闭后同步清理它登记的名称
       clearMainTabTitle(key);
-      if (key === currentKey) {
+      if (toMainTabBaseKey(key) === currentBaseKey) {
         // 关闭当前标签：优先切到右侧相邻标签，没有则切到左侧，全部关闭后回到根路由
         const fallback = next[index]?.url ?? next[index - 1]?.url ?? null;
         navigate(fallback ?? '/');
       }
     },
-    [currentKey, tabs, navigate],
+    [currentBaseKey, tabs, navigate],
   );
 
   useImperativeHandle(ref, () => ({ closeActiveTab: () => closeTab(currentKey) }), [
@@ -223,9 +239,9 @@ const MainTabs = forwardRef<MainTabsHandle, MainTabsProps>(({ onTabsChange }, re
     }
     const active = Array.from(
       container.querySelectorAll<HTMLElement>('[data-tab-key]'),
-    ).find((node) => node.dataset.tabKey === currentKey);
+    ).find((node) => node.dataset.tabKey && toMainTabBaseKey(node.dataset.tabKey) === currentBaseKey);
     active?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, [currentKey, isRoot, tabs?.length]);
+  }, [currentBaseKey, isRoot, tabs?.length]);
 
   return (
     <div className="layout-sharp-main-tabs" ref={tabsRef} role="tablist">
@@ -233,7 +249,8 @@ const MainTabs = forwardRef<MainTabsHandle, MainTabsProps>(({ onTabsChange }, re
         {(tabs ?? []).map((tab) => {
           const key = tab.url;
           const title = tab.title || resolveMainTabTitle(key, locale);
-          const isActive = key === currentKey && !isRoot;
+          // 同一路由的不同视图段共用同一个标签页，所以高亮按「去掉视图段」的 key 比较。
+          const isActive = toMainTabBaseKey(key) === currentBaseKey && !isRoot;
           return (
             <div
               key={key}
