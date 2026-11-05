@@ -9,7 +9,7 @@ import type { BottomTabRenderProps } from './bottom-panel-registry';
  * 参数来自标签的 `params.session_id`：终端会话由后端 create 接口创建（容器已启动），
  * 这里只按会话 ID 建立 WebSocket 连接；刷新页面后恢复标签会重连同一会话并回放历史输出。
  *
- * `params.template_id` 只用于排查 / 展示，连接地址不再依赖模板 ID。
+ * 连接地址只依赖 `session_id`，标签参数里不再保存模板 ID。
  */
 const BottomPanelTerminal = ({ tab }: BottomTabRenderProps) => {
   const raw = tab.params?.session_id;

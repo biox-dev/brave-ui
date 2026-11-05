@@ -476,13 +476,11 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
                                             onClick={() => {
                                                 void createContainerTerminalSessionApi({
                                                     container_template_id: nodeContainerId,
-                                                    name: nodeTerminalTitle,
                                                 })
                                                     .then((resp) => {
                                                         openBottomTerminal(
                                                             resp.data.session_id,
-                                                            resp.data.display_name || nodeTerminalTitle,
-                                                            { templateId: nodeContainerId },
+                                                            resp.data.name || nodeTerminalTitle,
                                                         );
                                                     })
                                                     .catch(() => {

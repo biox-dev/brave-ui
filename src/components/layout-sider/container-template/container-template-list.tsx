@@ -272,16 +272,13 @@ const ContainerTemplateList = ({
     try {
       const created = (await createContainerTerminalSessionApi({
         container_template_id: runTarget.id,
-        name: templateDisplayName(runTarget),
       })).data;
       // wait_seconds=0：只投递命令，输出走终端 WebSocket 实时回传。
       await execContainerTerminalSessionApi(created.session_id, {
         command,
         wait_seconds: 0,
       });
-      openBottomTerminal(created.session_id, created.display_name || templateDisplayName(runTarget), {
-        templateId: String(runTarget.id),
-      });
+      openBottomTerminal(created.session_id, created.name || templateDisplayName(runTarget));
       message.success("Command submitted to terminal");
       setRunTarget(null);
     } catch (error) {
@@ -327,12 +324,11 @@ const ContainerTemplateList = ({
       try {
         const created = (await createContainerTerminalSessionApi({
           container_template_id: record.id,
-          name: templateDisplayName(record),
         })).data;
         invoke.containerTemplateTerminal.open(
-          { session_id: created.session_id, name: created.display_name },
+          { session_id: created.session_id, name: created.name },
           {
-            title: `Terminal - ${created.display_name || templateDisplayName(record)}`,
+            title: `Terminal - ${created.name || templateDisplayName(record)}`,
             width: 960,
             footer: null,
           }
@@ -355,11 +351,8 @@ const ContainerTemplateList = ({
       try {
         const created = (await createContainerTerminalSessionApi({
           container_template_id: record.id,
-          name: templateDisplayName(record),
         })).data;
-        openBottomTerminal(created.session_id, created.display_name || templateDisplayName(record), {
-          templateId: String(record.id),
-        });
+        openBottomTerminal(created.session_id, created.name || templateDisplayName(record));
       } catch (error) {
         message.error(getErrorMessage(error, "Failed to create terminal session"));
       }

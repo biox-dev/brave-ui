@@ -105,7 +105,6 @@ const SessionDetailCard = ({ item }: { item: ContainerTerminalSessionItem }) => 
 /** 「运行命令」弹窗的目标：终端会话列表里的一行（命令只能投递到已存在的会话）。 */
 type RunTarget = {
   sessionId: string;
-  templateId?: string;
   displayName: string;
   command?: string;
 };
@@ -220,11 +219,11 @@ const ContainerTerminalSessionList = ({
    * 因此这里必须用会话 ID 而不是模板 ID。
    */
   const openSessionTerminal = useCallback(
-    (sessionId: string, displayName?: string, templateId?: string) => {
+    (sessionId: string, displayName?: string) => {
       if (!sessionId) {
         return;
       }
-      openBottomTerminal(sessionId, displayName, { templateId });
+      openBottomTerminal(sessionId, displayName);
     },
     []
   );
@@ -235,7 +234,7 @@ const ContainerTerminalSessionList = ({
       if (!record.session_id) {
         return;
       }
-      openSessionTerminal(record.session_id, record.display_name, record.template_id);
+      openSessionTerminal(record.session_id, record.name);
     },
     [openSessionTerminal]
   );
@@ -290,12 +289,10 @@ const ContainerTerminalSessionList = ({
     try {
       const created = (await createContainerTerminalSessionApi({
         container_template_id: selected.id,
-        name: selected.display_name || selected.name || String(selected.id),
       })).data;
       openSessionTerminal(
         created.session_id,
-        created.display_name || created.name,
-        String(selected.id),
+        created.name || selected.display_name || selected.name || String(selected.id),
       );
       message.success("Terminal session created");
       refetch();
@@ -328,9 +325,7 @@ const ContainerTerminalSessionList = ({
         command,
         wait_seconds: 0,
       });
-      openBottomTerminal(runTarget.sessionId, runTarget.displayName, {
-        templateId: runTarget.templateId,
-      });
+      openSessionTerminal(runTarget.sessionId, runTarget.name);
       message.success("Command submitted to terminal");
       setRunTarget(null);
       refetch();
@@ -339,7 +334,7 @@ const ContainerTerminalSessionList = ({
     } finally {
       setRunSubmitting(false);
     }
-  }, [message, refetch, runCommand, runTarget]);
+  }, [message, openSessionTerminal, refetch, runCommand, runTarget]);
 
   const columns = useMemo<ColumnsType<ContainerTerminalSessionItem>>(
     () => [
@@ -417,7 +412,6 @@ const ContainerTerminalSessionList = ({
                 onClick={() =>
                   handleOpenRun({
                     sessionId: record.session_id,
-                    templateId: record.template_id,
                     displayName:
                       record.display_name || record.template_name || record.session_id,
                   })

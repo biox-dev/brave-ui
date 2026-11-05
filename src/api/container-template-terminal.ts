@@ -51,23 +51,14 @@ export interface ContainerTerminalSessionStatus {
 
 export interface ContainerTerminalSessionCreateRequest {
   container_template_id: string | number;
-  /** 会话展示名；为空时由后端回退到模板展示名 / 模板名 / ID。 */
-  name?: string;
   /** 前端 xterm 尺寸：新建会话直接用它建 PTY（可选）。 */
   rows?: number;
   cols?: number;
 }
 
-export interface ContainerTerminalSessionCreateResponse extends ContainerTerminalSessionStatus {
-  display_name: string;
-  template_name: string;
-  image_name: string;
-  app_type: string;
-}
-
 /** 按容器模板新建一条终端会话并立即启动容器，返回会话 ID。 */
 export const createContainerTerminalSessionApi = (payload: ContainerTerminalSessionCreateRequest) => {
-  return http.post<ContainerTerminalSessionCreateResponse>(
+  return http.post<ContainerTerminalSessionStatus>(
     "/container/terminal/session/create",
     payload,
   );

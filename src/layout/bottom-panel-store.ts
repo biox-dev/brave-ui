@@ -194,24 +194,22 @@ export const openBottomTab = (tab: BottomTab) => {
  * key 用 `terminal:<sessionId>`：终端会话由后端 create 接口创建（容器已启动），
  * 这里只是按会话 ID 打开（或聚焦）对应的底部标签；同一会话重复点击不会重复连接。
  *
- * params 里同时保留 `template_id` 便于展示，但真正的连接地址是 `session_id`。
+ * 连接地址只取决于 `session_id`，不需要也不保存模板 ID。
  */
 export const openBottomTerminal = (
   sessionId: string | number,
   name?: string,
-  options?: { templateId?: string | number },
 ) => {
   const id = String(sessionId);
   if (!id) {
     return;
   }
   const title = (name ?? '').trim() || `Terminal ${id}`;
-  const templateId = options?.templateId == null ? undefined : String(options.templateId);
   openBottomTab({
     key: `terminal:${id}`,
     kind: 'terminal',
     title,
-    params: { session_id: id, ...(templateId ? { template_id: templateId } : {}) },
+    params: { session_id: id },
   });
 };
 

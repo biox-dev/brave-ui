@@ -69,11 +69,7 @@ export function registerActions() {
     if (!sessionId || payload?.phase !== "start") {
       return;
     }
-    const templateId =
-      payload?.template_id == null ? undefined : String(payload.template_id).trim();
-    openBottomTerminal(sessionId, `Terminal ${sessionId}`, {
-      templateId: templateId || undefined,
-    });
+    openBottomTerminal(sessionId, `Terminal ${sessionId}`);
     const ui = useUIStore.getState();
     ui.notificationApi?.info({
       message: "Agent is running a command in the terminal",
