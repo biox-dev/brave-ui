@@ -105,7 +105,7 @@ const SessionDetailCard = ({ item }: { item: ContainerTerminalSessionItem }) => 
 /** 「运行命令」弹窗的目标：终端会话列表里的一行（命令只能投递到已存在的会话）。 */
 type RunTarget = {
   sessionId: string;
-  displayName: string;
+  name: string;
   command?: string;
 };
 
@@ -412,7 +412,7 @@ const ContainerTerminalSessionList = ({
                 onClick={() =>
                   handleOpenRun({
                     sessionId: record.session_id,
-                    displayName:
+                    name:
                       record.display_name || record.template_name || record.session_id,
                   })
                 }
@@ -518,7 +518,7 @@ const ContainerTerminalSessionList = ({
 
       <Modal
         open={Boolean(runTarget)}
-        title={`Run in terminal - ${runTarget?.displayName ?? ""}`}
+        title={`Run in terminal - ${runTarget?.name ?? ""}`}
         okText="Run"
         confirmLoading={runSubmitting}
         onOk={handleSubmitRun}
