@@ -72,12 +72,14 @@ const AnalysisNodeTerminal = ({
     let hasServerSeq = false;
     let serverSeq = 0;
     let bytesSinceSeq = 0;
-    // true = 终端宽度已锁定为服务端 PTY 的宽度（见 session 事件处理）。
-    // 锁定后不再 fit / 不再发 resize：PTY 宽度一变，bash 就会按旧宽度重绘提示符，
-    // 把已经回放出来的历史行覆盖掉。
+    // true = 终端宽度暂时锁定为服务端 PTY 的宽度（见 session 事件处理）。
+    // 只锁到回放结束：回放期间改宽度，bash 会按旧宽度重绘提示符，把历史行覆盖掉；
+    // 回放字节收完后解除锁定，终端按容器实际尺寸 fit，并把新尺寸同步给 PTY。
     let lockToPty = false;
+    // 本次回放还剩多少字节（服务端在 session 事件里的 replay_bytes）。
+    let replayPending = 0;
 
-    /** 把当前 xterm 尺寸同步给后端；锁定 PTY 宽度后不再发送。 */
+    /** 把当前 xterm 尺寸同步给后端；锁定 PTY 宽度期间不发送。 */
     const pushResize = () => {
       if (lockToPty || socket?.readyState !== WebSocket.OPEN) {
         return;
@@ -85,6 +87,20 @@ const AnalysisNodeTerminal = ({
       socket.send(
         JSON.stringify({ type: "resize", rows: term.rows, cols: term.cols }),
       );
+    };
+
+    /** 回放结束：解除宽度锁定，按容器实际尺寸 fit 并把新尺寸同步给 PTY。 */
+    const releasePtyLock = () => {
+      if (!lockToPty) {
+        return;
+      }
+      lockToPty = false;
+      try {
+        fitAddon.fit();
+      } catch {
+        // ignore fit errors while the modal is closing
+      }
+      pushResize();
     };
 
     const decoder = new TextDecoder("utf-8");
@@ -116,6 +132,9 @@ const AnalysisNodeTerminal = ({
           hasServerSeq = true;
         }
         bytesSinceSeq = 0;
+        // 回放字节数：收完后才解除 PTY 宽度锁（见 releasePtyLock）。
+        const replayBytes = Number(event.replay_bytes ?? 0);
+        replayPending = Number.isFinite(replayBytes) && replayBytes > 0 ? replayBytes : 0;
         // PTY 宽度决定历史输出的换行位置，也决定了 bash 认为提示符占几行。
         // 和本终端宽度不一致时，先把终端调到 PTY 尺寸再回放并锁定，
         // 否则 bash 收到 resize 后会按旧宽度重绘提示符，把历史行覆盖掉。
@@ -139,6 +158,10 @@ const AnalysisNodeTerminal = ({
           term.writeln(
             "\r\n\x1b[90m[earlier output was truncated by the scrollback buffer]\x1b[0m",
           );
+        }
+        // 没有回放字节（或不需要锁）时立刻恢复自适应宽度，避免终端卡在 PTY 的旧宽度上。
+        if (replayPending === 0) {
+          releasePtyLock();
         }
         return;
       }
@@ -169,16 +192,14 @@ const AnalysisNodeTerminal = ({
       }
       const baseUrl = terminalUrl || analysisNodeTerminalUrl(id);
       // since：从服务端给出的序号续传（首次连接不带，让后端整段回放）。
-      // rows/cols：会话由本次连接创建时用它建 PTY；锁定 PTY 宽度后不再上报，
-      // 避免把终端尺寸和 PTY 尺寸弄成不一致。
+      // rows/cols：进程重启后服务端重建 PTY 时以它为准（保证宽度和当前终端一致）；
+      // since：从服务端给出的序号续传（首次连接不带，让后端整段回放）。
       const params = new URLSearchParams();
       if (hasServerSeq) {
         params.set("since", String(serverSeq + bytesSinceSeq));
       }
-      if (!lockToPty) {
-        params.set("rows", String(term.rows));
-        params.set("cols", String(term.cols));
-      }
+      params.set("rows", String(term.rows));
+      params.set("cols", String(term.cols));
       const query = params.toString();
       const url = query
         ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${query}`
@@ -196,8 +217,17 @@ const AnalysisNodeTerminal = ({
           return;
         }
         const chunk = decoder.decode(event.data, { stream: true });
-        bytesSinceSeq += (event.data as ArrayBuffer).byteLength;
+        const byteLength = (event.data as ArrayBuffer).byteLength;
+        bytesSinceSeq += byteLength;
         term.write(chunk);
+        if (replayPending > 0) {
+          replayPending -= byteLength;
+          if (replayPending <= 0) {
+            replayPending = 0;
+            // term.write 是异步解析的，放到下一个宏任务再 fit。
+            window.setTimeout(releasePtyLock, 0);
+          }
+        }
       };
       socket.onerror = () => {
         term.writeln("\r\n\x1b[31mwebsocket error\x1b[0m");
