@@ -107,8 +107,8 @@ export const closeContainerTerminalSessionApi = (sessionId: string | number) => 
 };
 
 /**
- * 终端会话列表项：后端把内存注册表里的会话状态与容器模板绑定行 join 起来。
- * DisplayName 优先取会话名，为空时回退模板展示名 / 模板名 / session_id。
+ * 终端会话列表项：终端会话就是「应用会话」（AppSession），因此列表直接复用
+ * `/container/app-session/list-by-page` 的分页结果。
  */
 export interface ContainerTerminalSessionItem extends ContainerTerminalSessionStatus {
   display_name: string;
@@ -117,9 +117,39 @@ export interface ContainerTerminalSessionItem extends ContainerTerminalSessionSt
   app_type: string;
 }
 
-/** 列出当前用户的终端会话；默认只返回当前激活项目下的会话。 */
-export const listContainerTerminalSessionsApi = (options?: { allProjects?: boolean }) => {
-  return http.get<ContainerTerminalSessionItem[]>("/container/terminal/session/list", {
-    params: options?.allProjects ? { all_projects: true } : undefined,
+/** 列出当前用户（当前激活项目）下的终端会话。 */
+export const listContainerTerminalSessionsApi = async (options?: { allProjects?: boolean }) => {
+  // 终端会话 = AppSession：列表统一走 app-session 分页接口，不再单独提供
+  // GET /container/terminal/session/list。
+  const response = await http.post<{
+    data?: Array<{
+      id: string;
+      container_template_id?: string;
+      name?: string;
+      status?: string;
+      persistent?: boolean;
+      container_instance_id?: string;
+      container_instance_name?: string;
+    }>;
+  }>("/container/app-session/list-by-page", {
+    page: 1,
+    page_size: 200,
+    query: {},
   });
+  const rows = response.data?.data ?? [];
+  return rows.map<ContainerTerminalSessionItem>((row) => ({
+    session_id: String(row.id),
+    exists: true,
+    alive: String(row.status ?? "").toUpperCase() === "RUNNING",
+    subscribers: 0,
+    seq: 0,
+    template_id: row.container_template_id ? String(row.container_template_id) : undefined,
+    name: row.name,
+    persistent: Boolean(row.persistent),
+    busy: false,
+    display_name: row.name ?? String(row.id),
+    template_name: "",
+    image_name: "",
+    app_type: "",
+  }));
 };

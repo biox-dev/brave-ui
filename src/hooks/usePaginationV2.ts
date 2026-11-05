@@ -550,7 +550,8 @@ export const useAppSessionPageQuery = (
 };
 
 /**
- * 终端会话列表（不分页）：后端把内存注册表里的会话与容器模板绑定行 join 后返回。
+ * 终端会话列表（不分页）：终端会话就是 AppSession，数据来自
+ * `/container/app-session/list-by-page`（由 listContainerTerminalSessionsApi 适配）。
  * 会话数量受 terminal_max_sessions_per_user 限制，量很小，直接整表刷新即可。
  *
  * `allProjects=false`（默认）只返回当前激活项目下的会话，与左侧栏其它面板口径一致。
@@ -564,8 +565,7 @@ export const useContainerTerminalSessionListQuery = (
 	return useQuery<ContainerTerminalSessionItem[], AxiosError>(
 		["container-terminal-session-list", allProjects],
 		async () => {
-			const response = await listContainerTerminalSessionsApi({ allProjects });
-			return response.data ?? [];
+			return listContainerTerminalSessionsApi({ allProjects });
 		},
 		queryOptions
 	);
