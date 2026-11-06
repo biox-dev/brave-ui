@@ -106,6 +106,16 @@ export interface AppSessionItem {
     app_type: string;
     status: string;
     workspace_path: string;
+    /**
+     * 会话种类：
+     * - web：应用会话（容器跑模板命令，前端经网关访问）；
+     * - terminal：终端会话（容器常驻 + 交互式 shell）。
+     */
+    session_kind?: string;
+    /** 创建该会话的 Agent 会话 ID；"0" / 空表示非 Agent 创建。 */
+    agent_session_id?: string;
+    /** 是否持久会话（只能由空闲 TTL 或显式关闭回收）。 */
+    persistent?: boolean;
     last_access_at: string;
     started_at: string;
     stopped_at: string;

@@ -109,6 +109,52 @@ const buildAppUrl = (containerURL: string, appSession?: AppSessionItem) => {
 /** 归一化后端状态字符串（大小写混用，如 RUNNING / create_pending）。 */
 const normalizeStatus = (status?: string) => (status || "").trim().toLowerCase();
 
+/**
+ * 归一化会话种类：
+ * - web      → 应用会话（容器跑模板命令，前端经网关访问）；
+ * - terminal → 终端会话（容器常驻，交互式 shell 由运行时 exec 打开）。
+ *
+ * 后端历史行可能没有 session_kind，这里按 agent_session_id / persistent 兜底。
+ */
+const resolveSessionKind = (record: AppSessionItem): "web" | "terminal" => {
+  const raw = (record.session_kind || "").trim().toLowerCase();
+  if (raw === "web" || raw === "terminal") {
+    return raw;
+  }
+  const agentSessionID = (record.agent_session_id || "").trim();
+  return (agentSessionID && agentSessionID !== "0") || record.persistent
+    ? "terminal"
+    : "web";
+};
+
+const SESSION_KIND_META: Record<
+  "web" | "terminal",
+  { label: string; color: string; tip: string }
+> = {
+  web: {
+    label: "Web",
+    color: "blue",
+    tip: "Web app session: the container runs the template command and is opened through the gateway.",
+  },
+  terminal: {
+    label: "Terminal",
+    color: "geekblue",
+    tip: "Terminal session: keep-alive container with an interactive shell.",
+  },
+};
+
+/** 会话种类标签（表格 / 卡片共用）。 */
+const renderSessionKindTag = (record: AppSessionItem) => {
+  const meta = SESSION_KIND_META[resolveSessionKind(record)];
+  return (
+    <Tooltip title={meta.tip}>
+      <Tag color={meta.color} style={{ marginInlineEnd: 0 }}>
+        {meta.label}
+      </Tag>
+    </Tooltip>
+  );
+};
+
 /** 运行态：可以 Open / Stop。 */
 const RUNNING_STATUSES = new Set(["running", "started", "active"]);
 
@@ -547,6 +593,13 @@ const AppSessionPage = ({
         render: (value: string) => value || "-",
       },
       {
+        title: "Kind",
+        dataIndex: "session_kind",
+        key: "session_kind",
+        width: 120,
+        render: (_: unknown, record) => renderSessionKindTag(record),
+      },
+      {
         title: "Project ID",
         dataIndex: "project_id",
         key: "project_id",
@@ -649,8 +702,10 @@ const AppSessionPage = ({
         ellipsis: { showTitle: false },
         render: (_: unknown, record) => {
           const displayName = record.name || record.id || "-";
+          const kind = SESSION_KIND_META[resolveSessionKind(record)];
           const meta = [
             record.status,
+            kind.label,
             record.node_name?.trim(),
             record.started_at ? formatRelativeTime(record.started_at, locale) : undefined,
           ]
@@ -1022,6 +1077,7 @@ const AppSessionPage = ({
                       <Tag color={getStatusColor(record.status)} style={{ marginInlineEnd: 0 }}>
                         {record.status || "unknown"}
                       </Tag>
+                      {renderSessionKindTag(record)}
                       {/* </Space> */}
 
                       {/* {selectable && (
