@@ -1,25 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
-  Card,
+  Descriptions,
   Empty,
-  Flex,
   Pagination,
   Popconfirm,
-  Space,
+  Popover,
   Table,
   Tag,
   Tooltip,
-  Typography,
   message,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
-  AppstoreOutlined,
   CaretDownOutlined,
   CaretRightOutlined,
-  CodeOutlined,
   DeleteOutlined,
+  DesktopOutlined,
   InfoCircleOutlined,
   LinkOutlined,
   NodeIndexOutlined,
@@ -46,10 +43,8 @@ import { useSelector } from "react-redux";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useComponentStore } from "@/event-bus/stores/components";
 import { useI18n } from "@/hooks/useI18n";
-import { openBottomTerminal } from "@/layout/bottom-panel-store";
+import { openBottomTerminal, useBottomPanelStore } from "@/layout/bottom-panel-store";
 import { formatRelativeTime } from "@/utils/time";
-
-const { Text } = Typography;
 
 export interface AppSessionPageProps {
   id?: string;
@@ -61,6 +56,7 @@ export interface AppSessionPageProps {
   status?: string;
   workspace_path?: string;
   page_size?: number | string;
+  /** @deprecated 视图已统一为紧凑列表面板，此参数保留仅为兼容旧调用方。 */
   view_mode?: "table" | "card" | string;
   title?: string;
   onOk?: (item: AppSessionItem) => void;
@@ -92,10 +88,6 @@ const normalizePageSize = (value?: number | string) => {
   return 10;
 };
 
-const normalizeViewMode = (value?: string) => {
-  return value?.toLowerCase() === "card" ? "card" : "table";
-};
-
 const buildAppUrl = (containerURL: string, appSession?: AppSessionItem) => {
   if (!appSession || !appSession.id) {
     return "";
@@ -104,6 +96,24 @@ const buildAppUrl = (containerURL: string, appSession?: AppSessionItem) => {
   // const normalizedContainerURL = containerURL.endsWith("/") ? containerURL.slice(0, -1) : containerURL;
   // return `${normalizedContainerURL}${appSession.path_prefix}/`;
   return `${appSession.path_prefix}/`;
+};
+
+/** 底部终端标签的 key 前缀，与 `openBottomTerminal` 保持一致。 */
+const TERMINAL_TAB_KEY_PREFIX = "terminal:";
+
+/**
+ * 从底部面板「激活标签 key」反解出应用会话 ID。
+ *
+ * 只有 `terminal:<sessionId>` 形式的标签代表一条终端会话；其它 kind 的标签
+ * （日志等）返回 undefined。左栏据此高亮「激活标签对应的会话行」。
+ */
+const getTerminalSessionIdFromKey = (key?: string) => {
+  const normalized = (key || "").trim();
+  if (!normalized.startsWith(TERMINAL_TAB_KEY_PREFIX)) {
+    return undefined;
+  }
+  const sessionId = normalized.slice(TERMINAL_TAB_KEY_PREFIX.length).trim();
+  return sessionId || undefined;
 };
 
 /** 归一化后端状态字符串（大小写混用，如 RUNNING / create_pending）。 */
@@ -141,18 +151,6 @@ const SESSION_KIND_META: Record<
     color: "geekblue",
     tip: "Terminal session: keep-alive container with an interactive shell.",
   },
-};
-
-/** 会话种类标签（表格 / 卡片共用）。 */
-const renderSessionKindTag = (record: AppSessionItem) => {
-  const meta = SESSION_KIND_META[resolveSessionKind(record)];
-  return (
-    <Tooltip title={meta.tip}>
-      <Tag color={meta.color} style={{ marginInlineEnd: 0 }}>
-        {meta.label}
-      </Tag>
-    </Tooltip>
-  );
 };
 
 /** 运行态：可以 Open / Stop。 */
@@ -225,6 +223,105 @@ const getStatusColor = (status?: string) => {
   return "processing";
 };
 
+/** 悬停会话名时展示的会话详情卡片。 */
+const AppSessionDetailCard = ({
+  item,
+  locale,
+}: {
+  item: AppSessionItem;
+  locale: string;
+}) => {
+  const kind = SESSION_KIND_META[resolveSessionKind(item)];
+  const text = (value?: string) => value?.trim() || "-";
+
+  return (
+    <div style={{ width: 380 }}>
+      <Descriptions
+        size="small"
+        column={1}
+        bordered
+        items={[
+          { key: "name", label: "Name", children: item.name || "-" },
+          { key: "id", label: "ID", children: item.id || "-" },
+          {
+            key: "session_kind",
+            label: "Kind",
+            children: <Tag color={kind.color}>{kind.label}</Tag>,
+          },
+          {
+            key: "status",
+            label: "Status",
+            children: item.status ? (
+              <Tag color={getStatusColor(item.status)}>{item.status}</Tag>
+            ) : (
+              "-"
+            ),
+          },
+          { key: "project_id", label: "Project ID", children: text(item.project_id) },
+          {
+            key: "analysis_node_id",
+            label: "Analysis Node ID",
+            children: text(item.analysis_node_id),
+          },
+          { key: "node_name", label: "Node Name", children: text(item.node_name) },
+          {
+            key: "container_template_id",
+            label: "Template ID",
+            children: text(item.container_template_id),
+          },
+          {
+            key: "container_instance_name",
+            label: "Container Instance",
+            children: text(item.container_instance_name),
+          },
+          {
+            key: "container_instance_id",
+            label: "Container Instance ID",
+            children: text(item.container_instance_id),
+          },
+          { key: "path_prefix", label: "Path Prefix", children: text(item.path_prefix) },
+          {
+            key: "workspace_path",
+            label: "Workspace",
+            children: item.workspace_path ? (
+              <span style={{ wordBreak: "break-all", whiteSpace: "pre-wrap" }}>
+                {item.workspace_path}
+              </span>
+            ) : (
+              "-"
+            ),
+          },
+          {
+            key: "started_at",
+            label: "Started At",
+            children: formatRelativeTime(item.started_at, locale),
+          },
+          {
+            key: "stopped_at",
+            label: "Stopped At",
+            children: formatRelativeTime(item.stopped_at, locale),
+          },
+          {
+            key: "last_access_at",
+            label: "Last Access",
+            children: formatRelativeTime(item.last_access_at, locale),
+          },
+          {
+            key: "created_at",
+            label: "Created At",
+            children: formatRelativeTime(item.created_at, locale),
+          },
+          {
+            key: "updated_at",
+            label: "Updated At",
+            children: formatRelativeTime(item.updated_at, locale),
+          },
+        ]}
+      />
+    </div>
+  );
+};
+
 const getDefaultAppSessionName = (item: ContainerTemplateItem) => {
   const base = (item.name || "app-session").trim().replace(/\s+/g, "-").toLowerCase();
   return `${base}-${Date.now()}`;
@@ -247,7 +344,6 @@ const getErrorMessage = (error: unknown, fallback: string) => {
 
 const AppSessionPage = ({
   id,
-  project_id: projectIdProp,
   analysis_node_id,
   analysis_node_name,
   container_template_id,
@@ -255,7 +351,6 @@ const AppSessionPage = ({
   status,
   workspace_path,
   page_size,
-  view_mode,
   title,
   onOk,
   onCancel,
@@ -268,17 +363,9 @@ const AppSessionPage = ({
   const [selectedId, setSelectedID] = useState<string>();
   const [pendingAction, setPendingAction] = useState<string>("");
   const [creatingFromAnalysisNode, setCreatingFromAnalysisNode] = useState(false);
-  const [onlyCurrentProject, setOnlyCurrentProject] = useState(true);
   const [messageApi, contextHolder] = message.useMessage();
   const selectable = Boolean(onOk || onCancel);
-  const activeViewMode = normalizeViewMode(view_mode);
-  const isCardMode = activeViewMode === "card";
   const { containerURL } = useSelector((state: any) => state.user);
-  // const resolvedProjectID = normalizeText(projectIdProp) || normalizeText(currentProjectID);
-
-  // 左侧栏纵向堆叠形态（由 container-template-stack 注入）：没有卡片外壳，
-  // 只渲染列表主体，标题栏 / 折叠由堆叠布局负责。
-  const isStackPanel = Boolean(onToggleCollapse);
 
   const {
     data,
@@ -305,7 +392,6 @@ const AppSessionPage = ({
   useEffect(() => {
     setQuery({
       id: normalizeText(id),
-      // project_id: onlyCurrentProject ? resolvedProjectID : undefined,
       analysis_node_id: normalizeText(analysis_node_id),
       container_template_id: normalizeText(container_template_id),
       name: normalizeText(name),
@@ -314,8 +400,6 @@ const AppSessionPage = ({
     });
   }, [
     id,
-    onlyCurrentProject,
-    // resolvedProjectID,
     analysis_node_id,
     container_template_id,
     name,
@@ -323,6 +407,35 @@ const AppSessionPage = ({
     workspace_path,
     setQuery,
   ]);
+
+  // 底部面板当前激活的标签决定左栏的高亮项：激活 `terminal:<sessionId>` 标签时，
+  // 列表里对应的会话行即为选中态。底部面板状态由 `/auth/me` 回填（后端持久化），
+  // 所以刷新页面后选中项会随激活标签一起恢复。
+  const activeBottomTabKey = useBottomPanelStore((state) => state.active);
+  const activeSessionId = useMemo(
+    () => getTerminalSessionIdFromKey(activeBottomTabKey),
+    [activeBottomTabKey]
+  );
+
+  // 是否还有终端标签。全部标签都关闭后底部面板已无对应会话，
+  // 左栏必须同步取消选中，否则会残留一条「幽灵高亮」。
+  const hasTerminalTab = useBottomPanelStore((state) =>
+    state.tabs.some((tab) => tab.kind === "terminal")
+  );
+
+  // 激活标签变化（点击行 / 在标签栏切换 / 刷新回填）时同步选中行：
+  // - 有激活的终端标签 → 选中对应会话行；
+  // - 已无任何终端标签（标签全部关闭） → 清空选中；
+  // - 只是切到非终端标签（日志等）→ 保留上一次选中，避免高亮闪烁丢失。
+  useEffect(() => {
+    if (activeSessionId) {
+      setSelectedID(activeSessionId);
+      return;
+    }
+    if (!hasTerminalTab) {
+      setSelectedID(undefined);
+    }
+  }, [activeSessionId, hasTerminalTab]);
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 
@@ -398,50 +511,56 @@ const AppSessionPage = ({
     };
   }, [register, unregister, realtimeInstance]);
 
-  const runAction = async (action: "start" | "stop" | "recreate" | "delete", item: AppSessionItem) => {
-    const actionKey = `${action}-${item.id}`;
-    setPendingAction(actionKey);
-    try {
-      if (action === "start") {
-        await startAppSessionApi({ id: String(item.id) });
-        messageApi.success("App session started");
-      } else if (action === "stop") {
-        await stopAppSessionApi({ id: String(item.id) });
-        messageApi.success("App session stopped");
-      } else if (action === "recreate") {
-        await recreateAppSessionContainerApi({ id: String(item.id) });
-        messageApi.success("App session container recreate request submitted");
-      } else {
-        await deleteAppSessionApi({ id: String(item.id) });
-        messageApi.success("App session deleted");
-      }
-      await refetch();
-    } catch (_error) {
-      // Error message is handled by the global HTTP interceptor.
-    } finally {
-      setPendingAction("");
-    }
-  };
-
-  const handleDescribe = async (record: AppSessionItem) => {
-    const instanceId = normalizeText(record.container_instance_id);
-    if (!instanceId) {
-      messageApi.warning("No container instance");
-      return;
-    }
-    try {
-      await invoke.containerInstanceDescribeDialog.openAsync(
-        { instanceId },
-        {
-          title: `Describe: ${record.container_instance_name || record.name || instanceId}`,
-          width: 720,
-          footer: false,
+  const runAction = useCallback(
+    async (action: "start" | "stop" | "recreate" | "delete", item: AppSessionItem) => {
+      const actionKey = `${action}-${item.id}`;
+      setPendingAction(actionKey);
+      try {
+        if (action === "start") {
+          await startAppSessionApi({ id: String(item.id) });
+          messageApi.success("App session started");
+        } else if (action === "stop") {
+          await stopAppSessionApi({ id: String(item.id) });
+          messageApi.success("App session stopped");
+        } else if (action === "recreate") {
+          await recreateAppSessionContainerApi({ id: String(item.id) });
+          messageApi.success("App session container recreate request submitted");
+        } else {
+          await deleteAppSessionApi({ id: String(item.id) });
+          messageApi.success("App session deleted");
         }
-      );
-    } catch {
-      // User cancelled
-    }
-  };
+        await refetch();
+      } catch (_error) {
+        // Error message is handled by the global HTTP interceptor.
+      } finally {
+        setPendingAction("");
+      }
+    },
+    [messageApi, refetch]
+  );
+
+  const handleDescribe = useCallback(
+    async (record: AppSessionItem) => {
+      const instanceId = normalizeText(record.container_instance_id);
+      if (!instanceId) {
+        messageApi.warning("No container instance");
+        return;
+      }
+      try {
+        await invoke.containerInstanceDescribeDialog.openAsync(
+          { instanceId },
+          {
+            title: `Describe: ${record.container_instance_name || record.name || instanceId}`,
+            width: 720,
+            footer: false,
+          }
+        );
+      } catch {
+        // User cancelled
+      }
+    },
+    [messageApi]
+  );
 
   /**
    * 按「应用会话 ID」在底部面板打开（或聚焦）终端标签。
@@ -457,6 +576,20 @@ const AppSessionPage = ({
       return;
     }
     openBottomTerminal(sessionId, record.name);
+  };
+
+  /**
+   * 点击左栏列表行：打开（或聚焦）该会话的底部终端标签，并立即标记为选中。
+   *
+   * 选中态最终由「激活的终端标签」驱动（见 activeSessionId），这里的 setSelectedID
+   * 只是即时反馈，避免等待 store 回填前出现一帧无高亮。
+   */
+  const handleActivateSession = (record: AppSessionItem) => {
+    const sessionId = normalizeText(record.id);
+    if (sessionId) {
+      setSelectedID(sessionId);
+    }
+    openTerminalTab(record);
   };
 
   /**
@@ -489,211 +622,11 @@ const AppSessionPage = ({
     [refetch]
   );
 
-  const renderOperationButtons = (record: AppSessionItem, compact = false) => {
-    const itemStatus = record.status || "";
-    const startKey = `start-${record.id}`;
-    const stopKey = `stop-${record.id}`;
-    const recreateKey = `recreate-${record.id}`;
-    const deleteKey = `delete-${record.id}`;
-    const appUrl = buildAppUrl(containerURL, record);
-    const actionState = getSessionActionState(itemStatus);
-    // 状态本身就是过渡态时也展示 loading，给出「请求已在进行」的反馈。
-    const startBusy = pendingAction === startKey || actionState.phase === "starting";
-    const stopBusy = pendingAction === stopKey || actionState.phase === "stopping";
-
-    return (
-      <Space size={compact ? 2 : 4} wrap>
-        <Tooltip title={`${appUrl}`}>
-          <Button
-            size="small"
-            type="link"
-            disabled={!isRunningStatus(itemStatus) || !appUrl}
-            onClick={() => window.open(appUrl, "_blank", "noopener,noreferrer")}
-          >
-            Open
-          </Button>
-        </Tooltip>
-
-        <Tooltip title="Open an interactive terminal for this app session">
-          <Button size="small" type="link" onClick={() => openTerminalTab(record)}>
-            Terminal
-          </Button>
-        </Tooltip>
-
-        <Tooltip title="Run a command in this app session terminal">
-          <Button size="small" type="link" onClick={() => handleOpenRun(record)}>
-            Run
-          </Button>
-        </Tooltip>
-
-        <Button
-          size="small"
-          type="link"
-          disabled={!record.container_instance_id}
-          onClick={() => handleDescribe(record)}
-        >
-          Describe
-        </Button>
-
-        <Button
-          size="small"
-          type="link"
-          disabled={!actionState.canStart}
-          loading={startBusy}
-          onClick={() => runAction("start", record)}
-        >
-          Start
-        </Button>
-        <Button
-          size="small"
-          type="link"
-          disabled={!actionState.canStop}
-          loading={stopBusy}
-          onClick={() => runAction("stop", record)}
-        >
-          Stop
-        </Button>
-        <Popconfirm
-          title="Recreate this app session container?"
-          description="This will delete and create a new container for this app session."
-          onConfirm={() => runAction("recreate", record)}
-          okButtonProps={{ loading: pendingAction === recreateKey }}
-        >
-          <Button size="small" type="link" loading={pendingAction === recreateKey}>
-            Recreate
-          </Button>
-        </Popconfirm>
-        <Popconfirm
-          title="Delete this app session?"
-          onConfirm={() => runAction("delete", record)}
-          okButtonProps={{ loading: pendingAction === deleteKey }}
-        >
-          <Button size="small" type="link" danger loading={pendingAction === deleteKey}>
-            Delete
-          </Button>
-        </Popconfirm>
-      </Space>
-    );
-  };
-
-  const columns = useMemo<ColumnsType<AppSessionItem>>(
-    () => [
-      {
-        title: "Name",
-        dataIndex: "name",
-        key: "name",
-        width: 220,
-        ellipsis: true,
-      },
-      {
-        title: "Status",
-        dataIndex: "status",
-        key: "status",
-        width: 140,
-        render: (value: string) => value || "-",
-      },
-      {
-        title: "Kind",
-        dataIndex: "session_kind",
-        key: "session_kind",
-        width: 120,
-        render: (_: unknown, record) => renderSessionKindTag(record),
-      },
-      {
-        title: "Project ID",
-        dataIndex: "project_id",
-        key: "project_id",
-        width: 160,
-        render: (value: string) => value || "-",
-      },
-      {
-        title: "Node Name",
-        dataIndex: "node_name",
-        key: "node_name",
-        width: 180,
-        ellipsis: true,
-        render: (value?: string) => value?.trim() || "-",
-      },
-      {
-        title: "Template ID",
-        dataIndex: "container_template_id",
-        key: "container_template_id",
-        width: 180,
-        render: (value: string) => value || "-",
-      },
-      {
-        title: "Workspace",
-        dataIndex: "workspace_path",
-        key: "workspace_path",
-        ellipsis: true,
-        render: (value: string) => value || "-",
-      },
-      {
-        title: "Started At",
-        dataIndex: "started_at",
-        key: "started_at",
-        width: 200,
-        render: (value: string) => formatRelativeTime(value, locale),
-      },
-      {
-        title: "Stopped At",
-        dataIndex: "stopped_at",
-        key: "stopped_at",
-        width: 200,
-        render: (value: string) => formatRelativeTime(value, locale),
-      },
-      {
-        title: "Created At",
-        dataIndex: "created_at",
-        key: "created_at",
-        width: 210,
-        render: (value: string) => formatRelativeTime(value, locale),
-      },
-    ],
-    [locale]
-  );
-
-  const selectColumns = useMemo<ColumnsType<AppSessionItem>>(() => {
-    const actionColumns: ColumnsType<AppSessionItem> = [
-      {
-        title: "Operation",
-        key: "operation",
-        width: 400,
-        fixed: "right",
-        render: (_: unknown, record) => renderOperationButtons(record),
-      },
-    ];
-
-    if (!selectable) {
-      return [...columns, ...actionColumns];
-    }
-
-    return [
-      ...columns,
-      ...actionColumns,
-      {
-        title: "Select",
-        key: "select_action",
-        width: 120,
-        fixed: "right",
-        render: (_: unknown, record) => (
-          <Button
-            type={record.id === selectedId ? "primary" : "default"}
-            size="small"
-            onClick={() => setSelectedID(record.id)}
-          >
-            {record.id === selectedId ? "Selected" : "Select"}
-          </Button>
-        ),
-      },
-    ];
-  }, [selectable, selectedId, renderOperationButtons, columns]);
-
   /**
-   * 左侧栏（堆叠形态）的紧凑列：与容器模板列表 / 终端会话列表同一视觉语言 ——
+   * 紧凑列：与容器模板列表 / 终端会话列表同一视觉语言 ——
    * 标题 + 次要信息一行，右侧悬停出现操作按钮，不显示宽表格的字段列。
    */
-  const sidebarColumns = useMemo<ColumnsType<AppSessionItem>>(
+  const columns = useMemo<ColumnsType<AppSessionItem>>(
     () => [
       {
         title: "Session",
@@ -714,11 +647,23 @@ const AppSessionPage = ({
 
           return (
             <div className="project-report-item">
-              {/* <AppstoreOutlined className="project-report-item-icon" /> */}
+              <DesktopOutlined className="project-report-item-icon" />
               <div className="project-report-item-text">
-                <Tooltip title={record.id || "-"} placement="left">
+                {/* 详情卡片只在鼠标悬停到标题上时显示，避免整行悬停就弹卡。 */}
+                <Popover
+                  placement="left"
+                  mouseEnterDelay={0.2}
+                  mouseLeaveDelay={0.1}
+                  title={
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <DesktopOutlined />
+                      {displayName}
+                    </span>
+                  }
+                  content={<AppSessionDetailCard item={record} locale={locale} />}
+                >
                   <span className="project-report-item-title">{displayName}</span>
-                </Tooltip>
+                </Popover>
                 {meta && (
                   <span className="project-report-item-meta" title={meta}>
                     {meta}
@@ -729,17 +674,6 @@ const AppSessionPage = ({
           );
         },
       },
-      // {
-      //   title: "Status",
-      //   key: "status",
-      //   width: 92,
-      //   align: "center",
-      //   render: (_: unknown, record) => (
-      //     <Tag color={getStatusColor(record.status)} style={{ marginInlineEnd: 0 }}>
-      //       {record.status || "unknown"}
-      //     </Tag>
-      //   ),
-      // },
       {
         title: "Actions",
         key: "actions",
@@ -748,19 +682,13 @@ const AppSessionPage = ({
         render: (_: unknown, record) => {
           const appUrl = buildAppUrl(containerURL, record);
           const actionState = getSessionActionState(record.status);
+          // 终端会话没有对外 HTTP 服务（后端不注册路由），隐藏 Open 动作。
+          const isTerminalSession = resolveSessionKind(record) === "terminal";
           const { transitioning, showStop, canStart, canStop, phase } = actionState;
           const startLoading = pendingAction === `start-${record.id}` || phase === "starting";
           const stopLoading = pendingAction === `stop-${record.id}` || phase === "stopping";
           return (
             <span className="project-report-item-actions" onClick={(e) => e.stopPropagation()}>
-              <Tooltip title="Terminal">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<CodeOutlined />}
-                  onClick={() => openTerminalTab(record)}
-                />
-              </Tooltip>
               <Tooltip title="Run in terminal">
                 <Button
                   type="text"
@@ -769,15 +697,17 @@ const AppSessionPage = ({
                   onClick={() => handleOpenRun(record)}
                 />
               </Tooltip>
-              <Tooltip title="Open">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<LinkOutlined />}
-                  disabled={phase !== "running" || !appUrl}
-                  onClick={() => window.open(appUrl, "_blank", "noopener,noreferrer")}
-                />
-              </Tooltip>
+              {!isTerminalSession && (
+                <Tooltip title="Open">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<LinkOutlined />}
+                    disabled={phase !== "running" || !appUrl}
+                    onClick={() => window.open(appUrl, "_blank", "noopener,noreferrer")}
+                  />
+                </Tooltip>
+              )}
               <Tooltip title="Describe">
                 <Button
                   type="text"
@@ -839,7 +769,7 @@ const AppSessionPage = ({
         },
       },
     ],
-    [containerURL, locale, pendingAction, runAction, handleDescribe, openTerminalTab, handleOpenRun]
+    [containerURL, locale, pendingAction, runAction, handleDescribe, handleOpenRun]
   );
 
   const handleConfirm = () => {
@@ -966,10 +896,10 @@ const AppSessionPage = ({
   };
 
   /**
-   * 左侧栏（堆叠形态）的标题栏动作：与容器模板列表 / 终端会话列表一致，
-   * 只保留图标按钮，避免在窄侧边栏里撑破标题栏。
+   * 标题栏动作：与容器模板列表 / 终端会话列表一致，只保留图标按钮，
+   * 避免在窄侧边栏里撑破标题栏。
    */
-  const sidebarActions = (
+  const headerActions = (
     <>
       <Tooltip title="Create app session">
         <Button
@@ -990,15 +920,6 @@ const AppSessionPage = ({
           />
         </Tooltip>
       )}
-      <Tooltip title="Refresh">
-        <Button
-          type="text"
-          size="small"
-          icon={<ReloadOutlined />}
-          loading={isFetching}
-          onClick={() => refetch()}
-        />
-      </Tooltip>
       <Tooltip title={`Total: ${total}`}>
         <span
           style={{
@@ -1011,203 +932,44 @@ const AppSessionPage = ({
           {total}
         </span>
       </Tooltip>
-    </>
-  );
-
-  /** 标题栏右上角动作按钮（卡片形态与堆叠形态共用）。 */
-  const headerActions = (
-    <Space>
-      <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenTemplatePage}>
-        Create
-      </Button>
-      {normalizeText(analysis_node_id) && (
+      <Tooltip title="Refresh">
         <Button
-          type="default"
-          onClick={handleCreateByAnalysisNode}
-          loading={creatingFromAnalysisNode}
-        >
-          Create from Analysis Node
-        </Button>
-      )}
-      {/* <Space size={6}>
-        <Text type="secondary">Only current project</Text>
-        <Switch
+          type="text"
           size="small"
-          checked={onlyCurrentProject}
-          onChange={(checked) => {
-            setOnlyCurrentProject(checked);
-            setPage(1);
-          }}
-          disabled={!resolvedProjectID}
+          icon={<ReloadOutlined />}
+          loading={isFetching}
+          onClick={() => refetch()}
         />
-      </Space> */}
-      <Text type="secondary">Total: {total}</Text>
-      <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
-        Refresh
-      </Button>
-    </Space>
-  );
-
-  /** 列表主体：卡片形态与堆叠形态共用。 */
-  const listBody = (
-    <>
-      {contextHolder}
-      {isCardMode ? (
-        <>
-        
-          {data.length > 0 ? (
-            <Flex vertical gap={8}>
-              {data.map((record) => (
-                <Card
-                  key={record.id}
-                  size="small"
-                  style={{
-                    borderColor: record.id === selectedId ? "#1677ff" : undefined,
-                    background: record.id === selectedId ? "#f0f7ff" : undefined,
-                  }}
-                  bodyStyle={{ padding: 10 }}
-                >
-                  <Flex vertical gap={6}>
-                    <Flex justify="space-between" align="flex-start" gap={8}>
-                      {/* <Space size={2} style={{ minWidth: 0, flex: 1 }}> */}
-                      <Text strong ellipsis={{ tooltip: record.id || "-" }}>
-                        {record.name || "-"}
-                      </Text>
-
-                      <Tag color={getStatusColor(record.status)} style={{ marginInlineEnd: 0 }}>
-                        {record.status || "unknown"}
-                      </Tag>
-                      {renderSessionKindTag(record)}
-                      {/* </Space> */}
-
-                      {/* {selectable && (
-                        <Button
-                          type={record.id === selectedId ? "primary" : "default"}
-                          size="small"
-                          onClick={() => setSelectedID(record.id)}
-                        >
-                          {record.id === selectedId ? "Selected" : "Select"}
-                        </Button>
-                      )} */}
-                    </Flex>
-
-                    <Space direction="vertical" size={1} style={{ width: "100%" }}>
-                      {/* <Text type="secondary" ellipsis={{ tooltip: record.project_id || "-" }}>
-                        Project: {record.project_id || "-"}
-                      </Text> */}
-                      {normalizeText(record.node_name) && (
-                        <Text type="secondary" ellipsis={{ tooltip: record.node_name || "-" }}>
-                          Node: {record.node_name}
-                        </Text>
-                      )}
-                      <Tooltip title={record.container_instance_id || "-"}>
-                        <Text type="secondary" ellipsis={{ tooltip: record.container_instance_name || "-" }}>
-                          Container Instance: {record.container_instance_name || "-"}
-                        </Text>
-                      </Tooltip>
-                      {/* <Text type="secondary" ellipsis={{ tooltip: record.workspace_path || "-" }}>
-                        Workspace: {record.workspace_path || "-"}
-                      </Text> */}
-                      <Text type="secondary">
-                        Started: {formatRelativeTime(record.started_at, locale)}
-                      </Text>
-                      <Text type="secondary">
-                        Created: {formatRelativeTime(record.created_at, locale)}
-                      </Text>
-                    </Space>
-
-                    <Flex align="center" justify="space-between" wrap gap={4}>
-                      {renderOperationButtons(record, true)}
-                    </Flex>
-                  </Flex>
-                </Card>
-              ))}
-            </Flex>
-          ) : (
-            <Empty description={error ? "Failed to load app sessions" : "No app sessions"} />
-          )}
-
-          <Flex justify="end" style={{ marginTop: 12 }}>
-            <Pagination
-              size="small"
-              responsive
-              showLessItems
-              current={page}
-              pageSize={pageSize}
-              total={total}
-              showSizeChanger
-              pageSizeOptions={[20, 50, 100, 200, 500, 1000]}
-              onChange={(nextPage, nextPageSize) => {
-                if (nextPageSize !== pageSize) {
-                  setPageSize(nextPageSize);
-                }
-                setPage(nextPage);
-              }}
-              showTotal={(value) => `Total ${value} items`}
-            />
-          </Flex>
-        </>
-      ) : (
-        <Table<AppSessionItem>
-          rowKey="id"
-          columns={selectColumns}
-          dataSource={data}
-          loading={isLoading || isFetching}
-          size="small"
-          scroll={{ x: 1500 }}
-          locale={{ emptyText: error ? "Failed to load app sessions" : "No app sessions" }}
-          rowSelection={
-            selectable
-              ? {
-                type: "radio",
-                selectedRowKeys: selectedId ? [selectedId] : [],
-                onChange: (selectedRowKeys) => {
-                  setSelectedID(String(selectedRowKeys[0] || ""));
-                },
-              }
-              : undefined
-          }
-          onRow={
-            selectable
-              ? (record) => ({
-                onClick: () => setSelectedID(record.id),
-              })
-              : undefined
-          }
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            showSizeChanger: true,
-            pageSizeOptions: [20, 50, 100, 200, 500, 1000],
-            onChange: (nextPage, nextPageSize) => {
-              if (nextPageSize !== pageSize) {
-                setPageSize(nextPageSize);
-              }
-              setPage(nextPage);
-            },
-            showTotal: (value) => `Total ${value} items`,
-          }}
-        />
-      )}
-
-      {selectable && (
-        <Flex justify="end" gap="small" style={{ marginTop: 12 }}>
-          <Button onClick={handleCancel}>Cancel</Button>
-          <Button type="primary" disabled={!selectedItem} onClick={handleConfirm}>
-            Confirm
-          </Button>
-        </Flex>
-      )}
+      </Tooltip>
     </>
   );
 
-  // 堆叠形态（左侧栏）：与容器模板列表 / 终端会话列表保持同一套面板骨架 +
-  // 同样的紧凑行样式（不渲染 Card，也不渲染宽表格）。
-  if (isStackPanel) {
-    return (
-      <div className={`project-report-panel${collapsed ? " is-collapsed" : ""}`}>
-        <div className="project-report-panel-header">
+  /** 选择模式下追加的「Select」列（与容器模板列表 / 分析节点列表一致）。 */
+  const selectColumn: ColumnsType<AppSessionItem>[number] = {
+    title: "Select",
+    key: "select",
+    width: 96,
+    align: "right",
+    render: (_, record) => (
+      <Button
+        type={String(record.id) === String(selectedId) ? "primary" : "default"}
+        size="small"
+        onClick={(e) => {
+          e.stopPropagation();
+          setSelectedID(record.id);
+        }}
+      >
+        {String(record.id) === String(selectedId) ? "Selected" : "Select"}
+      </Button>
+    ),
+  };
+
+  // 单一面板骨架：左侧栏堆叠形态、独立路由页、invoke 选择弹窗共用同一套结构
+  // （与容器模板列表 / 分析节点列表一致，不再区分 Card 形态）。
+  return (
+    <div className={`project-report-panel${collapsed ? " is-collapsed" : ""}`}>
+      <div className="project-report-panel-header">
+        {onToggleCollapse ? (
           <button
             type="button"
             className="project-report-panel-title project-report-panel-title-button"
@@ -1221,89 +983,86 @@ const AppSessionPage = ({
             )}
             <span>{title || "App Sessions"}</span>
           </button>
-          <div className="project-report-panel-actions">{sidebarActions}</div>
-        </div>
+        ) : (
+          <span className="project-report-panel-title">{title || "App Sessions"}</span>
+        )}
+        <div className="project-report-panel-actions">{headerActions}</div>
+      </div>
 
-        <div
-          className="project-report-panel-body"
-          style={collapsed ? { display: "none" } : undefined}
-        >
-          {contextHolder}
-          {data.length === 0 && !isLoading ? (
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={error ? "Failed to load app sessions" : "No app session"}
-            />
-          ) : (
-            <Table<AppSessionItem>
-              rowKey="id"
-              size="small"
-              columns={sidebarColumns}
-              dataSource={data}
-              loading={isLoading || isFetching}
-              pagination={false}
-              showHeader={false}
-              rowClassName={(record) =>
-                String(record.id) === String(selectedId) ? "project-report-row-selected" : ""
-              }
-              onRow={
-                selectable
-                  ? (record) => ({ onClick: () => setSelectedID(record.id) })
-                  : undefined
-              }
-            />
-          )}
-        </div>
-
-        <div
-          style={{
-            padding: "6px 10px",
-            borderTop: "1px solid var(--sharp-divider)",
-            ...(collapsed ? { display: "none" } : null),
-          }}
-        >
-          <Pagination
-            size="small"
-            current={page}
-            pageSize={pageSize}
-            total={total}
-            showSizeChanger
-            pageSizeOptions={[20, 50, 100, 200, 500, 1000]}
-            showTotal={(value) => `${value} sessions`}
-            onChange={(nextPage, nextSize) => {
-              if (nextSize !== pageSize) {
-                setPageSize(nextSize);
-              } else {
-                setPage(nextPage);
-              }
-            }}
+      <div
+        className="project-report-panel-body"
+        style={collapsed ? { display: "none" } : undefined}
+      >
+        {contextHolder}
+        {data.length === 0 && !isLoading ? (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={error ? "Failed to load app sessions" : "No app session"}
           />
-        </div>
-
-        {selectable && (
-          <div
-            style={{
-              display: collapsed ? "none" : "flex",
-              justifyContent: "flex-end",
-              gap: 8,
-              padding: "8px 10px",
-              borderTop: "1px solid var(--sharp-divider)",
-            }}
-          >
-            <Button onClick={handleCancel}>Cancel</Button>
-            <Button type="primary" disabled={!selectedItem} onClick={handleConfirm}>
-              Confirm
-            </Button>
-          </div>
+        ) : (
+          <Table<AppSessionItem>
+            rowKey="id"
+            size="small"
+            columns={selectable ? [...columns, selectColumn] : columns}
+            dataSource={data}
+            loading={isLoading || isFetching}
+            pagination={false}
+            showHeader={false}
+            rowClassName={(record) =>
+              String(record.id) === String(selectedId) ? "project-report-row-selected" : ""
+            }
+            // 选择模式下点击行即选中；否则打开（或聚焦）该会话的终端标签，
+            // 激活标签再反过来决定选中行。
+            onRow={(record) => ({
+              onClick: () =>
+                selectable ? setSelectedID(record.id) : handleActivateSession(record),
+            })}
+          />
         )}
       </div>
-    );
-  }
 
-  return (
-    <Card size="small" title={title || "App Session List"} extra={headerActions}>
-      {listBody}
-    </Card>
+      <div
+        style={{
+          padding: "6px 10px",
+          borderTop: "1px solid var(--sharp-divider)",
+          ...(collapsed ? { display: "none" } : null),
+        }}
+      >
+        <Pagination
+          size="small"
+          current={page}
+          pageSize={pageSize}
+          total={total}
+          showSizeChanger
+          pageSizeOptions={[20, 50, 100, 200, 500, 1000]}
+          showTotal={(value) => `${value} sessions`}
+          onChange={(nextPage, nextSize) => {
+            if (nextSize !== pageSize) {
+              setPageSize(nextSize);
+            } else {
+              setPage(nextPage);
+            }
+          }}
+        />
+      </div>
+
+      {selectable && (
+        <div
+          style={{
+            display: collapsed ? "none" : "flex",
+            justifyContent: "flex-end",
+            gap: 8,
+            padding: "8px 10px",
+            borderTop: "1px solid var(--sharp-divider)",
+          }}
+        >
+          <Button onClick={handleCancel}>Cancel</Button>
+          <Button type="primary" disabled={!selectedItem} onClick={handleConfirm}>
+            Confirm
+          </Button>
+        </div>
+      )}
+    </div>
   );
 };
 
