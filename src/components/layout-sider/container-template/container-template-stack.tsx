@@ -33,16 +33,16 @@ const ContainerTemplateStack = () => {
           />
         ),
       },
-      {
-        key: 'containerTerminalSessionList',
-        render: ({ collapsed, toggle }) => (
-          <ViewResolver
-            view="containerTerminalSessionList"
-            collapsed={collapsed}
-            onToggleCollapse={toggle}
-          />
-        ),
-      },
+      // {
+      //   key: 'containerTerminalSessionList',
+      //   render: ({ collapsed, toggle }) => (
+      //     <ViewResolver
+      //       view="containerTerminalSessionList"
+      //       collapsed={collapsed}
+      //       onToggleCollapse={toggle}
+      //     />
+      //   ),
+      // },
     ],
     [],
   );

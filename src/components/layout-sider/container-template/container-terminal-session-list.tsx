@@ -3,8 +3,6 @@ import {
   Button,
   Descriptions,
   Empty,
-  Input,
-  Modal,
   Popconfirm,
   Popover,
   Switch,
@@ -25,7 +23,6 @@ import {
 import {
   closeContainerTerminalSessionApi,
   createContainerTerminalSessionApi,
-  execContainerTerminalSessionApi,
 } from "@/api/container-template-terminal";
 import type { ContainerTemplateItem } from "@/api/container";
 import { invoke } from "@/core/ui-system/invokeV2";
@@ -133,11 +130,6 @@ const ContainerTerminalSessionList = ({
   const { register, unregister } = useComponentStore();
   const [deletingId, setDeletingId] = useState<string>();
   const [creating, setCreating] = useState(false);
-  // 「运行命令」弹窗：命令写入该模板的持久终端（同一模板复用同一个容器），
-  // 提交后自动打开底部终端标签，输出通过该终端的 WebSocket 实时显示。
-  const [runTarget, setRunTarget] = useState<RunTarget | null>(null);
-  const [runCommand, setRunCommand] = useState("");
-  const [runSubmitting, setRunSubmitting] = useState(false);
   // 默认只显示当前激活项目下的会话（后端用 GetActiveProjectByUserID 过滤）。
   const [onlyCurrentProject, setOnlyCurrentProject] = useState(true);
   // 不轮询：会话增删由后端 component.invoke 实时事件驱动（含 shell 退出 / TTL 回收）。
@@ -305,38 +297,33 @@ const ContainerTerminalSessionList = ({
     }
   }, [message, openSessionTerminal, refetch]);
 
-  /** 打开「Run in terminal」弹窗（命令写入该会话的持久终端）。 */
-  const handleOpenRun = useCallback((target: RunTarget) => {
-    setRunTarget(target);
-    setRunCommand(target.command?.trim() || "pwd");
-  }, []);
-
-  const handleSubmitRun = useCallback(async () => {
-    if (!runTarget) {
-      return;
-    }
-    const command = runCommand.trim();
-    if (!command) {
-      message.warning("Please input a command");
-      return;
-    }
-    setRunSubmitting(true);
-    try {
-      // 命令只投递到「已存在的终端会话」：会话由列表里的「新建」创建（容器已启动）。
-      await execContainerTerminalSessionApi(runTarget.sessionId, {
-        command,
-        wait_seconds: 0,
-      });
-      openSessionTerminal(runTarget.sessionId, runTarget.name);
-      message.success("Command submitted to terminal");
-      setRunTarget(null);
-      refetch();
-    } catch (error) {
-      message.error(getErrorMessage(error, "Failed to run command"));
-    } finally {
-      setRunSubmitting(false);
-    }
-  }, [message, openSessionTerminal, refetch, runCommand, runTarget]);
+  /**
+   * 打开「Run in terminal」弹窗（invoke 方式）。
+   *
+   * 弹窗实现见 `container-terminal-run-dialog`：命令投递到该会话（容器已启动），
+   * 提交成功后弹窗内部会打开底部终端标签，这里只需在 resolve 后刷新会话状态。
+   */
+  const handleOpenRun = useCallback(
+    async (target: RunTarget) => {
+      if (!target.sessionId) {
+        return;
+      }
+      try {
+        await invoke.containerTerminalRunDialog.openAsync(
+          { sessionId: target.sessionId, name: target.name, command: target.command },
+          {
+            title: `Run in terminal - ${target.name || target.sessionId}`,
+            width: 640,
+            footer: false,
+          }
+        );
+        refetch();
+      } catch {
+        // 用户取消
+      }
+    },
+    [refetch]
+  );
 
   const columns = useMemo<ColumnsType<ContainerTerminalSessionItem>>(
     () => [
@@ -517,34 +504,6 @@ const ContainerTerminalSessionList = ({
           />
         )}
       </div>
-
-      <Modal
-        open={Boolean(runTarget)}
-        title={`Run in terminal - ${runTarget?.name ?? ""}`}
-        okText="Run"
-        confirmLoading={runSubmitting}
-        onOk={handleSubmitRun}
-        onCancel={() => setRunTarget(null)}
-        destroyOnClose
-      >
-        <Input.TextArea
-          autoSize={{ minRows: 4, maxRows: 12 }}
-          value={runCommand}
-          onChange={(e) => setRunCommand(e.target.value)}
-          placeholder="例如：R --version"
-          style={{ fontFamily: '"Menlo", "Consolas", monospace', fontSize: 13 }}
-          onPressEnter={(e) => {
-            // Enter 直接提交；Shift+Enter 换行。
-            if (!e.shiftKey) {
-              e.preventDefault();
-              void handleSubmitRun();
-            }
-          }}
-        />
-        <div style={{ marginTop: 8, color: "var(--ant-color-text-secondary)", fontSize: 12 }}>
-          命令会写入所选终端会话（会话在「新建」时已创建容器），提交后自动打开底部终端面板。
-        </div>
-      </Modal>
     </div>
   );
 };

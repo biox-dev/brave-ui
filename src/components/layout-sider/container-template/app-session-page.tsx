@@ -28,6 +28,7 @@ import {
   PlusOutlined,
   RedoOutlined,
   ReloadOutlined,
+  SendOutlined,
 } from "@ant-design/icons";
 import { useAppSessionPageQuery } from "@/hooks/usePaginationV2";
 import {
@@ -105,9 +106,68 @@ const buildAppUrl = (containerURL: string, appSession?: AppSessionItem) => {
   return `${appSession.path_prefix}/`;
 };
 
-const isRunningStatus = (status?: string) => /running|started|active/i.test(status || "");
+/** 归一化后端状态字符串（大小写混用，如 RUNNING / create_pending）。 */
+const normalizeStatus = (status?: string) => (status || "").trim().toLowerCase();
 
-const isStoppedStatus = (status?: string) => /stopped|exited|failed|terminated|created/i.test(status || "");
+/** 运行态：可以 Open / Stop。 */
+const RUNNING_STATUSES = new Set(["running", "started", "active"]);
+
+/** 终态：可以 Start。 */
+const STOPPED_STATUSES = new Set(["stopped", "exited", "failed", "terminated", "created", "closed"]);
+
+/**
+ * 会话动作阶段。
+ *
+ * 后端 `AppSession.Status` 除了 RUNNING / STOPPED / FAILED 之外，还会有
+ * create_pending、creating、start_pending、starting、stop_pending、stopping、
+ * recreate_pending、recreating 等过渡态；这些状态下 Start 与 Stop 都必须禁用，
+ * 否则会重复提交同一个操作（旧逻辑只匹配 running / stopped，过渡态两个按钮都可点）。
+ */
+type SessionActionPhase = "running" | "starting" | "stopping" | "stopped";
+
+const getSessionActionPhase = (status?: string): SessionActionPhase => {
+  const normalized = normalizeStatus(status);
+  if (RUNNING_STATUSES.has(normalized)) {
+    return "running";
+  }
+  if (STOPPED_STATUSES.has(normalized)) {
+    return "stopped";
+  }
+  if (/^(stop|delete)/.test(normalized)) {
+    return "stopping";
+  }
+  if (normalized) {
+    // create_pending / creating / start_pending / starting / recreate_pending ...
+    return "starting";
+  }
+  // 状态缺失：按未运行处理，只提供 Start。
+  return "stopped";
+};
+
+const isRunningStatus = (status?: string) => getSessionActionPhase(status) === "running";
+
+const isStoppedStatus = (status?: string) => getSessionActionPhase(status) === "stopped";
+
+/**
+ * Start / Stop 的展示与可用性：同一时刻只展示可执行的那个动作。
+ *
+ * - running  → 展示 Stop（可点）；
+ * - stopping → 展示 Stop（禁用 + loading，表示停止中）；
+ * - starting → 展示 Start（禁用 + loading，表示启动 / 重建中）；
+ * - stopped  → 展示 Start（可点）。
+ */
+const getSessionActionState = (status?: string) => {
+  const phase = getSessionActionPhase(status);
+  return {
+    phase,
+    /** 过渡态（启动 / 停止中），两个动作都不可点击。 */
+    transitioning: phase === "starting" || phase === "stopping",
+    /** 是否展示 Stop 按钮；否则展示 Start。 */
+    showStop: phase === "running" || phase === "stopping",
+    canStart: phase === "stopped",
+    canStop: phase === "running",
+  };
+};
 
 const getStatusColor = (status?: string) => {
   if (isRunningStatus(status)) {
@@ -353,6 +413,36 @@ const AppSessionPage = ({
     openBottomTerminal(sessionId, record.name);
   };
 
+  /**
+   * 打开「Run in terminal」弹窗（invoke 方式）。
+   *
+   * 弹窗实现见 `container-terminal-run-dialog`：命令通过
+   * `POST /container/terminal/session/{id}/terminal/exec` 投递到该会话（容器已启动），
+   * 提交成功后弹窗内部会打开底部终端标签，这里只需在 resolve 后刷新列表。
+   */
+  const handleOpenRun = useCallback(
+    async (record: AppSessionItem) => {
+      const sessionId = normalizeText(record.id);
+      if (!sessionId) {
+        return;
+      }
+      try {
+        await invoke.containerTerminalRunDialog.openAsync(
+          { sessionId, name: record.name },
+          {
+            title: `Run in terminal - ${record.name || sessionId}`,
+            width: 640,
+            footer: false,
+          }
+        );
+        await refetch();
+      } catch {
+        // User cancelled
+      }
+    },
+    [refetch]
+  );
+
   const renderOperationButtons = (record: AppSessionItem, compact = false) => {
     const itemStatus = record.status || "";
     const startKey = `start-${record.id}`;
@@ -360,6 +450,10 @@ const AppSessionPage = ({
     const recreateKey = `recreate-${record.id}`;
     const deleteKey = `delete-${record.id}`;
     const appUrl = buildAppUrl(containerURL, record);
+    const actionState = getSessionActionState(itemStatus);
+    // 状态本身就是过渡态时也展示 loading，给出「请求已在进行」的反馈。
+    const startBusy = pendingAction === startKey || actionState.phase === "starting";
+    const stopBusy = pendingAction === stopKey || actionState.phase === "stopping";
 
     return (
       <Space size={compact ? 2 : 4} wrap>
@@ -380,6 +474,12 @@ const AppSessionPage = ({
           </Button>
         </Tooltip>
 
+        <Tooltip title="Run a command in this app session terminal">
+          <Button size="small" type="link" onClick={() => handleOpenRun(record)}>
+            Run
+          </Button>
+        </Tooltip>
+
         <Button
           size="small"
           type="link"
@@ -392,8 +492,8 @@ const AppSessionPage = ({
         <Button
           size="small"
           type="link"
-          disabled={isRunningStatus(itemStatus)}
-          loading={pendingAction === startKey}
+          disabled={!actionState.canStart}
+          loading={startBusy}
           onClick={() => runAction("start", record)}
         >
           Start
@@ -401,8 +501,8 @@ const AppSessionPage = ({
         <Button
           size="small"
           type="link"
-          disabled={isStoppedStatus(itemStatus)}
-          loading={pendingAction === stopKey}
+          disabled={!actionState.canStop}
+          loading={stopBusy}
           onClick={() => runAction("stop", record)}
         >
           Stop
@@ -559,7 +659,7 @@ const AppSessionPage = ({
 
           return (
             <div className="project-report-item">
-              <AppstoreOutlined className="project-report-item-icon" />
+              {/* <AppstoreOutlined className="project-report-item-icon" /> */}
               <div className="project-report-item-text">
                 <Tooltip title={record.id || "-"} placement="left">
                   <span className="project-report-item-title">{displayName}</span>
@@ -574,17 +674,17 @@ const AppSessionPage = ({
           );
         },
       },
-      {
-        title: "Status",
-        key: "status",
-        width: 92,
-        align: "center",
-        render: (_: unknown, record) => (
-          <Tag color={getStatusColor(record.status)} style={{ marginInlineEnd: 0 }}>
-            {record.status || "unknown"}
-          </Tag>
-        ),
-      },
+      // {
+      //   title: "Status",
+      //   key: "status",
+      //   width: 92,
+      //   align: "center",
+      //   render: (_: unknown, record) => (
+      //     <Tag color={getStatusColor(record.status)} style={{ marginInlineEnd: 0 }}>
+      //       {record.status || "unknown"}
+      //     </Tag>
+      //   ),
+      // },
       {
         title: "Actions",
         key: "actions",
@@ -592,8 +692,10 @@ const AppSessionPage = ({
         align: "right",
         render: (_: unknown, record) => {
           const appUrl = buildAppUrl(containerURL, record);
-          const running = isRunningStatus(record.status);
-          const stopped = isStoppedStatus(record.status);
+          const actionState = getSessionActionState(record.status);
+          const { transitioning, showStop, canStart, canStop, phase } = actionState;
+          const startLoading = pendingAction === `start-${record.id}` || phase === "starting";
+          const stopLoading = pendingAction === `stop-${record.id}` || phase === "stopping";
           return (
             <span className="project-report-item-actions" onClick={(e) => e.stopPropagation()}>
               <Tooltip title="Terminal">
@@ -604,12 +706,20 @@ const AppSessionPage = ({
                   onClick={() => openTerminalTab(record)}
                 />
               </Tooltip>
+              <Tooltip title="Run in terminal">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<SendOutlined />}
+                  onClick={() => handleOpenRun(record)}
+                />
+              </Tooltip>
               <Tooltip title="Open">
                 <Button
                   type="text"
                   size="small"
                   icon={<LinkOutlined />}
-                  disabled={!running || !appUrl}
+                  disabled={phase !== "running" || !appUrl}
                   onClick={() => window.open(appUrl, "_blank", "noopener,noreferrer")}
                 />
               </Tooltip>
@@ -622,26 +732,29 @@ const AppSessionPage = ({
                   onClick={() => handleDescribe(record)}
                 />
               </Tooltip>
-              <Tooltip title="Start">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<PlayCircleOutlined />}
-                  disabled={running}
-                  loading={pendingAction === `start-${record.id}`}
-                  onClick={() => runAction("start", record)}
-                />
-              </Tooltip>
-              <Tooltip title="Stop">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<PauseCircleOutlined />}
-                  disabled={stopped}
-                  loading={pendingAction === `stop-${record.id}`}
-                  onClick={() => runAction("stop", record)}
-                />
-              </Tooltip>
+              {showStop ? (
+                <Tooltip title={transitioning ? "Stopping..." : "Stop"}>
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<PauseCircleOutlined />}
+                    disabled={!canStop}
+                    loading={stopLoading}
+                    onClick={() => runAction("stop", record)}
+                  />
+                </Tooltip>
+              ) : (
+                <Tooltip title={transitioning ? "Starting..." : "Start"}>
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<PlayCircleOutlined />}
+                    disabled={!canStart}
+                    loading={startLoading}
+                    onClick={() => runAction("start", record)}
+                  />
+                </Tooltip>
+              )}
               <Popconfirm
                 title="Recreate this app session container?"
                 description="This will delete and create a new container for this app session."
@@ -671,7 +784,7 @@ const AppSessionPage = ({
         },
       },
     ],
-    [containerURL, locale, pendingAction, runAction, handleDescribe, openTerminalTab]
+    [containerURL, locale, pendingAction, runAction, handleDescribe, openTerminalTab, handleOpenRun]
   );
 
   const handleConfirm = () => {
