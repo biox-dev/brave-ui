@@ -16,7 +16,6 @@ export interface ContainerTemplateSpecPageProps {
   description?: string;
   app_type?: string;
   command?: string;
-  work_dir?: string;
   page_size?: number | string;
   title?: string;
   onOk?: (item: ContainerTemplateSpecItem) => void;
@@ -99,14 +98,6 @@ const createColumns = (locale: string): ColumnsType<ContainerTemplateSpecItem> =
     render: (value: number) => (Number.isFinite(value) ? value : "-"),
   },
   {
-    title: "Work Dir",
-    dataIndex: "work_dir",
-    key: "work_dir",
-    width: 180,
-    ellipsis: true,
-    render: (value: string) => value || "-",
-  },
-  {
     title: "Change UID",
     dataIndex: "change_uid",
     key: "change_uid",
@@ -132,7 +123,6 @@ const ContainerTemplateSpecPage = ({
   description,
   app_type,
   command,
-  work_dir,
   page_size,
   title,
   onOk,
@@ -176,9 +166,8 @@ const ContainerTemplateSpecPage = ({
       description: normalizeText(description),
       app_type: normalizeText(app_type),
       command: normalizeText(command),
-      work_dir: normalizeText(work_dir),
     });
-  }, [id, name, description, app_type, command, work_dir, setQuery]);
+  }, [id, name, description, app_type, command, setQuery]);
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 

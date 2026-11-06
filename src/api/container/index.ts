@@ -30,7 +30,6 @@ export interface ContainerTemplateItem {
     command: string;
     cpu: number;
     memory: number;
-    work_dir: string;
     port: number;
     app_type: string;
     env: Record<string, unknown> | null;
@@ -57,7 +56,6 @@ export interface ContainerTemplateSpecItem {
     command: string;
     cpu: number;
     memory: number;
-    work_dir: string;
     port: number;
     app_type: string;
     env: Record<string, unknown> | null;
@@ -159,7 +157,6 @@ export interface ContainerTemplatePageQuery {
     type?: string;
     spec_id?: string;
     command?: string;
-    work_dir?: string;
 }
 
 export interface ContainerTemplateSpecPageQuery {
@@ -168,7 +165,6 @@ export interface ContainerTemplateSpecPageQuery {
     description?: string;
     app_type?: string;
     command?: string;
-    work_dir?: string;
 }
 
 export interface AppSessionPageQuery {

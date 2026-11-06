@@ -64,7 +64,6 @@ export interface ContainerTemplateListProps {
   type?: string;
   spec_id?: string;
   command?: string;
-  work_dir?: string;
   page_size?: number | string;
   title?: string;
   onOk?: (item: ContainerTemplateItem) => void;
@@ -142,15 +141,6 @@ const ContainerTemplateDetailCard = ({ item }: { item: ContainerTemplateItem }) 
         { key: "cpu", label: "CPU", children: Number.isFinite(item.cpu) ? item.cpu : "-" },
         { key: "memory", label: "Memory", children: Number.isFinite(item.memory) ? item.memory : "-" },
         {
-          key: "work_dir",
-          label: "Work Dir",
-          children: item.work_dir ? (
-            <span style={{ wordBreak: "break-all", whiteSpace: "pre-wrap" }}>{item.work_dir}</span>
-          ) : (
-            "-"
-          ),
-        },
-        {
           key: "description",
           label: "Description",
           children: item.definition_description || item.description || "-",
@@ -175,7 +165,6 @@ const ContainerTemplateList = ({
   type,
   spec_id,
   command,
-  work_dir,
   page_size,
   title,
   onOk,
@@ -230,9 +219,8 @@ const ContainerTemplateList = ({
       type: normalizeText(type),
       spec_id: normalizeText(spec_id),
       command: normalizeText(command),
-      work_dir: normalizeText(work_dir),
     });
-  }, [id, name, description, type, spec_id, command, work_dir, setQuery]);
+  }, [id, name, description, type, spec_id, command, setQuery]);
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 

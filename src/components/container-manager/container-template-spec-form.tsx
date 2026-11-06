@@ -200,10 +200,6 @@ const ContainerTemplateSpecForm = ({
                 <Input.TextArea rows={2} placeholder="Container command" />
             </Form.Item>
 
-            <Form.Item name="work_dir" label="Work Directory">
-                <Input placeholder="e.g. /home/rstudio" />
-            </Form.Item>
-
             <Form.Item name="port" label="Port">
                 <InputNumber style={{ width: "100%" }} placeholder="Exposed port" min={0} max={65535} />
             </Form.Item>
