@@ -8,9 +8,11 @@ import {
 } from "@/api/project";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
+import { useOpenMainTab } from "@/hooks/useMainTabTitle";
 import {
 	DeleteOutlined,
 	ExperimentOutlined,
+	ExportOutlined,
 	FileSearchOutlined,
 	FileTextOutlined,
 	PlusOutlined,
@@ -134,6 +136,8 @@ interface ProjectReportItemsPanelProps {
 // ProjectReportItemsPanel 以 antd Tree 展示报告下所有条目，支持拖拽调整层级与顺序。
 const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, onOpenItem, onChanged }) => {
 	const message = useGlobalMessage();
+	// 跳转 + 登记标签页名称一步完成；analysis_node 条目可直达对应节点报告页。
+	const openMainTab = useOpenMainTab();
 	const {
 		data = [],
 		isLoading,
@@ -317,6 +321,18 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
 			<span className="project-report-item-title">{node.title}</span>
 			<span className="project-report-item-meta">{node.ownerType}</span>
 			<span className="project-report-item-actions" onClick={(e) => e.stopPropagation()}>
+				{/* analysis_node 条目额外提供跳转按钮：打开该分析节点的报告页（owner_id 即节点 id）。 */}
+				{node.ownerType === "analysis_node" && node.item.owner_id ? (
+					<Button
+						type="text"
+						size="small"
+						icon={<ExportOutlined />}
+						title="Open analysis node report"
+						onClick={() =>
+							openMainTab(`/analsyis-node-report/${node.item.owner_id}`, node.title)
+						}
+					/>
+				) : null}
 				{/* 在当前节点下新增子条目：选择类型后以该节点 id 作为 parent_id 写入。 */}
 				<Dropdown
 					trigger={["click"]}

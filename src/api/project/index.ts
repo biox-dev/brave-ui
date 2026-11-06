@@ -321,6 +321,17 @@ export const getProjectReportItemDetailApi = (id: string) =>
 	http.get<ProjectReportItem>(`/project/project-report-item-detail?id=${encodeURIComponent(id)}`)
 export const getProjectReportItemContentApi = (id: string) =>
 	http.get<ProjectReportItemContentResponse>(`/project/project-report-item-content?id=${encodeURIComponent(id)}`)
+
+// ProjectReportPackageResponse 是 `GET /project/package-project-report-item` 的响应。
+export interface ProjectReportPackageResponse {
+	message: string
+	/** 打包结果目录（绝对路径）。 */
+	results_dir: string
+}
+
+// packageProjectReportItemApi 按报告条目树把内容打包到报告目录的 results 子目录。
+export const packageProjectReportItemApi = (reportId: string) =>
+	http.get<ProjectReportPackageResponse>(`/project/package-project-report-item?report_id=${encodeURIComponent(reportId)}`)
 export const uploadProjectReportImageApi = (file: File) => {
 	const formData = new FormData()
 	formData.append("file", file, file.name || "clipboard-image.png")
