@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   Card,
@@ -18,6 +18,7 @@ import {
   AppstoreOutlined,
   CaretDownOutlined,
   CaretRightOutlined,
+  CodeOutlined,
   DeleteOutlined,
   InfoCircleOutlined,
   LinkOutlined,
@@ -43,6 +44,7 @@ import { useSelector } from "react-redux";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useComponentStore } from "@/event-bus/stores/components";
 import { useI18n } from "@/hooks/useI18n";
+import { openBottomTerminal } from "@/layout/bottom-panel-store";
 import { formatRelativeTime } from "@/utils/time";
 
 const { Text } = Typography;
@@ -213,19 +215,69 @@ const AppSessionPage = ({
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 
+  // 会话状态事件（sessionRunning / sessionIdle / sessionAttached / sessionDetached）
+  // 可能很密集（每个 terminal_exec 都会触发），统一做去抖，避免连续 refetch。
+  const refetchTimer = useRef<number | undefined>(undefined);
+  const scheduleRefetch = useCallback(() => {
+    if (refetchTimer.current) {
+      window.clearTimeout(refetchTimer.current);
+    }
+    refetchTimer.current = window.setTimeout(() => {
+      refetchTimer.current = undefined;
+      void refetch();
+    }, 300);
+  }, [refetch]);
+
+  useEffect(() => {
+    return () => {
+      if (refetchTimer.current) {
+        window.clearTimeout(refetchTimer.current);
+      }
+    };
+  }, []);
+
+  /**
+   * 后端 `manager.AppSessionEventHandler` 是「应用会话」实时事件的唯一出口：
+   *
+   * - 容器生命周期（analysisSubmitted / analysisStarted / analysisDone）；
+   * - 会话层（sessionCreated / sessionDeleted / sessionRunning / sessionIdle /
+   *   sessionAttached / sessionDetached），终端会话就是应用会话。
+   *
+   * 两类事件都只需重拉列表（refetch 幂等），因此统一注册成同一个 handler。
+   */
   const realtimeInstance = useMemo(
     () => ({
-      analysisSubmitted: (_args: any) => {
-        refetch();
+      analysisSubmitted: (_args?: any) => {
+        void refetch();
       },
-      analysisStarted: (_args: any) => {
-        refetch();
+      analysisStarted: (_args?: any) => {
+        void refetch();
       },
-      analysisDone: (_args: any) => {
-        refetch();
+      analysisDone: (_args?: any) => {
+        void refetch();
+      },
+      // 会话增删：列表成员变化，立即刷新。
+      sessionCreated: (_args?: any) => {
+        void refetch();
+      },
+      sessionDeleted: (_args?: any) => {
+        void refetch();
+      },
+      // 会话运行态 / 订阅者变化：去抖刷新，避免命令执行期间频繁请求。
+      sessionRunning: (_args?: any) => {
+        scheduleRefetch();
+      },
+      sessionIdle: (_args?: any) => {
+        scheduleRefetch();
+      },
+      sessionAttached: (_args?: any) => {
+        scheduleRefetch();
+      },
+      sessionDetached: (_args?: any) => {
+        scheduleRefetch();
       },
     }),
-    [refetch]
+    [refetch, scheduleRefetch]
   );
 
   useEffect(() => {
@@ -280,6 +332,22 @@ const AppSessionPage = ({
     }
   };
 
+  /**
+   * 按「应用会话 ID」在底部面板打开（或聚焦）终端标签。
+   *
+   * 终端会话即应用会话（AppSession），后端终端 WS 路由
+   * `/container/terminal/session/{id}/terminal` 的 `{id}` 就是 `AppSession.ID`：
+   * 会话不在内存时后端会按记录认领原容器 / 重建 shell，因此这里只传会话 ID。
+   * 同一会话重复点击只会聚焦已有标签，不会重复连接。
+   */
+  const openTerminalTab = (record: AppSessionItem) => {
+    const sessionId = normalizeText(record.id);
+    if (!sessionId) {
+      return;
+    }
+    openBottomTerminal(sessionId, record.name);
+  };
+
   const renderOperationButtons = (record: AppSessionItem, compact = false) => {
     const itemStatus = record.status || "";
     const startKey = `start-${record.id}`;
@@ -298,6 +366,12 @@ const AppSessionPage = ({
             onClick={() => window.open(appUrl, "_blank", "noopener,noreferrer")}
           >
             Open
+          </Button>
+        </Tooltip>
+
+        <Tooltip title="Open an interactive terminal for this app session">
+          <Button size="small" type="link" onClick={() => openTerminalTab(record)}>
+            Terminal
           </Button>
         </Tooltip>
 
@@ -426,7 +500,7 @@ const AppSessionPage = ({
       {
         title: "Operation",
         key: "operation",
-        width: 340,
+        width: 400,
         fixed: "right",
         render: (_: unknown, record) => renderOperationButtons(record),
       },
@@ -509,7 +583,7 @@ const AppSessionPage = ({
       {
         title: "Actions",
         key: "actions",
-        width: 190,
+        width: 214,
         align: "right",
         render: (_: unknown, record) => {
           const appUrl = buildAppUrl(containerURL, record);
@@ -517,6 +591,14 @@ const AppSessionPage = ({
           const stopped = isStoppedStatus(record.status);
           return (
             <span className="project-report-item-actions" onClick={(e) => e.stopPropagation()}>
+              <Tooltip title="Terminal">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<CodeOutlined />}
+                  onClick={() => openTerminalTab(record)}
+                />
+              </Tooltip>
               <Tooltip title="Open">
                 <Button
                   type="text"
@@ -584,7 +666,7 @@ const AppSessionPage = ({
         },
       },
     ],
-    [containerURL, locale, pendingAction, runAction, handleDescribe]
+    [containerURL, locale, pendingAction, runAction, handleDescribe, openTerminalTab]
   );
 
   const handleConfirm = () => {
@@ -754,6 +836,7 @@ const AppSessionPage = ({
       {contextHolder}
       {isCardMode ? (
         <>
+        
           {data.length > 0 ? (
             <Flex vertical gap={8}>
               {data.map((record) => (

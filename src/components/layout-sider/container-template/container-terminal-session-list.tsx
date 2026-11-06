@@ -205,9 +205,11 @@ const ContainerTerminalSessionList = ({
   );
 
   useEffect(() => {
-    register("container-terminal-session", "*", realtimeInstance);
+    // 终端会话就是应用会话：后端已把所有会话事件统一经
+    // manager.AppSessionEventHandler 以 category=app-session 推下来。
+    register("app-session", "*", realtimeInstance);
     return () => {
-      unregister("container-terminal-session", "*", realtimeInstance);
+      unregister("app-session", "*", realtimeInstance);
     };
   }, [register, unregister, realtimeInstance]);
 
