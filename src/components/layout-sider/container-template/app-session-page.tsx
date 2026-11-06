@@ -40,6 +40,7 @@ import {
   type AppSessionItem,
   type ContainerTemplateItem,
 } from "@/api/container";
+import { createContainerTerminalSessionApi } from "@/api/container-template-terminal";
 import { useSelector } from "react-redux";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useComponentStore } from "@/event-bus/stores/components";
@@ -122,6 +123,10 @@ const getDefaultAppSessionName = (item: ContainerTemplateItem) => {
   const base = (item.name || "app-session").trim().replace(/\s+/g, "-").toLowerCase();
   return `${base}-${Date.now()}`;
 };
+
+/** 模板的人类可读名称：优先 display_name，其次 name，最后回退到 id。 */
+const getTemplateDisplayName = (item: ContainerTemplateItem) =>
+  item.display_name || item.name || String(item.id);
 
 const getErrorMessage = (error: unknown, fallback: string) => {
   if (typeof error === "object" && error !== null) {
@@ -728,20 +733,65 @@ const AppSessionPage = ({
     }
   };
 
+  /**
+   * 按模板新建一条「终端会话」并打开底部终端标签。
+   *
+   * 终端会话 = 应用会话（AppSession），后端接口是
+   * `POST /container/terminal/session/create`（handler `ContainerTerminalSessionCreate`）：
+   * 创建时即拉起容器与 shell，返回的 session_id 就是应用会话 ID，因此创建完直接
+   * `openBottomTerminal` 即可（不需要再按模板建立 WebSocket 连接）。
+   */
+  const handleCreateTerminalSession = async (item: ContainerTemplateItem) => {
+    try {
+      const created = (await createContainerTerminalSessionApi({
+        container_template_id: item.id,
+      })).data;
+      openBottomTerminal(
+        created.session_id,
+        created.name || getTemplateDisplayName(item),
+      );
+      messageApi.success("Terminal session created");
+      await refetch();
+    } catch (error) {
+      messageApi.error(getErrorMessage(error, "Failed to create terminal session"));
+    }
+  };
+
+  /**
+   * 打开容器模板选择器；选择后的底部确认变成两个按钮：
+   * - Create App Session：`handleCreateAppSession`（普通应用会话）；
+   * - Create Terminal Session：`createContainerTerminalSessionApi`
+   *   （终端会话，创建即启动容器并打开底部终端）。
+   *
+   * 两个按钮通过选择器的 `okActions` 注入，动作完成后选择器按 onOk 回传模板
+   * 并关闭弹窗，所以这里拿到的返回值只用于结束 openAsync 的 Promise。
+   */
   const handleOpenTemplatePage = async () => {
     try {
-      const selectedTemplate = await invoke.containerTemplatePage.openAsync(
-        {},
+      await invoke.containerTemplatePage.openAsync(
+        {
+          okActions: [
+            {
+              key: "app-session",
+              label: "Create App Session",
+              primary: true,
+              onClick: (selected: ContainerTemplateItem) =>
+                handleCreateAppSession(selected),
+            },
+            {
+              key: "terminal-session",
+              label: "Create Terminal Session",
+              onClick: (selected: ContainerTemplateItem) =>
+                handleCreateTerminalSession(selected),
+            },
+          ],
+        },
         {
           title: "Container Template List",
           width: 1200,
           footer: false,
         }
       );
-
-      if (selectedTemplate) {
-        await handleCreateAppSession(selectedTemplate as ContainerTemplateItem);
-      }
     } catch {
       // User cancelled
     }

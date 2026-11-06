@@ -40,6 +40,23 @@ import { useI18n } from "@/hooks/useI18n";
 import { openBottomTerminal } from "@/layout/bottom-panel-store";
 import { formatRelativeTime } from "@/utils/time";
 
+/**
+ * 选择模式下底部的一个动作按钮。
+ *
+ * 选择器本身不关心「选中模板之后要建什么」，只把选中的模板交给 onClick；
+ * 具体是建应用会话还是建终端会话由调用方决定。
+ */
+export interface ContainerTemplateSelectAction {
+  /** 动作唯一标识（同时作为 loading 状态的 key）。 */
+  key: string;
+  /** 按钮文案。 */
+  label: string;
+  /** 是否渲染为主按钮（默认 false）。 */
+  primary?: boolean;
+  /** 以当前选中的模板为参数执行；抛错时选择器保持打开，便于重试。 */
+  onClick: (item: ContainerTemplateItem) => void | Promise<void>;
+}
+
 export interface ContainerTemplateListProps {
   id?: string;
   name?: string;
@@ -53,6 +70,11 @@ export interface ContainerTemplateListProps {
   onOk?: (item: ContainerTemplateItem) => void;
   onCancel?: () => void;
   close?: () => void;
+  /**
+   * 选择模式下的底部动作：传入后底部不再渲染单个 Confirm，而是每个动作一个按钮。
+   * 动作执行成功后仍按选择器语义回传选中模板（onOk → resolve 并关闭弹窗）。
+   */
+  okActions?: ContainerTemplateSelectAction[];
   /** 纵向堆叠布局注入的折叠态：折叠时仅保留标题栏。 */
   collapsed?: boolean;
   /** 点击标题栏时切换折叠态（未传入则标题栏不可点击）。 */
@@ -159,6 +181,7 @@ const ContainerTemplateList = ({
   onOk,
   onCancel,
   close,
+  okActions,
   collapsed = false,
   onToggleCollapse,
 }: ContainerTemplateListProps) => {
@@ -167,6 +190,8 @@ const ContainerTemplateList = ({
 
   const [selectedId, setSelectedId] = useState<string>();
   const [deletingId, setDeletingId] = useState<string>();
+  // 自定义底部动作（okActions）正在执行的那一个：用于按钮 loading / 防重复点击。
+  const [pendingActionKey, setPendingActionKey] = useState<string>();
   // 「运行命令」弹窗：把命令写入该模板的持久终端（后端会话注册表），
   // 提交后自动打开底部终端标签，输出通过该终端的 WebSocket 实时显示。
   const [runTarget, setRunTarget] = useState<ContainerTemplateItem | null>(null);
@@ -500,6 +525,28 @@ const ContainerTemplateList = ({
     onOk(selectedItem);
   };
 
+  /**
+   * 执行自定义底部动作。
+   *
+   * 动作成功后仍然走 onOk 回传选中模板：`openAsync` 依赖它 resolve 并关闭弹窗，
+   * 所以调用方的 `await invoke.containerTemplatePage.openAsync(...)` 能正常结束，
+   * 而「具体建什么」由动作自己的 onClick 完成。
+   */
+  const runOkAction = async (action: ContainerTemplateSelectAction) => {
+    if (!selectedItem || pendingActionKey) {
+      return;
+    }
+    setPendingActionKey(action.key);
+    try {
+      await action.onClick(selectedItem);
+      onOk?.(selectedItem);
+    } catch {
+      // 动作失败时保持选择器打开：用户可以重试，或换成另一个动作。
+    } finally {
+      setPendingActionKey(undefined);
+    }
+  };
+
   const handleCancel = () => {
     if (onCancel) {
       onCancel();
@@ -605,9 +652,23 @@ const ContainerTemplateList = ({
           }}
         >
           <Button onClick={handleCancel}>Cancel</Button>
-          <Button type="primary" disabled={!selectedItem} onClick={handleConfirm}>
-            Confirm
-          </Button>
+          {okActions && okActions.length > 0 ? (
+            okActions.map((action) => (
+              <Button
+                key={action.key}
+                type={action.primary ? "primary" : "default"}
+                disabled={!selectedItem || Boolean(pendingActionKey)}
+                loading={pendingActionKey === action.key}
+                onClick={() => void runOkAction(action)}
+              >
+                {action.label}
+              </Button>
+            ))
+          ) : (
+            <Button type="primary" disabled={!selectedItem} onClick={handleConfirm}>
+              Confirm
+            </Button>
+          )}
         </div>
       )}
 
