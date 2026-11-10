@@ -41,6 +41,7 @@ import {
 import { createContainerTerminalSessionApi } from "@/api/container-template-terminal";
 import { useSelector } from "react-redux";
 import { invoke } from "@/core/ui-system/invokeV2";
+import { openWindow } from "@/core/desktop/openWindow";
 import { useComponentStore } from "@/event-bus/stores/components";
 import { useI18n } from "@/hooks/useI18n";
 import { openBottomTerminal, useBottomPanelStore } from "@/layout/bottom-panel-store";
@@ -92,10 +93,15 @@ const buildAppUrl = (containerURL: string, appSession?: AppSessionItem) => {
   if (!appSession || !appSession.id) {
     return "";
   }
-  //如果containerURL后有/ 去掉
-  // const normalizedContainerURL = containerURL.endsWith("/") ? containerURL.slice(0, -1) : containerURL;
-  // return `${normalizedContainerURL}${appSession.path_prefix}/`;
-  return `${appSession.path_prefix}/`;
+  // 应用会话路由统一挂在 path_prefix 下（容器网关按前缀转发到容器内部端口）。
+  // 桌面端由外壳的本地 http.Server 同源反代，因此这里保持相对路径即可：
+  // openWindow 会按当前 origin 补全成绝对地址，同源则开原生窗口。
+  const rawPrefix = (appSession.path_prefix || "").trim();
+  if (!rawPrefix) {
+    return "";
+  }
+  const normalizedPrefix = rawPrefix.startsWith("/") ? rawPrefix : `/${rawPrefix}`;
+  return normalizedPrefix.endsWith("/") ? normalizedPrefix : `${normalizedPrefix}/`;
 };
 
 /** 底部终端标签的 key 前缀，与 `openBottomTerminal` 保持一致。 */
@@ -704,7 +710,7 @@ const AppSessionPage = ({
                     size="small"
                     icon={<LinkOutlined />}
                     disabled={phase !== "running" || !appUrl}
-                    onClick={() => window.open(appUrl, "_blank", "noopener,noreferrer")}
+                    onClick={() => void openWindow(appUrl)}
                   />
                 </Tooltip>
               )}
@@ -769,7 +775,7 @@ const AppSessionPage = ({
         },
       },
     ],
-    [containerURL, locale, pendingAction, runAction, handleDescribe, handleOpenRun]
+    [locale, pendingAction, runAction, handleDescribe, handleOpenRun]
   );
 
   const handleConfirm = () => {
