@@ -63,6 +63,11 @@ const AnalysisNodeTerminal = ({
     let disposed = false;
     let socket: WebSocket | null = null;
     let reconnectTimer: number | null = null;
+    // 重连退避：网络进程崩溃（WebKit "Network process crashed"）时所有连接会在
+    // 同一瞬间全部断开，若用固定短间隔重连，会在页面恢复的瞬间形成重连风暴，
+    // 再次压垮网络进程。这里从 1s 起指数退避到 15s，握手成功后复位。
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_DELAY = 15000;
     // 续传位置统一以「服务端序号」为准：
     //   - 服务端每次 attach 都会先下发 {type:"session", seq, reset, truncated, ...}；
     //   - seq 是本次回放结束时的输出序号（环形缓冲里的全局偏移，不是本地字节计数）；
@@ -208,6 +213,7 @@ const AnalysisNodeTerminal = ({
       socket.binaryType = "arraybuffer";
 
       socket.onopen = () => {
+        reconnectAttempts = 0;
         pushResize();
         term.focus();
       };
@@ -237,11 +243,14 @@ const AnalysisNodeTerminal = ({
           return;
         }
         // 会话在后端有 grace period，断线后自动重连即可续上（并重放历史）。
+        // 采用指数退避，避免网络进程崩溃后全体连接同一瞬间重连造成二次冲击。
+        reconnectAttempts += 1;
+        const delay = Math.min(1000 * 2 ** (reconnectAttempts - 1), MAX_RECONNECT_DELAY);
         term.writeln("\r\n\x1b[90mconnection closed, reconnecting...\x1b[0m");
         reconnectTimer = window.setTimeout(() => {
           reconnectTimer = null;
           connect();
-        }, 1500);
+        }, delay);
       };
     };
 

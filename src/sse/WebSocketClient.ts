@@ -20,6 +20,11 @@ export class WebSocketClient implements RealtimeClient {
   private retryTimer: any = null;
   private manualClosed = false;
   private lastUserActivity = Date.now();
+  // 连续重连失败次数：用于指数退避。网络进程崩溃（WebKit "Network process
+  // crashed"）时实时 WS 与终端 WS 会同时断开，固定短间隔重连会在页面恢复的
+  // 瞬间形成重连风暴，反过来再压垮网络进程。握手成功后清零。
+  private reconnectAttempts = 0;
+  private readonly maxRetryDelay = 30_000;
 
   private readonly activeWindowMs = 60_000;
 
@@ -141,6 +146,7 @@ export class WebSocketClient implements RealtimeClient {
       }
       this.status = "open";
       this.lastReceived = Date.now();
+      this.reconnectAttempts = 0;
       this.startHeartbeatCheck();
       console.log("🟢 WebSocket connected:", this.url);
     };
@@ -225,6 +231,12 @@ export class WebSocketClient implements RealtimeClient {
     this.clearTimers();
 
     if (!this.retryTimer) {
+      this.reconnectAttempts += 1;
+      // 指数退避：retryInterval * 2^(n-1)，上限 maxRetryDelay。
+      const delay = Math.min(
+        this.retryInterval * 2 ** (this.reconnectAttempts - 1),
+        this.maxRetryDelay,
+      );
       this.retryTimer = setTimeout(() => {
         this.retryTimer = null;
         if (this.manualClosed || !this.shouldAutoReconnectNow()) {
@@ -232,7 +244,7 @@ export class WebSocketClient implements RealtimeClient {
           return;
         }
         this.reconnect();
-      }, this.retryInterval);
+      }, delay);
     }
   }
 

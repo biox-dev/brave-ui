@@ -330,6 +330,33 @@ export const describeContainerInstanceApi = (id: string) => {
     return http.get<RuntimeDescription>("/container/instance/describe", { params: { id } });
 };
 
+/**
+ * 默认容器运行时健康状态（对应后端 handler.ContainerHandler.CheckContainerRuntime）。
+ *
+ * 名称解析与容器实际执行完全同源（ContainerLifecycle.GetRuntime）：容器创建会失败的场景，
+ * 这里同样会返回 registered=false 或 healthy=false，并带上原始错误信息，便于排查。
+ */
+export interface ContainerRuntimeHealth {
+    /** 运行时名称：docker / k8s / k3s。 */
+    name: string;
+    /** 是否已在启动装配阶段注册。 */
+    registered: boolean;
+    /** 依赖探测是否通过（未注册时必然为 false）。 */
+    healthy: boolean;
+    /** 运行时是否实现了健康探测器（false 表示只做了注册检查）。 */
+    checkable: boolean;
+    /** 失败原因，正常时为空。 */
+    error?: string;
+}
+
+/** 检测默认容器运行时是否可用（docker daemon / k8s apiserver）。失败时不弹全局错误提示。 */
+export const checkContainerRuntimeApi = () => {
+    return http.get<ContainerRuntimeHealth>("/container/runtime/check", {
+        skipGlobalError: true,
+        timeout: 15000,
+    });
+};
+
 export const pageContainerEventApi = (payload: PageRequest<ContainerEventPageQuery>) => {
     return http.post<PageResponse<ContainerEventItem>>("/container/event/list-by-page", payload);
 };
