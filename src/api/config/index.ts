@@ -34,8 +34,8 @@ export interface ContainerConfig {
 	create_queue_max_pending: number;
 	/** bash 工具执行位置：host（宿主机，默认）或 container（容器）。 */
 	bash_execution_mode: string;
-	/** container 模式下 bash 工具使用的容器模板 ID；<=0 时后端使用内置默认模板。 */
-	bash_container_template_id: number;
+	/** container 模式下 bash 工具使用的容器模板 ID（int64，用字符串避免精度丢失）；<=0 时后端使用内置默认模板。 */
+	bash_container_template_id: string;
 }
 
 /** bash 工具执行位置取值，与后端 config.BashExecutionMode* 常量对齐。 */

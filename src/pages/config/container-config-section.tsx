@@ -19,7 +19,7 @@ const BASH_EXECUTION_MODE_OPTIONS = [
 ];
 
 /** 后端默认 bash 容器模板 ID（config.DefaultBashContainerTemplateID）。 */
-const DEFAULT_BASH_CONTAINER_TEMPLATE_ID = 202606160002;
+const DEFAULT_BASH_CONTAINER_TEMPLATE_ID = "202606160002";
 
 const CLEANUP_POLICY_OPTIONS = [
 	{ label: "none（不处理）", value: "none" },
@@ -66,9 +66,8 @@ const ContainerConfigSection = ({ value, onSave }: ConfigSectionProps<ContainerC
 		const selected = (await invoke.containerTemplatePage
 			.openAsync({}, { title: "选择容器模板", width: 1200, footer: false })
 			.catch(() => undefined)) as ContainerTemplateItem | undefined;
-		const id = Number(selected?.id);
-		if (Number.isFinite(id) && id > 0) {
-			form.setFieldsValue({ bash_container_template_id: id });
+		if (selected?.id) {
+			form.setFieldsValue({ bash_container_template_id: String(selected.id) });
 		}
 	};
 
@@ -215,11 +214,10 @@ const ContainerConfigSection = ({ value, onSave }: ConfigSectionProps<ContainerC
 					tooltip="仅 container 模式生效；留空或 0 时使用内置默认模板 202606160002"
 					style={{ minWidth: 300 }}
 				>
-					<InputNumber
+					<Input
 						style={{ width: 200 }}
-						precision={0}
 						disabled={bashExecutionMode !== "container"}
-						placeholder={String(DEFAULT_BASH_CONTAINER_TEMPLATE_ID)}
+						placeholder={DEFAULT_BASH_CONTAINER_TEMPLATE_ID}
 					/>
 				</Form.Item>
 
