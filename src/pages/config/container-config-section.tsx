@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Button, Divider, Form, Input, InputNumber, Select, Space, Switch } from "antd";
-import { SaveOutlined } from "@ant-design/icons";
+import { ContainerOutlined, SaveOutlined } from "@ant-design/icons";
 import type { ContainerConfig } from "@/api/config";
+import type { ContainerTemplateItem } from "@/api/container";
+import { invoke } from "@/core/ui-system/invokeV2";
 import type { ConfigSectionProps } from "./types";
 
 const RUNTIME_OPTIONS = [
@@ -9,6 +11,15 @@ const RUNTIME_OPTIONS = [
 	{ label: "Kubernetes (k8s)", value: "k8s" },
 	{ label: "K3s", value: "k3s" },
 ];
+
+/** bash 工具执行位置，与后端 config.BashExecutionMode* 常量对齐。 */
+const BASH_EXECUTION_MODE_OPTIONS = [
+	{ label: "host（宿主机）", value: "host" },
+	{ label: "container（容器模板）", value: "container" },
+];
+
+/** 后端默认 bash 容器模板 ID（config.DefaultBashContainerTemplateID）。 */
+const DEFAULT_BASH_CONTAINER_TEMPLATE_ID = 202606160002;
 
 const CLEANUP_POLICY_OPTIONS = [
 	{ label: "none（不处理）", value: "none" },
@@ -44,10 +55,22 @@ const SwitchField = ({
 const ContainerConfigSection = ({ value, onSave }: ConfigSectionProps<ContainerConfig>) => {
 	const [form] = Form.useForm<ContainerConfig>();
 	const [saving, setSaving] = useState(false);
+	const bashExecutionMode = Form.useWatch("bash_execution_mode", form);
 
 	useEffect(() => {
 		form.setFieldsValue(value);
 	}, [form, value]);
+
+	/** 打开容器模板列表选择模板，把模板 ID 写回表单（只记录编号，不查名称）。 */
+	const handleSelectBashTemplate = async () => {
+		const selected = (await invoke.containerTemplatePage
+			.openAsync({}, { title: "选择容器模板", width: 1200, footer: false })
+			.catch(() => undefined)) as ContainerTemplateItem | undefined;
+		const id = Number(selected?.id);
+		if (Number.isFinite(id) && id > 0) {
+			form.setFieldsValue({ bash_container_template_id: id });
+		}
+	};
 
 	const handleSave = async (values: ContainerConfig) => {
 		setSaving(true);
@@ -170,6 +193,44 @@ const ContainerConfigSection = ({ value, onSave }: ConfigSectionProps<ContainerC
 					tooltip="0 表示沿用管理器内置默认值"
 				>
 					<InputNumber min={0} style={{ width: 200 }} />
+				</Form.Item>
+			</Space>
+
+			<Divider orientation="left" plain>
+				bash 工具执行位置
+			</Divider>
+
+			<Space size="large" wrap align="start">
+				<Form.Item
+					name="bash_execution_mode"
+					label="执行位置 (bash_execution_mode)"
+					tooltip="host：在宿主机持久 shell 中执行；container：在容器模板的终端中执行"
+				>
+					<Select options={BASH_EXECUTION_MODE_OPTIONS} style={{ width: 220 }} />
+				</Form.Item>
+
+				<Form.Item
+					name="bash_container_template_id"
+					label="容器模板编号 (bash_container_template_id)"
+					tooltip="仅 container 模式生效；留空或 0 时使用内置默认模板 202606160002"
+					style={{ minWidth: 300 }}
+				>
+					<InputNumber
+						style={{ width: 200 }}
+						precision={0}
+						disabled={bashExecutionMode !== "container"}
+						placeholder={String(DEFAULT_BASH_CONTAINER_TEMPLATE_ID)}
+					/>
+				</Form.Item>
+
+				<Form.Item label=" ">
+					<Button
+						icon={<ContainerOutlined />}
+						disabled={bashExecutionMode !== "container"}
+						onClick={() => void handleSelectBashTemplate()}
+					>
+						选择容器模板
+					</Button>
 				</Form.Item>
 			</Space>
 

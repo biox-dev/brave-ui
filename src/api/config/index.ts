@@ -32,7 +32,15 @@ export interface ContainerConfig {
 	dag_node_cleanup_on_dag_finished: string;
 	create_queue_max_concurrency: number;
 	create_queue_max_pending: number;
+	/** bash 工具执行位置：host（宿主机，默认）或 container（容器）。 */
+	bash_execution_mode: string;
+	/** container 模式下 bash 工具使用的容器模板 ID；<=0 时后端使用内置默认模板。 */
+	bash_container_template_id: number;
 }
+
+/** bash 工具执行位置取值，与后端 config.BashExecutionMode* 常量对齐。 */
+export const BASH_EXECUTION_MODES = ["host", "container"] as const;
+export type BashExecutionMode = (typeof BASH_EXECUTION_MODES)[number];
 
 /**
  * 模型提供商配置，字段与后端 config.ModelProviderConfig 对齐。
