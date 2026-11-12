@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { getActiveProjectApi } from '@/api/project'
+import { getContainerRuntimeInfoApi, type ContainerRuntimeHealth } from '@/api/container'
 import { getCurrentUserApi, type AgentProfileInfo, type AgentUserConfig, type UserMenuConfig, type UserMenuTab } from '@/api/auth'
 import { getPathname } from "@/utils/utils";
 
@@ -71,6 +72,33 @@ export const loadCurrentUser = createAsyncThunk(
     }
 )
 
+/**
+ * 拉取容器运行时环境信息（宿主 OS / 架构、连接地址、健康状态）。
+ *
+ * 与 loadCurrentUser 相互独立：运行时探测失败只影响 runtimeInfo，不影响登录态。
+ */
+export const loadRuntimeInfo = createAsyncThunk(
+    'user/loadRuntimeInfo',
+    async (_, { rejectWithValue }) => {
+        try {
+            const resp = await getContainerRuntimeInfoApi()
+            // http 未做响应解包：后端直接返回 RuntimeHealth 本体。
+            const payload = (resp as any)?.data ?? resp
+            return payload as ContainerRuntimeHealth
+        } catch (error: any) {
+            const message =
+                error?.response?.data?.error?.message || error?.message || 'runtime check failed'
+            return rejectWithValue({
+                name: '',
+                registered: false,
+                healthy: false,
+                checkable: false,
+                error: message,
+            } as ContainerRuntimeHealth)
+        }
+    }
+)
+
 export interface LoginUserInfo {
     id: string;
     username: string;
@@ -114,6 +142,10 @@ interface UserState {
     /** 左侧栏堆叠视图折叠状态：{ [stackKey]: collapsedSectionKeys[] }。 */
     leftStackCollapsed: Record<string, string[]>;
     userInfo: LoginUserInfo | null;
+    /** 容器运行时环境信息（来自 /container/runtime/info，页面刷新时拉取一次）。 */
+    runtimeInfo: ContainerRuntimeHealth | null;
+    /** 运行时信息是否正在检测中。 */
+    runtimeLoading: boolean;
     componentLayout:"simple"|"complex",
     network:"UNKNOW" | "CONNECT" | "NOT_CONNECT"
 
@@ -145,6 +177,8 @@ const contextSlice = createSlice({
         sideView:sideView?sideView:'agentChat',
         leftStackCollapsed,
         userInfo: null as LoginUserInfo | null,
+        runtimeInfo: null as ContainerRuntimeHealth | null,
+        runtimeLoading: false,
         componentLayout:"simple",
         network:"UNKNOW",
         scmOrigin:scmOrigin?scmOrigin:"github"
@@ -250,6 +284,8 @@ const contextSlice = createSlice({
             state.authorization = null;
             state.refreshToken = null;
             state.userInfo = null;
+            state.runtimeInfo = null;
+            state.runtimeLoading = false;
             state.projectId = "";
             state.project = {};
             state.activeLLMSessionId = null;
@@ -267,6 +303,23 @@ const contextSlice = createSlice({
         });
         builder.addCase(loadCurrentUser.fulfilled, (state, action) => {
             state.userInfo = action.payload || null;
+        });
+        builder.addCase(loadRuntimeInfo.pending, (state) => {
+            state.runtimeLoading = true;
+        });
+        builder.addCase(loadRuntimeInfo.fulfilled, (state, action) => {
+            state.runtimeLoading = false;
+            state.runtimeInfo = action.payload || null;
+        });
+        builder.addCase(loadRuntimeInfo.rejected, (state, action) => {
+            state.runtimeLoading = false;
+            state.runtimeInfo = (action.payload as ContainerRuntimeHealth) || {
+                name: '',
+                registered: false,
+                healthy: false,
+                checkable: false,
+                error: 'runtime check failed',
+            };
         });
     }
 })

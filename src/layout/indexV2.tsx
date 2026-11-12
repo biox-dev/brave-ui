@@ -7,6 +7,7 @@ import { useI18n } from '@/hooks/useI18n';
 import ViewResolver from '@/core/ui-renderer/ViewResolver';
 import BorderlessCard from '@/components/common/borderless-card';
 import ContainerQueueMonitor from '@/components/container-manager/container-monitor';
+import RuntimeStatus from '@/components/runtime-status';
 import { setUserItem } from '@/store/userSlice';
 import { buildLayoutMenus, type LayoutLocale } from './layout-menu';
 import AppHeader from './components/AppHeader';
@@ -334,7 +335,10 @@ const App: React.FC = () => {
           </a>
         </div>
         <div className="layout-sharp-footer-right">
+          {/* 默认容器运行时状态：悬停展示连接信息，点击重新检测。 */}
+          <RuntimeStatus />
           <ContainerQueueMonitor />
+          
         </div>
       </Footer>
     </Layout>

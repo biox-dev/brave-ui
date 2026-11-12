@@ -347,11 +347,21 @@ export interface ContainerRuntimeHealth {
     checkable: boolean;
     /** 失败原因，正常时为空。 */
     error?: string;
+    /** 后端所在宿主操作系统：linux / windows / darwin。 */
+    host_os?: string;
+    /** 后端所在宿主 CPU 架构：amd64 / arm64 等。 */
+    host_arch?: string;
+    /** 运行时实际连接地址（后端已脱敏，密码替换为 ***）。 */
+    endpoint?: string;
+    /** 地址来源：explicit / env / default / kubeconfig / in-cluster。 */
+    endpoint_source?: string;
+    /** 对端版本号（docker daemon / kubernetes apiserver）。 */
+    server_version?: string;
 }
 
-/** 检测默认容器运行时是否可用（docker daemon / k8s apiserver）。失败时不弹全局错误提示。 */
-export const checkContainerRuntimeApi = () => {
-    return http.get<ContainerRuntimeHealth>("/container/runtime/check", {
+/** 获取默认容器运行时环境信息（docker daemon / k8s apiserver）。失败时不弹全局错误提示。 */
+export const getContainerRuntimeInfoApi = () => {
+    return http.get<ContainerRuntimeHealth>("/container/runtime/info", {
         skipGlobalError: true,
         timeout: 15000,
     });
