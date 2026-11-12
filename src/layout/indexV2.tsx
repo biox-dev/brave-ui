@@ -182,7 +182,19 @@ const App: React.FC = () => {
       ],
     [],
   );
-  const settingsMenuItems = useMemo(() => buildLayoutMenus(layoutLocale), [layoutLocale]);
+  // 「容器运行时」安装向导入口只在后端 container.docker.provision.enabled=true 时出现，
+  // 该开关随 /container/runtime/info 一起返回并保存在 redux 的 runtimeInfo 中。
+  const provisionEnabled = useSelector(
+    (state: any) => state.user.runtimeInfo?.provision_enabled === true,
+  );
+  const settingsMenuItems = useMemo(
+    () =>
+      buildLayoutMenus(
+        layoutLocale,
+        (item) => item.key !== '/container-runtime-provision' || provisionEnabled,
+      ),
+    [layoutLocale, provisionEnabled],
+  );
 
   return (
     <Layout className={`layout-sharp ${isDark ? 'layout-sharp-dark' : 'layout-sharp-light'}`}>

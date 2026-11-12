@@ -357,6 +357,12 @@ export interface ContainerRuntimeHealth {
     endpoint_source?: string;
     /** 对端版本号（docker daemon / kubernetes apiserver）。 */
     server_version?: string;
+    /** 是否启用运行时预置（container.docker.provision.enabled）；true 时展示安装向导入口。 */
+    provision_enabled?: boolean;
+    /** bash 工具执行位置：host（宿主机）/ container（容器）。 */
+    bash_execution_mode?: string;
+    /** container 模式下 bash 工具使用的容器模板 ID（后端以字符串返回，避免精度丢失）。 */
+    bash_container_template_id?: string;
 }
 
 /** 获取默认容器运行时环境信息（docker daemon / k8s apiserver）。失败时不弹全局错误提示。 */

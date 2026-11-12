@@ -162,6 +162,8 @@ export const layoutMenuTree: LayoutMenuItem[] = [
           en_US: 'Container Template Spec',
         },
       },
+      // 「容器运行时」只在 container.docker.provision.enabled=true 时出现，
+      // 由 buildLayoutMenus 的 filter 按 redux 里的 runtimeInfo 实时过滤。
       {
         key: '/container-runtime-provision',
         icon: 'container',
@@ -412,19 +414,35 @@ export const layoutMenuTree: LayoutMenuItem[] = [
   },
 ];
 
-export const buildLayoutMenus = (locale: LayoutLocale): MenuProps['items'] => {
+/**
+ * 菜单可见性钩子：返回 true 表示该菜单项可见。
+ *
+ * 用于按运行时配置动态隐藏入口（例如 container.docker.provision.enabled=false 时不展示
+ * 「容器运行时」安装向导）。未提供时全部可见。子项被过滤后，空掉的父级也会一并隐藏。
+ */
+export type LayoutMenuFilter = (item: LayoutMenuItem) => boolean;
+
+export const buildLayoutMenus = (
+  locale: LayoutLocale,
+  filter?: LayoutMenuFilter,
+): MenuProps['items'] => {
   const toMenuItems = (items: LayoutMenuItem[]): MenuProps['items'] => {
     return items
-      .filter((item) => !item.hidden)
+      .filter((item) => !item.hidden && (filter ? filter(item) : true))
       .map((item) => {
         const children = item.children ? toMenuItems(item.children) : undefined;
+        // 父级原本有子项，但全部被子级过滤掉时，父级也没有可点的入口，直接隐藏。
+        if (item.children && item.children.length > 0 && (!children || children.length === 0)) {
+          return null;
+        }
         return {
           key: item.key,
           icon: resolveMenuIcon(item.icon),
           label: item.label[locale],
           ...(children && children.length > 0 ? { children } : {}),
         };
-      });
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
   };
 
   return toMenuItems(layoutMenuTree);
