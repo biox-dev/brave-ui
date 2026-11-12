@@ -162,6 +162,14 @@ export const layoutMenuTree: LayoutMenuItem[] = [
           en_US: 'Container Template Spec',
         },
       },
+      {
+        key: '/container-runtime-provision',
+        icon: 'container',
+        label: {
+          zh_CN: '容器运行时',
+          en_US: 'Container Runtime',
+        },
+      },
     ],
   },
   {

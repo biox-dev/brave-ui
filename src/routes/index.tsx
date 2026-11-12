@@ -87,6 +87,7 @@ const ContainerTemplateTerminalPage = lazy(() => import("@/pages/page-route/cont
 const ContainerTemplateSpecPage = lazy(() => import("@/components/container-manager/container-template-spec-page"))
 const AppSessionPage = lazy(() => import("@/components/layout-sider/container-template/app-session-page"))
 const ContainerInstancePage = lazy(() => import("@/components/container-manager/container-instance-page"))
+const ContainerRuntimeProvisionPage = lazy(() => import("@/pages/container-runtime-provision"))
 const ContainerEventPage = lazy(() => import("@/components/container-manager/container-event-page"))
 const OutboxEventPage = lazy(() => import("@/components/container-manager/outbox-event-page"))
 const FilePreviewRoute = lazy(() => import("@/components/file-preview/file-preview-route"))
@@ -162,6 +163,10 @@ if (appType == "index") {
         }, {
             path: "container-template-spec",
             element: <ContainerTemplateSpecPage />
+        }, {
+            // 容器运行时安装向导：状态 / 下载 / 安装 / 卸载 / 启动
+            path: "container-runtime-provision",
+            element: <ContainerRuntimeProvisionPage />
         }, {
             path: "/",
             element: <Project />
