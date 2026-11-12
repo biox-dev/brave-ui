@@ -14,7 +14,12 @@ export type ChartInstance = { refresh: () => void };
  * 弹窗与左栏共存、HMR 重挂载等）。用 Set 保存，避免一个实例卸载时把其它
  * 仍在挂载的监听者一并删掉（那会让后端推送的实时事件静默丢失）。
  */
-const MULTI_INSTANCE_CATEGORIES = new Set<string>(["analysis", "container-terminal-session"]);
+const MULTI_INSTANCE_CATEGORIES = new Set<string>([
+    "analysis",
+    "container-terminal-session",
+    // 容器队列状态可能同时被页脚徽标 / 其它面板监听，后端广播事件应推给全部实例。
+    "container-queue",
+]);
 
 const isMultiCategory = (category: string) => MULTI_INSTANCE_CATEGORIES.has(category);
 
@@ -28,6 +33,7 @@ export type ComponentStore = {
     analysis: Record<string, Set<any>>; 
     "app-session": Record<string, any>;
     "container-terminal-session": Record<string, Set<any> | any>;
+    "container-queue": Record<string, Set<any> | any>;
     "analysis-node": Record<string, any>;
     "ai-summary": Record<string, any>;
     graph: Record<string, any>; 
@@ -49,6 +55,7 @@ export const useComponentStore = create<ComponentStore>((set, get) => ({
     analysis: {},
     "app-session": {},
     "container-terminal-session": {},
+    "container-queue": {},
     "analysis-node": {},
     "ai-summary": {},
     graph: {},

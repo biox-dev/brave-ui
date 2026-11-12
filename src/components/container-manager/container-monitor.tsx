@@ -1,7 +1,20 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Popover, Tooltip, Flex, Typography } from 'antd';
 import { ClockCircleOutlined, ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { http } from '@/api/client/http';
+import { useComponentStore } from '@/event-bus/stores/components';
+
+/**
+ * 后端容器集合变化事件在前端的组件类目 / 方法名。
+ *
+ * 对应 manager.ContainerManager.broadcastContainerChanged：容器创建 / 删除时
+ * 后端以 `component.invoke`（category=container-queue, id=*, method=containerChanged）
+ * 广播给所有在线客户端，这里收到后重新拉一次队列状态。
+ */
+const CONTAINER_QUEUE_CATEGORY = 'container-queue';
+
+/** 会话面板 / 徽标共用的注册 ID（后端推的是 "*"，store 会分发到所有实例）。 */
+const CONTAINER_QUEUE_ID = '*';
 
 interface QueueStatus {
     active_count: number;
@@ -41,6 +54,32 @@ const ContainerQueueMonitor: React.FC = () => {
     useEffect(() => {
         fetchStatus();
     }, [fetchStatus]);
+
+    /**
+     * 订阅后端广播的「容器集合变化」事件。
+     *
+     * 与 app-session 面板相同的模式：用 useComponentStore 注册当前实例，
+     * 后端推送 component.invoke(container-queue, *, containerChanged) 时由 store
+     * 回调到这里。事件只作为「该刷新了」的信号，参数（实例 ID / 状态）不参与计算，
+     * 直接重拉队列状态。
+     */
+    const { register, unregister } = useComponentStore();
+    const realtimeInstance = useMemo(
+        () => ({
+            // 后端广播的 method 名（与设备无关，仅表示「容器集合变了」）。
+            containerChanged: () => {
+                void fetchStatus();
+            },
+        }),
+        [fetchStatus],
+    );
+
+    useEffect(() => {
+        register(CONTAINER_QUEUE_CATEGORY, CONTAINER_QUEUE_ID, realtimeInstance);
+        return () => {
+            unregister(CONTAINER_QUEUE_CATEGORY, CONTAINER_QUEUE_ID, realtimeInstance);
+        };
+    }, [register, unregister, realtimeInstance]);
 
     if (error && !status) {
         return null;
