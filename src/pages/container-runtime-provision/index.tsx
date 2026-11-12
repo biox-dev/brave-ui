@@ -403,7 +403,8 @@ const ContainerRuntimeProvisionPage = () => {
 								进度通过状态接口轮询展示。
 							</Paragraph>
 							<Paragraph type="secondary" style={{ marginBottom: 0 }}>
-								<Text strong>安装</Text>：导入发行版并启动 dockerd，要求先完成下载。
+								<Text strong>安装</Text>：导入发行版并启动 dockerd，要求先完成下载；
+								若系统上已存在同名发行版，则直接接管（启动 dockerd），无需下载。
 							</Paragraph>
 							<Paragraph type="secondary" style={{ marginBottom: 0 }}>
 								<Text strong>启动</Text>：与进程启动时的自检一致；未安装时返回 409，
