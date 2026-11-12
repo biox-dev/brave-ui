@@ -239,6 +239,14 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
                     // 内联渲染时没有弹窗壳自动关闭，回“关闭”就切回结果视图。
                     close: () => setResultView("analysisResultDisplay"),
                 };
+            case "nodeCommand":
+                return {
+                    view: "nodeCommand",
+                    analysis_node_id: nodeId,
+                    node_name: selectedSampleDetail.node?.node_name,
+                    // 内联渲染同样没有弹窗壳，关闭动作统一回到结果视图。
+                    close: () => setResultView("analysisResultDisplay"),
+                };
             default:
                 return {
                     view: "analysisResultDisplay",
@@ -321,6 +329,27 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
                                     }}
                                 >
                                     {resultView === "nodeParams" ? "Result" : "Params"}
+                                </Button>
+                            </Tooltip>
+
+                            {/* run.sh 命令视图：与 Params / Code 一样在底部 ViewResolver 内联切换，不弹窗。 */}
+                            <Tooltip
+                                title={
+                                    resultView === "nodeCommand"
+                                        ? "Back to the result view"
+                                        : `run.sh - ${selectedSampleDetail.node?.command_path || ""}`
+                                }
+                            >
+                                <Button
+                                    size="small"
+                                    color="cyan"
+                                    variant={resultView === "nodeCommand" ? "outlined" : "solid"}
+                                    onClick={() => {
+                                        // 不弹窗：直接在底部 ViewResolver 里切换视图。
+                                        toggleResultView("nodeCommand");
+                                    }}
+                                >
+                                    {resultView === "nodeCommand" ? "Result" : "Command"}
                                 </Button>
                             </Tooltip>
                             {/* 命令节点（Agent 创建、无 script）没有脚本可编辑，隐藏编辑入口。 */}
@@ -695,27 +724,6 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
                                                 footer: null,
                                             })
                                     }}>Logs</Tag>
-
-                                <Tooltip title={`run.sh - ${selectedSampleDetail.node?.command_path || ""}`}>
-                                    <Tag
-                                        style={{ cursor: "pointer" }}
-                                        onClick={() => {
-
-                                            invoke.nodeCommand.open(
-                                                {
-                                                    analysis_node_id: String(
-                                                        selectedSampleDetail.node?.id ?? analysis_node_id ?? ""
-                                                    ),
-                                                    node_name: selectedSampleDetail.node?.node_name,
-                                                },
-                                                {
-                                                    width: "60%",
-                                                    title: `Command - ${selectedSampleDetail.node?.node_id}`,
-                                                    footer: null,
-                                                }
-                                            );
-                                        }}>Command</Tag>
-                                </Tooltip>
                             </Space>
                         </Flex>
                     </Card>

@@ -34,6 +34,7 @@ export const ANALYSIS_NODE_REPORT_VIEWS = [
     "scriptCode",
     "createOrUpdateScript",
     "nodeParams",
+    "nodeCommand",
 ] as const;
 
 export type AnalysisNodeReportView = (typeof ANALYSIS_NODE_REPORT_VIEWS)[number];
