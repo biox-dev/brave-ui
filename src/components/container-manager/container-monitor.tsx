@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Switch, Tooltip, Flex, Typography, Button } from 'antd';
-import { ReloadOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Popover, Tooltip, Flex, Typography } from 'antd';
+import { ClockCircleOutlined, ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { http } from '@/api/client/http';
 
 interface QueueStatus {
@@ -11,14 +11,18 @@ interface QueueStatus {
     queue_enabled: boolean;
 }
 
-const POLL_INTERVAL = 5000;
-
+/**
+ * 容器队列状态指示器（无开关、无独立刷新按钮）。
+ *
+ * - 鼠标移上去：Popover 展示运行中 / 等待中 / 并发上限 / 排队上限等明细；
+ * - 点击徽标：立即刷新一次队列状态（刷新时图标旋转）。
+ */
 const ContainerQueueMonitor: React.FC = () => {
     const [status, setStatus] = useState<QueueStatus | null>(null);
     const [error, setError] = useState(false);
-    const [autoRefresh, setAutoRefresh] = useState(false);
     const [loading, setLoading] = useState(false);
-    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const [open, setOpen] = useState(false);
+    const [hovered, setHovered] = useState(false);
 
     const fetchStatus = useCallback(async () => {
         setLoading(true);
@@ -33,23 +37,10 @@ const ContainerQueueMonitor: React.FC = () => {
         }
     }, []);
 
-    // Fetch once on mount.
+    // 挂载时拉取一次。
     useEffect(() => {
         fetchStatus();
     }, [fetchStatus]);
-
-    // Toggle auto-refresh interval.
-    useEffect(() => {
-        if (autoRefresh) {
-            timerRef.current = setInterval(fetchStatus, POLL_INTERVAL);
-        }
-        return () => {
-            if (timerRef.current) {
-                clearInterval(timerRef.current);
-                timerRef.current = null;
-            }
-        };
-    }, [autoRefresh, fetchStatus]);
 
     if (error && !status) {
         return null;
@@ -59,27 +50,101 @@ const ContainerQueueMonitor: React.FC = () => {
         return null;
     }
 
-    const activeColor = status.active_count >= status.max_concurrency ? '#ff4d4f' : '#52c41a';
+    const saturated = status.active_count >= status.max_concurrency;
+    const activeColor = saturated ? '#ff4d4f' : '#52c41a';
+    const pendingFull = status.pending_count >= status.max_pending;
+    const pendingColor = pendingFull ? '#ff4d4f' : '#faad14';
+
+    const handleClick = () => {
+        setOpen(true);
+        fetchStatus();
+    };
+
+    const detailRow = (label: string, value: React.ReactNode) => (
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, lineHeight: '20px' }}>
+            <span style={{ color: 'rgba(0,0,0,0.45)' }}>{label}</span>
+            <span style={{ fontWeight: 500 }}>{value}</span>
+        </div>
+    );
+
+    const content = (
+        <div style={{ fontSize: 12, minWidth: 190 }}>
+            <div
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    marginBottom: 6,
+                    color: 'rgba(0,0,0,0.45)',
+                }}
+            >
+                <ThunderboltOutlined />
+                <span>容器执行队列</span>
+            </div>
+            {detailRow(
+                '运行中',
+                <span style={{ color: activeColor }}>
+                    {status.active_count} / {status.max_concurrency}
+                </span>,
+            )}
+            {detailRow(
+                '等待中',
+                <span style={{ color: status.pending_count > 0 ? pendingColor : undefined }}>
+                    {status.pending_count} / {status.max_pending}
+                </span>,
+            )}
+            {detailRow('并发上限', status.max_concurrency)}
+            {detailRow('排队上限', status.max_pending)}
+            {detailRow(
+                '状态',
+                saturated ? (
+                    <span style={{ color: '#ff4d4f' }}>已满负荷</span>
+                ) : (
+                    <span style={{ color: '#52c41a' }}>空闲可用</span>
+                ),
+            )}
+            <div
+                style={{
+                    marginTop: 6,
+                    paddingTop: 6,
+                    borderTop: '1px solid rgba(0,0,0,0.06)',
+                    color: 'rgba(0,0,0,0.45)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                }}
+            >
+                <ReloadOutlined spin={loading} style={{ fontSize: 11 }} />
+                <span>点击徽标刷新</span>
+            </div>
+        </div>
+    );
 
     return (
-        <Flex gap={6} align="center" style={{ fontSize: 12 }}>
-            <Tooltip
-                title={
-                    <div style={{ fontSize: 12 }}>
-                        <div>运行中: {status.active_count} / {status.max_concurrency}</div>
-                        <div>等待中: {status.pending_count} / {status.max_pending}</div>
-                    </div>
-                }
-            >
+        <Popover
+            open={open}
+            onOpenChange={setOpen}
+            trigger="hover"
+            placement="bottomRight"
+            mouseEnterDelay={0.1}
+            content={content}
+        >
+            <Tooltip title={loading ? '刷新中…' : '点击刷新队列状态'}>
                 <Flex
                     gap={4}
                     align="center"
+                    onClick={handleClick}
+                    onMouseEnter={() => setHovered(true)}
+                    onMouseLeave={() => setHovered(false)}
                     style={{
-                        cursor: 'default',
-                        padding: '0 4px',
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        padding: '0 6px',
                         borderRadius: 4,
-                        background: 'rgba(0,0,0,0.04)',
+                        background: hovered ? 'rgba(0,0,0,0.06)' : 'transparent',
                         lineHeight: '20px',
+                        fontSize: 12,
+                        transition: 'background 0.2s',
                     }}
                 >
                     <Typography.Text style={{ color: activeColor, fontWeight: 600 }}>
@@ -90,29 +155,14 @@ const ContainerQueueMonitor: React.FC = () => {
                         {status.max_concurrency}
                     </Typography.Text>
                     {status.pending_count > 0 && (
-                        <ClockCircleOutlined style={{ color: '#faad14', fontSize: 11 }} />
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, color: pendingColor }}>
+                            <ClockCircleOutlined style={{ fontSize: 11 }} />
+                            <span>{status.pending_count}</span>
+                        </span>
                     )}
                 </Flex>
             </Tooltip>
-
-            <Tooltip title="刷新">
-                <Button
-                    type="text"
-                    size="small"
-                    icon={<ReloadOutlined spin={loading} style={{ fontSize: 12 }} />}
-                    onClick={fetchStatus}
-                    style={{ padding: 0, minWidth: 20, height: 20 }}
-                />
-            </Tooltip>
-
-            <Tooltip title={autoRefresh ? '关闭自动刷新' : '开启自动刷新 (5s)'}>
-                <Switch
-                    size="small"
-                    checked={autoRefresh}
-                    onChange={setAutoRefresh}
-                />
-            </Tooltip>
-        </Flex>
+        </Popover>
     );
 };
 
