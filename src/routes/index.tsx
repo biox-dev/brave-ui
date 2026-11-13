@@ -94,6 +94,7 @@ const FilePreviewRoute = lazy(() => import("@/components/file-preview/file-previ
 const AgentTaskPage = lazy(() => import("@/pages/agent/agent-task-page"))
 const AgentPermissionPage = lazy(() => import("@/pages/agent/agent-permission-page"))
 const AgentSkillPage = lazy(() => import("@/pages/agent/agent-skill-page"))
+const AgentToolPage = lazy(() => import("@/pages/agent/agent-tool-page"))
 const AgentProfilePage = lazy(() => import("@/pages/agent/agent-profile-page"))
 const AgentMemoryPage = lazy(() => import("@/pages/agent/agent-memory-page"))
 const ConfigPage = lazy(() => import("@/pages/config"))
@@ -139,6 +140,9 @@ if (appType == "index") {
         }, {
             path: "agent-skill",
             element: <AgentSkillPage />
+        }, {
+            path: "agent-tool",
+            element: <AgentToolPage />
         }, {
             path: "agent-profile",
             element: <AgentProfilePage />

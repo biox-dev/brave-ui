@@ -214,6 +214,13 @@ export const layoutMenuTree: LayoutMenuItem[] = [
           zh_CN: 'Agent 技能',
           en_US: 'Agent Skills',
         },
+      }, {
+        key: '/agent-tool',
+        icon: 'agent',
+        label: {
+          zh_CN: 'Agent 工具',
+          en_US: 'Agent Tools',
+        },
       }, {        key: '/agent-profile',
         icon: 'agent',
         label: {
