@@ -10,6 +10,7 @@ import {
 	Input,
 	Select,
 	Space,
+	Switch,
 	Tag,
 	Typography,
 } from "antd";
@@ -44,6 +45,8 @@ interface ProviderRow {
 
 interface AgentFormValues {
 	providers: ProviderRow[];
+	/** 启动时是否用内置 SKILL.md 覆盖 .skills 下的同名文件。 */
+	overwrite_builtin_skills?: boolean;
 }
 
 const emptyRow = (): ProviderRow => ({
@@ -103,7 +106,10 @@ const toAgentConfig = (values: AgentFormValues): AgentConfig => {
 			extra: parseExtraText(row.extraText),
 		};
 	}
-	return { providers };
+	return {
+		providers,
+		overwrite_builtin_skills: values.overwrite_builtin_skills ?? true,
+	};
 };
 
 /**
@@ -123,8 +129,9 @@ const AgentConfigSection = ({ value, onSave }: ConfigSectionProps<AgentConfig>) 
 	// 外部值变化（首次加载 / 重新加载 / 保存后被归一化）时同步到表单。
 	useEffect(() => {
 		const rows = toProviderRows(value?.providers);
+		const overwrite = value?.overwrite_builtin_skills ?? true;
 		setProviders(rows);
-		form.setFieldsValue({ providers: rows });
+		form.setFieldsValue({ providers: rows, overwrite_builtin_skills: overwrite });
 	}, [form, value]);
 
 	// 厂商目录只在首次挂载时加载一次。
@@ -160,7 +167,10 @@ const AgentConfigSection = ({ value, onSave }: ConfigSectionProps<AgentConfig>) 
 			const saved = await onSave(toAgentConfig(values));
 			const rows = toProviderRows(saved?.providers);
 			setProviders(rows);
-			form.setFieldsValue({ providers: rows });
+			form.setFieldsValue({
+				providers: rows,
+				overwrite_builtin_skills: saved?.overwrite_builtin_skills ?? true,
+			});
 		} catch {
 			// 错误提示已由 http 拦截器统一处理
 		} finally {
@@ -210,6 +220,19 @@ const AgentConfigSection = ({ value, onSave }: ConfigSectionProps<AgentConfig>) 
 
 	return (
 		<Form<AgentFormValues> form={form} layout="vertical" onFinish={handleSave}>
+			<Divider orientation="left" plain>
+				内置技能 (builtin skills)
+			</Divider>
+			<Form.Item
+				name="overwrite_builtin_skills"
+				label="启动时覆盖 .skills 下的内置技能"
+				valuePropName="checked"
+				tooltip="开启（默认）：每次启动用二进制内置的 SKILL.md 覆盖 $BaseDir/.skills 下的同名文件；关闭：只在文件缺失时写入，已存在的文件保留用户修改。"
+				style={{ marginBottom: 8 }}
+			>
+				<Switch />
+			</Form.Item>
+
 			<Divider orientation="left" plain>
 				模型提供商 (providers)
 			</Divider>

@@ -75,6 +75,11 @@ export interface ModelProviderConfig {
 /** AI Agent 配置，字段与后端 config.AgentConfig 对齐。 */
 export interface AgentConfig {
 	providers: Record<string, ModelProviderConfig>;
+	/**
+	 * 启动时是否用内置 SKILL.md 覆盖 $BaseDir/.skills 下的同名文件。
+	 * 未设置 / true：每次启动都覆盖；false：仅在文件缺失时写入，保留用户修改。
+	 */
+	overwrite_builtin_skills?: boolean;
 }
 
 /** 模型厂商预置信息（后端 config.ModelVendorPreset）。 */

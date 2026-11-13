@@ -145,7 +145,7 @@ export interface AgentSkillItem {
   disable_model_invocation?: boolean;
   /** 为 true 时技能文本（正文 / 附属资源）不做模板渲染，原样返回（frontmatter disable-render）。 */
   disable_render?: boolean;
-  /** 技能指令正文。 */
+  /** 技能指令正文；仅详情接口（getAgentSkillApi）返回，列表接口不返回。 */
   instructions?: string;
   /** 技能目录。 */
   path?: string;
@@ -397,7 +397,7 @@ export const describeAgentEnvApi = () => {
   return http.post<AgentEnvInfo>("/agent/env/describe", {});
 };
 
-// 查看全部技能（内置 + 用户自定义）。
+// 查看全部技能（内置 + 用户自定义）的元信息，不含指令正文；正文用 getAgentSkillApi 按需拉取。
 export const listAgentSkillApi = () => {
   return http.get<AgentSkillItem[]>("/agent/skill/list");
 };
