@@ -1,9 +1,10 @@
 import { Button, Card, Empty, Popconfirm, Segmented, Skeleton, Spin, Tag, Tooltip } from "antd"
-import { DeleteOutlined, FileTextOutlined, ReloadOutlined } from "@ant-design/icons"
+import { DeleteOutlined, FileTextOutlined, ReloadOutlined, RobotOutlined } from "@ant-design/icons"
 import { FC, useCallback, useEffect, useState } from "react"
 import { useParams } from "react-router"
 import { useModal } from "@/hooks/useModal"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
+import { useInsertAgentRef } from "@/hooks/useInsertAgentRef"
 import { useStoreRender } from "@/context/render/RenderProvider"
 import ViewResolver from "@/core/ui-renderer/ViewResolver"
 import Markdown from "@/components/markdown"
@@ -88,6 +89,14 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
         { label: zh ? "发布" : "Publish", value: "PublishToolsV2" },
     ]
 
+    // 把当前脚本作为 @script:<id> 引用 chip 插进 Agent 输入框（面板未打开时自动切过去）。
+    // Agent 侧用 get_script 调研：脚本名称 / 描述 / 容器模板 / 脚本文件与 io_schema 路径。
+    const insertAgentRef = useInsertAgentRef()
+    // 优先用详情接口返回的脚本 id，详情未加载完时回退到路由传入的 script_id（需先解码）。
+    const agentRefScriptId =
+        String(script?.id ?? "").trim() ||
+        (script_id ? decodeURIComponent(script_id) : "")
+
     const handleDelete = async () => {
         await http.post(`/script/delete/${encodeURIComponent(script.id)}`)
         message.success(zh ? "脚本已删除" : "Script deleted")
@@ -121,6 +130,35 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
                                 </div>
 
                                 <div className="script-panel-actions">
+                                    {/* 把当前脚本作为 @script:<id> 引用插进 Agent 输入框，
+                                        模型收到引用后会用 get_script 读取脚本名称 / 描述 /
+                                        容器模板 / 脚本文件与 io_schema 路径。 */}
+                                    <Tooltip
+                                        title={
+                                            agentRefScriptId
+                                                ? `Ask Agent about script ${agentRefScriptId}`
+                                                : (zh ? "脚本尚未加载" : "Script is not loaded yet")
+                                        }
+                                    >
+                                        <Button
+                                            size="small"
+                                            icon={<RobotOutlined />}
+                                            disabled={!agentRefScriptId}
+                                            onClick={() => {
+                                                const ok = insertAgentRef("script", agentRefScriptId, {
+                                                    label:
+                                                        script?.name ||
+                                                        script?.script_path ||
+                                                        `Script-${agentRefScriptId}`,
+                                                })
+                                                if (ok) {
+                                                    message.success(zh ? "已插入 Agent 引用" : "Reference added to Agent input")
+                                                }
+                                            }}
+                                        >
+                                            Ask Agent
+                                        </Button>
+                                    </Tooltip>
                                     {/* Git 状态与主操作并列：标题行只放「身份信息」，避免长标题把
                                         状态标签和按钮挤到下一行、或者把标题本身挤成省略号。 */}
                                     <GitStateActions entity="script" item={script} onReload={reload} />

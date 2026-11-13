@@ -7,9 +7,16 @@ import { create } from "zustand";
  * - dataset：数据集（Agent 侧用 get_dataset 解析工作目录）；
  * - container：容器模板（Agent 侧用 get_container_template 解析展示名 / 描述）；
  * - report：项目报告（id 由 Agent 侧业务上下文 / 消息文本自行解析）；
- * - analysis_node：分析节点（Agent 侧用 get_analysis_node 查看节点名称 / 类型 / 工作目录 / 参数）。
+ * - analysis_node：分析节点（Agent 侧用 get_analysis_node 查看节点名称 / 类型 / 工作目录 / 参数）；
+ * - script：分析脚本（Agent 侧用 get_script 查看脚本名称 / 描述 / 容器模板 / 脚本文件与 io_schema 路径）。
  */
-export type AgentRefKind = "file" | "dataset" | "container" | "report" | "analysis_node";
+export type AgentRefKind =
+  | "file"
+  | "dataset"
+  | "container"
+  | "report"
+  | "analysis_node"
+  | "script";
 
 /** 一次「把引用 chip 插入 Agent 输入框」的请求。 */
 export interface AgentRefRequest {

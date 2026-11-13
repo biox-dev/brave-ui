@@ -3,6 +3,7 @@ import { Sender, type SenderProps } from "@ant-design/x";
 import { Button, Flex, GetRef } from "antd";
 import {
   CloudServerOutlined,
+  CodeOutlined,
   DatabaseOutlined,
   FileOutlined,
   NodeIndexOutlined,
@@ -34,10 +35,11 @@ const REF_ICONS: Record<AgentRefKind, ReactNode> = {
   container: <CloudServerOutlined />,
   report: <ReadOutlined />,
   analysis_node: <NodeIndexOutlined />,
+  script: <CodeOutlined />,
 };
 
 export interface AgentSenderProps {
-  /** 当前输入文本（受控）：插入的引用 chip 也以 `@file:<id>` / `@dataset:<id>` / `@container:<id>` / `@report:<id>` / `@analysis_node:<id>` 文本参与拼接。 */
+  /** 当前输入文本（受控）：插入的引用 chip 也以 `@file:<id>` / `@dataset:<id>` / `@container:<id>` / `@report:<id>` / `@analysis_node:<id>` / `@script:<id>` 文本参与拼接。 */
   value: string;
   /** 输入变化（含插入 / 删除引用 chip）。 */
   onChange: (value: string) => void;
@@ -63,7 +65,8 @@ export interface AgentSenderProps {
  *   - Containers：`invoke.containerTemplatePage`，容器模板（go_container_template_definition），`@container:<id>`。
  *
  * 另外支持「外部页面把引用插进来」：任意页面调用 hooks/useInsertAgentRef
- * （如报告文件页插入 `@report:<id>`、分析节点详情页插入 `@analysis_node:<id>`），
+ * （如报告文件页插入 `@report:<id>`、分析节点详情页插入 `@analysis_node:<id>`、
+ * 脚本面板插入 `@script:<id>`），
  * 请求经 agent-sender.store 落到本组件，本组件消费后插入 chip ——
  * 面板当时未打开也不会丢请求。
  * 其余 Sender 扩展（深度思考开关 / Agent 选择 / 附件 / API 设置等）先不添加。
