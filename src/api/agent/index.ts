@@ -435,6 +435,33 @@ export const deleteAgentSkillApi = (id: string) => {
   return http.post<{ ok: boolean; id: string }>("/agent/skill/delete", { id });
 };
 
+// ---- Agent 工具目录（对应后端 tool.Definition） ----
+
+// 工具定义：名称 / 描述 / 入参 JSON Schema。
+export interface AgentToolItem {
+  name: string;
+  description?: string;
+  /** 工具入参的 JSON Schema（object），用于渲染参数说明。 */
+  input_schema?: Record<string, unknown>;
+}
+
+// 查看当前工具注册表中的全部工具（内置 + 编码类 + 外部 MCP）。
+export const listAgentToolApi = () => {
+  return http.get<AgentToolItem[]>("/agent/tool/list");
+};
+
+// 按工具名查看单个工具详情（工具不存在时后端返回 404）。
+// options.skipGlobalError：调用方自己处理 404（如弹窗内展示空态）时跳过全局错误提示。
+export const getAgentToolApi = (
+  id: string,
+  options?: { skipGlobalError?: boolean }
+) => {
+  return http.get<AgentToolItem>("/agent/tool/get", {
+    params: { id },
+    skipGlobalError: options?.skipGlobalError,
+  });
+};
+
 // Agent 记忆类别（对应后端 agent.MemoryKind）。
 export const AgentMemoryKind = {
   Fact: "fact",
@@ -515,6 +542,8 @@ export interface AgentProfileItem {
   /** 本 Profile 使用的 Agent（Provider）名称。 */
   provider?: string;
   skills?: string[];
+  /** 本 Profile 启用的工具名白名单；为空表示注入注册表中的全部工具。 */
+  tools?: string[];
   context?: AgentProfileContext;
   created_at: string;
   updated_at: string;
@@ -529,6 +558,8 @@ export interface AgentProfileSaveRequest {
   /** 本 Profile 使用的模型名（为空回退到请求级 / Provider 兜底）。 */
   model?: string;
   skills?: string[];
+  /** 工具名白名单（为空表示注入全部工具）。 */
+  tools?: string[];
   context?: AgentProfileContext;
   is_default?: boolean;
 }

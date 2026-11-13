@@ -169,6 +169,28 @@ const AgentProfilePage = ({
           : "-",
     },
     {
+      title: "Tools",
+      dataIndex: "tools",
+      key: "tools",
+      width: 260,
+      render: (value?: string[]) => {
+        if (!value || value.length === 0) return "-";
+        // 工具名可能很多（内置 + coder 数十个）：只展示前 3 个，其余折叠为 +N。
+        const shown = value.slice(0, 3);
+        const rest = value.length - shown.length;
+        return (
+          <Space size={4} wrap>
+            {shown.map((t) => (
+              <Tag key={t} color="blue">
+                {t}
+              </Tag>
+            ))}
+            {rest > 0 && <Tag>+{rest}</Tag>}
+          </Space>
+        );
+      },
+    },
+    {
       title: "Context",
       dataIndex: "context",
       key: "context",

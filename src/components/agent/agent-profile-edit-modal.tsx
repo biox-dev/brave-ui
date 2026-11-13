@@ -1,15 +1,17 @@
-import { FC, useEffect, useState } from "react";
-import { Button, Flex, Form, Input, Select, Skeleton, Space, Switch, Typography } from "antd";
+import { FC, useEffect, useMemo, useState } from "react";
+import { Button, Flex, Form, Input, Select, Skeleton, Space, Switch, Tag, Typography } from "antd";
 import { EditOutlined } from "@ant-design/icons";
 import {
   getAgentProfileApi,
   getAgentSkillApi,
   listAgentSkillApi,
+  listAgentToolApi,
   saveAgentProfileApi,
   type AgentEnvInfo,
   type AgentProfileItem,
   type AgentProfileSaveRequest,
   type AgentSkillItem,
+  type AgentToolItem,
 } from "@/api/agent";
 import { getGlobalMessage } from "@/hooks/useGlobalMessage";
 import { invoke } from "@/core/ui-system/invokeV2";
@@ -23,6 +25,7 @@ interface ProfileFormValues {
   system_prompt?: string;
   model?: string;
   skills?: string[];
+  tools?: string[];
   inject_memory?: boolean;
   is_default?: boolean;
 }
@@ -63,6 +66,8 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
 }) => {
   const [form] = Form.useForm<ProfileFormValues>();
   const [skills, setSkills] = useState<AgentSkillItem[]>([]);
+  // 工具目录（来自 /agent/tool/list）：用于 Tools 多选项与 hover 详情。
+  const [tools, setTools] = useState<AgentToolItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   // 仅保存 system_prompt 的加载态（Save Prompt 按钮）。
@@ -78,6 +83,18 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
   // 监听 Skills 的当前选择，供「Edit Skill」按钮确定要编辑的技能（仅选中一个时可编辑）。
   // 注意：Hook 必须在提前 return（loading）之前调用，保证每次渲染的调用顺序一致。
   const selectedSkills = Form.useWatch("skills", form);
+  // 监听已选工具，用于渲染详情 Tag 与“未注册工具名”的兼容展示。
+  const selectedTools = Form.useWatch("tools", form);
+
+  // Tools 下拉选项：注册表工具 + 已选但已不存在的工具名（保留旧配置可见、可移除）。
+  const toolOptions = useMemo(() => {
+    const known = tools.map((t) => ({ label: t.name, value: t.name }));
+    const knownNames = new Set(tools.map((t) => t.name));
+    const stale = (selectedTools ?? [])
+      .filter((name) => !knownNames.has(name))
+      .map((name) => ({ label: `${name} (not registered)`, value: name }));
+    return [...known, ...stale];
+  }, [tools, selectedTools]);
 
   // 外部 envInfo 变化时同步到本地预览状态（如 AgentChat 在弹窗打开前重新解析）。
   useEffect(() => {
@@ -99,14 +116,16 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
     const load = async () => {
       setLoading(true);
       try {
-        // 技能列表用于 Skills 下拉；编辑时并发查询目标 Profile。
-        const [skillsRes, profileRes] = await Promise.all([
+        // 技能 / 工具列表用于下拉选项；编辑时并发查询目标 Profile。
+        const [skillsRes, toolsRes, profileRes] = await Promise.all([
           listAgentSkillApi(),
+          listAgentToolApi(),
           profileId ? getAgentProfileApi(profileId) : Promise.resolve(null),
         ]);
         if (cancelled) return;
 
         setSkills(skillsRes.data ?? []);
+        setTools(toolsRes.data ?? []);
 
         const record = profileRes?.data ?? null;
         setEditing(record);
@@ -117,12 +136,15 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
             system_prompt: record.system_prompt,
             model: record.model,
             skills: record.skills ?? [],
+            tools: record.tools ?? [],
             inject_memory: record.context?.inject_memory ?? true,
             is_default: record.is_default ?? false,
           });
         } else {
           form.resetFields();
           form.setFieldsValue({
+            skills: [],
+            tools: [],
             inject_memory: true,
             is_default: false,
           });
@@ -149,6 +171,7 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
     system_prompt: values.system_prompt,
     model: values.model,
     skills: values.skills ?? [],
+    tools: values.tools ?? [],
     context: {
       inject_memory: values.inject_memory ?? true,
     },
@@ -180,6 +203,15 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
     } catch {
       // 用户取消或接口失败（接口错误已由全局拦截器提示）。
     }
+  };
+
+  // 点击已选工具 Tag：打开只读详情弹窗（invoke 模式；弹窗内部按名称调 /agent/tool/get）。
+  const handleOpenTool = (name?: string) => {
+    if (!name) return;
+    invoke.agentToolDetailModal.open(
+      { name },
+      { title: `Tool · ${name}`, width: 720, footer: null }
+    );
   };
 
   const handleFinish = async (values: ProfileFormValues) => {
@@ -380,6 +412,43 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
                 >
                   {name}
                 </Button>
+              ))}
+            </Flex>
+          )}
+        </Flex>
+      </Form.Item>
+
+      <Form.Item
+        label="Tools"
+        tooltip="本 Profile 可用的工具白名单（工具名来自后端工具注册表）；留空表示注入全部工具。内置 ask_user / agent 工具始终可用。"
+        style={{ marginBottom: 24 }}
+      >
+        <Flex vertical gap="small">
+          <Form.Item name="tools" noStyle>
+            <Select
+              mode="multiple"
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              maxTagCount="responsive"
+              placeholder="Select tools to enable (empty = all)"
+              style={{ width: "100%" }}
+              options={toolOptions}
+            />
+          </Form.Item>
+          {/* 已选工具逐个显示为 Tag，点击打开只读详情弹窗（描述 + 入参 JSON Schema）。 */}
+          {!!selectedTools?.length && (
+            <Flex gap="small" wrap>
+              {selectedTools.map((name) => (
+                <Tag
+                  key={name}
+                  color="blue"
+                  title={`View tool · ${name}`}
+                  style={{ cursor: "pointer", marginInlineEnd: 0 }}
+                  onClick={() => handleOpenTool(name)}
+                >
+                  {name}
+                </Tag>
               ))}
             </Flex>
           )}
