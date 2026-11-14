@@ -1,14 +1,25 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Descriptions, Flex, Popover, Typography } from 'antd';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router';
 import type { ContainerRuntimeHealth } from '@/api/container';
+import { useComponentStore } from '@/event-bus/stores/components';
 import { loadRuntimeInfo } from '@/store/userSlice';
 
 const { Text } = Typography;
 
 /** 容器运行时安装向导路由（仅在 provision_enabled=true 时展示入口）。 */
 const PROVISION_ROUTE = '/container-runtime-provision';
+
+/**
+ * 后端「运行时就绪」事件在前端的组件类目 / 方法名。
+ *
+ * 对应 provision.Manager 的 onReady 回调：waitEndpoint 连通后后端以
+ * `component.invoke`（category=runtime-status, id=*, method=runtimeChanged）
+ * 广播给所有在线客户端，这里收到后重拉一次运行时信息。
+ */
+const RUNTIME_STATUS_CATEGORY = 'runtime-status';
+const RUNTIME_STATUS_ID = '*';
 
 /** bash 工具执行位置的展示文案：host=宿主机，container=容器模板终端。 */
 const BASH_MODE_LABEL: Record<string, string> = {
@@ -23,8 +34,9 @@ const orDash = (value?: string | number | null) =>
 /**
  * 容器运行时状态（底部状态栏）。
  *
- * 数据来源是 redux 里的 `user.runtimeInfo`（页面刷新时由 `loadRuntimeInfo` 拉取一次），
- * 因此可以放在任意位置复用；点击会重新检测并刷新全局状态。
+ * 数据来源是 redux 里的 `user.runtimeInfo`：页面加载时由 `loadRuntimeInfo` 拉取一次，
+ * 之后由后端广播的 runtimeChanged 事件（运行时 waitEndpoint 连通）触发刷新；
+ * 点击会重新检测并刷新全局状态。
  *
  * 视觉与 ContainerQueueMonitor 保持一致：状态圆点 + 小字号文本 + hover 底色，
  * 不使用 Tag，避免在 28px 高的底栏里显得笨重。
@@ -44,6 +56,25 @@ const RuntimeStatus: React.FC = () => {
     const refresh = useCallback(() => {
         void dispatch(loadRuntimeInfo() as any);
     }, [dispatch]);
+
+    // 订阅后端广播的「运行时就绪」事件：事件只作为「该刷新了」的信号，
+    // 参数（endpoint / status）不参与计算，直接重拉运行时信息。
+    const { register, unregister } = useComponentStore();
+    const realtimeInstance = useMemo(
+        () => ({
+            runtimeChanged: () => {
+                refresh();
+            },
+        }),
+        [refresh],
+    );
+
+    useEffect(() => {
+        register(RUNTIME_STATUS_CATEGORY, RUNTIME_STATUS_ID, realtimeInstance);
+        return () => {
+            unregister(RUNTIME_STATUS_CATEGORY, RUNTIME_STATUS_ID, realtimeInstance);
+        };
+    }, [register, unregister, realtimeInstance]);
 
     const openProvision = useCallback(() => {
         setOpen(false);

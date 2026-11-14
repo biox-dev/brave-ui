@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5174",
     "build": "export NODE_OPTIONS=--max-old-space-size=8192 && tsc -b && vite build",
+    "build:win": "set \"NODE_OPTIONS=--max-old-space-size=8192\" && tsc -b && vite build",
     "build:lowmem": "export NODE_OPTIONS=--max-old-space-size=4096 && vite build",
     "lint": "eslint .",
     "preview": "vite preview"

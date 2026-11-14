@@ -19,6 +19,8 @@ const MULTI_INSTANCE_CATEGORIES = new Set<string>([
     "container-terminal-session",
     // 容器队列状态可能同时被页脚徽标 / 其它面板监听，后端广播事件应推给全部实例。
     "container-queue",
+    // 运行时状态同理：底部状态栏 / 设置页可能同时挂载，广播事件要推给全部实例。
+    "runtime-status",
 ]);
 
 const isMultiCategory = (category: string) => MULTI_INSTANCE_CATEGORIES.has(category);
@@ -34,6 +36,7 @@ export type ComponentStore = {
     "app-session": Record<string, any>;
     "container-terminal-session": Record<string, Set<any> | any>;
     "container-queue": Record<string, Set<any> | any>;
+    "runtime-status": Record<string, Set<any> | any>;
     "analysis-node": Record<string, any>;
     "ai-summary": Record<string, any>;
     graph: Record<string, any>; 
@@ -56,6 +59,7 @@ export const useComponentStore = create<ComponentStore>((set, get) => ({
     "app-session": {},
     "container-terminal-session": {},
     "container-queue": {},
+    "runtime-status": {},
     "analysis-node": {},
     "ai-summary": {},
     graph: {},
@@ -163,8 +167,9 @@ export const useComponentStore = create<ComponentStore>((set, get) => ({
             }
         }
 
+        // id="*" 时上面已按全局监听者分发过，避免同一实例被调用两次。
         const target = (get() as any)[category]?.[id];
-        if (!target) return;
+        if (!target || id === "*") return;
         // console.log(`Found target for invocation - Category: ${category}, ID: ${id}`, target);
         // ⭐ 核心：if 判断 single / multi
         if (target instanceof Set) {
