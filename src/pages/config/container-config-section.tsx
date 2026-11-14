@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Divider, Form, Input, InputNumber, Select, Space, Switch } from "antd";
+import { Alert, Button, Divider, Form, Input, InputNumber, Select, Space, Switch } from "antd";
 import { ContainerOutlined, SaveOutlined } from "@ant-design/icons";
 import type { ContainerConfig } from "@/api/config";
 import type { ContainerTemplateItem } from "@/api/container";
@@ -11,6 +11,47 @@ const RUNTIME_OPTIONS = [
 	{ label: "Kubernetes (k8s)", value: "k8s" },
 	{ label: "K3s", value: "k3s" },
 ];
+
+/** 容器端口访问模式，与后端 config.ContainerNetworkMode* 常量对齐。 */
+const NETWORK_MODE_OPTIONS = [
+	{
+		label: "container_ip（直连容器 IP，默认）",
+		value: "container_ip",
+	},
+	{
+		label: "host_port（随机发布到宿主机端口）",
+		value: "host_port",
+	},
+];
+
+/** 后端 provision 段默认值（config.DefaultRuntimeProvisionConfig）。 */
+const DEFAULT_PROVISION_DISTRO = "gobrave-ubuntu-docker";
+
+/** 预置段默认值：config.yml 缺少 docker.provision 时用它回填表单。 */
+const DEFAULT_PROVISION = {
+	enabled: false,
+	distro: DEFAULT_PROVISION_DISTRO,
+	download_url: "",
+	endpoint: "",
+};
+
+/**
+ * 把后端返回的 container 段补齐为表单可用的形状。
+ *
+ * docker / docker.provision 是可选的（config.yml 可能整段缺失），
+ * 统一补上默认值，避免 Switch 之类受控组件拿到 undefined。
+ */
+const withDefaults = (value: ContainerConfig): ContainerConfig => ({
+	...value,
+	network_mode: value.network_mode || "container_ip",
+	docker: {
+		...value.docker,
+		provision: {
+			...DEFAULT_PROVISION,
+			...(value.docker?.provision ?? {}),
+		},
+	},
+});
 
 /** bash 工具执行位置，与后端 config.BashExecutionMode* 常量对齐。 */
 const BASH_EXECUTION_MODE_OPTIONS = [
@@ -56,9 +97,10 @@ const ContainerConfigSection = ({ value, onSave }: ConfigSectionProps<ContainerC
 	const [form] = Form.useForm<ContainerConfig>();
 	const [saving, setSaving] = useState(false);
 	const bashExecutionMode = Form.useWatch("bash_execution_mode", form);
+	const provisionEnabled = Form.useWatch(["docker", "provision", "enabled"], form);
 
 	useEffect(() => {
-		form.setFieldsValue(value);
+		form.setFieldsValue(withDefaults(value));
 	}, [form, value]);
 
 	/** 打开容器模板列表选择模板，把模板 ID 写回表单（只记录编号，不查名称）。 */
@@ -74,7 +116,7 @@ const ContainerConfigSection = ({ value, onSave }: ConfigSectionProps<ContainerC
 	const handleSave = async (values: ContainerConfig) => {
 		setSaving(true);
 		try {
-			form.setFieldsValue(await onSave(values));
+			form.setFieldsValue(withDefaults(await onSave(values)));
 		} catch {
 			// 错误提示已由 http 拦截器统一处理
 		}
@@ -123,6 +165,69 @@ const ContainerConfigSection = ({ value, onSave }: ConfigSectionProps<ContainerC
 					/>
 				</Form.Item>
 			</Space>
+
+			<Divider orientation="left" plain>
+				网络
+			</Divider>
+
+			<Form.Item
+				name="network_mode"
+				label="容器端口访问方式 (network_mode)"
+				tooltip="container_ip：gobrave 直接访问容器 IP（docker0 / k8s Pod IP），不占用宿主机端口；host_port：容器端口随机发布到宿主机，适用于 gobrave 无法路由容器 IP 的场景（如 Windows + WSL2 自管 dockerd）"
+			>
+				<Select options={NETWORK_MODE_OPTIONS} style={{ width: 320 }} />
+			</Form.Item>
+
+			<Alert
+				type="info"
+				showIcon
+				style={{ marginBottom: 16 }}
+				message="network_mode 与 docker.provision 仅在新进程启动时生效，保存后需重启 gobrave。"
+			/>
+
+			<Divider orientation="left" plain>
+				Docker 运行时预置
+			</Divider>
+
+			<SwitchField
+				name={["docker", "provision", "enabled"]}
+				label="启动时自检并拉起运行时 (docker.provision.enabled)"
+				tooltip="Windows 上拉起自管 WSL 发行版内的 dockerd，Linux 上拉起本机 dockerd；未安装时不做任何安装，等待安装向导"
+			/>
+
+			<Space size="large" wrap align="start">
+				<Form.Item name={["docker", "provision", "distro"]} label="发行版名 (distro)">
+					<Input
+						style={{ width: 240 }}
+						disabled={!provisionEnabled}
+						placeholder={DEFAULT_PROVISION_DISTRO}
+					/>
+				</Form.Item>
+
+				<Form.Item
+					name={["docker", "provision", "endpoint"]}
+					label="daemon 地址 (endpoint)"
+					tooltip="留空时由平台实现选择默认值（Windows: tcp://localhost:2375，Linux/macOS: 本机 unix socket）"
+				>
+					<Input
+						style={{ width: 300 }}
+						disabled={!provisionEnabled}
+						placeholder="tcp://localhost:2375"
+					/>
+				</Form.Item>
+			</Space>
+
+			<Form.Item
+				name={["docker", "provision", "download_url"]}
+				label="rootfs 下载地址 (download_url)"
+				tooltip="安装向导下载 rootfs 包使用，仅 Windows 生效；接管已存在的同名发行版时可为空"
+			>
+				<Input
+					style={{ width: 560 }}
+					disabled={!provisionEnabled}
+					placeholder="https://example.com/gobrave-ubuntu-docker.tar.gz"
+				/>
+			</Form.Item>
 
 			<Divider orientation="left" plain>
 				Kubernetes

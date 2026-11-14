@@ -19,9 +19,35 @@ export interface KubernetesRuntimeConfig {
 	in_cluster: boolean;
 }
 
+/**
+ * 容器运行时预置（自管运行时）配置，字段与后端 config.RuntimeProvisionConfig 对齐。
+ *
+ * enabled 与平台无关：Windows 上拉起自管 WSL 发行版内的 dockerd，Linux 上拉起本机 dockerd。
+ * distro / download_url / endpoint 仅 Windows 生效，Linux 实现会忽略它们。
+ */
+export interface RuntimeProvisionConfig {
+	/** 启动时是否执行运行时预置自检（已安装则拉起 daemon，未安装等待 UI 安装向导）。 */
+	enabled: boolean;
+	/** 导入到 WSL 的发行版名（仅 Windows）。 */
+	distro: string;
+	/** rootfs 包下载地址，安装向导使用（仅 Windows）。 */
+	download_url: string;
+	/** daemon 地址，形如 tcp://localhost:2375 或 unix:///var/run/docker.sock（仅 Windows）。 */
+	endpoint: string;
+}
+
+/** docker 运行时配置，字段与后端 config.DockerRuntimeConfig 对齐。 */
+export interface DockerRuntimeConfig {
+	/** 是否按 WSL2 daemon 语义翻译 bind mount 路径；null 表示自动推断。 */
+	wsl_daemon?: boolean | null;
+	/** 自管运行时预置配置。 */
+	provision?: RuntimeProvisionConfig;
+}
+
 /** 容器配置，字段与后端 config.ContainerConfig 对齐。 */
 export interface ContainerConfig {
 	kubernetes: KubernetesRuntimeConfig;
+	docker?: DockerRuntimeConfig;
 	runtimes: string[];
 	default_runtime: string;
 	refresh_image_status_on_start: boolean;
@@ -36,7 +62,13 @@ export interface ContainerConfig {
 	bash_execution_mode: string;
 	/** container 模式下 bash 工具使用的容器模板 ID（int64，用字符串避免精度丢失）；<=0 时后端使用内置默认模板。 */
 	bash_container_template_id: string;
+	/** 应用容器端口的可达方式：container_ip（默认，直连容器 IP）或 host_port（随机发布到宿主机端口）。 */
+	network_mode?: string;
 }
+
+/** 容器端口访问模式，与后端 config.ContainerNetworkMode* 常量对齐。 */
+export const CONTAINER_NETWORK_MODES = ["container_ip", "host_port"] as const;
+export type ContainerNetworkMode = (typeof CONTAINER_NETWORK_MODES)[number];
 
 /** bash 工具执行位置取值，与后端 config.BashExecutionMode* 常量对齐。 */
 export const BASH_EXECUTION_MODES = ["host", "container"] as const;
