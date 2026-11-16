@@ -23,8 +23,12 @@ import { http } from "@/api/client/http";
 const RenderFromJson = lazy(() => import("./render-form-json"));
 
 
+// 分析元数据字段：统一走 controller 请求的顶层字段，绝不写入 request_param，
+// 保证 request_param 只包含分析参数。
+const RESERVED_PARAM_KEYS = ["analysis_id", "analysis_node_id", "script_id", "workflow_id", "analysis_name", "cache_type", "executor"]
+
 const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
-    requestParam, dataMap, formJson, jobStatus,
+    requestParam, workflowId, scriptId, cacheType, dataMap, formJson, jobStatus,
     databases, callback, analysisResultId, showCancal = false }) => {
     const { modals, openModals, closeModals } = useModals(["paramsView", "bioDatabases"]);
     const [loading, setLoading] = useState<boolean>(false)
@@ -33,107 +37,48 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
     const { project } = useSelector((state: any) => state.user);
     const { setAnalysisId, analysisNodeId, setAnalysisNodeId, formStatus, setFormStatus, analysisId, script } = useStoreRender()
 
-    // const [jobStatus, setJobStatus] = useState<string>(job_status )
-    // useEffect(() => {
-    //     // setJobStatus(job_status)
-    //     jobStatus.current=job_status
-    // }, [job_status])
-
-    // useEffect(()=>{
-
-    // },[project])
-
-
-
-    const getRequestParams = (values: any) => {
-        const requestParams = {
-            ...requestParam,
-            ...values,
-            // project: project,
-        }
+    // 把表单值合并进分析参数后剔除元数据键，得到纯净的 request_param。
+    const getRequestParams = (values: any = {}) => {
+        const requestParams = { ...requestParam, ...values }
+        RESERVED_PARAM_KEYS.forEach((key) => delete requestParams[key])
         return requestParams
     }
-    // const createAnalysis = async () => {
-    //     const values = await form.validateFields()
-    //     const requestParams = getRequestParams(values)
-    //     delete requestParams.analysis_id
-    //     console.log(requestParams)
-    //     try {
-    //         setLoading(true)
 
-    //         const resp: any = await axios.post(`/fast-api/analysis-controller`, {
-    //             request_param: requestParams,
-    //             is_report: true,
-    //             save: true,
-    //             is_submit: false,
-    //         })
-    //         setLoading(false)
-    //         // setFilePlot(resp.data)
-    //         // setAnalysisParams(resp.data)
-    //         console.log(resp)
+    // buildPayload 组装统一的 controller 请求体：
+    // 分析元数据（主键 / 工作流 / 脚本 / 节点 / 名称 / 缓存策略）全部放顶层。
+    const buildPayload = (values: any, save: boolean, is_submit: boolean) => ({
+        request_param: getRequestParams(values),
+        analysis_id: analysisId ?? undefined,
+        analysis_node_id: analysisNodeId ?? undefined,
+        script_id: scriptId ?? script?.id,
+        workflow_id: workflowId,
+        node_name: values?.analysis_name,
+        cache_type: values?.cache_type ?? cacheType,
+        scheduler,
+        save,
+        is_submit,
+    })
 
-    //         messageApi.success("Created Successfully!")
-    //         if (callback) {
-    //             callback()
-    //         }
-    //     } catch (error: any) {
-    //         console.log(error)
-    //         if (error.response?.data) {
-    //             messageApi.error(error.response.data.detail)
-    //         }
-    //     }
-    // }
     const saveUpstreamAnalysis = async (save: any, is_submit: any = false) => {
         const values = await form.validateFields()
-        const requestParams = getRequestParams(values)
         setLoading(true)
         try {
-            // let url = `/fast-api/analysis-controller?save=${save}&is_submit=${is_submit}`
-            // if (analysisNodeId){
-            //     url = `/fast-api/analysis-node-controller?save=${save}&is_submit=${is_submit}&analysis_node_id=${analysisNodeId}`
-            // }
-            //             request_param: Dict[str, Any]
-            // save: Optional[bool] = False
-            // is_submit: Optional[bool] = False
-            // is_report: Optional[bool] = None
-            // analysis_node_id: Optional[str] = None
-            // const resp: any = await axios.post(`/fast-api/analysis-controller`, {
-            //     request_param: requestParams,
-            //     save: save,
-            //     is_submit: is_submit,
-            //     analysis_node_id: analysisNodeId
-            // })
-            // A single controller endpoint serves every scheduler; the backend
-            // resolves the orchestrator from `scheduler` and persists it as
-            // analysis.scheduler_mode. Script nodes still use their own endpoint.
+            // 脚本节点走 controller-script；流程分析走 controller。
+            // 后端按 scheduler 选择编排器，并把它持久化为 analysis.scheduler_mode。
             const controllerPath = analysisNodeId || script ? "/analysis/controller-script" : "/analysis/controller"
-
-            const resp = await http.post(controllerPath, {
-                request_param: requestParams,
-                save: save,
-                is_submit: is_submit,
-                scheduler,
-            })
-            // setFilePlot(resp.data)
-            // setAnalysisParams(resp.data)
-            // console.log(resp)
-            // if (jobStatus && is_submit) {
-            //     // jobStatus.current = "running"
-
-            // }
+            const resp = await http.post(controllerPath, buildPayload(values, save, is_submit))
             if (is_submit) {
                 setFormStatus("running")
             }
             if (save) {
                 messageApi.success("save successful!")
-                // setToolsPanelView("analysisList")
                 if (script) {
                     setAnalysisNodeId(resp.data.analysis_node_id)
                 } else {
                     if (resp.data.analysis_id) {
                         setAnalysisId(resp.data.analysis_id)
                     }
-                    const data = [
+                    const actions = [
                         {
                             action: "component.invoke",
                             payload: {
@@ -144,7 +89,7 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
                         }
                     ]
                     if (analysisId) {
-                        data.push({
+                        actions.push({
                             action: "component.invoke",
                             payload: {
                                 category: "analysis",
@@ -154,7 +99,7 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
                         })
                     }
 
-                    ActionDispatcher.dispatchList(data);
+                    ActionDispatcher.dispatchList(actions);
                 }
 
 
@@ -162,7 +107,6 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
                     callback()
                 }
             } else {
-                // openModals("paramsView", resp.data)
                 invoke.paramsView.drawer({
                     data: resp.data,
                 }, {
@@ -184,93 +128,7 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
 
 
 
-    const saveUpstreamAnalysisOld = async (save: any, is_submit: any = false) => {
-        const values = await form.validateFields()
-        const requestParams = getRequestParams(values)
-        setLoading(true)
-        try {
-            // let url = `/fast-api/analysis-controller?save=${save}&is_submit=${is_submit}`
-            // if (analysisNodeId){
-            //     url = `/fast-api/analysis-node-controller?save=${save}&is_submit=${is_submit}&analysis_node_id=${analysisNodeId}`
-            // }
-            //             request_param: Dict[str, Any]
-            // save: Optional[bool] = False
-            // is_submit: Optional[bool] = False
-            // is_report: Optional[bool] = None
-            // analysis_node_id: Optional[str] = None
-            const resp: any = await axios.post(`/fast-api/analysis-controller`, {
-                request_param: requestParams,
-                save: save,
-                is_submit: is_submit,
-                analysis_node_id: analysisNodeId
-            })
-            // const resp = await http.post(`/analysis/controller`, {
-            //     request_param: requestParams,
-            //     save: save,
-            //     is_submit: is_submit
-            // })
-            // setFilePlot(resp.data)
-            // setAnalysisParams(resp.data)
-            // console.log(resp)
-            // if (jobStatus && is_submit) {
-            //     // jobStatus.current = "running"
-
-            // }
-            if (is_submit) {
-                setFormStatus("running")
-            }
-            if (save) {
-                messageApi.success("save successful!")
-                // setToolsPanelView("analysisList")
-                if (resp.data.analysis_id) {
-                    setAnalysisId(resp.data.analysis_id)
-                }
-                const data = [
-                    {
-                        action: "component.invoke",
-                        payload: {
-                            category: "tables",
-                            id: "analysis-list",
-                            method: "reload",
-                        }
-                    }
-                ]
-                if (analysisId) {
-                    data.push({
-                        action: "component.invoke",
-                        payload: {
-                            category: "analysis",
-                            id: analysisId,
-                            method: "reload",
-                        }
-                    })
-                }
-
-                ActionDispatcher.dispatchList(data);
-
-                if (callback) {
-                    callback()
-                }
-            } else {
-                // openModals("paramsView", resp.data)
-                invoke.paramsView.drawer({
-                    data: resp.data,
-                }, {
-                    width: "60%",
-                    title: "Parameters",
-                    footer: null,
-                })
-            }
-        } catch (error: any) {
-            console.log(error)
-            if (error.response?.data) {
-                messageApi.error(error.response.data.detail)
-            }
-        }
-
-        // setAnalysisId()
-        setLoading(false)
-    }
+  
 
     return <Suspense fallback={<Skeleton active></Skeleton>}>
 
@@ -377,7 +235,7 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
                                 options={[
                                     { value: 1, label: "RerunAll" },
                                     { value: 2, label: "ReuseNode" },
-                                    { value: 3, label: "ReuseCode" },
+                                    { value: 3, label: "ReuseCode" }, 
                                     { value: 4, label: "ReuseBoth" },
                                 ]}
                             />
@@ -396,7 +254,7 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
                             {requestParam?.analysis_id ? <>Update </> : <>Create</>}</Button> */}
                             {/* {JSON.stringify(requestParam)} */}
                         <Button disabled={formStatus == "running"} size="small" color="cyan" variant="solid" onClick={() => saveUpstreamAnalysis(true)}>
-                            {requestParam?.analysis_id || requestParam?.analysis_node_id ? <>Update </> : <>Create</>}</Button>
+                            {analysisId || analysisNodeId ? <>Update </> : <>Create</>}</Button>
 
                         <Button disabled={formStatus == "running"} size="small" color="cyan" variant="solid" onClick={() => {
                             saveUpstreamAnalysis(false)
@@ -468,11 +326,7 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
                     <Button disabled={formStatus == "running"} size="small" color="cyan" variant="solid"
                         onClick={async () => {
                             const values = await form.validateFields()
-                            const requestParams = getRequestParams(values)
-                            await http.post(`/analysis/parse-params`, {
-                                request_param: requestParams
-                            })
-
+                            await http.post(`/analysis/parse-params`, buildPayload(values, false, false))
                         }}> debug Parameters</Button>
                     <Select
                         size="small"

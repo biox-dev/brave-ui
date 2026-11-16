@@ -25,8 +25,12 @@ const EditParamsPanel: FC<any> = () => {
         // debugger
         if (requestParam?.type && (requestParam?.type == "analysis" || requestParam?.type == "nodeAnalysis")) {
             form.resetFields()
-            // console.log(resp.data.request_param)
-            form.setFieldsValue(requestParam.requestParam)
+            // request_param 只含分析参数；名称与缓存策略来自顶层元数据字段。
+            form.setFieldsValue({
+                ...requestParam.requestParam,
+                analysis_name: requestParam.nodeName,
+                cache_type: requestParam.cacheType,
+            })
         }
         // form.resetFields()
         // if (analysisId) {

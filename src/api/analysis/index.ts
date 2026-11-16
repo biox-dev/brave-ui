@@ -6,6 +6,8 @@ export type EditParamsV2Response = {
 	is_report: boolean;
 	is_cache: boolean;
 	analysis_id: string;
+	workflow_id: string;
+	cache_type: number;
 	status: string;
 	server_status: string;
 	request_param: Record<string, unknown>;
@@ -15,9 +17,12 @@ export type EditParamsV2Response = {
 
 export type EditNodeParamsResponse = {
 	analysis_name: string;
+	node_name: string;
+	script_id: string;
 	is_report: boolean;
 	is_cache: boolean;
 	analysis_id: string;
+	cache_type: number;
 	status: string;
 	server_status: string;
 	request_param: Record<string, unknown>;

@@ -109,20 +109,10 @@ export const RenderProvider: FC<any> = ({ children }) => {
         setAnalysisNodeId(null)
     }
     const buildRequestParams = () => {
-        // let dataComponentIds: any = []
-        // if (relation.inputFile) {
-        //     dataComponentIds = relation.inputFile.map((item: any) => item.component_id)
-
-        // }
-        const requestParams = {
-            // analysis_type: "workflow",
-            // component_id: relation.component_id,
-            // data_component_ids: JSON.stringify(dataComponentIds),
-            // component_parent_ids_map: componentParentIdsMap,
-            workflow_id: relation.id,
-        }
+        // 分析元数据（workflow_id 等）走请求顶层字段，request_param 只放分析参数。
         return {
-            requestParam: requestParams,
+            requestParam: {},
+            workflowId: relation?.id,
             dataMap: resultTableList ? resultTableList : {},
             formJson: relation.formJson,
             databases: relation.databases
@@ -146,6 +136,10 @@ export const RenderProvider: FC<any> = ({ children }) => {
         const resp = await editParamsV2Api(analysisId)
         return {
             requestParam: resp.data.request_param,
+            // 分析元数据与 request_param 分开传递，保证 request_param 只含分析参数。
+            workflowId: resp.data.workflow_id,
+            nodeName: resp.data.analysis_name,
+            cacheType: resp.data.cache_type,
             dataMap: { ...resp.data.analysis_result },
             formJson: resp.data.formJson,
             // databases: resp.data.databases,
@@ -159,6 +153,9 @@ export const RenderProvider: FC<any> = ({ children }) => {
         const resp = await editNodeParamsApi(nodeAnalysisId)
         return {
             requestParam: resp.data.request_param,
+            scriptId: resp.data.script_id,
+            nodeName: resp.data.node_name,
+            cacheType: resp.data.cache_type,
             formJson: resp.data.formJson,
             dataMap: resp.data.analysis_result,
             // databases: resp.data.databases,
@@ -208,10 +205,9 @@ export const RenderProvider: FC<any> = ({ children }) => {
                 const resp = await getScriptFormApi(script.id)
                 console.log(resp)
                 setRequestParam({
-                    requestParam: {
-                        script_id: script.id,
-                        analysis_type: "script"
-                    },
+                    // script_id 走请求顶层字段，不写入 request_param。
+                    requestParam: {},
+                    scriptId: script.id,
                     dataMap: { ...resp.data.analysis_result },
                     formJson: resp.data.formJson,
                 })
