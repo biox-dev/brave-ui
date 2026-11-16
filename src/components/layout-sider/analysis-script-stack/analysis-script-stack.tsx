@@ -18,6 +18,15 @@ const AnalysisScriptStack = () => {
   const sections = useMemo<SiderStackSection[]>(
     () => [
       {
+        key: 'scriptPage',
+        render: ({ collapsed, toggle }) => (
+          <ViewResolver
+            view="scriptPage"
+            collapsed={collapsed}
+            onToggleCollapse={toggle}
+          />
+        ),
+      },{
         key: 'analysisNodeList',
         render: ({ collapsed, toggle }) => (
           <ViewResolver
@@ -27,16 +36,7 @@ const AnalysisScriptStack = () => {
           />
         ),
       },
-      {
-        key: 'scriptPage',
-        render: ({ collapsed, toggle }) => (
-          <ViewResolver
-            view="scriptPage"
-            collapsed={collapsed}
-            onToggleCollapse={toggle}
-          />
-        ),
-      },
+      
     ],
     [],
   );

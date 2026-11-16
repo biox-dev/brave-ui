@@ -293,6 +293,7 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
                                                         )
                                                         message.success(`Install success!`)
                                                         onOk && onOk()
+                                                        refetch()
                                                     }}
                                                 >
                                                     <Button size="small" color={item?.installed ? "red" : "blue"} variant="solid" icon={<DownloadOutlined />} >{item?.installed ? "ReInstall" : "Install"}</Button>

@@ -321,6 +321,7 @@ const ScriptPageList: FC<ScriptPageListProps> = ({ collapsed = false, onToggleCo
                     footer: null,
                   }
                 );
+                refetch();
               }}
             />
           </Tooltip>
