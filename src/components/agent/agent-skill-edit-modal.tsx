@@ -21,7 +21,6 @@ interface AgentSkillEditModalProps {
 interface AgentSkillFormValues {
   name: string;
   description: string;
-  user_invocable: boolean;
   disable_model_invocation: boolean;
   disable_render: boolean;
   instructions?: string;
@@ -46,11 +45,10 @@ const AgentSkillEditModal: FC<AgentSkillEditModalProps> = ({
     setLoading(true);
     try {
       const saved = await saveAgentSkillApi({
-        // 编辑时 name 作为标识不可变；新建时省略 id。
+        // 编辑时 name 作为标识不可变（名称即技能目录名，改名会改变路径并丢失附属资源）；新建时省略 id。
         id: isEdit ? skill?.name : undefined,
         name: values.name.trim(),
         description: values.description.trim(),
-        user_invocable: values.user_invocable,
         disable_model_invocation: values.disable_model_invocation,
         disable_render: values.disable_render,
         instructions: values.instructions ?? "",
@@ -73,7 +71,6 @@ const AgentSkillEditModal: FC<AgentSkillEditModalProps> = ({
       initialValues={{
         name: skill?.name ?? "",
         description: skill?.description ?? "",
-        user_invocable: skill?.user_invocable ?? false,
         disable_model_invocation: skill?.disable_model_invocation ?? false,
         disable_render: skill?.disable_render ?? false,
         instructions: skill?.instructions ?? "",
@@ -82,7 +79,7 @@ const AgentSkillEditModal: FC<AgentSkillEditModalProps> = ({
       <Form.Item
         name="name"
         label="Name"
-        tooltip="Alphanumeric with hyphens only; also used as the skill directory name."
+        tooltip="Alphanumeric with hyphens only; also used as the skill directory name. Rename is not supported: create a new skill instead."
         rules={[
           { required: true, message: "Please input a name" },
           {
@@ -108,14 +105,6 @@ const AgentSkillEditModal: FC<AgentSkillEditModalProps> = ({
       </Form.Item>
 
       <Flex gap="large" wrap style={{ marginBottom: 8 }}>
-        <Form.Item
-          name="user_invocable"
-          label="User Invocable"
-          valuePropName="checked"
-          style={{ marginBottom: 8 }}
-        >
-          <Switch />
-        </Form.Item>
         <Form.Item
           name="disable_model_invocation"
           label="Disable Model Invocation"

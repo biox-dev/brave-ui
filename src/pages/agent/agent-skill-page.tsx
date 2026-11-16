@@ -44,12 +44,16 @@ const MONO_FONT =
 
 interface ActionHandlers {
   onDelete: (name: string) => void;
+  onEdit: (record: AgentSkillItem) => void;
   deletingName?: string;
+  editingName?: string;
 }
 
 const createColumns = ({
   onDelete,
+  onEdit,
   deletingName,
+  editingName,
 }: ActionHandlers): ColumnsType<AgentSkillItem> => [
   {
     title: "Skill",
@@ -80,11 +84,6 @@ const createColumns = ({
     width: 320,
     render: (_: unknown, record) => (
       <Space size={[6, 6]} wrap>
-        <Tooltip title="Whether the user can invoke this skill explicitly">
-          <Tag color={record.user_invocable ? "green" : "default"}>
-            user {record.user_invocable ? "on" : "off"}
-          </Tag>
-        </Tooltip>
         <Tooltip title="Whether the skill is exposed to the model in the system prompt">
           <Tag color={record.disable_model_invocation ? "default" : "blue"}>
             model {record.disable_model_invocation ? "off" : "on"}
@@ -120,24 +119,36 @@ const createColumns = ({
   {
     title: "Actions",
     key: "actions",
-    width: 110,
+    width: 170,
     align: "center",
     fixed: "right",
     render: (_: unknown, record) => (
-      <Popconfirm
-        title="Delete this skill?"
-        description="The SKILL.md file will be removed from disk."
-        onConfirm={() => onDelete(record.name)}
-      >
+      <Space size="small">
         <Button
-          danger
           size="small"
-          icon={<DeleteOutlined />}
-          loading={deletingName === record.name}
+          icon={<EditOutlined />}
+          loading={editingName === record.name}
+          disabled={deletingName === record.name}
+          onClick={() => onEdit(record)}
         >
-          Delete
+          Edit
         </Button>
-      </Popconfirm>
+        <Popconfirm
+          title="Delete this skill?"
+          description="The SKILL.md file will be removed from disk."
+          onConfirm={() => onDelete(record.name)}
+        >
+          <Button
+            danger
+            size="small"
+            icon={<DeleteOutlined />}
+            loading={deletingName === record.name}
+            disabled={editingName === record.name}
+          >
+            Delete
+          </Button>
+        </Popconfirm>
+      </Space>
     ),
   },
 ];
@@ -193,7 +204,6 @@ const SkillDetailPanel: FC<SkillDetailPanelProps> = ({ record, onSaved }) => {
         id: source.name,
         name: source.name,
         description: source.description ?? "",
-        user_invocable: source.user_invocable ?? false,
         disable_model_invocation: source.disable_model_invocation ?? false,
         disable_render: source.disable_render ?? false,
         instructions: draft,
@@ -280,28 +290,41 @@ const SkillDetailPanel: FC<SkillDetailPanelProps> = ({ record, onSaved }) => {
           />
           {dirty && <Tag color="orange">unsaved</Tag>}
         </Space>
-        {mode === "edit" && (
-          <Space size="small">
-            <Button
-              size="small"
-              icon={<UndoOutlined />}
-              disabled={saving || !dirty}
-              onClick={() => setDraft(saved)}
-            >
-              Reset
+        <Space size="small">
+          {mode === "edit" && (
+            <>
+              <Button
+                size="small"
+                icon={<UndoOutlined />}
+                disabled={saving || !dirty}
+                onClick={() => setDraft(saved)}
+              >
+                Reset
+              </Button>
+              <Button
+                size="small"
+                type="primary"
+                icon={<SaveOutlined />}
+                loading={saving}
+                disabled={!dirty}
+                onClick={handleSave}
+              >
+                Save
+              </Button>
+            </>
+          )}
+          {/* 重新拉取技能详情（含指令正文）：有未保存修改时先确认，避免静默丢弃草稿。 */}
+          <Popconfirm
+            title="Reload skill details?"
+            description="Unsaved instruction edits will be discarded."
+            disabled={!dirty}
+            onConfirm={loadDetail}
+          >
+            <Button size="small" icon={<ReloadOutlined />} loading={loading}>
+              Refresh
             </Button>
-            <Button
-              size="small"
-              type="primary"
-              icon={<SaveOutlined />}
-              loading={saving}
-              disabled={!dirty}
-              onClick={handleSave}
-            >
-              Save
-            </Button>
-          </Space>
-        )}
+          </Popconfirm>
+        </Space>
       </Flex>
       {renderBody()}
       <Text type="secondary" style={{ fontSize: 12, fontFamily: MONO_FONT }}>
@@ -316,6 +339,7 @@ const AgentSkillPage = () => {
   const { token } = antdTheme.useToken();
   const [loading, setLoading] = useState(false);
   const [deletingName, setDeletingName] = useState<string>();
+  const [editingName, setEditingName] = useState<string>();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -349,6 +373,28 @@ const AgentSkillPage = () => {
     }
   };
 
+  // 行内 Edit：打开技能编辑弹窗，可修改描述 / 两个开关 / 指令正文（名称是目录名，不可改）。
+  // 列表项不含指令正文，先按名称拉取完整技能，避免保存时把正文覆盖为空。
+  const handleEdit = async (record: AgentSkillItem) => {
+    setEditingName(record.name);
+    try {
+      const res = await getAgentSkillApi(record.name);
+      await invoke.agentSkillEditModal.openAsync(
+        { skill: res.data ?? record },
+        {
+          title: `Edit Skill · ${record.name}`,
+          width: 720,
+          footer: null,
+        }
+      );
+      await load();
+    } catch {
+      // 用户取消或接口失败（接口错误已由全局拦截器提示）。
+    } finally {
+      setEditingName(undefined);
+    }
+  };
+
   const handleDelete = async (name: string) => {
     setDeletingName(name);
     try {
@@ -364,7 +410,9 @@ const AgentSkillPage = () => {
 
   const columns = createColumns({
     onDelete: handleDelete,
+    onEdit: handleEdit,
     deletingName,
+    editingName,
   });
 
   return (

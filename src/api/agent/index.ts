@@ -139,8 +139,6 @@ export interface AgentEventItem {
 export interface AgentSkillItem {
   name: string;
   description: string;
-  /** 是否允许用户主动调用（frontmatter user-invocable）。 */
-  user_invocable?: boolean;
   /** 为 true 时不注入系统提示词的 <available_skills>（frontmatter disable-model-invocation）。 */
   disable_model_invocation?: boolean;
   /** 为 true 时技能文本（正文 / 附属资源）不做模板渲染，原样返回（frontmatter disable-render）。 */
@@ -159,7 +157,6 @@ export interface AgentSkillSaveRequest {
   id?: string;
   name: string;
   description: string;
-  user_invocable?: boolean;
   disable_model_invocation?: boolean;
   disable_render?: boolean;
   instructions?: string;
