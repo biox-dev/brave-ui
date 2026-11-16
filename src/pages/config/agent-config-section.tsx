@@ -47,6 +47,8 @@ interface AgentFormValues {
 	providers: ProviderRow[];
 	/** 启动时是否用内置 SKILL.md 覆盖 .skills 下的同名文件。 */
 	overwrite_builtin_skills?: boolean;
+	/** 启动时是否用内置提示词覆盖内置 Profile 的 system_prompt。 */
+	overwrite_builtin_prompts?: boolean;
 }
 
 const emptyRow = (): ProviderRow => ({
@@ -109,6 +111,7 @@ const toAgentConfig = (values: AgentFormValues): AgentConfig => {
 	return {
 		providers,
 		overwrite_builtin_skills: values.overwrite_builtin_skills ?? true,
+		overwrite_builtin_prompts: values.overwrite_builtin_prompts ?? true,
 	};
 };
 
@@ -129,9 +132,12 @@ const AgentConfigSection = ({ value, onSave }: ConfigSectionProps<AgentConfig>) 
 	// 外部值变化（首次加载 / 重新加载 / 保存后被归一化）时同步到表单。
 	useEffect(() => {
 		const rows = toProviderRows(value?.providers);
-		const overwrite = value?.overwrite_builtin_skills ?? true;
 		setProviders(rows);
-		form.setFieldsValue({ providers: rows, overwrite_builtin_skills: overwrite });
+		form.setFieldsValue({
+			providers: rows,
+			overwrite_builtin_skills: value?.overwrite_builtin_skills ?? true,
+			overwrite_builtin_prompts: value?.overwrite_builtin_prompts ?? true,
+		});
 	}, [form, value]);
 
 	// 厂商目录只在首次挂载时加载一次。
@@ -170,6 +176,7 @@ const AgentConfigSection = ({ value, onSave }: ConfigSectionProps<AgentConfig>) 
 			form.setFieldsValue({
 				providers: rows,
 				overwrite_builtin_skills: saved?.overwrite_builtin_skills ?? true,
+				overwrite_builtin_prompts: saved?.overwrite_builtin_prompts ?? true,
 			});
 		} catch {
 			// 错误提示已由 http 拦截器统一处理
@@ -228,6 +235,19 @@ const AgentConfigSection = ({ value, onSave }: ConfigSectionProps<AgentConfig>) 
 				label="启动时覆盖 .skills 下的内置技能"
 				valuePropName="checked"
 				tooltip="开启（默认）：每次启动用二进制内置的 SKILL.md 覆盖 $BaseDir/.skills 下的同名文件；关闭：只在文件缺失时写入，已存在的文件保留用户修改。"
+				style={{ marginBottom: 8 }}
+			>
+				<Switch />
+			</Form.Item>
+
+			<Divider orientation="left" plain>
+				内置提示词 (builtin prompts)
+			</Divider>
+			<Form.Item
+				name="overwrite_builtin_prompts"
+				label="启动时用内置提示词覆盖内置 Profile"
+				valuePropName="checked"
+				tooltip="开启（默认）：启动同步内置 Profile 时，用 builtin/prompts/*.md（如 default.md）覆盖数据库中已有的系统提示词；关闭：保留数据库中已有的系统提示词，即对内置 Profile 的修改会在重启后保留。"
 				style={{ marginBottom: 8 }}
 			>
 				<Switch />

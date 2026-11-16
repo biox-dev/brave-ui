@@ -112,6 +112,12 @@ export interface AgentConfig {
 	 * 未设置 / true：每次启动都覆盖；false：仅在文件缺失时写入，保留用户修改。
 	 */
 	overwrite_builtin_skills?: boolean;
+	/**
+	 * 启动同步内置 Profile 时是否用内置提示词（builtin/prompts/*.md）覆盖数据库中已有的
+	 * system_prompt。未设置 / true：每次启动都覆盖；false：保留数据库中已有的提示词
+	 * （即对内置 Profile 的修改会在重启后保留）。
+	 */
+	overwrite_builtin_prompts?: boolean;
 }
 
 /** 模型厂商预置信息（后端 config.ModelVendorPreset）。 */

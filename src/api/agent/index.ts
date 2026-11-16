@@ -404,8 +404,9 @@ export const getAgentSkillApi = (id: string) => {
   return http.get<AgentSkillItem>("/agent/skill/get", { params: { id } });
 };
 
-// 技能解析结果（对应后端 skill.GetSkillOutput）。
+// 技能解析结果（对应后端 skill.AgentSkillDetail）。
 // instructions 是用当前业务上下文渲染后的 SKILL.md 正文，与模型调用 get_skill 拿到的内容一致。
+// skill_path 只出现在 HTTP 响应里（工具 get_skill 不返回磁盘路径），仅用于详情弹窗展示。
 export interface AgentSkillResolveResult {
   name: string;
   description?: string;
