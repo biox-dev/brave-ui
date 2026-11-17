@@ -113,11 +113,12 @@ export interface AgentConfig {
 	 */
 	overwrite_builtin_skills?: boolean;
 	/**
-	 * 启动同步内置 Profile 时是否用内置提示词（builtin/prompts/*.md）覆盖数据库中已有的
-	 * system_prompt。未设置 / true：每次启动都覆盖；false：保留数据库中已有的提示词
-	 * （即对内置 Profile 的修改会在重启后保留）。
+	 * 启动同步内置 Profile 时是否覆盖数据库中已存在的内置 Profile 记录。
+	 * 未设置 / true：每次启动都用代码内置的定义（包含 builtin/prompts/*.md 的 system_prompt
+	 * 与名称 / 技能 / 工具 / 模型等字段）覆盖；false：已存在的内置 Profile 保持原样、
+	 * 不再更新，仅创建缺失的记录。
 	 */
-	overwrite_builtin_prompts?: boolean;
+	overwrite_builtin_profile?: boolean;
 }
 
 /** 模型厂商预置信息（后端 config.ModelVendorPreset）。 */

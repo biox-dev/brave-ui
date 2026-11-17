@@ -47,8 +47,8 @@ interface AgentFormValues {
 	providers: ProviderRow[];
 	/** 启动时是否用内置 SKILL.md 覆盖 .skills 下的同名文件。 */
 	overwrite_builtin_skills?: boolean;
-	/** 启动时是否用内置提示词覆盖内置 Profile 的 system_prompt。 */
-	overwrite_builtin_prompts?: boolean;
+	/** 启动时是否用内置定义覆盖已存在的内置 Profile。 */
+	overwrite_builtin_profile?: boolean;
 }
 
 const emptyRow = (): ProviderRow => ({
@@ -111,7 +111,7 @@ const toAgentConfig = (values: AgentFormValues): AgentConfig => {
 	return {
 		providers,
 		overwrite_builtin_skills: values.overwrite_builtin_skills ?? true,
-		overwrite_builtin_prompts: values.overwrite_builtin_prompts ?? true,
+		overwrite_builtin_profile: values.overwrite_builtin_profile ?? true,
 	};
 };
 
@@ -136,7 +136,7 @@ const AgentConfigSection = ({ value, onSave }: ConfigSectionProps<AgentConfig>) 
 		form.setFieldsValue({
 			providers: rows,
 			overwrite_builtin_skills: value?.overwrite_builtin_skills ?? true,
-			overwrite_builtin_prompts: value?.overwrite_builtin_prompts ?? true,
+			overwrite_builtin_profile: value?.overwrite_builtin_profile ?? true,
 		});
 	}, [form, value]);
 
@@ -176,7 +176,7 @@ const AgentConfigSection = ({ value, onSave }: ConfigSectionProps<AgentConfig>) 
 			form.setFieldsValue({
 				providers: rows,
 				overwrite_builtin_skills: saved?.overwrite_builtin_skills ?? true,
-				overwrite_builtin_prompts: saved?.overwrite_builtin_prompts ?? true,
+				overwrite_builtin_profile: saved?.overwrite_builtin_profile ?? true,
 			});
 		} catch {
 			// 错误提示已由 http 拦截器统一处理
@@ -241,13 +241,13 @@ const AgentConfigSection = ({ value, onSave }: ConfigSectionProps<AgentConfig>) 
 			</Form.Item>
 
 			<Divider orientation="left" plain>
-				内置提示词 (builtin prompts)
+				内置 Profile (builtin profile)
 			</Divider>
 			<Form.Item
-				name="overwrite_builtin_prompts"
-				label="启动时用内置提示词覆盖内置 Profile"
+				name="overwrite_builtin_profile"
+				label="启动时用内置定义覆盖已存在的内置 Profile"
 				valuePropName="checked"
-				tooltip="开启（默认）：启动同步内置 Profile 时，用 builtin/prompts/*.md（如 default.md）覆盖数据库中已有的系统提示词；关闭：保留数据库中已有的系统提示词，即对内置 Profile 的修改会在重启后保留。"
+				tooltip="开启（默认）：启动同步内置 Profile 时，用代码内置的定义（builtin/prompts/*.md 的系统提示词以及名称 / 技能 / 工具 / 模型等字段）覆盖数据库中已存在的记录；关闭：已存在的内置 Profile 保持原样、不再更新，仅创建缺失的记录。"
 				style={{ marginBottom: 8 }}
 			>
 				<Switch />
