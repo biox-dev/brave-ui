@@ -696,6 +696,17 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
                                         }}
                                         color={statusColorMap[selectedSampleDetail.status]}>{selectedSampleDetail.status}</Tag>
                                 )}
+                                {/* 查看节点原始请求参数（request_param，后端以 JSON 字符串返回），只读弹窗。 */}
+                                <Tag
+                                    style={{ cursor: "pointer" }}
+                                    onClick={() => {
+                                        invoke.nodeRequestParam.open({ node: selectedSampleDetail.node },
+                                            {
+                                                title: `Request Param - ${selectedSampleDetail.node?.node_name}`,
+                                                width: 800,
+                                                footer: null,
+                                            })
+                                    }}>Request Param</Tag>
                                 {selectedSampleDetail.status == "done" && <Popconfirm title="is complete?" onConfirm={() => {
                                     async () => {
                                         await axios.post(`/complete-node/${selectedSampleDetail.node.analysis_node_id}`)

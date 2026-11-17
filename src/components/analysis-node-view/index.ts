@@ -13,6 +13,8 @@ const analysisNodeViewLoaders = {
     analysisNodeSnapshot: () => import("./components/analysis-node-snapshot"),
     nodeError: () => import("./components/node-error"),
     nodeResolvedIO: () => import("./components/node-resolved-io"),
+    // 节点原始请求参数（analysis_nodes.request_param）只读查看弹窗。
+    nodeRequestParam: () => import("./components/node-request-param"),
     nodeLogs: () => import("./components/node-logs"),
     nodeCommand: () => import("./components/node-command"),
     selectFileRole: () => import("./components/select-file-role"),

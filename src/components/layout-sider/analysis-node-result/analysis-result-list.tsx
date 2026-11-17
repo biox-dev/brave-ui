@@ -218,7 +218,7 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
   };
 
   /**
-   * 手动创建命令型分析节点（无脚本，等价于 create_agent_analysis 的建节点部分）。
+   * 手动创建命令型分析节点（无脚本，等价于 create_analysis_node_agent 的建节点部分）。
    * 弹窗内完成创建后返回新节点，这里只负责刷新列表。
    */
   const handleCreateCommandNode = async () => {
