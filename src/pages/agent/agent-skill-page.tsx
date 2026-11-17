@@ -55,103 +55,103 @@ const createColumns = ({
   deletingName,
   editingName,
 }: ActionHandlers): ColumnsType<AgentSkillItem> => [
-  {
-    title: "Skill",
-    dataIndex: "name",
-    key: "name",
-    width: 260,
-    render: (value: string, record) => (
-      <Flex vertical gap={2}>
-        <Space size={6} align="center">
-          <FileTextOutlined style={{ color: "#1677ff" }} />
-          <Text strong style={{ fontSize: 13 }}>
-            {value || "-"}
-          </Text>
-        </Space>
-        <Text
-          type="secondary"
-          style={{ fontSize: 12, maxWidth: 240 }}
-          ellipsis={{ tooltip: record.description }}
-        >
-          {record.description || "No description"}
-        </Text>
-      </Flex>
-    ),
-  },
-  {
-    title: "Capabilities",
-    key: "capabilities",
-    width: 320,
-    render: (_: unknown, record) => (
-      <Space size={[6, 6]} wrap>
-        <Tooltip title="Whether the skill is exposed to the model in the system prompt">
-          <Tag color={record.disable_model_invocation ? "default" : "blue"}>
-            model {record.disable_model_invocation ? "off" : "on"}
-          </Tag>
-        </Tooltip>
-        <Tooltip title="Whether {{ var }} placeholders are rendered with runtime context">
-          <Tag color={record.disable_render ? "default" : "geekblue"}>
-            render {record.disable_render ? "off" : "on"}
-          </Tag>
-        </Tooltip>
-      </Space>
-    ),
-  },
-  {
-    title: "Location",
-    dataIndex: "skill_file_path",
-    key: "skill_file_path",
-    ellipsis: true,
-    render: (value?: string) =>
-      value ? (
-        <Tooltip title={value}>
+    {
+      title: "Skill",
+      dataIndex: "name",
+      key: "name",
+      width: 260,
+      render: (value: string, record) => (
+        <Flex vertical gap={2}>
+          <Space size={6} align="center">
+            <FileTextOutlined style={{ color: "#1677ff" }} />
+            <Text strong style={{ fontSize: 13 }}>
+              {value || "-"}
+            </Text>
+          </Space>
           <Text
             type="secondary"
-            style={{ fontFamily: MONO_FONT, fontSize: 12 }}
+            style={{ fontSize: 12, maxWidth: 240 }}
+            ellipsis={{ tooltip: record.description }}
           >
-            {value}
+            {record.description || "No description"}
           </Text>
-        </Tooltip>
-      ) : (
-        <Text type="secondary">-</Text>
+        </Flex>
       ),
-  },
-  {
-    title: "Actions",
-    key: "actions",
-    width: 170,
-    align: "center",
-    fixed: "right",
-    render: (_: unknown, record) => (
-      <Space size="small">
-        <Button
-          size="small"
-          icon={<EditOutlined />}
-          loading={editingName === record.name}
-          disabled={deletingName === record.name}
-          onClick={() => onEdit(record)}
-        >
-          Edit
-        </Button>
-        <Popconfirm
-          title="Delete this skill?"
-          description="The SKILL.md file will be removed from disk."
-          onConfirm={() => onDelete(record.name)}
-        >
+    },
+    {
+      title: "Capabilities",
+      key: "capabilities",
+      width: 320,
+      render: (_: unknown, record) => (
+        <Space size={[6, 6]} wrap>
+          <Tooltip title="Whether the skill is exposed to the model in the system prompt">
+            <Tag color={record.disable_model_invocation ? "default" : "blue"}>
+              model {record.disable_model_invocation ? "off" : "on"}
+            </Tag>
+          </Tooltip>
+          <Tooltip title="Whether {{ var }} placeholders are rendered with runtime context">
+            <Tag color={record.disable_render ? "default" : "geekblue"}>
+              render {record.disable_render ? "off" : "on"}
+            </Tag>
+          </Tooltip>
+        </Space>
+      ),
+    },
+    {
+      title: "Location",
+      dataIndex: "skill_file_path",
+      key: "skill_file_path",
+      ellipsis: true,
+      render: (value?: string) =>
+        value ? (
+          <Tooltip title={value}>
+            <Text
+              type="secondary"
+              style={{ fontFamily: MONO_FONT, fontSize: 12 }}
+            >
+              {value}
+            </Text>
+          </Tooltip>
+        ) : (
+          <Text type="secondary">-</Text>
+        ),
+    },
+    {
+      title: "Actions",
+      key: "actions",
+      width: 170,
+      align: "center",
+      fixed: "right",
+      render: (_: unknown, record) => (
+        <Space size="small">
           <Button
-            danger
             size="small"
-            icon={<DeleteOutlined />}
-            loading={deletingName === record.name}
-            disabled={editingName === record.name}
+            icon={<EditOutlined />}
+            loading={editingName === record.name}
+            disabled={deletingName === record.name}
+            onClick={() => onEdit(record)}
           >
-            Delete
+            Edit
           </Button>
-        </Popconfirm>
-      </Space>
-    ),
-  },
-];
+          <Popconfirm
+            title="Delete this skill?"
+            description="The SKILL.md file will be removed from disk."
+            onConfirm={() => onDelete(record.name)}
+          >
+            <Button
+              danger
+              size="small"
+              icon={<DeleteOutlined />}
+              loading={deletingName === record.name}
+              disabled={editingName === record.name}
+            >
+              Delete
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
 
 type PanelMode = "preview" | "edit";
 
@@ -314,16 +314,9 @@ const SkillDetailPanel: FC<SkillDetailPanelProps> = ({ record, onSaved }) => {
             </>
           )}
           {/* 重新拉取技能详情（含指令正文）：有未保存修改时先确认，避免静默丢弃草稿。 */}
-          <Popconfirm
-            title="Reload skill details?"
-            description="Unsaved instruction edits will be discarded."
-            disabled={!dirty}
-            onConfirm={loadDetail}
-          >
-            <Button size="small" icon={<ReloadOutlined />} loading={loading}>
-              Refresh
-            </Button>
-          </Popconfirm>
+          <Button size="small" onClick={loadDetail} icon={<ReloadOutlined />} loading={loading}>
+            Refresh
+          </Button>
         </Space>
       </Flex>
       {renderBody()}
