@@ -198,8 +198,6 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   const [loadingConversations, setLoadingConversations] = useState(false);
   // 当前会话重新拉取的加载态（供刷新按钮展示）。
   const [reloadingConversation, setReloadingConversation] = useState(false);
-  // Fork 当前会话的进行中状态。
-  const [forking, setForking] = useState(false);
   // 正在从哪条消息 fork（seq），用于只锁住被点击的那条按钮。
   const [forkingFromSeq, setForkingFromSeq] = useState<number>();
 
@@ -421,6 +419,30 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     }
     return ids;
   }, [messages, currentTaskId]);
+
+  // 「轮次结束」消息的 id 集合：每个 task 的最后一条消息。
+  //
+  // fork 入口只挂在这些位置（每个 task 一个按钮），语义是「从这一轮结束后分叉」。
+  // 仍然进行中的轮次（currentTaskId）不展示：它的最后一条消息还会继续增长，
+  // 此时分叉会得到一个不完整的轮次。
+  const turnEndMessageIds = useMemo(() => {
+    const lastByTask = new Map<string, string>();
+    for (const m of messages) {
+      // 没有 taskId 的消息（如本地乐观插入的 user 气泡）不参与分组。
+      if (!m.taskId) continue;
+      lastByTask.set(m.taskId, m.id);
+    }
+    const ids = new Set<string>();
+    for (const [taskId, id] of lastByTask) {
+      if (taskId === currentTaskId) continue;
+      ids.add(id);
+    }
+    return ids;
+  }, [messages, currentTaskId]);
+
+  // 该消息是否是某一轮（task）结束后的位置，且当前会话可 fork。
+  const isTurnEndMessage = (m: ChatMessage) =>
+    !!conversationId && m.seq !== undefined && turnEndMessageIds.has(m.id);
 
   // 权限 / 提问决策后兜底登记「活跃轮次」。
   //
@@ -965,25 +987,8 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     await loadConversations();
   };
 
-  // Fork 当前会话：后端把历史复制成一个新的独立会话，成功后直接切过去继续对话。
-  // 复制期间锁住按钮，避免连点产生多个分支。
-  const handleForkConversation = async () => {
-    const id = conversationId;
-    if (!id) return;
-    setForking(true);
-    try {
-      const res = await forkConversationApi(id, { copy_files: true });
-      await switchToForkedConversation(res.data);
-      getGlobalMessage()?.success("Conversation forked");
-    } catch {
-      // 错误由全局拦截器提示。
-    } finally {
-      setForking(false);
-    }
-  };
-
-  // 从某条消息处分叉：只复制该消息（含）之前的历史到新会话。
-  // 这样可以在不改动原会话的前提下，回到某个节点重新提问。
+  // 从某轮结束处分叉：只复制该消息（含）之前的历史到新会话。
+  // 这样可以在不改动原会话的前提下，回到某个轮次结束后重新提问。
   const handleForkFromMessage = async (message: ChatMessage) => {
     const id = conversationId;
     const seq = message.seq;
@@ -992,7 +997,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     try {
       const res = await forkConversationApi(id, { up_to_seq: seq, copy_files: true });
       await switchToForkedConversation(res.data);
-      getGlobalMessage()?.success("Forked from this message");
+      getGlobalMessage()?.success("Forked after this turn");
     } catch {
       // 错误由全局拦截器提示。
     } finally {
@@ -1186,14 +1191,6 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
           />
           <Button
             size="small"
-            icon={<ForkOutlined />}
-            title="Fork this conversation into a new branch"
-            loading={forking}
-            onClick={() => void handleForkConversation()}
-            disabled={!conversationId}
-          />
-          <Button
-            size="small"
             icon={<ReloadOutlined />}
             title="Refresh conversations"
             onClick={loadConversations}
@@ -1250,6 +1247,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
             {messages.map((m) => (
               <Flex
                 key={m.id}
+                className="agent-chat-msg"
                 justify={m.role === "user" ? "flex-end" : "flex-start"}
                 align="flex-start"
                 gap={8}
@@ -1275,41 +1273,57 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
                       : { flex: 1, minWidth: 0 }
                   }
                 >
-                  {m.role === "assistant" ? (
-                    // 错误消息附上「配置 Agent」跳转，便于用户直接去修正模型配置后重试。
-                    m.error ? (
-                      <Flex vertical gap={6} align="flex-start">
-                        {renderAssistantHistory(m)}
-                        <Button
-                          size="small"
-                          icon={<SettingOutlined />}
-                          onClick={goAgentConfig}
-                        >
-                          配置 Agent
-                        </Button>
-                      </Flex>
+                  <div>
+                    {m.role === "assistant" ? (
+                      // 错误消息附上「配置 Agent」跳转，便于用户直接去修正模型配置后重试。
+                      m.error ? (
+                        <Flex vertical gap={6} align="flex-start">
+                          {renderAssistantHistory(m)}
+                          <Button
+                            size="small"
+                            icon={<SettingOutlined />}
+                            onClick={goAgentConfig}
+                          >
+                            配置 Agent
+                          </Button>
+                        </Flex>
+                      ) : (
+                        renderAssistantHistory(m)
+                      )
                     ) : (
-                      renderAssistantHistory(m)
-                    )
-                  ) : (
-                    m.content
+                      m.content
+                    )}
+                  </div>
+                  {/* 分叉入口挂在消息内容下方：只在「每轮结束」的消息上出现，
+                      行高常驻以保证布局稳定，鼠标悬停该条消息时才可见
+                      （见文件末尾注入的 hover 样式）。 */}
+                  {isTurnEndMessage(m) && (
+                    <Flex
+                      className="agent-chat-msg-actions"
+                      justify={m.role === "user" ? "flex-end" : "flex-start"}
+                      style={{ height: 22, marginTop: 2 }}
+                    >
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<ForkOutlined />}
+                        title="Fork from here (after this turn)"
+                        loading={forkingFromSeq === m.seq}
+                        disabled={forkingFromSeq !== undefined}
+                        style={{
+                          height: 22,
+                          padding: "0 4px",
+                          fontSize: 12,
+                          color: m.role === "user" ? "rgba(255,255,255,0.85)" : "#8c8c8c",
+                        }}
+                        onClick={() => void handleForkFromMessage(m)}
+                      >
+                        Fork
+                      </Button>
+                    </Flex>
                   )}
                 </div>
                 {m.role === "user" && <UserOutlined style={{ color: "#1677ff", marginTop: 4 }} />}
-                {/* 消息级分叉：复制该消息（含）之前的历史到新会话，原会话不变。
-                    seq 缺失（旧数据 / 实时气泡）时不展示。 */}
-                {m.seq !== undefined && conversationId && (
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<ForkOutlined />}
-                    title="Fork from this message"
-                    loading={forkingFromSeq === m.seq}
-                    disabled={forkingFromSeq !== undefined}
-                    style={{ marginTop: 2, color: "#8c8c8c" }}
-                    onClick={() => void handleForkFromMessage(m)}
-                  />
-                )}
               </Flex>
             ))}
             {/* 进行中的任务展示完整实时事件流（reasoning/tool/message）。
@@ -1534,5 +1548,23 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     </Flex>
   );
 };
+
+// 消息内的操作（Fork）：默认隐藏，鼠标悬停该条消息时才显示。
+// 用 CSS 而不是 React state，避免每条消息都维护一份 hover 状态。
+const AGENT_CHAT_MSG_STYLE = `
+.agent-chat-msg .agent-chat-msg-actions { visibility: hidden; }
+.agent-chat-msg:hover .agent-chat-msg-actions { visibility: visible; }
+`;
+
+// 注入一次全局样式（仅浏览器环境）；模块级常量保证重复渲染不会插入多个 <style>。
+if (typeof document !== "undefined") {
+  const styleId = "agent-chat-msg-style";
+  if (!document.getElementById(styleId)) {
+    const styleEl = document.createElement("style");
+    styleEl.id = styleId;
+    styleEl.textContent = AGENT_CHAT_MSG_STYLE;
+    document.head.appendChild(styleEl);
+  }
+}
 
 export default AgentChat;
