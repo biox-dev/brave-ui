@@ -249,12 +249,18 @@ export const resumeAgentTaskApi = (id: string) => {
 };
 
 // 会话（对应后端 agent.Conversation）。
+//
+// 列表接口（/agent/conversation/page）只返回会话本体，不再附带 messages：
+// 标题直接使用后端维护的 title，历史消息由 /agent/conversation/get 分页拉取。
 export interface AgentConversationItem {
   id: string;
   user_id: string;
   provider: string;
   model?: string;
-  messages: AgentConversationMessageItem[];
+  /** 会话标题（首轮对话时由后端用用户输入初始化）。 */
+  title?: string;
+  /** 历史消息：仅详情 / fork 接口返回，列表接口为空。 */
+  messages?: AgentConversationMessageItem[];
   current_task_id?: string;
   /** 是否还有更早的消息（向上滚动时继续加载）。 */
   has_more?: boolean;

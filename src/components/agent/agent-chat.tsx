@@ -115,10 +115,10 @@ function isValidTaskId(id?: string): id is string {
   return !!id && id !== "0";
 }
 
-// 生成会话在切换下拉中的显示标签：优先取首条用户消息，过长则截断。
+// 生成会话在切换下拉中的显示标签：直接使用后端会话 Title（首轮对话时已由后端初始化），
+// 仅在标题为空时回退到会话 ID（列表接口不再返回 messages）。
 function conversationLabel(c: AgentConversationItem): string {
-  const first = c.messages?.find((m) => m.role === "user");
-  const title = first?.content?.trim();
+  const title = c.title?.trim();
   if (title) {
     return title.length > 30 ? `${title.slice(0, 30)}…` : title;
   }
