@@ -312,6 +312,15 @@ export const getConversationApi = (id: string, params?: AgentConversationGetQuer
   });
 };
 
+// Fork 会话：把源会话的历史复制成一个新的独立会话，源会话不变。
+// up_to_seq 指定只复制到该消息（含）为止的历史，用于「从某条消息处分叉」。
+export const forkConversationApi = (
+  id: string,
+  payload?: { title?: string; up_to_seq?: number; copy_files?: boolean }
+) => {
+  return http.post<AgentConversationItem>("/agent/conversation/fork", { id, ...(payload ?? {}) });
+};
+
 // 获取单个 Agent 任务。
 export const getAgentTaskApi = (id: string) => {
   return http.get<AgentTaskItem>("/agent/task/get", { params: { id } });

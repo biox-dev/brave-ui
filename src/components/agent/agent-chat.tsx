@@ -6,6 +6,7 @@ import {
   CloseOutlined,
   EditOutlined,
   FileTextOutlined,
+  ForkOutlined,
   LoadingOutlined,
   PlayCircleOutlined,
   QuestionCircleOutlined,
@@ -31,6 +32,7 @@ import {
   type AgentProfileItem,
   getAgentTaskApi,
   getConversationApi,
+  forkConversationApi,
   pageConversationApi,
   type AgentAskUserAnswer,
   type AgentConversationItem,
@@ -102,6 +104,8 @@ interface ChatMessage {
   content: string;
   kind?: string;
   taskId?: string;
+  /** 会话内序号（后端分页游标）：fork from here 用它定位截止消息。 */
+  seq?: number;
   data?: unknown;
   error?: boolean;
 }
@@ -133,6 +137,7 @@ const mapMessages = (conv: AgentConversationItem): ChatMessage[] =>
     content: m.content,
     kind: m.kind,
     taskId: m.task_id,
+    seq: m.seq,
     data: m.data,
     error: m.kind === "error",
   }));
@@ -193,6 +198,10 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   const [loadingConversations, setLoadingConversations] = useState(false);
   // 当前会话重新拉取的加载态（供刷新按钮展示）。
   const [reloadingConversation, setReloadingConversation] = useState(false);
+  // Fork 当前会话的进行中状态。
+  const [forking, setForking] = useState(false);
+  // 正在从哪条消息 fork（seq），用于只锁住被点击的那条按钮。
+  const [forkingFromSeq, setForkingFromSeq] = useState<number>();
 
   // 当前选中会话活跃任务的待确认权限（可同时存在多个）。
   const [pendingPermissions, setPendingPermissions] = useState<AgentPermissionItem[]>([]);
@@ -941,6 +950,56 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     }
   };
 
+  // 切换到 fork 出来的新会话：它是一个干净的顶层会话，
+  // 没有活跃轮次、没有权限 / 提问、没有可续跑任务。
+  const switchToForkedConversation = async (conv: AgentConversationItem) => {
+    selectedConvIdRef.current = conv.id;
+    setConversationId(conv.id);
+    applySessionPage(conv);
+    setCurrentTaskId(undefined);
+    setSending(false);
+    setWaiting(false);
+    setPendingPermissions([]);
+    setPendingQuestions([]);
+    setResumableTaskId(undefined);
+    await loadConversations();
+  };
+
+  // Fork 当前会话：后端把历史复制成一个新的独立会话，成功后直接切过去继续对话。
+  // 复制期间锁住按钮，避免连点产生多个分支。
+  const handleForkConversation = async () => {
+    const id = conversationId;
+    if (!id) return;
+    setForking(true);
+    try {
+      const res = await forkConversationApi(id, { copy_files: true });
+      await switchToForkedConversation(res.data);
+      getGlobalMessage()?.success("Conversation forked");
+    } catch {
+      // 错误由全局拦截器提示。
+    } finally {
+      setForking(false);
+    }
+  };
+
+  // 从某条消息处分叉：只复制该消息（含）之前的历史到新会话。
+  // 这样可以在不改动原会话的前提下，回到某个节点重新提问。
+  const handleForkFromMessage = async (message: ChatMessage) => {
+    const id = conversationId;
+    const seq = message.seq;
+    if (!id || seq === undefined) return;
+    setForkingFromSeq(seq);
+    try {
+      const res = await forkConversationApi(id, { up_to_seq: seq, copy_files: true });
+      await switchToForkedConversation(res.data);
+      getGlobalMessage()?.success("Forked from this message");
+    } catch {
+      // 错误由全局拦截器提示。
+    } finally {
+      setForkingFromSeq(undefined);
+    }
+  };
+
   const handleClear = () => {
     selectedConvIdRef.current = undefined;
     seenRef.current.clear();
@@ -1127,6 +1186,14 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
           />
           <Button
             size="small"
+            icon={<ForkOutlined />}
+            title="Fork this conversation into a new branch"
+            loading={forking}
+            onClick={() => void handleForkConversation()}
+            disabled={!conversationId}
+          />
+          <Button
+            size="small"
             icon={<ReloadOutlined />}
             title="Refresh conversations"
             onClick={loadConversations}
@@ -1229,9 +1296,22 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
                   )}
                 </div>
                 {m.role === "user" && <UserOutlined style={{ color: "#1677ff", marginTop: 4 }} />}
+                {/* 消息级分叉：复制该消息（含）之前的历史到新会话，原会话不变。
+                    seq 缺失（旧数据 / 实时气泡）时不展示。 */}
+                {m.seq !== undefined && conversationId && (
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<ForkOutlined />}
+                    title="Fork from this message"
+                    loading={forkingFromSeq === m.seq}
+                    disabled={forkingFromSeq !== undefined}
+                    style={{ marginTop: 2, color: "#8c8c8c" }}
+                    onClick={() => void handleForkFromMessage(m)}
+                  />
+                )}
               </Flex>
             ))}
-
             {/* 进行中的任务展示完整实时事件流（reasoning/tool/message）。
                 只要 currentTaskId 存在就渲染：刷新后批准权限需要靠这里继续展示过程。
                 coveredIds 传入外层历史已覆盖的消息 ID（本轮已投影到 AgentChat 的历史消息），
