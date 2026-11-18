@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ApartmentOutlined, AppstoreOutlined, BookOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, BarChartOutlined, ExperimentOutlined, CodeOutlined, ContainerOutlined, ControlOutlined } from '@ant-design/icons';
-import { Button, Dropdown, Flex, Layout, Segmented, theme, Tooltip } from 'antd';
+import { ApartmentOutlined, AppstoreOutlined, BookOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, BarChartOutlined, ExperimentOutlined, CodeOutlined, ContainerOutlined } from '@ant-design/icons';
+import { Dropdown, Layout, theme } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { useI18n } from '@/hooks/useI18n';
@@ -16,7 +16,6 @@ import SplitWorkspace from './components/SplitWorkspace.tsx';
 import MainTabs from './components/MainTabs';
 import BottomPanel from './components/BottomPanel';
 import { hydrateBottomPanel, useBottomPanelStore } from './bottom-panel-store';
-import { invoke } from '@/core/ui-system/invokeV2';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
@@ -49,6 +48,7 @@ const App: React.FC = () => {
   const appTheme = useSelector((state: any) => state.user.theme);
   const leftActivityKey = useSelector((state: any) => state.user.leftActivityKey);
   const leftPanelWidth = useSelector((state: any) => state.user.leftPanelWidth);
+  const assistantPanelWidth = useSelector((state: any) => state.user.assistantPanelWidth);
   const rightPanelWidth = useSelector((state: any) => state.user.rightPanelWidth);
   const leftPanelCollapsed = useSelector((state: any) => state.user.leftPanelCollapsed);
   const layoutTheme: 'light' | 'dark' = appTheme === 'dark' ? 'dark' : 'light';
@@ -61,6 +61,7 @@ const App: React.FC = () => {
     isLeftPanelViewKey(leftActivityKey) ? leftActivityKey : 'sysFileBrowser',
   );
   const [leftWidthDraft, setLeftWidthDraft] = useState<number>(leftPanelWidth);
+  const [assistantWidthDraft, setAssistantWidthDraft] = useState<number>(assistantPanelWidth);
   const [rightWidthDraft, setRightWidthDraft] = useState<number>(rightPanelWidth);
 
   const leftActivityItems = useMemo(
@@ -117,6 +118,10 @@ const App: React.FC = () => {
   }, [leftPanelWidth]);
 
   useEffect(() => {
+    setAssistantWidthDraft(assistantPanelWidth);
+  }, [assistantPanelWidth]);
+
+  useEffect(() => {
     setRightWidthDraft(rightPanelWidth);
   }, [rightPanelWidth]);
 
@@ -168,20 +173,13 @@ const App: React.FC = () => {
   // 一旦标签数据回填、底部面板打开了标签（如容器终端）或路由离开根路径，主区域自动打开。
   const hideMainPane = isRootRoute && !hasSavedTabs && !hasBottomTabs;
   const layoutLocale: LayoutLocale = locale === 'en_US' ? 'en_US' : 'zh_CN';
-  const segmentedOptions = useMemo(
-    () =>
-      // sideOptions && sideOptions.length > 0
-      //   ? sideOptions
-      //   : [{ label: locale === 'en_US' ? 'Assistant' : '助手', value: 'llm-card' },
-      //     { label: locale === 'en_US' ? 'App' : '应用', value: 'appSessionPage' },
-      //     ...sideOptions
-      //   ],
-      [{ label: locale === 'en_US' ? 'Assistant' : '助手', value: 'agentChat' },
-      { label: locale === 'en_US' ? 'Parameters' : '参数', value: 'editParamsPanel' },
-        // ...sideOptions
-      ],
-    [],
-  );
+  // 助手已常驻为中间面板，右侧面板固定展示参数；
+  // 这里把历史缓存里的 sideView=agentChat 归一为 editParamsPanel，让 RenderProvider 按参数面板加载数据。
+  useEffect(() => {
+    if (sideView !== 'editParamsPanel') {
+      dispatch(setUserItem({ sideView: 'editParamsPanel' }));
+    }
+  }, [dispatch, sideView]);
   // 「容器运行时」安装向导入口只在后端 container.docker.provision.enabled=true 时出现，
   // 该开关随 /container/runtime/info 一起返回并保存在 redux 的 runtimeInfo 中。
   const provisionEnabled = useSelector(
@@ -253,6 +251,9 @@ const App: React.FC = () => {
             >
               <SplitWorkspace
                 leftResizeLabel={locale === 'en_US' ? 'Resize left panel' : '调整左侧面板'}
+                assistantResizeLabel={
+                  locale === 'en_US' ? 'Resize assistant panel' : '调整助手面板'
+                }
                 rightResizeLabel={locale === 'en_US' ? 'Resize right panel' : '调整右侧面板'}
                 leftCollapsed={Boolean(leftPanelCollapsed)}
                 onLeftCollapsedChange={(collapsed) =>
@@ -261,10 +262,15 @@ const App: React.FC = () => {
                 leftCollapseLabel={locale === 'en_US' ? 'Hide left panel' : '隐藏左侧面板'}
                 leftExpandLabel={locale === 'en_US' ? 'Show left panel' : '显示左侧面板'}
                 leftWidth={leftWidthDraft}
+                assistantWidth={assistantWidthDraft}
                 rightWidth={rightWidthDraft}
                 onLeftWidthChange={setLeftWidthDraft}
+                onAssistantWidthChange={setAssistantWidthDraft}
                 onRightWidthChange={setRightWidthDraft}
                 onLeftWidthCommit={(width) => dispatch(setUserItem({ leftPanelWidth: width }))}
+                onAssistantWidthCommit={(width) =>
+                  dispatch(setUserItem({ assistantPanelWidth: width }))
+                }
                 onRightWidthCommit={(width) => dispatch(setUserItem({ rightPanelWidth: width }))}
                 left={<ViewResolver view={leftSideView} view_mode="card" />}
                 main={
@@ -291,43 +297,15 @@ const App: React.FC = () => {
                   )
                 }
                 expandRight={hideMainPane}
+                assistant={
+                  // 助手面板：常驻在左侧面板与主区域之间
+                  <BorderlessCard size="small" styles={{ body: { padding: 8 } }}>
+                    <ViewResolver view="agentChat" />
+                  </BorderlessCard>
+                }
                 right={
-
-                  <BorderlessCard
-                    size="small"
-                    styles={{ body: { padding: 8 } }}
-                    extra={
-                      <Flex align="center" gap={8}>
-                        {/* <Tooltip
-                          title={locale === 'en_US' ? 'Open parameters in drawer' : '在抽屉中打开参数'}
-                        >
-                          <Button
-                            size="small"
-                            type="text"
-                            icon={<ControlOutlined />}
-                            aria-label={locale === 'en_US' ? 'Parameters' : '参数'}
-                            onClick={() =>
-                              invoke.editParamsPanel.drawer(
-                                {},
-                                {
-                                  title: locale === 'en_US' ? 'Parameters' : '参数',
-                                  width: 520,
-                                  placement: 'right',
-                                },
-                              )
-                            }
-                          />
-                        </Tooltip> */}
-                        <Segmented
-                          size="small"
-                          value={sideView}
-                          options={segmentedOptions}
-                          onChange={(value) => dispatch(setUserItem({ sideView: value as string }))}
-                        />
-                      </Flex>
-                    }
-                  >
-                    <ViewResolver view={sideView} view_mode="card" />
+                  <BorderlessCard size="small" styles={{ body: { padding: 8 } }}>
+                    <ViewResolver view="editParamsPanel" view_mode="card" />
                   </BorderlessCard>
                 }
               />

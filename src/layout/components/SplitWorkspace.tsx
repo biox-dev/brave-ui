@@ -4,6 +4,8 @@ import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 type SplitWorkspaceProps = {
   left?: React.ReactNode;
   main?: React.ReactNode;
+  /** 中间面板（如 Assistant）：渲染在 left 与 main 之间 */
+  assistant?: React.ReactNode;
   right?: React.ReactNode;
   /** 主区域无内容时，让右侧面板拉伸占满剩余空间 */
   expandRight?: boolean;
@@ -15,25 +17,35 @@ type SplitWorkspaceProps = {
   leftCollapseLabel?: string;
   leftExpandLabel?: string;
   leftWidth?: number;
+  assistantWidth?: number;
   rightWidth?: number;
   onLeftWidthChange?: (width: number) => void;
+  onAssistantWidthChange?: (width: number) => void;
   onRightWidthChange?: (width: number) => void;
   onLeftWidthCommit?: (width: number) => void;
+  onAssistantWidthCommit?: (width: number) => void;
   onRightWidthCommit?: (width: number) => void;
   leftResizeLabel?: string;
+  assistantResizeLabel?: string;
   rightResizeLabel?: string;
   minLeftWidth?: number;
   maxLeftWidth?: number;
   defaultLeftWidth?: number;
+  minAssistantWidth?: number;
+  maxAssistantWidth?: number;
+  defaultAssistantWidth?: number;
   minRightWidth?: number;
   maxRightWidth?: number;
   defaultRightWidth?: number;
   mobileBreakpoint?: number;
 };
 
+type DividerKey = 'left' | 'assistant' | 'right';
+
 const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
   left,
   main,
+  assistant,
   right,
   expandRight = false,
   leftCollapsed,
@@ -42,41 +54,58 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
   leftCollapseLabel = 'Hide left panel',
   leftExpandLabel = 'Show left panel',
   leftWidth,
+  assistantWidth,
   rightWidth,
   onLeftWidthChange,
+  onAssistantWidthChange,
   onRightWidthChange,
   onLeftWidthCommit,
+  onAssistantWidthCommit,
   onRightWidthCommit,
   leftResizeLabel = 'Resize left panel',
+  assistantResizeLabel = 'Resize assistant panel',
   rightResizeLabel = 'Resize right panel',
   minLeftWidth = 240,
   maxLeftWidth = 560,
   defaultLeftWidth = 320,
+  minAssistantWidth = 240,
+  maxAssistantWidth = 560,
+  defaultAssistantWidth = 320,
   minRightWidth = 280,
   maxRightWidth = 640,
   defaultRightWidth = 360,
   mobileBreakpoint = 991,
 }) => {
   const workspaceRef = useRef<HTMLDivElement | null>(null);
+  const assistantPaneRef = useRef<HTMLDivElement | null>(null);
   const leftWidthRef = useRef(defaultLeftWidth);
+  const assistantWidthRef = useRef(defaultAssistantWidth);
   const rightWidthRef = useRef(defaultRightWidth);
   const leftWidthPropRef = useRef<number | undefined>(leftWidth);
+  const assistantWidthPropRef = useRef<number | undefined>(assistantWidth);
   const rightWidthPropRef = useRef<number | undefined>(rightWidth);
-  const [activeDivider, setActiveDivider] = useState<'left' | 'right' | null>(null);
+  const [activeDivider, setActiveDivider] = useState<DividerKey | null>(null);
   const [innerLeftWidth, setInnerLeftWidth] = useState(defaultLeftWidth);
+  const [innerAssistantWidth, setInnerAssistantWidth] = useState(defaultAssistantWidth);
   const [innerRightWidth, setInnerRightWidth] = useState(defaultRightWidth);
   const [innerLeftCollapsed, setInnerLeftCollapsed] = useState(false);
   const [isCompact, setIsCompact] = useState(false);
   const hasLeftPane = Boolean(left);
   const hasMainPane = Boolean(main);
+  const hasAssistantPane = Boolean(assistant);
   const hasRightPane = Boolean(right);
   // 移动端左右面板是上下堆叠的，折叠只在桌面端生效，避免隐藏后无法恢复
   const isLeftCollapsed = Boolean(leftCollapsed ?? innerLeftCollapsed) && !isCompact;
-  // 主区域没有内容时，右侧面板撑满剩余空间
-  const isRightExpanded = expandRight && !hasMainPane && hasRightPane;
+  // 主区域没有内容时，由最靠近主区域的面板撑满剩余空间：有中间面板时是中间面板，否则是右侧面板
+  const isRightExpanded = expandRight && !hasMainPane && hasRightPane && !hasAssistantPane;
+  const isAssistantExpanded = expandRight && !hasMainPane && hasAssistantPane;
   const currentLeftWidth = Math.min(
     maxLeftWidth,
     Math.max(minLeftWidth, leftWidth ?? innerLeftWidth),
+  );
+  const currentAssistantWidth = Math.min(
+    maxAssistantWidth,
+    Math.max(minAssistantWidth, assistantWidth ?? innerAssistantWidth),
   );
   const currentRightWidth = Math.min(
     maxRightWidth,
@@ -92,6 +121,17 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
       setInnerLeftWidth(width);
     }
     onLeftWidthChange?.(width);
+  };
+
+  const applyAssistantWidth = (width: number) => {
+    if (assistantWidthRef.current === width) {
+      return;
+    }
+    assistantWidthRef.current = width;
+    if (assistantWidthPropRef.current === undefined) {
+      setInnerAssistantWidth(width);
+    }
+    onAssistantWidthChange?.(width);
   };
 
   const applyRightWidth = (width: number) => {
@@ -118,12 +158,20 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
   }, [leftWidth]);
 
   useEffect(() => {
+    assistantWidthPropRef.current = assistantWidth;
+  }, [assistantWidth]);
+
+  useEffect(() => {
     rightWidthPropRef.current = rightWidth;
   }, [rightWidth]);
 
   useEffect(() => {
     leftWidthRef.current = currentLeftWidth;
   }, [currentLeftWidth]);
+
+  useEffect(() => {
+    assistantWidthRef.current = currentAssistantWidth;
+  }, [currentAssistantWidth]);
 
   useEffect(() => {
     rightWidthRef.current = currentRightWidth;
@@ -135,6 +183,15 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
     }
     setInnerLeftWidth((prev) => Math.min(maxLeftWidth, Math.max(minLeftWidth, prev)));
   }, [leftWidth, minLeftWidth, maxLeftWidth]);
+
+  useEffect(() => {
+    if (assistantWidth !== undefined) {
+      return;
+    }
+    setInnerAssistantWidth((prev) =>
+      Math.min(maxAssistantWidth, Math.max(minAssistantWidth, prev)),
+    );
+  }, [assistantWidth, minAssistantWidth, maxAssistantWidth]);
 
   useEffect(() => {
     if (rightWidth !== undefined) {
@@ -158,6 +215,19 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
         const clampedWidth = Math.min(maxLeftWidth, Math.max(minLeftWidth, nextWidth));
         applyLeftWidth(clampedWidth);
       }
+      if (activeDivider === 'assistant' && hasAssistantPane) {
+        // 中间面板在主区域左侧：它的左边界不会随拖拽移动（右侧的 main 是 flex 吸剩空间），
+        // 所以直接用它的左边界算宽度。
+        const assistantLeft = assistantPaneRef.current
+          ? assistantPaneRef.current.getBoundingClientRect().left
+          : rect.left;
+        const nextWidth = event.clientX - assistantLeft;
+        const clampedWidth = Math.min(
+          maxAssistantWidth,
+          Math.max(minAssistantWidth, nextWidth),
+        );
+        applyAssistantWidth(clampedWidth);
+      }
       if (activeDivider === 'right' && hasRightPane) {
         const nextWidth = rect.right - event.clientX;
         const clampedWidth = Math.min(maxRightWidth, Math.max(minRightWidth, nextWidth));
@@ -168,6 +238,9 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
     const onPointerUp = () => {
       if (activeDivider === 'left') {
         onLeftWidthCommit?.(leftWidthRef.current);
+      }
+      if (activeDivider === 'assistant') {
+        onAssistantWidthCommit?.(assistantWidthRef.current);
       }
       if (activeDivider === 'right') {
         onRightWidthCommit?.(rightWidthRef.current);
@@ -187,11 +260,15 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
   }, [
     activeDivider,
     hasLeftPane,
+    hasAssistantPane,
     hasRightPane,
     onLeftWidthCommit,
+    onAssistantWidthCommit,
     onRightWidthCommit,
     minLeftWidth,
     maxLeftWidth,
+    minAssistantWidth,
+    maxAssistantWidth,
     minRightWidth,
     maxRightWidth,
   ]);
@@ -204,9 +281,13 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
     onLeftCollapsedChange?.(next);
   };
 
-  const onStartResize = (divider: 'left' | 'right') => {
+  const onStartResize = (divider: DividerKey) => {
     // 折叠状态下左侧面板不参与拖拽，避免改变不可见面板的宽度
     if (divider === 'left' && isLeftCollapsed) {
+      return;
+    }
+    // 中间面板撑满剩余宽度时宽度由 flex 决定，拖拽没有意义
+    if (divider === 'assistant' && isAssistantExpanded) {
       return;
     }
     if (window.matchMedia(`(max-width: ${mobileBreakpoint}px)`).matches) {
@@ -215,7 +296,7 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
     setActiveDivider(divider);
   };
 
-  const onDividerDoubleClick = (divider: 'left' | 'right') => {
+  const onDividerDoubleClick = (divider: DividerKey) => {
     if (divider === 'left') {
       if (isLeftCollapsed) {
         return;
@@ -224,12 +305,20 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
       onLeftWidthCommit?.(defaultLeftWidth);
       return;
     }
+    if (divider === 'assistant') {
+      if (isAssistantExpanded) {
+        return;
+      }
+      applyAssistantWidth(defaultAssistantWidth);
+      onAssistantWidthCommit?.(defaultAssistantWidth);
+      return;
+    }
     applyRightWidth(defaultRightWidth);
     onRightWidthCommit?.(defaultRightWidth);
   };
 
   const renderDivider = (
-    divider: 'left' | 'right',
+    divider: DividerKey,
     label: string,
     extra?: React.ReactNode,
   ) => (
@@ -285,10 +374,26 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
           )}
         </>
       )}
+      {hasAssistantPane && (
+        <>
+          <div
+            ref={assistantPaneRef}
+            className={`layout-sharp-assistant-pane${
+              isAssistantExpanded ? ' is-expanded' : ''
+            }`}
+            style={isAssistantExpanded ? undefined : { width: currentAssistantWidth }}
+          >
+            {assistant}
+          </div>
+          {hasMainPane && renderDivider('assistant', assistantResizeLabel)}
+        </>
+      )}
       {hasMainPane && <div className="layout-sharp-main-pane">{main}</div>}
       {hasRightPane && (
         <>
-          {hasMainPane && !isRightExpanded && renderDivider('right', rightResizeLabel)}
+          {(hasMainPane || hasLeftPane || hasAssistantPane) &&
+            !isRightExpanded &&
+            renderDivider('right', rightResizeLabel)}
           <div
             className={`layout-sharp-right-pane${isRightExpanded ? ' is-expanded' : ''}`}
             style={isRightExpanded ? undefined : { width: currentRightWidth }}
