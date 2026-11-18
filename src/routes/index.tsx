@@ -8,6 +8,7 @@ import {
     // createBrowserRouter,
     RouteObject,
     // RouterProvider,
+    Navigate,
     useRoutes,
 } from "react-router";
 import { setMenuItems, setSelectedKey } from '../store/menuSlice'
@@ -34,7 +35,6 @@ import { setMenuItems, setSelectedKey } from '../store/menuSlice'
 //     return <RouterProvider router={router} />;
 // };
 const Sample = lazy(() => import('@/pages/sample'));
-const Project = lazy(() => import('@/pages/project'));
 
 const Doc = lazy(() => import('@/pages/doc'));
 const Mutation = lazy(() => import('@/pages/assembly-genome/mutation'));
@@ -179,8 +179,9 @@ if (appType == "index") {
             path: "container-runtime-provision",
             element: <ContainerRuntimeProvisionPage />
         }, {
+            // 根路径直接进入 Agent 会话工作区（无 sessionId = New Chat）。
             path: "/",
-            element: <Project />
+            element: <Navigate to="/session" replace />
         }, {
             path: "/sample",
             element: <Sample />
