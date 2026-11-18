@@ -3,6 +3,8 @@ import { Button, Empty, Tooltip } from 'antd';
 import { LayoutOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router';
 import AgentChat from '@/components/agent/agent-chat';
+import SessionResourcePanel from '@/components/agent/session-resource-panel';
+import type { AgentSessionResourceType } from '@/api/agent';
 import SiderStackLayout, {
   type SiderStackSection,
 } from '@/components/layout-sider/sider-stack-layout';
@@ -30,9 +32,26 @@ import './agent-session-page.css';
 type WorkspaceViewProps = { view: string } & Record<string, unknown>;
 const WorkspaceViewResolver = ViewResolver as unknown as FC<WorkspaceViewProps>;
 
-/** 右侧堆叠面板目前只包含应用会话列表。 */
-const STACK_SECTION_KEYS = ['appSessionPage'] as const;
+/**
+ * 右侧堆叠分区：三块会话结果（脚本 / 工作流 / 分析节点）+ 应用会话列表。
+ * 每块各自持有折叠态，折叠或关闭后对应面板不再请求接口。
+ */
+const STACK_SECTION_KEYS = [
+  'sessionScripts',
+  'sessionWorkflows',
+  'sessionAnalysisNodes',
+  'appSessionPage',
+] as const;
 type StackSectionKey = (typeof STACK_SECTION_KEYS)[number];
+
+/** 会话结果分区配置：标题与对应的资源类型。 */
+const SESSION_RESOURCE_SECTIONS: Partial<
+  Record<StackSectionKey, { resourceType: AgentSessionResourceType; zh: string; en: string }>
+> = {
+  sessionScripts: { resourceType: 'script', zh: '脚本', en: 'Scripts' },
+  sessionWorkflows: { resourceType: 'workflow', zh: '工作流', en: 'Workflows' },
+  sessionAnalysisNodes: { resourceType: 'analysis_node', zh: '分析节点', en: 'Analysis Nodes' },
+};
 
 /**
  * Agent 会话页（`/session/:sessionId?`，无 sessionId 表示 New Chat）。
@@ -41,7 +60,8 @@ type StackSectionKey = (typeof STACK_SECTION_KEYS)[number];
  * - 顶部：通栏 header，右侧 Layout 按钮可重新显示被关闭的右侧堆叠；
  * - main：当前会话的聊天（直接渲染 `<AgentChat />`），没有右侧面板时自动撑满；
  * - rightMiddle：聊天内容打开的标签页（有标签时才渲染，关闭全部后聊天自动撑开）；
- * - right：可关闭的纵向堆叠面板（目前只有应用会话列表，后续可继续加分区）；
+ * - right：可关闭的纵向堆叠面板（会话结果 + 应用会话列表），
+ *   每个分区折叠或关闭后不再请求自己的接口。
  *
  * 聊天里创建 / 切换会话时通过 `onConversationChange` 把地址同步成 `/session/:id`，
  * 这样刷新、分享、左侧会话列表高亮都能保持一致。
@@ -86,18 +106,31 @@ const AgentSessionPage: FC = () => {
 
   const stackSections = useMemo<SiderStackSection[]>(
     () =>
-      stackSectionKeys.map((key) => ({
-        key,
-        render: ({ collapsed, toggle }) => (
-          <ViewResolver
-            view="appSessionPage"
-            collapsed={collapsed}
-            onToggleCollapse={toggle}
-            onClose={() => closeStackSection(key)}
-          />
-        ),
-      })),
-    [closeStackSection, stackSectionKeys],
+      stackSectionKeys.map((key) => {
+        const resourceSection = SESSION_RESOURCE_SECTIONS[key];
+        return {
+          key,
+          render: ({ collapsed, toggle }) =>
+            resourceSection ? (
+              <SessionResourcePanel
+                sessionId={sessionId}
+                resourceType={resourceSection.resourceType}
+                title={locale === 'en_US' ? resourceSection.en : resourceSection.zh}
+                collapsed={collapsed}
+                onToggleCollapse={toggle}
+                onClose={() => closeStackSection(key)}
+              />
+            ) : (
+              <ViewResolver
+                view="appSessionPage"
+                collapsed={collapsed}
+                onToggleCollapse={toggle}
+                onClose={() => closeStackSection(key)}
+              />
+            ),
+        };
+      }),
+    [closeStackSection, locale, sessionId, stackSectionKeys],
   );
 
   const showStack = stackVisible && stackSections.length > 0;

@@ -396,6 +396,8 @@ const AppSessionPage = ({
       keepPreviousData: true,
       staleTime: 30_000,
       cacheTime: 5 * 60_000,
+      // 折叠时仅保留标题栏：不请求接口，展开后再加载（与右侧会话结果面板一致）。
+      enabled: !collapsed,
     }
   );
 
@@ -452,7 +454,16 @@ const AppSessionPage = ({
   // 会话状态事件（sessionRunning / sessionIdle / sessionAttached / sessionDetached）
   // 可能很密集（每个 terminal_exec 都会触发），统一做去抖，避免连续 refetch。
   const refetchTimer = useRef<number | undefined>(undefined);
+  // 折叠时面板不展示数据，实时事件直接忽略，避免折叠状态下仍然请求接口。
+  const refetchIfExpanded = useCallback(() => {
+    if (!collapsed) {
+      void refetch();
+    }
+  }, [collapsed, refetch]);
   const scheduleRefetch = useCallback(() => {
+    if (collapsed) {
+      return;
+    }
     if (refetchTimer.current) {
       window.clearTimeout(refetchTimer.current);
     }
@@ -460,7 +471,7 @@ const AppSessionPage = ({
       refetchTimer.current = undefined;
       void refetch();
     }, 300);
-  }, [refetch]);
+  }, [collapsed, refetch]);
 
   useEffect(() => {
     return () => {
@@ -482,20 +493,20 @@ const AppSessionPage = ({
   const realtimeInstance = useMemo(
     () => ({
       analysisSubmitted: (_args?: any) => {
-        void refetch();
+        refetchIfExpanded();
       },
       analysisStarted: (_args?: any) => {
-        void refetch();
+        refetchIfExpanded();
       },
       analysisDone: (_args?: any) => {
-        void refetch();
+        refetchIfExpanded();
       },
       // 会话增删：列表成员变化，立即刷新。
       sessionCreated: (_args?: any) => {
-        void refetch();
+        refetchIfExpanded();
       },
       sessionDeleted: (_args?: any) => {
-        void refetch();
+        refetchIfExpanded();
       },
       // 会话运行态 / 订阅者变化：去抖刷新，避免命令执行期间频繁请求。
       sessionRunning: (_args?: any) => {
@@ -511,7 +522,7 @@ const AppSessionPage = ({
         scheduleRefetch();
       },
     }),
-    [refetch, scheduleRefetch]
+    [refetchIfExpanded, scheduleRefetch]
   );
 
   useEffect(() => {

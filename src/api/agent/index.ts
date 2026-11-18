@@ -327,6 +327,28 @@ export const forkConversationApi = (
   return http.post<AgentConversationItem>("/agent/conversation/fork", { id, ...(payload ?? {}) });
 };
 
+// 会话结果（会话 ↔ 资源的关联）类型。
+export type AgentSessionResourceType = "script" | "workflow" | "analysis_node";
+
+// 会话结果项：会话创建 / 修改过的脚本、工作流或分析节点。
+export interface AgentSessionResourceItem {
+  resource_id: string;
+  resource_type: AgentSessionResourceType;
+  /** 资源展示名（资源已删除时为空）。 */
+  name: string;
+  created_at: string;
+}
+
+// 按资源类型查询某个会话的结果列表。
+export const listAgentSessionResourcesApi = (
+  sessionId: string,
+  resourceType: AgentSessionResourceType
+) => {
+  return http.get<{ data: AgentSessionResourceItem[] }>("/agent/session/resources", {
+    params: { session_id: sessionId, resource_type: resourceType },
+  });
+};
+
 // 获取单个 Agent 任务。
 export const getAgentTaskApi = (id: string) => {
   return http.get<AgentTaskItem>("/agent/task/get", { params: { id } });
