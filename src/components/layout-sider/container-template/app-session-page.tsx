@@ -15,6 +15,7 @@ import type { ColumnsType } from "antd/es/table";
 import {
   CaretDownOutlined,
   CaretRightOutlined,
+  CloseOutlined,
   DeleteOutlined,
   DesktopOutlined,
   InfoCircleOutlined,
@@ -67,6 +68,8 @@ export interface AppSessionPageProps {
   collapsed?: boolean;
   /** 点击标题栏时切换折叠态（未传入则标题栏不可点击）。 */
   onToggleCollapse?: () => void;
+  /** 纵向堆叠布局注入的关闭动作：将该分区从堆叠中移除（未传入则不显示关闭按钮）。 */
+  onClose?: () => void;
 }
 
 const normalizeText = (value?: string) => {
@@ -363,6 +366,7 @@ const AppSessionPage = ({
   close,
   collapsed = false,
   onToggleCollapse,
+  onClose,
 }: AppSessionPageProps) => {
   const { register, unregister } = useComponentStore();
   const { locale } = useI18n();
@@ -947,6 +951,16 @@ const AppSessionPage = ({
           onClick={() => refetch()}
         />
       </Tooltip>
+      {onClose && (
+        <Tooltip title="Close">
+          <Button
+            type="text"
+            size="small"
+            icon={<CloseOutlined />}
+            onClick={onClose}
+          />
+        </Tooltip>
+      )}
     </>
   );
 

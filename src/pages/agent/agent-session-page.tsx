@@ -1,6 +1,12 @@
-import { FC, useCallback, useMemo } from 'react';
-import { Empty } from 'antd';
+import { FC, useCallback, useMemo, useState } from 'react';
+import { Button, Empty, Tooltip } from 'antd';
+import { LayoutOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router';
+import AgentChat from '@/components/agent/agent-chat';
+import SiderStackLayout, {
+  type SiderStackSection,
+} from '@/components/layout-sider/sider-stack-layout';
+import { useSiderStackCollapsed } from '@/components/layout-sider/use-sider-stack-collapsed';
 import SplitWorkspace from '@/layout/components/SplitWorkspace';
 import MainTabs from '@/layout/components/MainTabs';
 import BorderlessCard from '@/components/common/borderless-card';
@@ -20,13 +26,18 @@ import './agent-session-page.css';
 type WorkspaceViewProps = { view: string } & Record<string, unknown>;
 const WorkspaceViewResolver = ViewResolver as unknown as FC<WorkspaceViewProps>;
 
+/** 右侧堆叠面板目前只包含应用会话列表。 */
+const STACK_SECTION_KEYS = ['appSessionPage'] as const;
+type StackSectionKey = (typeof STACK_SECTION_KEYS)[number];
+
 /**
  * Agent 会话页（`/task/:sessionId?`，无 sessionId 表示 New Chat）。
  *
  * 布局是一个独立的工作组：
- * - 左侧：当前会话的聊天（`ViewResolver view="agentChat"`）；
- * - 右侧：顶部 `<MainTabs />`（本地模式）+ 下方 `<ViewResolver view={页面key} />`；
- *   没有打开任何页面（标签数为 0）时右侧整体不渲染，聊天自动撑满。
+ * - 顶部：通栏 header，右侧 Layout 按钮可重新显示被关闭的右侧堆叠；
+ * - main：当前会话的聊天（直接渲染 `<AgentChat />`），没有右侧面板时自动撑满；
+ * - rightMiddle：聊天内容打开的标签页（有标签时才渲染，关闭全部后聊天自动撑开）；
+ * - right：可关闭的纵向堆叠面板（目前只有应用会话列表，后续可继续加分区）；
  *
  * 聊天里创建 / 切换会话时通过 `onConversationChange` 把地址同步成 `/task/:id`，
  * 这样刷新、分享、左侧会话列表高亮都能保持一致。
@@ -37,6 +48,48 @@ const AgentSessionPage: FC = () => {
   const { locale } = useI18n();
   const workspace = useAgentWorkspace(sessionId);
   const tabs = workspace.tabs;
+
+  // 右侧堆叠：可见性与分区列表由页面持有，关闭全部分区后 Layout 按钮可一键恢复。
+  const [stackVisible, setStackVisible] = useState(true);
+  const [stackSectionKeys, setStackSectionKeys] = useState<StackSectionKey[]>([
+    ...STACK_SECTION_KEYS,
+  ]);
+  // 折叠状态持久化：切换面板 / 刷新浏览器后保持原样。
+  const [stackCollapsedKeys, setStackCollapsedKeys] = useSiderStackCollapsed(
+    'agentSessionRightStack',
+  );
+
+  const closeStackSection = useCallback((key: StackSectionKey) => {
+    setStackSectionKeys((prev) => prev.filter((item) => item !== key));
+  }, []);
+
+  const toggleStack = useCallback(() => {
+    if (stackVisible) {
+      setStackVisible(false);
+      return;
+    }
+    // 恢复显示时，如果之前把分区都关掉了，先把默认分区加回来。
+    setStackSectionKeys((prev) => (prev.length > 0 ? prev : [...STACK_SECTION_KEYS]));
+    setStackVisible(true);
+  }, [stackVisible]);
+
+  const stackSections = useMemo<SiderStackSection[]>(
+    () =>
+      stackSectionKeys.map((key) => ({
+        key,
+        render: ({ collapsed, toggle }) => (
+          <ViewResolver
+            view="appSessionPage"
+            collapsed={collapsed}
+            onToggleCollapse={toggle}
+            onClose={() => closeStackSection(key)}
+          />
+        ),
+      })),
+    [closeStackSection, stackSectionKeys],
+  );
+
+  const showStack = stackVisible && stackSections.length > 0;
 
   // 激活标签被关闭后 store 会切到邻居；这里再兜底一次，避免 active 指向已关闭的 key。
   const activeTab = useMemo(
@@ -64,20 +117,39 @@ const AgentSessionPage: FC = () => {
   return (
     <div className="agent-session-page">
       <SplitWorkspace
+        header={
+          <div className="agent-session-header">
+            <span className="agent-session-header-title">
+              {locale === 'en_US' ? 'Agent Workspace' : 'Agent 工作区'}
+            </span>
+            <div className="agent-session-header-actions">
+              <Tooltip title={showStack ? 'Hide stack' : 'Show stack'}>
+                <Button
+                  type={showStack ? 'text' : 'default'}
+                  size="small"
+                  icon={<LayoutOutlined />}
+                  aria-pressed={showStack}
+                  onClick={toggleStack}
+                >
+                  Layout
+                </Button>
+              </Tooltip>
+            </div>
+          </div>
+        }
         main={
           <div className="agent-session-chat">
-            <ViewResolver
-              view="agentChat"
+            <AgentChat
               conversationId={sessionId}
               onConversationChange={handleConversationChange}
             />
           </div>
         }
-        right={
+        rightMiddle={
           tabs.length === 0 ? undefined : (
             <BorderlessCard
               size="small"
-              className="agent-session-right-card"
+              className="agent-session-tabs-card"
               styles={{ body: { padding: 8 } }}
               title={
                 <MainTabs
@@ -104,11 +176,25 @@ const AgentSessionPage: FC = () => {
             </BorderlessCard>
           )
         }
-        minRightWidth={320}
-        maxRightWidth={1600}
-        defaultRightWidth={560}
+        rightMiddleResizeLabel={locale === 'en_US' ? 'Resize tabs panel' : '调整标签面板'}
+        right={
+          showStack ? (
+            <SiderStackLayout
+              sections={stackSections}
+              collapsedKeys={stackCollapsedKeys}
+              onCollapsedKeysChange={setStackCollapsedKeys}
+              resizeLabel={locale === 'en_US' ? 'Resize panels' : '调整面板高度'}
+            />
+          ) : undefined
+        }
         minMainWidth={320}
-        rightResizeLabel={locale === 'en_US' ? 'Resize workspace panel' : '调整工作区面板'}
+        minRightMiddleWidth={320}
+        maxRightMiddleWidth={1600}
+        defaultRightMiddleWidth={560}
+        minRightWidth={320}
+        maxRightWidth={640}
+        defaultRightWidth={380}
+        rightResizeLabel={locale === 'en_US' ? 'Resize stack panel' : '调整堆叠面板'}
       />
     </div>
   );

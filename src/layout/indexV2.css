@@ -480,9 +480,25 @@
 
 .layout-sharp-workspace {
   display: flex;
+  flex-direction: column;
   align-items: stretch;
   height: calc(100vh - 44px - 28px);
   min-height: calc(100vh - 44px - 28px);
+}
+
+/* 顶部通栏 header：横跨所有面板，不参与分隔条拖拽 */
+.layout-sharp-workspace-header {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+/* 面板行：左 / 中间 / 主 / 右侧面板横向排列，占满 header 之下的剩余高度 */
+.layout-sharp-workspace-body {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: stretch;
+  min-width: 0;
+  min-height: 0;
 }
 
 .layout-sharp-main-pane {
@@ -850,6 +866,7 @@ body.layout-bottom-panel-resizing {
 
 .layout-sharp-left-pane,
 .layout-sharp-assistant-pane,
+.layout-sharp-right-middle-pane,
 .layout-sharp-right-pane {
   flex: 0 0 auto;
   background: var(--sharp-panel-bg);
@@ -872,6 +889,7 @@ body.layout-bottom-panel-resizing {
 /* 宽度完全由 SplitWorkspace 的 min/max props 在 JS 里夹取（拖动 / 双击复位）。
    这里不再用 CSS 的 max-width 卡死：之前在 640px 就停住，导致向右拖动分隔条时
    聊天区无法继续变窄。 */
+.layout-sharp-right-middle-pane,
 .layout-sharp-right-pane {
   min-width: 0;
   max-width: none;
@@ -1112,6 +1130,11 @@ body.layout-sharp-resizing {
     min-height: auto;
   }
 
+  .layout-sharp-workspace-body {
+    display: block;
+    height: auto;
+  }
+
   .layout-sharp-main-pane {
     padding: 0;
     margin-bottom: 16px;
@@ -1121,10 +1144,12 @@ body.layout-sharp-resizing {
     display: none;
   }
 
+  .layout-sharp-right-middle-pane,
   .layout-sharp-right-pane {
     width: auto !important;
     min-width: 0;
     max-width: none;
+    margin-bottom: 16px;
   }
 
   .layout-sharp-assistant-pane {
@@ -1148,6 +1173,7 @@ body.layout-sharp-resizing {
   /* 移动端左右面板上下堆叠，面板内容限制高度，主区域不受影响 */
   .layout-sharp-left-pane .layout-sharp-side-card-body,
   .layout-sharp-assistant-pane .layout-sharp-side-card-body,
+  .layout-sharp-right-middle-pane .layout-sharp-side-card-body,
   .layout-sharp-right-pane .layout-sharp-side-card-body {
     flex: 0 1 auto;
     max-height: 60vh;

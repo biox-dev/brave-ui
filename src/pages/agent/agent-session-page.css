@@ -1,8 +1,8 @@
 /*
  * Agent 会话页（/task/:sessionId）：
  * 页面渲染在布局 main 的 <Outlet /> 里，需要自己撑满可用高度；
- * 内部再套一层 SplitWorkspace（聊天 + 右侧工作区），因此把它的固定视口高度
- * 覆盖成 100%，避免和底部面板 / 外层布局叠加后溢出。
+ * 内部再套一层 SplitWorkspace（聊天 + 标签页 + 右侧堆叠面板），
+ * 因此把它的固定视口高度覆盖成 100%，避免和底部面板 / 外层布局叠加后溢出。
  */
 .agent-session-page {
   height: 100%;
@@ -14,6 +14,35 @@
   min-height: 0;
 }
 
+/* 通栏 header：左侧标题 + 右侧 Layout 按钮（用于重新显示被关闭的右侧堆叠） */
+.agent-session-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 36px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--sharp-divider);
+}
+
+.agent-session-header-title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--sharp-text);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.agent-session-header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+}
+
 .agent-session-chat {
   height: 100%;
   min-height: 0;
@@ -21,7 +50,15 @@
   box-sizing: border-box;
 }
 
-.agent-session-right-card {
+/* 主区域（聊天）与中间面板（聊天内容打开的标签页） */
+.agent-session-chat {
+  height: 100%;
+  min-height: 0;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.agent-session-tabs-card {
   height: 100%;
   min-height: 0;
 }
@@ -37,7 +74,7 @@
     min-height: 320px;
   }
 
-  .agent-session-right-card {
+  .agent-session-tabs-card {
     height: auto;
   }
 }
