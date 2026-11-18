@@ -63,16 +63,6 @@ const AgentSessionPage: FC = () => {
     setStackSectionKeys((prev) => prev.filter((item) => item !== key));
   }, []);
 
-  const toggleStack = useCallback(() => {
-    if (stackVisible) {
-      setStackVisible(false);
-      return;
-    }
-    // 恢复显示时，如果之前把分区都关掉了，先把默认分区加回来。
-    setStackSectionKeys((prev) => (prev.length > 0 ? prev : [...STACK_SECTION_KEYS]));
-    setStackVisible(true);
-  }, [stackVisible]);
-
   const stackSections = useMemo<SiderStackSection[]>(
     () =>
       stackSectionKeys.map((key) => ({
@@ -90,6 +80,19 @@ const AgentSessionPage: FC = () => {
   );
 
   const showStack = stackVisible && stackSections.length > 0;
+
+  // 以「实际是否可见」判断：分区被 × 全部关闭时 stackVisible 仍为 true，
+  // 若按 stackVisible 判断，Layout 第一次点击只会把 stackVisible 置 false（面板依旧不出现），
+  // 需要点第二次才会重建分区。改为按 showStack 判断后，关闭态点一次即可恢复。
+  const toggleStack = useCallback(() => {
+    if (showStack) {
+      setStackVisible(false);
+      return;
+    }
+    setStackVisible(true);
+    // 恢复显示时，如果之前把分区都关掉了，先把默认分区加回来。
+    setStackSectionKeys((prev) => (prev.length > 0 ? prev : [...STACK_SECTION_KEYS]));
+  }, [showStack]);
 
   // 激活标签被关闭后 store 会切到邻居；这里再兜底一次，避免 active 指向已关闭的 key。
   const activeTab = useMemo(
