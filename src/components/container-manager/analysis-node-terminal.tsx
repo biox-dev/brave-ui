@@ -2,7 +2,9 @@ import { useEffect, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
+import { VerticalAlignBottomOutlined } from "@ant-design/icons";
 import { analysisNodeTerminalUrl } from "@/api/analysis-node-terminal";
+import { openBottomTerminal } from "@/layout/bottom-panel-store";
 
 interface AnalysisNodeTerminalProps {
   id: string | number;
@@ -19,6 +21,21 @@ interface AnalysisNodeTerminalProps {
   borderRadius?: number;
   /** 追加到终端容器上的类名（用于按主题绘制边框 / 背景）。 */
   className?: string;
+  /**
+   * 可选：在终端右上角提供「移到底部面板」按钮。
+   *
+   * 传入会话 ID（= AppSession.ID）后，点击会把该会话的终端标签打开到底部面板
+   * （同一会话重复点击只聚焦），再回调 `onMoved` —— 承载它的工作区标签 / 弹窗
+   * 可据此关闭自己，实现「从右侧移到下方」。
+   * 底部面板内部使用本组件时不传（否则会出现「自己移自己」的怪按钮）。
+   */
+  moveToBottom?: {
+    sessionId: string | number;
+    /** 底部终端标签标题；不传则回退到 `name` / `Terminal <id>`。 */
+    title?: string;
+    /** 打开底部标签后的回调（通常用于关闭当前承载终端的工作区标签）。 */
+    onMoved?: () => void;
+  };
 }
 
 /**
@@ -37,6 +54,7 @@ const AnalysisNodeTerminal = ({
   padding = 8,
   borderRadius = 6,
   className,
+  moveToBottom,
 }: AnalysisNodeTerminalProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -305,20 +323,59 @@ const AnalysisNodeTerminal = ({
     };
   }, [id, name, terminalUrl]);
 
+  /** 把当前终端会话打开（或聚焦）到底部面板，再通知宿主关闭当前承载容器。 */
+  const handleMoveToBottom = () => {
+    if (!moveToBottom) {
+      return;
+    }
+    openBottomTerminal(moveToBottom.sessionId, moveToBottom.title ?? name);
+    moveToBottom.onMoved?.();
+  };
+
   return (
-    <div
-      ref={containerRef}
-      className={className}
-      style={{
-        width: "100%",
-        height,
-        padding,
-        background: "#1e1e1e",
-        borderRadius,
-        boxSizing: "border-box",
-        overflow: "hidden",
-      }}
-    />
+    <div style={{ position: "relative", width: "100%", height }}>
+      <div
+        ref={containerRef}
+        className={className}
+        style={{
+          width: "100%",
+          height: "100%",
+          padding,
+          background: "#1e1e1e",
+          borderRadius,
+          boxSizing: "border-box",
+          overflow: "hidden",
+        }}
+      />
+      {moveToBottom && (
+        <button
+          type="button"
+          title="Move to bottom panel"
+          aria-label="Move to bottom panel"
+          onClick={handleMoveToBottom}
+          style={{
+            position: "absolute",
+            top: 6,
+            right: 14,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 22,
+            height: 22,
+            padding: 0,
+            border: "none",
+            borderRadius: 4,
+            background: "rgba(255,255,255,0.12)",
+            color: "rgba(255,255,255,0.75)",
+            fontSize: 12,
+            lineHeight: 1,
+            cursor: "pointer",
+          }}
+        >
+          <VerticalAlignBottomOutlined />
+        </button>
+      )}
+    </div>
   );
 };
 

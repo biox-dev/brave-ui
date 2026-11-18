@@ -21,6 +21,8 @@ const viewLoaders = {
     agentProfileEditModal: () => import("./agent-profile-edit-modal"),
     // 复用 Agent Profile 页面作为 Profile 选择器（selectable=true 时显示 Select 按钮）。
     agentProfileSelect: () => import("@/pages/agent/agent-profile-page"),
+    // 应用会话（= 终端会话）在右侧工作区内嵌的 xterm 终端（AnalysisNodeTerminal 薄包装）。
+    agentAppSessionTerminal: () => import("./agent-app-session-terminal"),
 };
 
 declare module "@/core/component-registry/registry-types" {

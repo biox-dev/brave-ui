@@ -14,7 +14,10 @@ import {
   type AgentSessionResourceType,
 } from '@/api/agent';
 import { useI18n } from '@/hooks/useI18n';
-import { openAgentWorkspaceTab } from '@/layout/agent-workspace-store';
+import {
+  isSessionResourceOpenable,
+  openSessionResourceTab,
+} from '@/components/agent/session-resource-workspace';
 
 export interface SessionResourcePanelProps {
   /** 当前会话 ID；New Chat（无会话）时不发起请求。 */
@@ -33,8 +36,9 @@ export interface SessionResourcePanelProps {
  * 只在展开（`collapsed=false`）且存在会话 ID 时请求接口：折叠或关闭后
  * React Query 的 `enabled` 变为 false / 组件卸载，不会继续请求 API。
  *
- * 分析运行（create_analysis_workflow / update_analysis_workflow 产出）没有独立的
- * 路由页，点击名称在右侧工作区打开该分析的节点视图（view=analysisNodePage）。
+ * 点击名称在右侧工作区（SplitWorkspace 的 rightMiddle）打开对应页面：
+ * 视图名 / 参数 / 标签 key 由 `session-resource-workspace.ts` 的
+ * `SESSION_RESOURCE_WORKSPACE_TARGETS` 统一映射，本组件只负责渲染按钮。
  */
 const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
   sessionId,
@@ -65,8 +69,9 @@ const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
   );
 
   const columns = useMemo<ColumnsType<AgentSessionResourceItem>>(() => {
-    // 分析运行可直接在右侧工作区打开节点视图；其他资源类型暂不支持点击跳转。
-    const canOpenAnalysis = resourceType === 'analysis';
+    // 是否可点击由统一映射决定（登记过的类型才渲染成按钮），
+    // 新增可点击的资源类型只需改 session-resource-workspace.ts。
+    const openableType = isSessionResourceOpenable(resourceType);
     return [
       {
         dataIndex: 'name',
@@ -74,7 +79,7 @@ const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
           const name = record.name?.trim();
           const displayName =
             name || `${locale === 'en_US' ? 'Deleted' : '已删除'} #${record.resource_id}`;
-          const openable = canOpenAnalysis && Boolean(sessionId);
+          const openable = openableType && Boolean(sessionId);
           const nameStyle = {
             display: 'block',
             overflow: 'hidden',
@@ -87,16 +92,9 @@ const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
                 <Button
                   type="link"
                   size="small"
-                  title={locale === 'en_US' ? 'Open analysis' : '打开分析运行'}
+                  title={locale === 'en_US' ? 'Open in workspace' : '在右侧工作区打开'}
                   style={{ ...nameStyle, padding: 0, height: 'auto', textAlign: 'left' }}
-                  onClick={() =>
-                    openAgentWorkspaceTab(sessionId, {
-                      key: `session-analysis-${record.resource_id}`,
-                      title: displayName,
-                      view: 'analysisNodePage',
-                      params: { analysis_id: record.resource_id },
-                    })
-                  }
+                  onClick={() => openSessionResourceTab(sessionId, record, displayName)}
                 >
                   {displayName}
                 </Button>

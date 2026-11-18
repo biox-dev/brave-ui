@@ -34,7 +34,7 @@ type WorkspaceViewProps = { view: string } & Record<string, unknown>;
 const WorkspaceViewResolver = ViewResolver as unknown as FC<WorkspaceViewProps>;
 
 /**
- * 右侧堆叠分区：五块会话结果（脚本 / 工作流 / 分析运行 / 分析节点 / 应用会话）。
+ * 右侧堆叠分区：五块会话结果（脚本 / 工作流 / 分析工作流 / 分析节点 / 应用会话）。
  * 每块各自持有折叠态，折叠或关闭后对应面板不再请求接口。
  */
 const STACK_SECTION_KEYS = [
@@ -53,13 +53,19 @@ const SESSION_RESOURCE_SECTIONS: Record<
 > = {
   sessionScripts: { resourceType: 'script', zh: '脚本', en: 'Scripts' },
   sessionWorkflows: { resourceType: 'workflow', zh: '工作流', en: 'Workflows' },
-  sessionAnalyses: { resourceType: 'analysis', zh: '分析运行', en: 'Analysis Runs' },
+  sessionAnalyses: { resourceType: 'analysis', zh: '分析工作流', en: 'Analysis Workflow' },
   sessionAnalysisNodes: { resourceType: 'analysis_node', zh: '分析节点', en: 'Analysis Nodes' },
   sessionAppSessions: { resourceType: 'app_session', zh: '应用会话', en: 'App Sessions' },
 };
 
-/** 默认显示全部分区：作为未持久化时的稳定回退值（保持引用不变）。 */
-const DEFAULT_VISIBLE_STACK_SECTIONS: readonly string[] = STACK_SECTION_KEYS;
+/**
+ * 默认只显示「分析节点 + 应用会话」两块：作为未持久化时的稳定回退值（保持引用不变）。
+ * 脚本 / 工作流 / 分析工作流仍可在 Layout 弹层里手动勾选显示。
+ */
+const DEFAULT_VISIBLE_STACK_SECTIONS: readonly string[] = [
+  'sessionAnalysisNodes',
+  'sessionAppSessions',
+];
 
 /**
  * Agent 会话页（`/session/:sessionId?`，无 sessionId 表示 New Chat）。
@@ -99,8 +105,9 @@ const AgentSessionPage: FC = () => {
   }, [conversations, locale, sessionId]);
 
   // 右侧堆叠：分区显示状态持久化（redux + localStorage），全部取消勾选时右侧面板不渲染。
+  // 存储 key 用 v2：默认显示规则变更后，避免旧的「全部显示」持久化值覆盖新默认。
   const [visibleSectionKeys, setVisibleSectionKeys] = useSiderStackVisible(
-    'agentSessionRightStack',
+    'agentSessionRightStack:v2',
     DEFAULT_VISIBLE_STACK_SECTIONS,
   );
   // 折叠状态持久化：切换面板 / 刷新浏览器后保持原样。
@@ -246,6 +253,8 @@ const AgentSessionPage: FC = () => {
                 <WorkspaceViewResolver
                   view={activeTab.view}
                   {...(activeTab.params ?? {})}
+                  /* 工作区视图可用它关掉承载自己的标签（如终端「移到底部面板」后收起右侧标签）。 */
+                  onCloseTab={() => closeAgentWorkspaceTab(sessionId, activeTab.key)}
                 />
               ) : (
                 <Empty
