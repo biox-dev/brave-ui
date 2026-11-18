@@ -51,6 +51,32 @@ const parseLeftStackCollapsed = (): Record<string, string[]> => {
 }
 const leftStackCollapsed = parseLeftStackCollapsed()
 
+// 左侧栏纵向堆叠视图的分区显示状态：{ [stackKey]: visibleSectionKeys[] }
+// 未配置表示全部显示；配置为 [] 表示用户显式隐藏了整个堆叠面板。
+const parseLeftStackVisibleSections = (): Record<string, string[]> => {
+    try {
+        const raw = localStorage.getItem('leftStackVisibleSections')
+        if (!raw) {
+            return {}
+        }
+        const parsed = JSON.parse(raw)
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            return {}
+        }
+        return Object.fromEntries(
+            Object.entries(parsed).map(([key, value]) => [
+                key,
+                Array.isArray(value)
+                    ? value.filter((item): item is string => typeof item === 'string')
+                    : [],
+            ])
+        )
+    } catch {
+        return {}
+    }
+}
+const leftStackVisibleSections = parseLeftStackVisibleSections()
+
 export const loadActiveProject = createAsyncThunk(
     'user/loadActiveProject',
     async (_, { rejectWithValue }) => {
@@ -147,6 +173,8 @@ interface UserState {
     sideView:string;
     /** 左侧栏堆叠视图折叠状态：{ [stackKey]: collapsedSectionKeys[] }。 */
     leftStackCollapsed: Record<string, string[]>;
+    /** 左侧栏堆叠视图分区显示状态：{ [stackKey]: visibleSectionKeys[] }（未配置表示全部显示）。 */
+    leftStackVisibleSections: Record<string, string[]>;
     userInfo: LoginUserInfo | null;
     /** 容器运行时环境信息（来自 /container/runtime/info，页面刷新时拉取一次）。 */
     runtimeInfo: ContainerRuntimeHealth | null;
@@ -184,6 +212,7 @@ const contextSlice = createSlice({
         leftActivityKey:leftActivityKey?leftActivityKey:'sysFileBrowser',
         sideView:sideView?sideView:'agentChat',
         leftStackCollapsed,
+        leftStackVisibleSections,
         userInfo: null as LoginUserInfo | null,
         runtimeInfo: null as ContainerRuntimeHealth | null,
         runtimeLoading: false,
@@ -271,6 +300,9 @@ const contextSlice = createSlice({
             }
             if (action.payload.leftStackCollapsed !== undefined) {
                 localStorage.setItem('leftStackCollapsed', JSON.stringify(action.payload.leftStackCollapsed))
+            }
+            if (action.payload.leftStackVisibleSections !== undefined) {
+                localStorage.setItem('leftStackVisibleSections', JSON.stringify(action.payload.leftStackVisibleSections))
             }
             if (action.payload.sideView !== undefined) {
                 if (action.payload.sideView) {

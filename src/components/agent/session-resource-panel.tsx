@@ -1,6 +1,11 @@
 import { FC, useMemo } from 'react';
 import { Button, Empty, Table, Tooltip } from 'antd';
-import { CaretDownOutlined, CaretRightOutlined, CloseOutlined } from '@ant-design/icons';
+import {
+  CaretDownOutlined,
+  CaretRightOutlined,
+  CloseOutlined,
+  ReloadOutlined,
+} from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from 'react-query';
 import {
@@ -37,7 +42,12 @@ const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
 }) => {
   const { locale } = useI18n();
 
-  const { data: items, isLoading, isFetching } = useQuery(
+  const {
+    data: items,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useQuery(
     ['agent-session-resources', sessionId, resourceType],
     async () => {
       const response = await listAgentSessionResourcesApi(sessionId!, resourceType);
@@ -80,6 +90,10 @@ const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
       ? 'No results'
       : '暂无结果';
 
+  const refreshLabel = locale === 'en_US' ? 'Refresh' : '刷新';
+  // 折叠或无会话时不请求接口，刷新按钮同步禁用，避免无意义的空请求。
+  const canRefresh = Boolean(sessionId) && !collapsed;
+
   return (
     <div className={`project-report-panel${collapsed ? ' is-collapsed' : ''}`}>
       <div className="project-report-panel-header">
@@ -101,6 +115,16 @@ const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
           <span className="project-report-panel-title">{title}</span>
         )}
         <div className="project-report-panel-actions">
+          <Tooltip title={refreshLabel}>
+            <Button
+              type="text"
+              size="small"
+              icon={<ReloadOutlined spin={isFetching} />}
+              aria-label={refreshLabel}
+              disabled={!canRefresh}
+              onClick={() => void refetch()}
+            />
+          </Tooltip>
           {onClose && (
             <Tooltip title={locale === 'en_US' ? 'Close' : '关闭'}>
               <Button

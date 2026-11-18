@@ -14,6 +14,16 @@
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
+  /* 分隔线用 border 绘制，border-box 保证线条不额外撑高分区、不影响拖拽比例。 */
+  box-sizing: border-box;
+}
+
+/* 分区顶部分隔线：只在相邻两个分区之间没有渲染 resize divider 时（任一相邻分区
+   折叠）补一条与 divider 风格一致的顶边。首个分区的顶部由 workspace header 的
+   border-bottom 提供，最后一个分区的底部由 footer 的 border-top 提供，均不再重复绘制，
+   避免 2px 重叠线。 */
+.sider-stack-section + .sider-stack-section {
+  border-top: 1px solid var(--sharp-divider, #d7dbe2);
 }
 
 .sider-stack-section.is-collapsed {
