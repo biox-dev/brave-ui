@@ -2,7 +2,7 @@ import { Button, Card, Col, Empty, Flex, Row, Segmented, Skeleton, Tabs, Tag, To
 import axios from "axios"
 import { FC, lazy, Suspense, use, useEffect, useRef, useState } from "react"
 import { useLocation, useNavigate, useOutletContext, useParams } from "react-router"
-import { DownloadOutlined, DownOutlined, RedoOutlined } from '@ant-design/icons'
+import { DownloadOutlined, DownOutlined, RedoOutlined, ControlOutlined } from '@ant-design/icons'
 import { useDispatch, useSelector } from "react-redux"
 import { setUserItem } from "@/store/userSlice"
 import { useModal } from "@/hooks/useModal"
@@ -62,6 +62,9 @@ const AnalysisReport: FC<any> = () => {
     // const dispatch = useDispatch()
     const { modal, openModal, closeModal } = useModal();
     const message = useGlobalMessage();
+    const dispatch = useDispatch();
+    // 顶部「参数」按钮：右侧参数面板被关闭后，从这里重新打开它（关闭状态持久化在 redux/localStorage）。
+    const rightPanelCollapsed = useSelector((state: any) => state.user.rightPanelCollapsed);
     const [componentType, setComponentType] = useState<any>()
     const [rightPanel, setRightPanel] = useState<any>("toc");
 
@@ -149,7 +152,19 @@ const AnalysisReport: FC<any> = () => {
 
 
     return <div >
-        <Flex justify="flex-end" style={{ marginBottom: 8 }}>
+        <Flex justify="flex-end" gap={8} style={{ marginBottom: 8 }}>
+            {/* 参数面板被隐藏时，从页面顶部重新打开它 */}
+            {rightPanelCollapsed ? (
+                <Tooltip title="Show parameters panel">
+                    <Button
+                        size="small"
+                        icon={<ControlOutlined />}
+                        onClick={() => dispatch(setUserItem({ rightPanelCollapsed: false }))}
+                    >
+                        Parameters
+                    </Button>
+                </Tooltip>
+            ) : null}
             <Tooltip title="Bind this analysis as the current Agent context">
                 <Button
                     size="small"

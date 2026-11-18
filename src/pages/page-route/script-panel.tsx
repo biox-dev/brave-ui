@@ -1,6 +1,7 @@
 import { Button, Card, Empty, Popconfirm, Segmented, Skeleton, Spin, Tag, Tooltip } from "antd"
-import { DeleteOutlined, FileTextOutlined, ReloadOutlined, RobotOutlined } from "@ant-design/icons"
+import { ControlOutlined, DeleteOutlined, FileTextOutlined, ReloadOutlined, RobotOutlined } from "@ant-design/icons"
 import { FC, useCallback, useEffect, useState } from "react"
+import { useDispatch, useSelector } from "react-redux"
 import { useParams } from "react-router"
 import { useModal } from "@/hooks/useModal"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
@@ -14,6 +15,7 @@ import { useRouteMainTabTitle } from "@/hooks/useMainTabTitle"
 import { useRouteView } from "@/hooks/useRouteView"
 import type { ScriptPanelView } from "@/routes/route-view"
 import { http } from "@/api/client/http"
+import { setUserItem } from "@/store/userSlice"
 import "./script-panel.css"
 
 /**
@@ -35,6 +37,9 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
     const message = useGlobalMessage()
     const { openModal } = useModal()
     const { script, setScript, clear } = useStoreRender()
+    const dispatch = useDispatch()
+    // 右侧参数面板被关闭后，可以从本页顶部重新打开（折叠状态持久化在 redux/localStorage）。
+    const rightPanelCollapsed = useSelector((state: any) => state.user.rightPanelCollapsed)
 
     // 当前视图由路由视图段决定（/c/scripts/:script_id/:view?）：刷新、前进后退、切标签页都能恢复；
     // 切换到另一个脚本时地址里不带视图段，会自动回到默认视图。
@@ -159,6 +164,20 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
                                             Ask Agent
                                         </Button>
                                     </Tooltip>
+                                    {/* 参数面板被隐藏时，从页面顶部重新打开它 */}
+                                    {rightPanelCollapsed ? (
+                                        <Tooltip title={zh ? "打开参数面板" : "Show parameters panel"}>
+                                            <Button
+                                                size="small"
+                                                icon={<ControlOutlined />}
+                                                onClick={() =>
+                                                    dispatch(setUserItem({ rightPanelCollapsed: false }))
+                                                }
+                                            >
+                                                {zh ? "参数" : "Parameters"}
+                                            </Button>
+                                        </Tooltip>
+                                    ) : null}
                                     {/* Git 状态与主操作并列：标题行只放「身份信息」，避免长标题把
                                         状态标签和按钮挤到下一行、或者把标题本身挤成省略号。 */}
                                     <GitStateActions entity="script" item={script} onReload={reload} />

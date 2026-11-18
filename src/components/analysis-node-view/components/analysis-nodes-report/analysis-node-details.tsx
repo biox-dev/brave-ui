@@ -1,7 +1,7 @@
 import { Button, Card, Flex, Modal, Popconfirm, Skeleton, Space, Tag, Tooltip, Typography } from "antd";
 import axios from "axios";
 import { FC, useCallback, useEffect, useMemo, useState } from "react";
-import { CloseOutlined, EditOutlined, ExportOutlined, RedoOutlined, RobotOutlined } from "@ant-design/icons";
+import { CloseOutlined, ControlOutlined, EditOutlined, ExportOutlined, RedoOutlined, RobotOutlined } from "@ant-design/icons";
 import AnalysisNodeTerminal from "@/components/container-manager/analysis-node-terminal";
 import AISummaryPanel from "@/components/ai-summary/ai-summary-panel";
 import ViewResolver from "@/core/ui-renderer/ViewResolver";
@@ -14,7 +14,8 @@ import { useRouteMainTabTitle } from "@/hooks/useMainTabTitle";
 import { useRouteView } from "@/hooks/useRouteView";
 import type { AnalysisNodeReportView } from "@/routes/route-view";
 import { http } from "@/api/client/http";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { setUserItem } from "@/store/userSlice";
 import { useStoreRender } from "@/context/render/RenderProvider";
 import { useSideViewContext } from "@/context/side/SideViewContext";
 import { useComponentStore } from "@/event-bus/stores/components";
@@ -104,6 +105,9 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
         enabled: viewFromRoute === true,
     });
     const { containerURL } = useSelector((state: any) => state.user);
+    const dispatch = useDispatch();
+    // 顶部「参数」按钮：右侧参数面板被关闭后，从这里重新打开它（关闭状态持久化在 redux/localStorage）。
+    const rightPanelCollapsed = useSelector((state: any) => state.user.rightPanelCollapsed);
 
     // 把当前分析节点作为 @analysis_node:<id> 引用 chip 插进 Agent 输入框（面板未打开时自动切过去）。
     // Agent 侧用 get_analysis_node 调研：节点名称 / 类型 / 工作目录 / params.json / 脚本参数。
@@ -308,6 +312,19 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
                             Ask Agent
                         </Button>
                     </Tooltip>
+
+                    {/* 参数面板被隐藏时，从卡片顶部重新打开它 */}
+                    {rightPanelCollapsed ? (
+                        <Tooltip title="Show parameters panel">
+                            <Button
+                                size="small"
+                                icon={<ControlOutlined />}
+                                onClick={() => dispatch(setUserItem({ rightPanelCollapsed: false }))}
+                            >
+                                Parameters
+                            </Button>
+                        </Tooltip>
+                    ) : null}
 
                     {selectedSampleDetail && (
                         <Space>

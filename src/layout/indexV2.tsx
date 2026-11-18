@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ApartmentOutlined, AppstoreOutlined, BookOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, BarChartOutlined, ExperimentOutlined, CodeOutlined, ContainerOutlined } from '@ant-design/icons';
-import { Dropdown, Layout, theme } from 'antd';
+import { ApartmentOutlined, AppstoreOutlined, BookOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, BarChartOutlined, ExperimentOutlined, CodeOutlined, ContainerOutlined, CloseOutlined } from '@ant-design/icons';
+import { Button, Dropdown, Layout, theme, Tooltip } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { useI18n } from '@/hooks/useI18n';
@@ -51,6 +51,7 @@ const App: React.FC = () => {
   const assistantPanelWidth = useSelector((state: any) => state.user.assistantPanelWidth);
   const rightPanelWidth = useSelector((state: any) => state.user.rightPanelWidth);
   const leftPanelCollapsed = useSelector((state: any) => state.user.leftPanelCollapsed);
+  const rightPanelCollapsed = useSelector((state: any) => state.user.rightPanelCollapsed);
   const layoutTheme: 'light' | 'dark' = appTheme === 'dark' ? 'dark' : 'light';
   const isDark = layoutTheme === 'dark';
   const {
@@ -304,9 +305,25 @@ const App: React.FC = () => {
                   </BorderlessCard>
                 }
                 right={
-                  <BorderlessCard size="small" styles={{ body: { padding: 8 } }}>
-                    <ViewResolver view="editParamsPanel" view_mode="card" />
-                  </BorderlessCard>
+                  rightPanelCollapsed ? null : (
+                    <BorderlessCard
+                      size="small"
+                      styles={{ body: { padding: 8 } }}
+                      extra={
+                        <Tooltip title={locale === 'en_US' ? 'Close panel' : '关闭面板'}>
+                          <Button
+                            size="small"
+                            type="text"
+                            icon={<CloseOutlined />}
+                            aria-label={locale === 'en_US' ? 'Close panel' : '关闭面板'}
+                            onClick={() => dispatch(setUserItem({ rightPanelCollapsed: true }))}
+                          />
+                        </Tooltip>
+                      }
+                    >
+                      <ViewResolver view="editParamsPanel" view_mode="card" />
+                    </BorderlessCard>
+                  )
                 }
               />
             </div>
