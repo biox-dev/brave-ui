@@ -66,7 +66,7 @@ import UnifiedDiff from "@/components/common/unified-diff";
 const { Text } = Typography;
 
 // 临时测试入口：模拟「点击聊天内容 → 在右侧工作区打开页面」。
-// 点击后在 /task/:sessionId 页面右侧的 MainTabs 里打开对应分析节点详情；
+// 点击后在 /session/:sessionId 页面右侧的 MainTabs 里打开对应分析节点详情；
 // 多个 ID 用于验证多标签切换 / 关闭。
 const TEST_ANALYSIS_NODE_IDS = ["2122521681879633920", "2122265756107280384"];
 
@@ -155,7 +155,7 @@ interface AgentChatProps {
   onCancel?: () => void;
   /**
    * 会话变化（新建 / 切换 / 分叉）时通知宿主。
-   * 会话页用它把地址同步成 `/task/:sessionId`，保证刷新与左侧列表高亮一致。
+   * 会话页用它把地址同步成 `/session/:sessionId`，保证刷新与左侧列表高亮一致。
    */
   onConversationChange?: (conversationId?: string) => void;
 }
@@ -235,7 +235,7 @@ const AgentChat: FC<AgentChatProps> = ({
   // 当前选中的会话 ID（ref 镜像，供 WS 回调读取最新值）。
   const selectedConvIdRef = useRef<string | undefined>(initialConversationId);
   // 已经真正加载过（消息已回填）的会话 ID。
-  // 直接以 /task/:sessionId 挂载时，state 初值等于 prop，仅靠「id === conversationId」
+  // 直接以 /session/:sessionId 挂载时，state 初值等于 prop，仅靠「id === conversationId」
   // 会把首次加载误判成重复切换而跳过，因此需要单独记录「是否加载过」。
   const loadedConvIdRef = useRef<string | undefined>(undefined);
   // 活跃轮次表：taskID → 该轮次中间态，跨会话切换与浏览器刷新保留。
@@ -670,7 +670,7 @@ const AgentChat: FC<AgentChatProps> = ({
     }
   };
 
-  // 清空为「新会话」状态：New Chat（/task）以及宿主要求重置时使用。
+  // 清空为「新会话」状态：New Chat（/session）以及宿主要求重置时使用。
   const handleClear = () => {
     selectedConvIdRef.current = undefined;
     loadedConvIdRef.current = undefined;
@@ -698,7 +698,7 @@ const AgentChat: FC<AgentChatProps> = ({
 
   // 外部会话变化（左侧会话列表点击 / New Chat）时同步内容：
   // - 有 ID → 续接该会话；
-  // - 没有 ID（/task）→ 清空成新会话。
+  // - 没有 ID（/session）→ 清空成新会话。
   useEffect(() => {
     if (!initialConversationId) {
       handleClear();
@@ -974,7 +974,7 @@ const AgentChat: FC<AgentChatProps> = ({
       setConversationId(conversation_id);
       // 新会话刚创建，本地已有乐观消息：标记为已加载，避免地址同步后重新拉取把消息冲掉。
       loadedConvIdRef.current = conversation_id;
-      // 新建会话后同步地址（/task/:sessionId）并刷新左侧会话列表。
+      // 新建会话后同步地址（/session/:sessionId）并刷新左侧会话列表。
       onConversationChange?.(conversation_id);
       void loadAgentConversations();
 

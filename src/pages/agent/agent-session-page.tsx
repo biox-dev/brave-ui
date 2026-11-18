@@ -1,4 +1,4 @@
-import { FC, useCallback, useMemo, useState } from 'react';
+import { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Empty, Tooltip } from 'antd';
 import { LayoutOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router';
@@ -12,6 +12,10 @@ import MainTabs from '@/layout/components/MainTabs';
 import BorderlessCard from '@/components/common/borderless-card';
 import ViewResolver from '@/core/ui-renderer/ViewResolver';
 import { useI18n } from '@/hooks/useI18n';
+import {
+  loadAgentConversations,
+  useAgentConversationStore,
+} from '@/components/agent/agent-conversation-store';
 import {
   closeAgentWorkspaceTab,
   setActiveAgentWorkspaceTab,
@@ -31,7 +35,7 @@ const STACK_SECTION_KEYS = ['appSessionPage'] as const;
 type StackSectionKey = (typeof STACK_SECTION_KEYS)[number];
 
 /**
- * Agent 会话页（`/task/:sessionId?`，无 sessionId 表示 New Chat）。
+ * Agent 会话页（`/session/:sessionId?`，无 sessionId 表示 New Chat）。
  *
  * 布局是一个独立的工作组：
  * - 顶部：通栏 header，右侧 Layout 按钮可重新显示被关闭的右侧堆叠；
@@ -39,7 +43,7 @@ type StackSectionKey = (typeof STACK_SECTION_KEYS)[number];
  * - rightMiddle：聊天内容打开的标签页（有标签时才渲染，关闭全部后聊天自动撑开）；
  * - right：可关闭的纵向堆叠面板（目前只有应用会话列表，后续可继续加分区）；
  *
- * 聊天里创建 / 切换会话时通过 `onConversationChange` 把地址同步成 `/task/:id`，
+ * 聊天里创建 / 切换会话时通过 `onConversationChange` 把地址同步成 `/session/:id`，
  * 这样刷新、分享、左侧会话列表高亮都能保持一致。
  */
 const AgentSessionPage: FC = () => {
@@ -48,6 +52,23 @@ const AgentSessionPage: FC = () => {
   const { locale } = useI18n();
   const workspace = useAgentWorkspace(sessionId);
   const tabs = workspace.tabs;
+
+  // 顶部标题显示当前会话名称：优先用会话列表里的 title（与左侧列表同源）。
+  // 直接访问地址时列表可能还没拉过，这里补一次加载。
+  const conversations = useAgentConversationStore((state) => state.conversations);
+  const conversationsLoaded = useAgentConversationStore((state) => state.loaded);
+  useEffect(() => {
+    if (!conversationsLoaded) {
+      void loadAgentConversations();
+    }
+  }, [conversationsLoaded]);
+  const sessionTitle = useMemo(() => {
+    if (!sessionId) {
+      return locale === 'en_US' ? 'New Chat' : '新建会话';
+    }
+    const current = conversations.find((item) => item.id === sessionId);
+    return current?.title?.trim() || sessionId;
+  }, [conversations, locale, sessionId]);
 
   // 右侧堆叠：可见性与分区列表由页面持有，关闭全部分区后 Layout 按钮可一键恢复。
   const [stackVisible, setStackVisible] = useState(true);
@@ -109,10 +130,10 @@ const AgentSessionPage: FC = () => {
   const handleConversationChange = useCallback(
     (id?: string) => {
       if (id) {
-        navigate(`/task/${encodeURIComponent(id)}`, { replace: true });
+        navigate(`/session/${encodeURIComponent(id)}`, { replace: true });
         return;
       }
-      navigate('/task', { replace: true });
+      navigate('/session', { replace: true });
     },
     [navigate],
   );
@@ -122,8 +143,8 @@ const AgentSessionPage: FC = () => {
       <SplitWorkspace
         header={
           <div className="agent-session-header">
-            <span className="agent-session-header-title">
-              {locale === 'en_US' ? 'Agent Workspace' : 'Agent 工作区'}
+            <span className="agent-session-header-title" title={sessionTitle}>
+              {sessionTitle}
             </span>
             <div className="agent-session-header-actions">
               <Tooltip title={showStack ? 'Hide stack' : 'Show stack'}>

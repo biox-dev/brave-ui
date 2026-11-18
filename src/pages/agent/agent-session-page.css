@@ -1,5 +1,5 @@
 /*
- * Agent 会话页（/task/:sessionId）：
+ * Agent 会话页（/session/:sessionId）：
  * 页面渲染在布局 main 的 <Outlet /> 里，需要自己撑满可用高度；
  * 内部再套一层 SplitWorkspace（聊天 + 标签页 + 右侧堆叠面板），
  * 因此把它的固定视口高度覆盖成 100%，避免和底部面板 / 外层布局叠加后溢出。

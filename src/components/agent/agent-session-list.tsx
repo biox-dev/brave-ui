@@ -10,12 +10,12 @@ import './agent-session-list.css';
 /**
  * 从 pathname 解析当前 Agent 会话 ID。
  *
- * 左侧面板由布局层渲染（不在 `/task/:sessionId` 的路由元素内），因此拿不到
- * `useParams()`，只能从地址解析。与路由保持一致：`/task/:sessionId?`。
+ * 左侧面板由布局层渲染（不在 `/session/:sessionId` 的路由元素内），因此拿不到
+ * `useParams()`，只能从地址解析。与路由保持一致：`/session/:sessionId?`。
  */
 const parseAgentSessionId = (pathname: string): string | undefined => {
   const path = (pathname || '').split('?')[0].split('#')[0];
-  const match = /^\/task(?:\/([^/]+))?\/?$/.exec(path);
+  const match = /^\/session(?:\/([^/]+))?\/?$/.exec(path);
   if (!match?.[1]) {
     return undefined;
   }
@@ -46,7 +46,7 @@ const formatTime = (value?: string): string => {
  *
  * 原先是 `agent-chat.tsx` 头部的「会话下拉 + New Chat」：现在会话导航属于全局入口，
  * 抽成独立视图后由布局层挂载，聊天页只负责当前会话的内容。
- * 点击会话 → `/task/:sessionId`；New Chat → `/task`（新建会话）。
+ * 点击会话 → `/session/:sessionId`；New Chat → `/session`（新建会话）。
  */
 const AgentSessionList: FC = () => {
   const { locale } = useI18n();
@@ -89,7 +89,7 @@ const AgentSessionList: FC = () => {
               type="text"
               icon={<PlusOutlined />}
               aria-label={labels.newChat}
-              onClick={() => navigate('/task')}
+              onClick={() => navigate('/session')}
             />
           </Tooltip>
         </Flex>
@@ -116,7 +116,7 @@ const AgentSessionList: FC = () => {
                 className={`agent-session-item${isActive ? ' is-active' : ''}`}
                 title={conversationTitle(item)}
                 aria-current={isActive ? 'page' : undefined}
-                onClick={() => navigate(`/task/${encodeURIComponent(item.id)}`)}
+                onClick={() => navigate(`/session/${encodeURIComponent(item.id)}`)}
               >
                 <span className="agent-session-item-icon">
                   <CommentOutlined />

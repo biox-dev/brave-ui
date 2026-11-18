@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 /**
- * Agent 会话页（`/task/:sessionId`）右侧工作区的标签状态。
+ * Agent 会话页（`/session/:sessionId`）右侧工作区的标签状态。
  *
  * 与主区域 `MainTabs` 的区别：
  * - `MainTabs` 的标签来自「访问过的路由」并落库到后端；

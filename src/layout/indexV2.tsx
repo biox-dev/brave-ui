@@ -231,7 +231,7 @@ const App: React.FC = () => {
                 main={
                   <div className="layout-sharp-main-stack">
                     {/* 常规路由直接在 main 的 <Outlet /> 中渲染；
-                        标签栏（MainTabs）只属于 /task/:sessionId 的工作区，不再在布局层处理。 */}
+                        标签栏（MainTabs）只属于 /session/:sessionId 的工作区，不再在布局层处理。 */}
                     <div className="layout-sharp-main-outlet">
                       <Outlet />
                     </div>

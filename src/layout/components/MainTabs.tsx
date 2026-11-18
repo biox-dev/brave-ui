@@ -74,7 +74,7 @@ type MainTabsProps = {
  * 之后的每次新增 / 关闭 / 改名都异步回写（不阻塞 UI）。
  *
  * 另外支持「本地受控模式」（传 `localTabs`）：标签由外部提供，点击 / 关闭只触发回调，
- * 不读写路由、不回填也不落库。Agent 会话页（/task/:sessionId）右侧的工作区标签栏
+ * 不读写路由、不回填也不落库。Agent 会话页（/session/:sessionId）右侧的工作区标签栏
  * 用的就是这个模式。
  */
 const MainTabs = forwardRef<MainTabsHandle, MainTabsProps>(
