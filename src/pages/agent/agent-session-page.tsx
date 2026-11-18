@@ -33,24 +33,26 @@ type WorkspaceViewProps = { view: string } & Record<string, unknown>;
 const WorkspaceViewResolver = ViewResolver as unknown as FC<WorkspaceViewProps>;
 
 /**
- * 右侧堆叠分区：三块会话结果（脚本 / 工作流 / 分析节点）+ 应用会话列表。
+ * 右侧堆叠分区：四块会话结果（脚本 / 工作流 / 分析节点 / 应用会话）。
  * 每块各自持有折叠态，折叠或关闭后对应面板不再请求接口。
  */
 const STACK_SECTION_KEYS = [
   'sessionScripts',
   'sessionWorkflows',
   'sessionAnalysisNodes',
-  'appSessionPage',
+  'sessionAppSessions',
 ] as const;
 type StackSectionKey = (typeof STACK_SECTION_KEYS)[number];
 
 /** 会话结果分区配置：标题与对应的资源类型。 */
-const SESSION_RESOURCE_SECTIONS: Partial<
-  Record<StackSectionKey, { resourceType: AgentSessionResourceType; zh: string; en: string }>
+const SESSION_RESOURCE_SECTIONS: Record<
+  StackSectionKey,
+  { resourceType: AgentSessionResourceType; zh: string; en: string }
 > = {
   sessionScripts: { resourceType: 'script', zh: '脚本', en: 'Scripts' },
   sessionWorkflows: { resourceType: 'workflow', zh: '工作流', en: 'Workflows' },
   sessionAnalysisNodes: { resourceType: 'analysis_node', zh: '分析节点', en: 'Analysis Nodes' },
+  sessionAppSessions: { resourceType: 'app_session', zh: '应用会话', en: 'App Sessions' },
 };
 
 /**
@@ -110,24 +112,16 @@ const AgentSessionPage: FC = () => {
         const resourceSection = SESSION_RESOURCE_SECTIONS[key];
         return {
           key,
-          render: ({ collapsed, toggle }) =>
-            resourceSection ? (
-              <SessionResourcePanel
-                sessionId={sessionId}
-                resourceType={resourceSection.resourceType}
-                title={locale === 'en_US' ? resourceSection.en : resourceSection.zh}
-                collapsed={collapsed}
-                onToggleCollapse={toggle}
-                onClose={() => closeStackSection(key)}
-              />
-            ) : (
-              <ViewResolver
-                view="appSessionPage"
-                collapsed={collapsed}
-                onToggleCollapse={toggle}
-                onClose={() => closeStackSection(key)}
-              />
-            ),
+          render: ({ collapsed, toggle }) => (
+            <SessionResourcePanel
+              sessionId={sessionId}
+              resourceType={resourceSection.resourceType}
+              title={locale === 'en_US' ? resourceSection.en : resourceSection.zh}
+              collapsed={collapsed}
+              onToggleCollapse={toggle}
+              onClose={() => closeStackSection(key)}
+            />
+          ),
         };
       }),
     [closeStackSection, locale, sessionId, stackSectionKeys],

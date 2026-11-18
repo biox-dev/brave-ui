@@ -328,7 +328,8 @@ export const forkConversationApi = (
 };
 
 // 会话结果（会话 ↔ 资源的关联）类型。
-export type AgentSessionResourceType = "script" | "workflow" | "analysis_node";
+// app_session 不落关联表，后端按 AppSession.AgentSessionID 实时查询。
+export type AgentSessionResourceType = "script" | "workflow" | "analysis_node" | "app_session";
 
 // 会话结果项：会话创建 / 修改过的脚本、工作流或分析节点。
 export interface AgentSessionResourceItem {
