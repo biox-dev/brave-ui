@@ -14,6 +14,7 @@ import {
   type AgentSessionResourceType,
 } from '@/api/agent';
 import { useI18n } from '@/hooks/useI18n';
+import { openAgentWorkspaceTab } from '@/layout/agent-workspace-store';
 
 export interface SessionResourcePanelProps {
   /** 当前会话 ID；New Chat（无会话）时不发起请求。 */
@@ -27,10 +28,13 @@ export interface SessionResourcePanelProps {
 }
 
 /**
- * 会话结果面板：展示当前会话产生 / 修改过的某一类资源（脚本 / 工作流 / 分析节点）。
+ * 会话结果面板：展示当前会话产生 / 修改过的某一类资源（脚本 / 工作流 / 分析节点 / 分析运行）。
  *
  * 只在展开（`collapsed=false`）且存在会话 ID 时请求接口：折叠或关闭后
  * React Query 的 `enabled` 变为 false / 组件卸载，不会继续请求 API。
+ *
+ * 分析运行（create_analysis_workflow / update_analysis_workflow 产出）没有独立的
+ * 路由页，点击名称在右侧工作区打开该分析的节点视图（view=analysisNodePage）。
  */
 const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
   sessionId,
@@ -60,17 +64,45 @@ const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
     },
   );
 
-  const columns = useMemo<ColumnsType<AgentSessionResourceItem>>(
-    () => [
+  const columns = useMemo<ColumnsType<AgentSessionResourceItem>>(() => {
+    // 分析运行可直接在右侧工作区打开节点视图；其他资源类型暂不支持点击跳转。
+    const canOpenAnalysis = resourceType === 'analysis';
+    return [
       {
         dataIndex: 'name',
         render: (_, record) => {
           const name = record.name?.trim();
+          const displayName =
+            name || `${locale === 'en_US' ? 'Deleted' : '已删除'} #${record.resource_id}`;
+          const openable = canOpenAnalysis && Boolean(sessionId);
+          const nameStyle = {
+            display: 'block',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap' as const,
+          };
           return (
             <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {name || `${locale === 'en_US' ? 'Deleted' : '已删除'} #${record.resource_id}`}
-              </span>
+              {openable ? (
+                <Button
+                  type="link"
+                  size="small"
+                  title={locale === 'en_US' ? 'Open analysis' : '打开分析运行'}
+                  style={{ ...nameStyle, padding: 0, height: 'auto', textAlign: 'left' }}
+                  onClick={() =>
+                    openAgentWorkspaceTab(sessionId, {
+                      key: `session-analysis-${record.resource_id}`,
+                      title: displayName,
+                      view: 'analysisNodePage',
+                      params: { analysis_id: record.resource_id },
+                    })
+                  }
+                >
+                  {displayName}
+                </Button>
+              ) : (
+                <span style={nameStyle}>{displayName}</span>
+              )}
               <span style={{ color: 'rgba(0,0,0,0.45)', fontSize: 12 }}>
                 {record.resource_id}
               </span>
@@ -78,9 +110,8 @@ const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
           );
         },
       },
-    ],
-    [locale],
-  );
+    ];
+  }, [locale, resourceType, sessionId]);
 
   const emptyDescription = !sessionId
     ? locale === 'en_US'

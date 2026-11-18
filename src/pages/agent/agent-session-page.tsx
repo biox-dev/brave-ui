@@ -34,12 +34,13 @@ type WorkspaceViewProps = { view: string } & Record<string, unknown>;
 const WorkspaceViewResolver = ViewResolver as unknown as FC<WorkspaceViewProps>;
 
 /**
- * 右侧堆叠分区：四块会话结果（脚本 / 工作流 / 分析节点 / 应用会话）。
+ * 右侧堆叠分区：五块会话结果（脚本 / 工作流 / 分析运行 / 分析节点 / 应用会话）。
  * 每块各自持有折叠态，折叠或关闭后对应面板不再请求接口。
  */
 const STACK_SECTION_KEYS = [
   'sessionScripts',
   'sessionWorkflows',
+  'sessionAnalyses',
   'sessionAnalysisNodes',
   'sessionAppSessions',
 ] as const;
@@ -52,6 +53,7 @@ const SESSION_RESOURCE_SECTIONS: Record<
 > = {
   sessionScripts: { resourceType: 'script', zh: '脚本', en: 'Scripts' },
   sessionWorkflows: { resourceType: 'workflow', zh: '工作流', en: 'Workflows' },
+  sessionAnalyses: { resourceType: 'analysis', zh: '分析运行', en: 'Analysis Runs' },
   sessionAnalysisNodes: { resourceType: 'analysis_node', zh: '分析节点', en: 'Analysis Nodes' },
   sessionAppSessions: { resourceType: 'app_session', zh: '应用会话', en: 'App Sessions' },
 };
