@@ -105,8 +105,9 @@ const AgentSessionPage: FC = () => {
           )
         }
         minRightWidth={320}
-        maxRightWidth={960}
+        maxRightWidth={1600}
         defaultRightWidth={560}
+        minMainWidth={320}
         rightResizeLabel={locale === 'en_US' ? 'Resize workspace panel' : '调整工作区面板'}
       />
     </div>

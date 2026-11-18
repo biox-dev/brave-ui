@@ -869,9 +869,12 @@ body.layout-bottom-panel-resizing {
   overflow: hidden;
 }
 
+/* 宽度完全由 SplitWorkspace 的 min/max props 在 JS 里夹取（拖动 / 双击复位）。
+   这里不再用 CSS 的 max-width 卡死：之前在 640px 就停住，导致向右拖动分隔条时
+   聊天区无法继续变窄。 */
 .layout-sharp-right-pane {
-  min-width: 280px;
-  max-width: 640px;
+  min-width: 0;
+  max-width: none;
 }
 
 /* 中间面板（Assistant）：夹在主区域与右侧面板之间，可单独拖拽调宽 */

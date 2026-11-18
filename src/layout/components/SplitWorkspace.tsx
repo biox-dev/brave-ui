@@ -37,6 +37,8 @@ type SplitWorkspaceProps = {
   minRightWidth?: number;
   maxRightWidth?: number;
   defaultRightWidth?: number;
+  /** 拖动右侧分隔条时，主区域（如 agentChat）至少保留的宽度（px）。 */
+  minMainWidth?: number;
   mobileBreakpoint?: number;
 };
 
@@ -74,6 +76,7 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
   minRightWidth = 280,
   maxRightWidth = 640,
   defaultRightWidth = 360,
+  minMainWidth = 320,
   mobileBreakpoint = 991,
 }) => {
   const workspaceRef = useRef<HTMLDivElement | null>(null);
@@ -230,7 +233,18 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
       }
       if (activeDivider === 'right' && hasRightPane) {
         const nextWidth = rect.right - event.clientX;
-        const clampedWidth = Math.min(maxRightWidth, Math.max(minRightWidth, nextWidth));
+        // 主区域有内容时给它留出最小可用宽度，避免向右拖到底把聊天区挤没；
+        // 同时对左侧 / 中间面板占用的空间做扣除（它们固定在分隔条左边）。
+        const leftSpace = hasLeftPane && !isLeftCollapsed ? leftWidthRef.current : 0;
+        const assistantSpace = hasAssistantPane ? assistantWidthRef.current : 0;
+        const maxAvailable = hasMainPane
+          ? rect.width - leftSpace - assistantSpace - minMainWidth
+          : rect.width - leftSpace - assistantSpace;
+        const upperBound = Math.max(
+          minRightWidth,
+          Math.min(maxRightWidth, maxAvailable),
+        );
+        const clampedWidth = Math.min(upperBound, Math.max(minRightWidth, nextWidth));
         applyRightWidth(clampedWidth);
       }
     };
@@ -261,7 +275,9 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
     activeDivider,
     hasLeftPane,
     hasAssistantPane,
+    hasMainPane,
     hasRightPane,
+    isLeftCollapsed,
     onLeftWidthCommit,
     onAssistantWidthCommit,
     onRightWidthCommit,
@@ -269,6 +285,7 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
     maxLeftWidth,
     minAssistantWidth,
     maxAssistantWidth,
+    minMainWidth,
     minRightWidth,
     maxRightWidth,
   ]);

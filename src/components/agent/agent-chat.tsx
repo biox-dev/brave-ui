@@ -5,6 +5,7 @@ import {
   ClearOutlined,
   CloseOutlined,
   EditOutlined,
+  ExperimentOutlined,
   FileTextOutlined,
   ForkOutlined,
   LoadingOutlined,
@@ -59,9 +60,15 @@ import AgentAskUserCard from "./agent-ask-user";
 import AgentSender from "./agent-sender";
 import { renderAssistantMessage } from "./agent-message-render";
 import { loadAgentConversations } from "./agent-conversation-store";
+import { openAgentWorkspaceTab } from "@/layout/agent-workspace-store";
 import UnifiedDiff from "@/components/common/unified-diff";
 
 const { Text } = Typography;
+
+// 临时测试入口：模拟「点击聊天内容 → 在右侧工作区打开页面」。
+// 点击后在 /task/:sessionId 页面右侧的 MainTabs 里打开对应分析节点详情；
+// 多个 ID 用于验证多标签切换 / 关闭。
+const TEST_ANALYSIS_NODE_IDS = ["2122521681879633920", "2122265756107280384"];
 
 /**
  * 后端 WS 推送的 agent 事件信封（对应 handler.agentWSEvent）。
@@ -1159,6 +1166,30 @@ const AgentChat: FC<AgentChatProps> = ({
           >
             Reload
           </Button>
+          {/* TODO: 临时测试按钮，验证聊天内容 → 右侧工作区（MainTabs + ViewResolver）的链路；
+              多个 ID 用于验证多标签切换 / 关闭。 */}
+          {TEST_ANALYSIS_NODE_IDS.map((nodeId, index) => (
+            <Button
+              key={nodeId}
+              size="small"
+              icon={<ExperimentOutlined />}
+              title={`Open analysis node ${nodeId} in the workspace panel`}
+              onClick={() => {
+                openAgentWorkspaceTab(conversationId, {
+                  key: `analysisNode:${nodeId}`,
+                  title: `Node ${nodeId.slice(-6)}`,
+                  view: "analysisNodeDetails",
+                  params: {
+                    analysis_node_id: nodeId,
+                    // 不在主标签栏登记名称（右侧工作区有自己的标签栏）。
+                    useTitle: false,
+                  },
+                });
+              }}
+            >
+              {`Test Node ${index + 1}`}
+            </Button>
+          ))}
           {onCancel && (
             <Button size="small" onClick={onCancel}>
               Close
