@@ -6,6 +6,8 @@ const viewLoaders = {
     taskPermissionsModal: () => import("./task-permissions-modal"),
     taskLLMRequestModal: () => import("./task-llm-request-modal"),
     agentChat: () => import("./agent-chat"),
+    // 左侧活动栏「Agent 会话」面板：会话列表 + New Chat（原 agent-chat 头部的会话导航）。
+    agentSessionList: () => import("./agent-session-list"),
     agentMemoryEditModal: () => import("./agent-memory-edit-modal"),
     agentSkillEditModal: () => import("./agent-skill-edit-modal"),
     // 只读展示技能详情（名称 / 描述 / 版本 / 资源 + 当前上下文渲染后的指令正文）。

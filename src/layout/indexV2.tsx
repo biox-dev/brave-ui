@@ -1,11 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ApartmentOutlined, AppstoreOutlined, BookOutlined, SettingOutlined, FolderOpenOutlined, NodeIndexOutlined, BarChartOutlined, ExperimentOutlined, CodeOutlined, ContainerOutlined, CloseOutlined } from '@ant-design/icons';
-import { Button, Dropdown, Layout, theme, Tooltip } from 'antd';
-import { Outlet, useLocation, useNavigate } from 'react-router';
+import { ApartmentOutlined, BookOutlined, SettingOutlined, FolderOpenOutlined, BarChartOutlined, CodeOutlined, ContainerOutlined, CommentOutlined } from '@ant-design/icons';
+import { Dropdown, Layout, theme } from 'antd';
+import { Outlet, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { useI18n } from '@/hooks/useI18n';
 import ViewResolver from '@/core/ui-renderer/ViewResolver';
-import BorderlessCard from '@/components/common/borderless-card';
 import ContainerQueueMonitor from '@/components/container-manager/container-monitor';
 import RuntimeStatus from '@/components/runtime-status';
 import { setUserItem } from '@/store/userSlice';
@@ -13,16 +12,15 @@ import { buildLayoutMenus, type LayoutLocale } from './layout-menu';
 import AppHeader from './components/AppHeader';
 import ActivityBar from './components/ActivityBar';
 import SplitWorkspace from './components/SplitWorkspace.tsx';
-import MainTabs from './components/MainTabs';
 import BottomPanel from './components/BottomPanel';
-import { hydrateBottomPanel, useBottomPanelStore } from './bottom-panel-store';
+import { hydrateBottomPanel } from './bottom-panel-store';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
-type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'analysisScriptStack' | 'analysisWorkflowStack' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'assayProjectPage' | 'projectFilePage' | 'containerTemplateList' | 'containerTemplateStack';
+type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'analysisScriptStack' | 'analysisWorkflowStack' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'assayProjectPage' | 'projectFilePage' | 'containerTemplateList' | 'containerTemplateStack' | 'agentSessionList';
 
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
-  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'analysisScriptStack' || key === 'analysisWorkflowStack' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'assayProjectPage' || key === 'projectFilePage' || key === 'containerTemplateList' || key === 'containerTemplateStack';
+  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'analysisScriptStack' || key === 'analysisWorkflowStack' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'assayProjectPage' || key === 'projectFilePage' || key === 'containerTemplateList' || key === 'containerTemplateStack' || key === 'agentSessionList';
 
 // 旧版活动栏 key 与合并后视图的映射：datasetFilePage / analysisNodeFilePage 已合并为 projectFilePage，
 // analysisNodeList / scriptPage 已合并为上下堆叠的 analysisScriptStack，
@@ -43,30 +41,28 @@ const LEGACY_VIEW_KEY_MAP: Record<string, LeftPanelViewKey> = {
 const App: React.FC = () => {
   const { locale } = useI18n();
   const navigate = useNavigate();
-  const { pathname } = useLocation();
   const dispatch = useDispatch();
   const appTheme = useSelector((state: any) => state.user.theme);
   const leftActivityKey = useSelector((state: any) => state.user.leftActivityKey);
   const leftPanelWidth = useSelector((state: any) => state.user.leftPanelWidth);
-  const assistantPanelWidth = useSelector((state: any) => state.user.assistantPanelWidth);
-  const rightPanelWidth = useSelector((state: any) => state.user.rightPanelWidth);
   const leftPanelCollapsed = useSelector((state: any) => state.user.leftPanelCollapsed);
-  const rightPanelCollapsed = useSelector((state: any) => state.user.rightPanelCollapsed);
   const layoutTheme: 'light' | 'dark' = appTheme === 'dark' ? 'dark' : 'light';
   const isDark = layoutTheme === 'dark';
   const {
     token: { colorBgContainer },
   } = theme.useToken();
-  const sideView = useSelector((state: any) => state.user.sideView);
   const [leftSideView, setLeftSideView] = useState<LeftPanelViewKey>(
     isLeftPanelViewKey(leftActivityKey) ? leftActivityKey : 'sysFileBrowser',
   );
   const [leftWidthDraft, setLeftWidthDraft] = useState<number>(leftPanelWidth);
-  const [assistantWidthDraft, setAssistantWidthDraft] = useState<number>(assistantPanelWidth);
-  const [rightWidthDraft, setRightWidthDraft] = useState<number>(rightPanelWidth);
 
   const leftActivityItems = useMemo(
     () => [
+      {
+        key: 'agentSessionList',
+        label: locale === 'en_US' ? 'Agent Sessions' : '智能体会话',
+        icon: <CommentOutlined />,
+      },
       {
         key: 'projectFilePage',
         label: locale === 'en_US' ? 'Project Files' : '项目文件',
@@ -119,14 +115,6 @@ const App: React.FC = () => {
   }, [leftPanelWidth]);
 
   useEffect(() => {
-    setAssistantWidthDraft(assistantPanelWidth);
-  }, [assistantPanelWidth]);
-
-  useEffect(() => {
-    setRightWidthDraft(rightPanelWidth);
-  }, [rightPanelWidth]);
-
-  useEffect(() => {
     if (!leftActivityKey) {
       return;
     }
@@ -150,18 +138,7 @@ const App: React.FC = () => {
   }, [dispatch, leftActivityItems, leftActivityKey]);
 
   const currentYear = new Date().getFullYear();
-  // 根路由：主区域不渲染 <Outlet />，只有标签栏有意义。
-  const normalizedPath = pathname.replace(/\/+$/, '');
-  const isRootRoute = normalizedPath === '' || normalizedPath === '/';
-  // 直接从 redux 读取已落库的标签页（由 /auth/me 回填），不依赖 MainTabs 是否已挂载，
-  // 否则 main 为 null 时 MainTabs 不渲染 → 永远拿不到数据 → 死锁。
-  const savedTabs = useSelector((state: any) => state.user.userInfo?.menu_config?.tabs as
-    | Array<{ url?: string }>
-    | undefined);
-  const hasSavedTabs = Boolean(
-    savedTabs?.some((tab) => tab.url && tab.url !== '/'),
-  );
-  // 底部面板同理：在布局层（始终挂载）回填，不依赖 BottomPanel 是否已渲染。
+  // 底部面板在布局层（始终挂载）回填，不依赖 BottomPanel 是否已渲染。
   const userId = useSelector((state: any) => state.user.userInfo?.id as string | undefined);
   // 菜单配置是项目维度的：切换激活项目后需要按新项目重新回填。
   const projectId = useSelector((state: any) => state.user.projectId as string | undefined);
@@ -169,18 +146,7 @@ const App: React.FC = () => {
   useEffect(() => {
     hydrateBottomPanel(userId, projectId, savedBottomPanel);
   }, [userId, projectId, savedBottomPanel]);
-  // 只订阅布尔值：底部面板拖动高度会高频更新 store，整页布局不需要跟着重渲染。
-  const hasBottomTabs = useBottomPanelStore((state) => state.tabs.length > 0);  // 根路由且后端还没有任何标签时，主区域收收让右侧撑满；
-  // 一旦标签数据回填、底部面板打开了标签（如容器终端）或路由离开根路径，主区域自动打开。
-  const hideMainPane = isRootRoute && !hasSavedTabs && !hasBottomTabs;
   const layoutLocale: LayoutLocale = locale === 'en_US' ? 'en_US' : 'zh_CN';
-  // 助手已常驻为中间面板，右侧面板固定展示参数；
-  // 这里把历史缓存里的 sideView=agentChat 归一为 editParamsPanel，让 RenderProvider 按参数面板加载数据。
-  useEffect(() => {
-    if (sideView !== 'editParamsPanel') {
-      dispatch(setUserItem({ sideView: 'editParamsPanel' }));
-    }
-  }, [dispatch, sideView]);
   // 「容器运行时」安装向导入口只在后端 container.docker.provision.enabled=true 时出现，
   // 该开关随 /container/runtime/info 一起返回并保存在 redux 的 runtimeInfo 中。
   const provisionEnabled = useSelector(
@@ -252,10 +218,6 @@ const App: React.FC = () => {
             >
               <SplitWorkspace
                 leftResizeLabel={locale === 'en_US' ? 'Resize left panel' : '调整左侧面板'}
-                assistantResizeLabel={
-                  locale === 'en_US' ? 'Resize assistant panel' : '调整助手面板'
-                }
-                rightResizeLabel={locale === 'en_US' ? 'Resize right panel' : '调整右侧面板'}
                 leftCollapsed={Boolean(leftPanelCollapsed)}
                 onLeftCollapsedChange={(collapsed) =>
                   dispatch(setUserItem({ leftPanelCollapsed: collapsed }))
@@ -263,67 +225,18 @@ const App: React.FC = () => {
                 leftCollapseLabel={locale === 'en_US' ? 'Hide left panel' : '隐藏左侧面板'}
                 leftExpandLabel={locale === 'en_US' ? 'Show left panel' : '显示左侧面板'}
                 leftWidth={leftWidthDraft}
-                assistantWidth={assistantWidthDraft}
-                rightWidth={rightWidthDraft}
                 onLeftWidthChange={setLeftWidthDraft}
-                onAssistantWidthChange={setAssistantWidthDraft}
-                onRightWidthChange={setRightWidthDraft}
                 onLeftWidthCommit={(width) => dispatch(setUserItem({ leftPanelWidth: width }))}
-                onAssistantWidthCommit={(width) =>
-                  dispatch(setUserItem({ assistantPanelWidth: width }))
-                }
-                onRightWidthCommit={(width) => dispatch(setUserItem({ rightPanelWidth: width }))}
                 left={<ViewResolver view={leftSideView} view_mode="card" />}
                 main={
-                  hideMainPane ? null : (
-                    <div className="layout-sharp-main-stack">
-                      <BorderlessCard
-                        size="small"
-                        className="layout-sharp-main-card"
-                        styles={{ body: { padding: 8 } }}
-                        title={<MainTabs />}
-                      >
-                        {isRootRoute ? (
-                          <div className="layout-sharp-main-empty">
-                            {locale === 'en_US'
-                              ? 'Select a tab above to continue'
-                              : '请选择一个标签页继续'}
-                          </div>
-                        ) : (
-                          <Outlet />
-                        )}
-                      </BorderlessCard>
-                      <BottomPanel />
+                  <div className="layout-sharp-main-stack">
+                    {/* 常规路由直接在 main 的 <Outlet /> 中渲染；
+                        标签栏（MainTabs）只属于 /task/:sessionId 的工作区，不再在布局层处理。 */}
+                    <div className="layout-sharp-main-outlet">
+                      <Outlet />
                     </div>
-                  )
-                }
-                expandRight={hideMainPane}
-                assistant={
-                  // 助手面板：常驻在左侧面板与主区域之间
-                  <BorderlessCard size="small" styles={{ body: { padding: 8 } }}>
-                    <ViewResolver view="agentChat" />
-                  </BorderlessCard>
-                }
-                right={
-                  rightPanelCollapsed ? null : (
-                    <BorderlessCard
-                      size="small"
-                      styles={{ body: { padding: 8 } }}
-                      extra={
-                        <Tooltip title={locale === 'en_US' ? 'Close panel' : '关闭面板'}>
-                          <Button
-                            size="small"
-                            type="text"
-                            icon={<CloseOutlined />}
-                            aria-label={locale === 'en_US' ? 'Close panel' : '关闭面板'}
-                            onClick={() => dispatch(setUserItem({ rightPanelCollapsed: true }))}
-                          />
-                        </Tooltip>
-                      }
-                    >
-                      <ViewResolver view="editParamsPanel" view_mode="card" />
-                    </BorderlessCard>
-                  )
+                    <BottomPanel />
+                  </div>
                 }
               />
             </div>

@@ -627,6 +627,16 @@
   min-height: 0;
 }
 
+/* 常规路由内容区：main 直接渲染 <Outlet />（不再包 MainTabs 卡片）。
+   撑满剩余高度并独立滚动，避免长页面把底部面板顶出视口。 */
+.layout-sharp-main-outlet {
+  flex: 1 1 0;
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+  background: var(--sharp-panel-bg);
+}
+
 /* 底部面板：内容高度由 inline style 控制；收起时只保留标签栏 */
 .layout-bottom-panel {
   flex: 0 0 auto;

@@ -92,6 +92,8 @@ const ContainerEventPage = lazy(() => import("@/components/container-manager/con
 const OutboxEventPage = lazy(() => import("@/components/container-manager/outbox-event-page"))
 const FilePreviewRoute = lazy(() => import("@/components/file-preview/file-preview-route"))
 const AgentTaskPage = lazy(() => import("@/pages/agent/agent-task-page"))
+// Agent 会话工作区：聊天 + 右侧工作区（MainTabs + ViewResolver），由 /task/:sessionId 访问。
+const AgentSessionPage = lazy(() => import("@/pages/agent/agent-session-page"))
 const AgentPermissionPage = lazy(() => import("@/pages/agent/agent-permission-page"))
 const AgentSkillPage = lazy(() => import("@/pages/agent/agent-skill-page"))
 const AgentToolPage = lazy(() => import("@/pages/agent/agent-tool-page"))
@@ -131,6 +133,11 @@ if (appType == "index") {
         }, {
             path: "outbox-event",
             element: <OutboxEventPage />
+        }, {
+            // Agent 会话工作区：/task/:sessionId（省略 sessionId = New Chat）。
+            // 聊天页右侧的 MainTabs + ViewResolver 属于本页，不再由布局层渲染。
+            path: "task/:sessionId?",
+            element: <AgentSessionPage />
         }, {
             path: "agent-task",
             element: <AgentTaskPage />

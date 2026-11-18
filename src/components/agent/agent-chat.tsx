@@ -1,5 +1,5 @@
 import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Badge, Button, Empty, Flex, Popconfirm, Select, Space, Spin, Tag, Typography } from "antd";
+import { Button, Empty, Flex, Popconfirm, Select, Space, Spin, Tag, Typography } from "antd";
 import {
   CheckOutlined,
   ClearOutlined,
@@ -33,7 +33,6 @@ import {
   getAgentTaskApi,
   getConversationApi,
   forkConversationApi,
-  pageConversationApi,
   type AgentAskUserAnswer,
   type AgentConversationItem,
   type AgentEnvInfo,
@@ -59,6 +58,7 @@ import AgentTaskStream from "./agent-task-stream";
 import AgentAskUserCard from "./agent-ask-user";
 import AgentSender from "./agent-sender";
 import { renderAssistantMessage } from "./agent-message-render";
+import { loadAgentConversations } from "./agent-conversation-store";
 import UnifiedDiff from "@/components/common/unified-diff";
 
 const { Text } = Typography;
@@ -115,16 +115,6 @@ function isValidTaskId(id?: string): id is string {
   return !!id && id !== "0";
 }
 
-// 生成会话在切换下拉中的显示标签：直接使用后端会话 Title（首轮对话时已由后端初始化），
-// 仅在标题为空时回退到会话 ID（列表接口不再返回 messages）。
-function conversationLabel(c: AgentConversationItem): string {
-  const title = c.title?.trim();
-  if (title) {
-    return title.length > 30 ? `${title.slice(0, 30)}…` : title;
-  }
-  return c.id;
-}
-
 // 把后端消息映射为本地气泡。
 //
 // 分页拼接（向上加载更早消息）时索引会变化，因此 key 优先用消息雪花 ID；
@@ -156,6 +146,11 @@ interface AgentChatProps {
   conversationId?: string;
   /** 由 invoke 系统注入：关闭承载该视图的 Modal / Drawer。 */
   onCancel?: () => void;
+  /**
+   * 会话变化（新建 / 切换 / 分叉）时通知宿主。
+   * 会话页用它把地址同步成 `/task/:sessionId`，保证刷新与左侧列表高亮一致。
+   */
+  onConversationChange?: (conversationId?: string) => void;
 }
 
 /**
@@ -172,7 +167,11 @@ interface AgentChatProps {
  * 进行中任务的执行过程由 GET /agent/task/timeline 回填（AgentTaskStream 内部完成），
  * 增量事件（text / reasoning_delta）只广播不落库，因此不参与恢复。
  */
-const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, onCancel }) => {
+const AgentChat: FC<AgentChatProps> = ({
+  conversationId: initialConversationId,
+  onCancel,
+  onConversationChange,
+}) => {
   const [conversationId, setConversationId] = useState<string | undefined>(initialConversationId);
   // 业务上下文：后端从当前用户记录（agent_config.env_id / env_type）读取，
   // 这里只镜像展示；刷新时通过 describeAgentEnvApi() 拉取可读名称。
@@ -193,9 +192,6 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   // 当前选中会话是否有一轮进行中（running / waiting_permission）。
   const [sending, setSending] = useState(false);
   const [waiting, setWaiting] = useState(false);
-  // 当前用户的会话列表（用于切换）。
-  const [conversations, setConversations] = useState<AgentConversationItem[]>([]);
-  const [loadingConversations, setLoadingConversations] = useState(false);
   // 当前会话重新拉取的加载态（供刷新按钮展示）。
   const [reloadingConversation, setReloadingConversation] = useState(false);
   // 正在从哪条消息 fork（seq），用于只锁住被点击的那条按钮。
@@ -231,6 +227,10 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   const lastScrollTopRef = useRef(0);
   // 当前选中的会话 ID（ref 镜像，供 WS 回调读取最新值）。
   const selectedConvIdRef = useRef<string | undefined>(initialConversationId);
+  // 已经真正加载过（消息已回填）的会话 ID。
+  // 直接以 /task/:sessionId 挂载时，state 初值等于 prop，仅靠「id === conversationId」
+  // 会把首次加载误判成重复切换而跳过，因此需要单独记录「是否加载过」。
+  const loadedConvIdRef = useRef<string | undefined>(undefined);
   // 活跃轮次表：taskID → 该轮次中间态，跨会话切换与浏览器刷新保留。
   const activeTurnsRef = useRef<Map<string, ActiveTurn>>(new Map());
   // 全局事件去重表：AgentTaskStream 通过 seenRef 共享同一张表，保证同一 event.id
@@ -303,21 +303,9 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     };
   }, [loadEnvInfo, registerComponent, unregisterComponent]);
 
-  // 加载会话列表（挂载时 + 轮次结束时刷新）。
-  const loadConversations = async () => {
-    setLoadingConversations(true);
-    try {
-      const res = await pageConversationApi({ page: 1, page_size: 100 });
-      setConversations(res.data?.data ?? []);
-    } catch {
-      // 错误由全局拦截器提示。
-    } finally {
-      setLoadingConversations(false);
-    }
-  };
-
   // 加载会话首屏 / 最新一页：切换会话、手动刷新、轮次结束时使用（重置分页状态）。
   const applySessionPage = (conv: AgentConversationItem) => {
+    loadedConvIdRef.current = conv.id;
     setMessages(mapMessages(conv));
     setHasMoreMessages(!!conv.has_more);
     oldestSeqRef.current = conv.next_cursor ?? 0;
@@ -608,7 +596,8 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
 
   // 切换会话：加载最新一页消息；若存在活跃轮次则恢复实时流。
   const handleSwitchConversation = async (id: string) => {
-    if (!id || id === conversationId) return;
+    // 同一会话且已经加载过才跳过；直接带 ID 挂载时 loadedConvIdRef 还是空，需要真正拉一次。
+    if (!id || (id === conversationId && loadedConvIdRef.current === id)) return;
     try {
       const res = await getConversationApi(id);
       const conv = res.data;
@@ -674,13 +663,40 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     }
   };
 
+  // 清空为「新会话」状态：New Chat（/task）以及宿主要求重置时使用。
+  const handleClear = () => {
+    selectedConvIdRef.current = undefined;
+    loadedConvIdRef.current = undefined;
+    seenRef.current.clear();
+    setConversationId(undefined);
+    setCurrentTaskId(undefined);
+    setMessages([]);
+    // 新建会话：重置分页状态，避免把上个会话的游标带入。
+    setHasMoreMessages(false);
+    oldestSeqRef.current = 0;
+    scrollRestoreRef.current = null;
+    lastScrollTopRef.current = 0;
+    setSending(false);
+    setWaiting(false);
+    setPendingPermissions([]);
+    setPendingQuestions([]);
+    setResumableTaskId(undefined);
+    setInput("");
+  };
+
+  // 会话列表由左侧「Agent 会话」面板共享，这里只需保证挂载时拉一次。
   useEffect(() => {
-    loadConversations();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void loadAgentConversations();
   }, []);
 
+  // 外部会话变化（左侧会话列表点击 / New Chat）时同步内容：
+  // - 有 ID → 续接该会话；
+  // - 没有 ID（/task）→ 清空成新会话。
   useEffect(() => {
-    if (!initialConversationId) return;
+    if (!initialConversationId) {
+      handleClear();
+      return;
+    }
     handleSwitchConversation(initialConversationId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialConversationId]);
@@ -780,7 +796,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     }
     activeTurnsRef.current.delete(turn.taskId);
     // 本轮结束后刷新会话列表（标题 / 顺序 / 消息数可能变化）。
-    loadConversations();
+    void loadAgentConversations();
   };
 
   // 统一处理一个任务事件（实时 WS 推送与历史恢复共用）。
@@ -949,6 +965,11 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
 
       selectedConvIdRef.current = conversation_id;
       setConversationId(conversation_id);
+      // 新会话刚创建，本地已有乐观消息：标记为已加载，避免地址同步后重新拉取把消息冲掉。
+      loadedConvIdRef.current = conversation_id;
+      // 新建会话后同步地址（/task/:sessionId）并刷新左侧会话列表。
+      onConversationChange?.(conversation_id);
+      void loadAgentConversations();
 
       // 登记本轮活跃状态，供切换 / 刷新后恢复。
       const turn: ActiveTurn = {
@@ -977,6 +998,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
   const switchToForkedConversation = async (conv: AgentConversationItem) => {
     selectedConvIdRef.current = conv.id;
     setConversationId(conv.id);
+    onConversationChange?.(conv.id);
     applySessionPage(conv);
     setCurrentTaskId(undefined);
     setSending(false);
@@ -984,7 +1006,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     setPendingPermissions([]);
     setPendingQuestions([]);
     setResumableTaskId(undefined);
-    await loadConversations();
+    void loadAgentConversations();
   };
 
   // 从某轮结束处分叉：只复制该消息（含）之前的历史到新会话。
@@ -1005,25 +1027,6 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     }
   };
 
-  const handleClear = () => {
-    selectedConvIdRef.current = undefined;
-    seenRef.current.clear();
-    setConversationId(undefined);
-    setCurrentTaskId(undefined);
-    setMessages([]);
-    // 新建会话：重置分页状态，避免把上个会话的游标带入。
-    setHasMoreMessages(false);
-    oldestSeqRef.current = 0;
-    scrollRestoreRef.current = null;
-    lastScrollTopRef.current = 0;
-    setSending(false);
-    setWaiting(false);
-    setPendingPermissions([]);
-    setPendingQuestions([]);
-    setResumableTaskId(undefined);
-    setInput("");
-  };
-
   // 当前用户选中的 Profile 展示名（由 /auth/me 解析的 agent_profile DTO 提供）。
   const currentProfileId = userInfo?.agent_config?.profile_id;
 
@@ -1031,7 +1034,7 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
     <Flex vertical style={{ height: "100%", minHeight: 480 }}>
       {/* 头部：拆成两行，避免单行信息过载。
           第一行 = 身份 / 上下文（业务上下文 + 运行状态 + 当前 Profile）；
-          第二行 = 会话导航（切换下拉 + 刷新）与全局操作（Close / New Chat）。 */}
+          第二行 = 当前会话操作（重新拉取；会话切换 / New Chat 在左侧会话面板）。 */}
       <Flex
         vertical
         gap={10}
@@ -1145,65 +1148,22 @@ const AgentChat: FC<AgentChatProps> = ({ conversationId: initialConversationId, 
           </Flex>
         </Flex>
 
-        {/* 第二行：会话切换下拉 + 刷新 + 全局操作 */}
+        {/* 第二行：当前会话操作。会话切换 / New Chat 已移到左侧「Agent 会话」面板。 */}
         <Flex align="center" gap="small">
-          <Select
-            value={conversationId}
-            placeholder="Select a conversation"
-            onChange={(id) => {
-              if (!id) {
-                handleClear();
-                return;
-              }
-              handleSwitchConversation(id);
-            }}
-            loading={loadingConversations}
-            allowClear
-            size="small"
-            showSearch
-            optionFilterProp="label"
-            style={{ flex: 1 }}
-            options={conversations.map((c) => ({
-              value: c.id,
-              label: (
-                <Flex align="center" gap={6} style={{ width: "100%" }}>
-                  <span
-                    style={{
-                      flex: 1,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {conversationLabel(c)}
-                  </span>
-                  {isValidTaskId(c.current_task_id) && <Badge status="processing" />}
-                </Flex>
-              ),
-            }))}
-          />
           <Button
             size="small"
             icon={<ReloadOutlined spin={reloadingConversation} />}
             title="Reload current conversation"
             onClick={handleReloadConversation}
             disabled={!conversationId}
-          />
-          <Button
-            size="small"
-            icon={<ReloadOutlined />}
-            title="Refresh conversations"
-            onClick={loadConversations}
-            loading={loadingConversations}
-          />
+          >
+            Reload
+          </Button>
           {onCancel && (
             <Button size="small" onClick={onCancel}>
               Close
             </Button>
           )}
-          <Button size="small" icon={<ClearOutlined />} onClick={handleClear}>
-            New Chat
-          </Button>
         </Flex>
       </Flex>
 

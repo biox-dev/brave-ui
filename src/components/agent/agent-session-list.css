@@ -1,0 +1,105 @@
+/* 左侧「Agent 会话」面板：与项目报告等侧栏保持同一套视觉（VS Code 风格）。 */
+.agent-session-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--sharp-panel-bg);
+}
+
+.agent-session-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  padding: 8px 6px 4px 14px;
+}
+
+.agent-session-list-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sharp-text-soft);
+  user-select: none;
+}
+
+.agent-session-list-header .ant-btn {
+  color: var(--sharp-text-soft);
+}
+
+.agent-session-list-header .ant-btn:hover {
+  color: var(--sharp-text);
+  background: color-mix(in srgb, var(--sharp-panel-muted) 65%, transparent);
+}
+
+.agent-session-list-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 2px 6px 8px;
+}
+
+.agent-session-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.agent-session-item:hover {
+  background: color-mix(in srgb, var(--sharp-panel-muted, rgba(128, 128, 128, 0.18)) 65%, transparent);
+}
+
+.agent-session-item.is-active {
+  background: var(--project-report-selected-bg, color-mix(in srgb, #1890ff 14%, transparent));
+  box-shadow: inset 2px 0 0 0 #1890ff;
+}
+
+.agent-session-item-icon {
+  flex: 0 0 auto;
+  color: var(--sharp-text-soft);
+  font-size: 14px;
+}
+
+.agent-session-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-session-item-title {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  color: var(--sharp-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-session-item-meta {
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--sharp-text-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-session-item-dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #1677ff;
+}
