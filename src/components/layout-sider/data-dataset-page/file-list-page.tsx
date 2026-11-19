@@ -4,6 +4,8 @@ import { useNavigate } from "react-router";
 import { Button, Descriptions, Empty, Flex, Pagination, Popconfirm, Popover, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
+  CaretDownOutlined,
+  CaretRightOutlined,
   DeleteOutlined,
   EditOutlined,
   FileOutlined,
@@ -52,6 +54,10 @@ export interface FileListPageProps {
   title?: string;
   /** 操作区下方的附加区域（合并视图用来渲染视图切换按钮）。 */
   subHeader?: ReactNode;
+  /** 纵向堆叠布局注入的折叠态：折叠时仅保留标题栏。 */
+  collapsed?: boolean;
+  /** 点击标题栏时切换折叠态（未传入则标题栏不可点击）。 */
+  onToggleCollapse?: () => void;
   onOk?: (file: DatasetFileItem) => void;
   onCancel?: () => void;
   close?: () => void;
@@ -249,6 +255,8 @@ const FileListPage = ({
   page_size,
   title,
   subHeader,
+  collapsed = false,
+  onToggleCollapse,
   onOk,
   onCancel,
   close,
@@ -503,11 +511,27 @@ const FileListPage = ({
   const panelTitle = title || (isDatasetSource ? "Files" : "Analysis Node Files");
 
   return (
-    <div className="project-report-panel file-list-panel">
+    <div className={`project-report-panel file-list-panel${collapsed ? " is-collapsed" : ""}`}>
       {/* 顶部操作区：标题 + 文件数 + 操作按钮 */}
       <div className="file-list-toolbar">
         <div className="file-list-toolbar-heading">
-          <span className="file-list-toolbar-title">{panelTitle}</span>
+          {onToggleCollapse ? (
+            <button
+              type="button"
+              className="file-list-toolbar-title file-list-toolbar-title-button project-report-panel-title-button"
+              aria-expanded={!collapsed}
+              onClick={onToggleCollapse}
+            >
+              {collapsed ? (
+                <CaretRightOutlined className="project-report-panel-chevron" />
+              ) : (
+                <CaretDownOutlined className="project-report-panel-chevron" />
+              )}
+              <span>{panelTitle}</span>
+            </button>
+          ) : (
+            <span className="file-list-toolbar-title">{panelTitle}</span>
+          )}
           {total > 0 && <span className="file-list-toolbar-count">{total}</span>}
         </div>
         <div className="file-list-toolbar-actions">
@@ -544,10 +568,13 @@ const FileListPage = ({
       </div>
 
       {/* 视图切换：位于操作区下方 */}
-      {subHeader && <div className="file-list-switch">{subHeader}</div>}
-      <div className="file-list-divider" />
+      {subHeader && !collapsed && <div className="file-list-switch">{subHeader}</div>}
+      {!collapsed && <div className="file-list-divider" />}
 
-      <div className="project-report-panel-body">
+      <div
+        className="project-report-panel-body"
+        style={collapsed ? { display: "none" } : undefined}
+      >
         {data.length === 0 && !isLoading ? (
           <div className="file-list-empty">
             <Empty
@@ -587,7 +614,10 @@ const FileListPage = ({
         )}
       </div>
 
-      <div className="file-list-footer">
+      <div
+        className="file-list-footer"
+        style={collapsed ? { display: "none" } : undefined}
+      >
         <Flex justify="space-between" align="center" gap="small" wrap>
           <Pagination
             size="small"

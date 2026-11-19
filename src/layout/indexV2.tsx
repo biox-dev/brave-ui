@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ApartmentOutlined, BookOutlined, SettingOutlined, FolderOpenOutlined, BarChartOutlined, CodeOutlined, ContainerOutlined, CommentOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, BookOutlined, SettingOutlined, BarChartOutlined, CodeOutlined, ContainerOutlined, CommentOutlined } from '@ant-design/icons';
 import { Dropdown, Layout, theme } from 'antd';
 import { Outlet, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
@@ -17,21 +17,26 @@ import { hydrateBottomPanel } from './bottom-panel-store';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
-type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'analysisScriptStack' | 'analysisWorkflowStack' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'assayProjectPage' | 'projectFilePage' | 'containerTemplateList' | 'containerTemplateStack' | 'agentSessionList';
+type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'analysisScriptStack' | 'analysisWorkflowStack' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'assayProjectPage' | 'agentSessionStack' | 'containerTemplateList' | 'containerTemplateStack';
 
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
-  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'analysisScriptStack' || key === 'analysisWorkflowStack' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'assayProjectPage' || key === 'projectFilePage' || key === 'containerTemplateList' || key === 'containerTemplateStack' || key === 'agentSessionList';
+  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'analysisScriptStack' || key === 'analysisWorkflowStack' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'assayProjectPage' || key === 'agentSessionStack' || key === 'containerTemplateList' || key === 'containerTemplateStack';
 
 // 旧版活动栏 key 与合并后视图的映射：datasetFilePage / analysisNodeFilePage 已合并为 projectFilePage，
 // analysisNodeList / scriptPage 已合并为上下堆叠的 analysisScriptStack，
-// analysisList / workflowPage 已合并为上下堆叠的 analysisWorkflowStack。
+// analysisList / workflowPage 已合并为上下堆叠的 analysisWorkflowStack，
+// agentSessionList / projectFilePage 已合并为上下堆叠的 agentSessionStack。
 const LEGACY_VIEW_KEY_MAP: Record<string, LeftPanelViewKey> = {
-  datasetFilePage: 'projectFilePage',
-  analysisNodeFilePage: 'projectFilePage',
+  // 数据集文件 / 分析节点文件合并为项目文件，现位于 agentSessionStack 的下半栏。
+  datasetFilePage: 'agentSessionStack',
+  analysisNodeFilePage: 'agentSessionStack',
   analysisNodeList: 'analysisScriptStack',
   scriptPage: 'analysisScriptStack',
   analysisList: 'analysisWorkflowStack',
   workflowPage: 'analysisWorkflowStack',
+  // 智能体会话与项目文件已合并为上下堆叠的 agentSessionStack。
+  agentSessionList: 'agentSessionStack',
+  projectFilePage: 'agentSessionStack',
   // 容器模板列表已合并为上下堆叠的 containerTemplateStack（应用会话 + 终端会话）。
   containerTemplateList: 'containerTemplateStack',
   // 应用会话已并入 containerTemplateStack 的上半栏，旧 key 兼容映射到堆叠视图。
@@ -52,22 +57,23 @@ const App: React.FC = () => {
     token: { colorBgContainer },
   } = theme.useToken();
   const [leftSideView, setLeftSideView] = useState<LeftPanelViewKey>(
-    isLeftPanelViewKey(leftActivityKey) ? leftActivityKey : 'sysFileBrowser',
+    isLeftPanelViewKey(leftActivityKey) ? leftActivityKey : 'agentSessionStack',
   );
   const [leftWidthDraft, setLeftWidthDraft] = useState<number>(leftPanelWidth);
 
   const leftActivityItems = useMemo(
     () => [
       {
-        key: 'agentSessionList',
+        key: 'agentSessionStack',
         label: locale === 'en_US' ? 'Agent Sessions' : '智能体会话',
         icon: <CommentOutlined />,
       },
-      {
-        key: 'projectFilePage',
-        label: locale === 'en_US' ? 'Project Files' : '项目文件',
-        icon: <FolderOpenOutlined />,
-      },
+      // 项目文件已并入 agentSessionStack 的下半栏，不再作为独立活动栏入口。
+      // {
+      //   key: 'projectFilePage',
+      //   label: locale === 'en_US' ? 'Project Files' : '项目文件',
+      //   icon: <FolderOpenOutlined />,
+      // },
      
       // {
       //   key: 'assayProjectPage',
@@ -132,7 +138,7 @@ const App: React.FC = () => {
       return;
     }
 
-    const fallbackView: LeftPanelViewKey = 'sysFileBrowser';
+    const fallbackView: LeftPanelViewKey = 'agentSessionStack';
     setLeftSideView(fallbackView);
     dispatch(setUserItem({ leftActivityKey: fallbackView }));
   }, [dispatch, leftActivityItems, leftActivityKey]);

@@ -209,7 +209,7 @@ const contextSlice = createSlice({
         rightPanelWidth:Number.isFinite(rightPanelWidth)?rightPanelWidth:360,
         leftPanelCollapsed,
         rightPanelCollapsed,
-        leftActivityKey:leftActivityKey?leftActivityKey:'sysFileBrowser',
+        leftActivityKey:leftActivityKey?leftActivityKey:'agentSessionStack',
         sideView:sideView?sideView:'agentChat',
         leftStackCollapsed,
         leftStackVisibleSections,

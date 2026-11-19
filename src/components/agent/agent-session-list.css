@@ -103,3 +103,13 @@
   border-radius: 50%;
   background: #1677ff;
 }
+
+/* 作为纵向堆叠面板使用时，标题栏可点击折叠；折叠后只保留标题栏。 */
+.agent-session-list-title-button {
+  gap: 2px;
+}
+
+.agent-session-list.is-collapsed {
+  height: auto;
+  min-height: 0;
+}

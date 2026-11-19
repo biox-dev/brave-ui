@@ -1,6 +1,12 @@
 import { FC, useEffect } from 'react';
 import { Button, Empty, Flex, Spin, Tooltip } from 'antd';
-import { CommentOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import {
+  CaretDownOutlined,
+  CaretRightOutlined,
+  CommentOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+} from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router';
 import { useI18n } from '@/hooks/useI18n';
 import type { AgentConversationItem } from '@/api/agent';
@@ -48,7 +54,17 @@ const formatTime = (value?: string): string => {
  * 抽成独立视图后由布局层挂载，聊天页只负责当前会话的内容。
  * 点击会话 → `/session/:sessionId`；New Chat → `/session`（新建会话）。
  */
-const AgentSessionList: FC = () => {
+export interface AgentSessionListProps {
+  /** 纵向堆叠布局注入的折叠态：折叠时仅保留标题栏。 */
+  collapsed?: boolean;
+  /** 点击标题栏时切换折叠态（未传入则标题栏不可点击）。 */
+  onToggleCollapse?: () => void;
+}
+
+const AgentSessionList: FC<AgentSessionListProps> = ({
+  collapsed = false,
+  onToggleCollapse,
+}) => {
   const { locale } = useI18n();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -70,9 +86,25 @@ const AgentSessionList: FC = () => {
   };
 
   return (
-    <div className="agent-session-list">
+    <div className={`agent-session-list${collapsed ? ' is-collapsed' : ''}`}>
       <div className="agent-session-list-header">
-        <span className="agent-session-list-title">{labels.title}</span>
+        {onToggleCollapse ? (
+          <button
+            type="button"
+            className="agent-session-list-title project-report-panel-title-button"
+            aria-expanded={!collapsed}
+            onClick={onToggleCollapse}
+          >
+            {collapsed ? (
+              <CaretRightOutlined className="project-report-panel-chevron" />
+            ) : (
+              <CaretDownOutlined className="project-report-panel-chevron" />
+            )}
+            <span>{labels.title}</span>
+          </button>
+        ) : (
+          <span className="agent-session-list-title">{labels.title}</span>
+        )}
         <Flex align="center" gap={2}>
           <Tooltip title={labels.refresh}>
             <Button
@@ -94,7 +126,10 @@ const AgentSessionList: FC = () => {
           </Tooltip>
         </Flex>
       </div>
-      <div className="agent-session-list-body">
+      <div
+        className="agent-session-list-body"
+        style={collapsed ? { display: 'none' } : undefined}
+      >
         {!loaded && loading ? (
           <Flex justify="center" style={{ padding: 24 }}>
             <Spin size="small" />

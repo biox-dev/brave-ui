@@ -37,6 +37,8 @@ const viewLoaders = {
         import("./container-template/container-terminal-run-dialog"),
     // VS Code 风格纵向堆叠：上面是容器模板列表，下面是终端会话列表。
     containerTemplateStack: () => import("./container-template/container-template-stack"),
+    // VS Code 风格纵向堆叠：上面是智能体会话列表，下面是项目文件。
+    agentSessionStack: () => import("./agent-session-stack/agent-session-stack"),
 };
 
 declare module "@/core/component-registry/registry-types" {
