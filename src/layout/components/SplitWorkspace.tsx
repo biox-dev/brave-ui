@@ -349,11 +349,41 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
       return;
     }
 
+    // 拖拽期间工作区尺寸不变：矩形只在开始时读一次，避免每个 pointermove 都调用
+    // getBoundingClientRect 触发同步布局（强制回流）。中间面板用左边界、右侧中间面板
+    // 用右边界——这两条边在拖拽过程中保持不动。
+    const workspaceRect = workspaceRef.current?.getBoundingClientRect();
+    const assistantLeft = assistantPaneRef.current?.getBoundingClientRect().left;
+    const rightMiddleRight = rightMiddlePaneRef.current?.getBoundingClientRect().right;
+
+    let frame = 0;
+    let pendingEvent: PointerEvent | null = null;
+
+    // 高频指针事件（如 1000Hz 鼠标）合并成每帧一次 setState，避免一秒几百次 React 渲染。
+    const onFrame = () => {
+      frame = 0;
+      const event = pendingEvent;
+      pendingEvent = null;
+      if (event) {
+        applyPointer(event);
+      }
+    };
+
     const onPointerMove = (event: PointerEvent) => {
-      if (!workspaceRef.current) {
+      if (!workspaceRect) {
         return;
       }
-      const rect = workspaceRef.current.getBoundingClientRect();
+      pendingEvent = event;
+      if (!frame) {
+        frame = requestAnimationFrame(onFrame);
+      }
+    };
+
+    const applyPointer = (event: PointerEvent) => {
+      const rect = workspaceRect;
+      if (!rect) {
+        return;
+      }
       if (activeDivider === 'left' && hasLeftPane) {
         const nextWidth = event.clientX - rect.left;
         const clampedWidth = Math.min(maxLeftWidth, Math.max(minLeftWidth, nextWidth));
@@ -361,11 +391,8 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
       }
       if (activeDivider === 'assistant' && hasAssistantPane) {
         // 中间面板在主区域左侧：它的左边界不会随拖拽移动（右侧的 main 是 flex 吸剩空间），
-        // 所以直接用它的左边界算宽度。
-        const assistantLeft = assistantPaneRef.current
-          ? assistantPaneRef.current.getBoundingClientRect().left
-          : rect.left;
-        const nextWidth = event.clientX - assistantLeft;
+        // 所以直接用拖拽开始时记下的左边界算宽度。
+        const nextWidth = event.clientX - (assistantLeft ?? rect.left);
         const clampedWidth = Math.min(
           maxAssistantWidth,
           Math.max(minAssistantWidth, nextWidth),
@@ -375,18 +402,16 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
       if (activeDivider === 'rightMiddle' && hasRightMiddlePane) {
         // 右侧中间面板的右边界由右侧面板固定：拖拽时宽度 = 右边界 - 指针位置。
         // 同时给主区域保留最小宽度（左侧 / 中间 / 右侧中间面板固定在分隔条左边）。
-        const rightMiddleRight = rightMiddlePaneRef.current
-          ? rightMiddlePaneRef.current.getBoundingClientRect().right
-          : rect.right;
+        const rightEdge = rightMiddleRight ?? rect.right;
         const leftSpace = hasLeftPane && !isLeftCollapsed ? leftWidthRef.current : 0;
         const assistantSpace = hasAssistantPane ? assistantWidthRef.current : 0;
         const maxAvailable = hasMainPane
-          ? rightMiddleRight - rect.left - leftSpace - assistantSpace - minMainWidth
-          : rightMiddleRight - rect.left - leftSpace - assistantSpace;
+          ? rightEdge - rect.left - leftSpace - assistantSpace - minMainWidth
+          : rightEdge - rect.left - leftSpace - assistantSpace;
         // min 宽度在空间不足时让步：lowerBound 由可用空间反推，避免把主区域挤到 0
         const upperBound = Math.max(0, Math.min(maxRightMiddleWidth, maxAvailable));
         const lowerBound = Math.min(minRightMiddleWidth, upperBound);
-        const nextWidth = rightMiddleRight - event.clientX;
+        const nextWidth = rightEdge - event.clientX;
         const clampedWidth = Math.min(upperBound, Math.max(lowerBound, nextWidth));
         applyRightMiddleWidth(clampedWidth);
       }
@@ -409,6 +434,11 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
     };
 
     const onPointerUp = () => {
+      // 结束前把最后一帧尚未提交的位置补上，避免松手时宽度停在上一帧。
+      if (frame) {
+        cancelAnimationFrame(frame);
+        onFrame();
+      }
       if (activeDivider === 'left') {
         onLeftWidthCommit?.(leftWidthRef.current);
       }
@@ -426,11 +456,19 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
+    // 指针在窗口外松开或窗口失焦时同样要收尾，否则光标 / 选中状态会一直锁着。
+    window.addEventListener('pointercancel', onPointerUp);
+    window.addEventListener('blur', onPointerUp);
     document.body.classList.add('layout-sharp-resizing');
 
     return () => {
+      if (frame) {
+        cancelAnimationFrame(frame);
+      }
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+      window.removeEventListener('blur', onPointerUp);
       document.body.classList.remove('layout-sharp-resizing');
     };
   }, [
@@ -472,7 +510,14 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
     onRightCollapsedChange?.(next);
   };
 
-  const onStartResize = (divider: DividerKey) => {
+  const onStartResize = (
+    divider: DividerKey,
+    event: React.PointerEvent<HTMLDivElement>,
+  ) => {
+    // 只响应鼠标左键 / 触摸主指针
+    if (event.button !== 0) {
+      return;
+    }
     // 折叠状态下左侧面板不参与拖拽，避免改变不可见面板的宽度
     if (divider === 'left' && isLeftCollapsed) {
       return;
@@ -485,6 +530,10 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
     if (divider === 'assistant' && isAssistantExpanded) {
       return;
     }
+    // 立即阻止默认行为并在当帧锁住光标：避免拖拽时选中文字 / 触发原生拖放，
+    // 也避免鼠标一移出分隔条就恢复默认光标。
+    event.preventDefault();
+    document.body.classList.add('layout-sharp-resizing');
     setActiveDivider(divider);
   };
 
@@ -535,7 +584,7 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
         aria-orientation="vertical"
         aria-label={label}
         className="layout-sharp-pane-divider-line"
-        onPointerDown={() => onStartResize(divider)}
+        onPointerDown={(event) => onStartResize(divider, event)}
         onDoubleClick={() => onDividerDoubleClick(divider)}
       />
       {extra}

@@ -926,6 +926,10 @@ body.layout-bottom-panel-resizing {
    拖拽热区由内部伪元素向两侧各扩展 4px，既不占布局宽度也不产生空白。 */
 .layout-sharp-pane-divider {
   position: relative;
+  /* 面板里的 antd Card 是 position: relative，会盖到相邻分隔条上（页面内容越高越明显：
+     只有卡片所在的那段高亮 / 热区被吃掉）。给分隔条一个正的 z-index，
+     让它（连同 6px 高亮条与 ±4px 热区）始终画在两侧面板内容之上。 */
+  z-index: 1;
   flex: 0 0 1px;
   width: 1px;
   box-sizing: border-box;
@@ -938,6 +942,8 @@ body.layout-bottom-panel-resizing {
   inset: 0;
   cursor: col-resize;
   background: transparent;
+  /* 触屏设备上拖动分隔条时不要触发页面滚动 */
+  touch-action: none;
 }
 
 .layout-sharp-pane-divider-line::before {
@@ -947,6 +953,29 @@ body.layout-bottom-panel-resizing {
   bottom: 0;
   left: -4px;
   right: -4px;
+}
+
+/* 悬停 / 拖拽高亮：6px 宽的半透明色块压在 1px 分隔线上（与参数面板拖拽条一致）。
+   用绝对定位居中，不改变分隔线的绘制方式，也不占布局宽度。 */
+.layout-sharp-pane-divider-line::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 6px;
+  transform: translateX(-50%);
+  border-radius: 3px;
+  background: transparent;
+  pointer-events: none;
+  transition: background-color 0.15s ease;
+}
+
+/* 折叠状态下分隔条不能拖拽，悬停不再高亮（is-resizing 不会出现在折叠态） */
+.layout-sharp-pane-divider:not(.is-left-collapsed):not(.is-right-collapsed):hover
+  .layout-sharp-pane-divider-line::after,
+.layout-sharp-pane-divider.is-resizing .layout-sharp-pane-divider-line::after {
+  background: color-mix(in srgb, #1890ff 35%, transparent);
 }
 
 .layout-sharp-pane-divider:hover,
@@ -1135,8 +1164,15 @@ body.layout-bottom-panel-resizing {
   border: 1px dashed var(--sharp-divider);
 }
 
-body.layout-sharp-resizing {
-  cursor: col-resize;
-  user-select: none;
+/* 拖拽面板宽度期间：全局锁定光标与选中状态（面板内的输入框、文本等有各自的 cursor），
+   并让 iframe 暂时不吃指针事件——否则指针滑过 iframe 时 window 上的 pointermove 会中断，拖拽会卡住。 */
+body.layout-sharp-resizing,
+body.layout-sharp-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+body.layout-sharp-resizing iframe {
+  pointer-events: none;
 }
 
