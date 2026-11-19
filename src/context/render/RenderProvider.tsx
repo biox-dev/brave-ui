@@ -1,21 +1,11 @@
-import axios from "axios"
-import { createContext, FC, useContext, useEffect, useMemo, useRef, useState } from "react"
-import { useSideViewContext } from "../side/SideViewContext"
+import { createContext, FC, useContext, useEffect, useMemo, useState } from "react"
 import { useComponentStore } from "@/event-bus/stores/components"
-import { getScriptFormApi, getWorkflowFormApi } from "@/api/workflow"
-import { useDispatch, useSelector } from "react-redux"
-import { editNodeParamsApi, editParamsV2Api } from "@/api/analysis"
-import { setUserItem } from "@/store/userSlice"
+import { emitParamsRefresh } from "@/components/edit-params/params-refresh"
 
 export const RenderContext = createContext<any>(null)
 
 export const useStoreRender = () => {
     return useContext(RenderContext)
-}
-
-type FromParamType = {
-    type: string,
-    bizKey: string
 }
 
 export const RenderProvider: FC<any> = ({ children }) => {
@@ -35,10 +25,7 @@ export const RenderProvider: FC<any> = ({ children }) => {
     const [openAnalysis, setOpenAnalysis] = useState<any>([])
     const [relation, setRelation] = useState<any>(null)
     const [requestParam, setRequestParam] = useState<any>(null)
-    const [formData, setFormData] = useState<any>(null)
     const [formStatus, setFormStatus] = useState<any>(null)
-    // const { setSideView, sideView, sideOptions, setSideOptions } = useSideViewContext();
-    const { sideView } = useSelector((state: any) => state.user); // 'light' | 'dark'
 
     const updateFormStatus = (args: any) => {
         // debugger
@@ -104,139 +91,35 @@ export const RenderProvider: FC<any> = ({ children }) => {
         // setFormParam(null)
         setRequestParam(null)
         setOpenAnalysis([])
-        setFormData(null)
         setScript(null)
         setAnalysisNodeId(null)
     }
-    const buildRequestParams = () => {
-        // 分析元数据（workflow_id 等）走请求顶层字段，request_param 只放分析参数。
-        return {
-            requestParam: {},
-            workflowId: relation?.id,
-            dataMap: resultTableList ? resultTableList : {},
-            formJson: relation.formJson,
-            databases: relation.databases
-        }
+
+    /**
+     * 参数面板刷新入口。
+     *
+     * 参数面板已经不再从 RenderProvider 的全局 requestParam 读数据：它按页面传进来的
+     * `EditParamsTarget` 自己加载。这里只保留一个与业务无关的广播，供表单内控件
+     * （例如 `collected-file-list` 上传文件后）通知当前打开的面板重新拉取表单数据。
+     *
+     * `force` 仅为兼容旧调用方（`loadParams(true)`）保留。
+     */
+    const loadParams = async (_force = false) => {
+        void _force
+        emitParamsRefresh()
     }
-    const loadToolsForm = async (tools_id: any) => {
-        const resp = await getWorkflowFormApi({
-            workflowId: tools_id
-            // projectId: project_id
-        })
-        // const resp = await axios.get(`/tools/get-from-json/${tools_id}`)
-        // return resp.data
-        return {
-            dataMap: { ...resp.data.analysis_result },
-            formJson: resp.data.formJson,
-        }
-    }
-    const loadAnalysis = async (analysisId: any) => {
-        // setLoading(true)
-        // const resp = await axios.post(`/analysis/edit-params-v2/${analysisId}`)
-        const resp = await editParamsV2Api(analysisId)
-        return {
-            requestParam: resp.data.request_param,
-            // 分析元数据与 request_param 分开传递，保证 request_param 只含分析参数。
-            workflowId: resp.data.workflow_id,
-            nodeName: resp.data.analysis_name,
-            cacheType: resp.data.cache_type,
-            dataMap: { ...resp.data.analysis_result },
-            formJson: resp.data.formJson,
-            // databases: resp.data.databases,
-            // upstreamFormJson: resp.data.upstreamFormJson,
-            status: resp.data.status,
-        }
-    }
-    const loadNodeAnalysis = async (nodeAnalysisId: any) => {
-        // /analysis/edit-node-params/{analysis_node_id}
-        // const resp = await axios.post(`/analysis/edit-node-params/${nodeAnalysisId}`)
-        const resp = await editNodeParamsApi(nodeAnalysisId)
-        return {
-            requestParam: resp.data.request_param,
-            scriptId: resp.data.script_id,
-            nodeName: resp.data.node_name,
-            cacheType: resp.data.cache_type,
-            formJson: resp.data.formJson,
-            dataMap: resp.data.analysis_result,
-            // databases: resp.data.databases,
-            status: resp.data.status,
-        }
-    }
-    const loadParams = async (force = false) => {
-        console.log("sideView", sideView)
-       
-        // debugger
-        if (sideView == "editParamsPanel") {
-            setLoading(true)
-            if (analysisNodeId) {
-                const data = await loadNodeAnalysis(analysisNodeId)
-                setFormStatus(data.status)
-                setRequestParam({
-                    ...data,
-                    type: "nodeAnalysis",
-                })
-            
-            } else if (analysisId) {
-
-                const data = await loadAnalysis(analysisId)
-                // debugger
-                setFormStatus(data.status)
-                setRequestParam({
-                    ...data,
-                    type: "analysis",
-                })
-            } else if (relation) {
-                setFormStatus(null)
-                let data = formData;
-                if (!data || force) {
-                    data = await loadToolsForm(relation.id)
-                    // setFormData(data)
-                }
-                const params = buildRequestParams()
-                setRequestParam({
-                    ...params,
-                    ...data,
-
-                })
 
 
-            } else if (script) {
-                console.log("script", script)
-                const resp = await getScriptFormApi(script.id)
-                console.log(resp)
-                setRequestParam({
-                    // script_id 走请求顶层字段，不写入 request_param。
-                    requestParam: {},
-                    scriptId: script.id,
-                    dataMap: { ...resp.data.analysis_result },
-                    formJson: resp.data.formJson,
-                })
-             
-
-            }
-            setLoading(false)
-        }
-
-    }
+    // 参数面板自己注册刷新监听；这里仍保留 forms 组件通道，保证
+    // `component.invoke(forms, analysis, reload)` 之类的旧调用也能触发刷新。
     useEffect(() => {
         register("forms", "analysis", {
-            reload: () => {
-                // debugger
-                console.log("reload analysis form")
-                loadParams(true)
-            }
+            reload: () => loadParams(true)
         });
         return () => {
-            // debugger
             unregister("forms", "analysis");
         }
-
-
-    }, [analysisNodeId, analysisId, sideView, relation]);
-
-    useEffect(() => {
-        loadParams()
-    }, [relation, sideView, analysisId, analysisNodeId, script])
+    }, [register, unregister]);
 
     const addOpenAnalysis = (analysis: any) => {
         if (openAnalysis.find((item: any) => item.analysis_id === analysis.analysis_id)) {

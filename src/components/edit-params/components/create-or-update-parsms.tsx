@@ -29,13 +29,28 @@ const RESERVED_PARAM_KEYS = ["analysis_id", "analysis_node_id", "script_id", "wo
 
 const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
     requestParam, workflowId, scriptId, cacheType, dataMap, formJson, jobStatus,
-    databases, callback, analysisResultId, showCancal = false }) => {
+    databases, callback, analysisResultId, showCancal = false,
+    // 显式目标参数（参数面板会传入）：不传时回退到 RenderProvider 的全局上下文，
+    // 兼容其它直接使用本组件的页面（分析编辑弹窗、软件分析面板等）。
+    analysisId, analysisNodeId, isScriptTarget, formStatus, setFormStatus,
+    setAnalysisId, setAnalysisNodeId }) => {
     const { modals, openModals, closeModals } = useModals(["paramsView", "bioDatabases"]);
     const [loading, setLoading] = useState<boolean>(false)
     const [scheduler, setScheduler] = useState<string>("dynamic")
     const messageApi = useGlobalMessage()
     const { project } = useSelector((state: any) => state.user);
-    const { setAnalysisId, analysisNodeId, setAnalysisNodeId, formStatus, setFormStatus, analysisId, script } = useStoreRender()
+    const renderStore = useStoreRender() ?? {}
+    // 显式传 null 表示「这个目标没有该 id」，不能回退到全局上下文
+    // （否则在多个页面同时打开时会把别的页面选中的分析 / 脚本带进来）。
+    const effectiveAnalysisId = analysisId !== undefined ? analysisId : renderStore.analysisId
+    const effectiveAnalysisNodeId = analysisNodeId !== undefined ? analysisNodeId : renderStore.analysisNodeId
+    const effectiveFormStatus = formStatus !== undefined ? formStatus : renderStore.formStatus
+    const effectiveSetFormStatus = setFormStatus ?? renderStore.setFormStatus
+    const effectiveSetAnalysisId = setAnalysisId ?? renderStore.setAnalysisId
+    const effectiveSetAnalysisNodeId = setAnalysisNodeId ?? renderStore.setAnalysisNodeId
+    // 脚本节点：显式 isScriptTarget 优先；否则沿用全局 script（旧调用方）。
+    const isScript = isScriptTarget !== undefined ? isScriptTarget : Boolean(renderStore.script)
+    const effectiveScriptId = scriptId !== undefined ? scriptId : renderStore.script?.id
 
     // 把表单值合并进分析参数后剔除元数据键，得到纯净的 request_param。
     const getRequestParams = (values: any = {}) => {
@@ -48,9 +63,9 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
     // 分析元数据（主键 / 工作流 / 脚本 / 节点 / 名称 / 缓存策略）全部放顶层。
     const buildPayload = (values: any, save: boolean, is_submit: boolean) => ({
         request_param: getRequestParams(values),
-        analysis_id: analysisId ?? undefined,
-        analysis_node_id: analysisNodeId ?? undefined,
-        script_id: scriptId ?? script?.id,
+        analysis_id: effectiveAnalysisId ?? undefined,
+        analysis_node_id: effectiveAnalysisNodeId ?? undefined,
+        script_id: effectiveScriptId ?? undefined,
         workflow_id: workflowId,
         node_name: values?.analysis_name,
         cache_type: values?.cache_type ?? cacheType,
@@ -65,18 +80,18 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
         try {
             // 脚本节点走 controller-script；流程分析走 controller。
             // 后端按 scheduler 选择编排器，并把它持久化为 analysis.scheduler_mode。
-            const controllerPath = analysisNodeId || script ? "/analysis/controller-script" : "/analysis/controller"
+            const controllerPath = effectiveAnalysisNodeId || isScript ? "/analysis/controller-script" : "/analysis/controller"
             const resp = await http.post(controllerPath, buildPayload(values, save, is_submit))
             if (is_submit) {
-                setFormStatus("running")
+                effectiveSetFormStatus?.("running")
             }
             if (save) {
                 messageApi.success("save successful!")
-                if (script) {
-                    setAnalysisNodeId(resp.data.analysis_node_id)
+                if (isScript) {
+                    effectiveSetAnalysisNodeId?.(resp.data.analysis_node_id)
                 } else {
                     if (resp.data.analysis_id) {
-                        setAnalysisId(resp.data.analysis_id)
+                        effectiveSetAnalysisId?.(resp.data.analysis_id)
                     }
                     const actions = [
                         {
@@ -88,12 +103,12 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
                             }
                         }
                     ]
-                    if (analysisId) {
+                    if (effectiveAnalysisId) {
                         actions.push({
                             action: "component.invoke",
                             payload: {
                                 category: "analysis",
-                                id: analysisId,
+                                id: effectiveAnalysisId,
                                 method: "reload",
                             }
                         })
@@ -158,7 +173,7 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
                 </Form.Item>
                 <Flex gap={"small"} justify="space-between">
 
-                    {formStatus == "running" || formStatus == "stopping" || formStatus == "submitted" ?
+                    {effectiveFormStatus == "running" || effectiveFormStatus == "stopping" || effectiveFormStatus == "submitted" ?
                         // <Popconfirm title="Are you sure to stop the analysis?" onConfirm={async () => {
                         //     setFormStatus("stopping")
                         //     if (analysisNodeId) {
@@ -176,28 +191,28 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
                         //     </Button>
 
                         // </Popconfirm>
-                        <Button disabled={formStatus == "stopping"} size="small" color="cyan" variant="solid"
+                        <Button disabled={effectiveFormStatus == "stopping"} size="small" color="cyan" variant="solid"
                             onClick={async () => {
                                 try {
-                                    if (script || analysisNodeId) {
-                                        if (!analysisNodeId) {
+                                    if (isScript || effectiveAnalysisNodeId) {
+                                        if (!effectiveAnalysisNodeId) {
                                             messageApi.error("analysis_node_id is required")
                                             return
                                         }
-                                        setFormStatus("stopping")
-                                        await http.post(`/analysis/node/stop/${analysisNodeId}`)
+                                        effectiveSetFormStatus?.("stopping")
+                                        await http.post(`/analysis/node/stop/${effectiveAnalysisNodeId}`)
                                         messageApi.success("Node stop requested")
                                         return
                                     }
-                                    if (!analysisId) {
+                                    if (!effectiveAnalysisId) {
                                         messageApi.error("analysis_id is required")
                                         return
                                     }
-                                    setFormStatus("stopping")
-                                    await http.post(`/analysis/stop/${analysisId}`)
+                                    effectiveSetFormStatus?.("stopping")
+                                    await http.post(`/analysis/stop/${effectiveAnalysisId}`)
                                     messageApi.success("Analysis stop requested")
                                 } catch (error: any) {
-                                    setFormStatus("running")
+                                    effectiveSetFormStatus?.("running")
                                     if (error?.response?.data?.detail) {
                                         messageApi.error(error.response.data.detail)
                                     } else {
@@ -214,8 +229,8 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
 
 
                         //     }}>Submit {analysisNodeId ? "Node" : ""}</Button>
-                        <Button disabled={formStatus == "running"} size="small" color="cyan" variant="solid" onClick={() => saveUpstreamAnalysis(true, true)}>
-                            Submit {analysisNodeId ? "Node" : ""}
+                        <Button disabled={effectiveFormStatus == "running"} size="small" color="cyan" variant="solid" onClick={() => saveUpstreamAnalysis(true, true)}>
+                            Submit {effectiveAnalysisNodeId ? "Node" : ""}
                         </Button>
                     }
                     <Space >
@@ -223,14 +238,14 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
 
 
 
-                        {!analysisNodeId && <Form.Item
+                        {!effectiveAnalysisNodeId && <Form.Item
                             noStyle
                             initialValue={4}
                             name={`cache_type`}
                         >
                             <Select
                                 size="small"
-                                disabled={formStatus == "running"}
+                                disabled={effectiveFormStatus == "running"}
                                 style={{ minWidth: 50 }}
                                 options={[
                                     { value: 1, label: "RerunAll" },
@@ -253,10 +268,10 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
                             }}>
                             {requestParam?.analysis_id ? <>Update </> : <>Create</>}</Button> */}
                             {/* {JSON.stringify(requestParam)} */}
-                        <Button disabled={formStatus == "running"} size="small" color="cyan" variant="solid" onClick={() => saveUpstreamAnalysis(true)}>
-                            {analysisId || analysisNodeId ? <>Update </> : <>Create</>}</Button>
+                        <Button disabled={effectiveFormStatus == "running"} size="small" color="cyan" variant="solid" onClick={() => saveUpstreamAnalysis(true)}>
+                            {effectiveAnalysisId || effectiveAnalysisNodeId ? <>Update </> : <>Create</>}</Button>
 
-                        <Button disabled={formStatus == "running"} size="small" color="cyan" variant="solid" onClick={() => {
+                        <Button disabled={effectiveFormStatus == "running"} size="small" color="cyan" variant="solid" onClick={() => {
                             saveUpstreamAnalysis(false)
                         }}>Parameters</Button>
 
@@ -322,8 +337,8 @@ const CreateOrUpdateParsms: FC<any> = ({ form, showCreate = false,
                     }
                 ]} />
 
-                {!script && <Space>
-                    <Button disabled={formStatus == "running"} size="small" color="cyan" variant="solid"
+                {!isScript && <Space>
+                    <Button disabled={effectiveFormStatus == "running"} size="small" color="cyan" variant="solid"
                         onClick={async () => {
                             const values = await form.validateFields()
                             await http.post(`/analysis/parse-params`, buildPayload(values, false, false))

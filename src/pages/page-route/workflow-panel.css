@@ -4,7 +4,7 @@
 }
 
 .workflow-panel-card {
-  border-radius: 10px;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -83,7 +83,7 @@
 .workflow-panel-analysis-tag {
   cursor: pointer;
   margin-inline-end: 0;
-  border-radius: 999px;
+  border-radius: 0;
   user-select: none;
 }
 
@@ -115,7 +115,7 @@
    --------------------------------------------------------------------------- */
 
 .workflow-panel-body .ant-card {
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: none;
 }
 

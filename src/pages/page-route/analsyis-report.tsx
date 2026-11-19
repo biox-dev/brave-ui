@@ -3,17 +3,15 @@ import axios from "axios"
 import { FC, lazy, Suspense, use, useEffect, useRef, useState } from "react"
 import { useLocation, useNavigate, useOutletContext, useParams } from "react-router"
 import { DownloadOutlined, DownOutlined, RedoOutlined, ControlOutlined } from '@ant-design/icons'
-import { useDispatch, useSelector } from "react-redux"
-import { setUserItem } from "@/store/userSlice"
+import { useSelector } from "react-redux"
 import { useModal } from "@/hooks/useModal"
 import FormProject from "@/components/form-project"
 import Markdown from "@/components/markdown"
 import { useStickyTop } from "@/hooks/useStickyTop"
 import { AI } from "@/components/chat"
-import { useSideView } from "@/context/side/useSideView"
-import { useSideViewContext } from "@/context/side/SideViewContext"
 import AnalysisReportContent from "../components-relation/tools/analysis-report-content"
 import AnalysisToolsComp from "../components-relation/tools/anlaysis-component"
+import { ParamsEdit, ParamsPanelDock, ParamsPanelLayout } from "@/components/edit-params/params-panel"
 import { useStoreRender } from "@/context/render/RenderProvider"
 import { useI18n } from "@/hooks/useI18n"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
@@ -62,9 +60,9 @@ const AnalysisReport: FC<any> = () => {
     // const dispatch = useDispatch()
     const { modal, openModal, closeModal } = useModal();
     const message = useGlobalMessage();
-    const dispatch = useDispatch();
-    // 顶部「参数」按钮：右侧参数面板被关闭后，从这里重新打开它（关闭状态持久化在 redux/localStorage）。
-    const rightPanelCollapsed = useSelector((state: any) => state.user.rightPanelCollapsed);
+    // 参数面板开关：页面显式声明编辑目标（当前分析），面板在右侧停靠。
+    // 不再依赖全局 rightPanelCollapsed / sideView。
+    const [paramsOpen, setParamsOpen] = useState(false);
     const [componentType, setComponentType] = useState<any>()
     const [rightPanel, setRightPanel] = useState<any>("toc");
 
@@ -151,20 +149,39 @@ const AnalysisReport: FC<any> = () => {
     // }
 
 
-    return <div >
+    return <ParamsPanelLayout
+        open={paramsOpen && Boolean(analysisKey)}
+        side="right"
+        panel={
+            <ParamsPanelDock
+                side="right"
+                title="Parameters"
+                onClose={() => setParamsOpen(false)}
+                storageKey="analysisParamsPanelWidth"
+            >
+                {analysisKey ? (
+                    <ParamsEdit
+                        target={{ kind: "analysis", analysisId: String(analysisKey) }}
+                        onClose={() => setParamsOpen(false)}
+                    />
+                ) : null}
+            </ParamsPanelDock>
+        }
+    >
+    <div >
         <Flex justify="flex-end" gap={8} style={{ marginBottom: 8 }}>
-            {/* 参数面板被隐藏时，从页面顶部重新打开它 */}
-            {rightPanelCollapsed ? (
-                <Tooltip title="Show parameters panel">
-                    <Button
-                        size="small"
-                        icon={<ControlOutlined />}
-                        onClick={() => dispatch(setUserItem({ rightPanelCollapsed: false }))}
-                    >
-                        Parameters
-                    </Button>
-                </Tooltip>
-            ) : null}
+            {/* 参数面板开关：页面显式声明编辑目标（当前分析），面板在右侧停靠。 */}
+            <Tooltip title={paramsOpen ? "Hide parameters panel" : "Show parameters panel"}>
+                <Button
+                    size="small"
+                    icon={<ControlOutlined />}
+                    type={paramsOpen ? "primary" : "default"}
+                    disabled={!analysisId}
+                    onClick={() => setParamsOpen((prev) => !prev)}
+                >
+                    Parameters
+                </Button>
+            </Tooltip>
             <Tooltip title="Bind this analysis as the current Agent context">
                 <Button
                     size="small"
@@ -185,6 +202,7 @@ const AnalysisReport: FC<any> = () => {
             panelView={"analysisNodePanel"}
         ></AnalysisToolsComp>
     </div>
+    </ParamsPanelLayout>
 }
 
 export default AnalysisReport

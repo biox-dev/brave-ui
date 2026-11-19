@@ -30,7 +30,9 @@ const EditParams: FC<any> = ({ visible, params, onClose, callback }) => {
             {/* {JSON.stringify(addedProject)} */}
 
             <EditParamsPanel
-                analysis_id={params} callback={() => {
+                target={params ? { kind: "analysis", analysisId: String(params) } : null}
+                onClose={() => onClose && onClose()}
+                onSaved={() => {
                     onClose && onClose()
                     if (callback) {
                         callback()

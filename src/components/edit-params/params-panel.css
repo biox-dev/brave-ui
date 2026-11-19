@@ -1,0 +1,137 @@
+/* 页面级参数面板：内容区 + 右侧停靠面板。
+   线条样式：只保留与内容区之间的一条竖线，面板本身不画上下边框、不加圆角；
+   高度撑满内容区，内部独立滚动。 */
+
+.params-panel-layout {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+.params-panel-layout-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+}
+
+.params-panel-dock {
+  position: relative;
+  flex: 0 0 auto;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--sharp-panel-bg, #ffffff);
+  color: var(--sharp-text, rgba(0, 0, 0, 0.88));
+  /* 只保留与内容区之间的一条竖线：不再画上下边框，避免和页面头/底部线条重合。 */
+  border: 0;
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.params-panel-dock.is-left {
+  border-right: 1px solid var(--sharp-divider, #eceff4);
+}
+
+.params-panel-dock.is-right {
+  border-left: 1px solid var(--sharp-divider, #eceff4);
+}
+
+/* 标题栏：与卡片头部一致（透明底、只保留一条分割线）。 */
+.params-panel-dock-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 8px 0 14px;
+  border-bottom: 1px solid var(--sharp-divider, #eceff4);
+  background: transparent;
+}
+
+.params-panel-dock-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.params-panel-dock-actions {
+  flex: 0 0 auto;
+}
+
+.params-panel-dock-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 14px 14px;
+}
+
+/* 拖拽条贴在内侧边缘；命中区域比视觉线条宽，便于操作。 */
+.params-panel-dock-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background-color 0.15s ease;
+}
+
+.params-panel-dock.is-left .params-panel-dock-resizer {
+  right: 0;
+}
+
+.params-panel-dock.is-right .params-panel-dock-resizer {
+  left: 0;
+}
+
+.params-panel-dock-resizer:hover,
+.params-panel-dock-resizer:active {
+  background: color-mix(in srgb, #1890ff 35%, transparent);
+}
+
+body.params-panel-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+/* 窄屏（移动端上下堆叠布局）下不抢宽度：面板改为置于内容下方。 */
+@media (max-width: 991px) {
+  .params-panel-layout {
+    flex-direction: column;
+    align-items: stretch;
+    height: auto;
+  }
+
+  .params-panel-layout-main {
+    height: auto;
+    overflow: visible;
+  }
+
+  .params-panel-dock,
+  .params-panel-dock.is-left,
+  .params-panel-dock.is-right {
+    width: 100% !important;
+    min-height: 0;
+    max-height: none;
+    border: 0;
+    border-top: 1px solid var(--sharp-divider, #eceff4);
+  }
+
+  .params-panel-dock-resizer {
+    display: none;
+  }
+}
+

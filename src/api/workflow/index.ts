@@ -10,6 +10,8 @@ export interface WorkflowFormResponse {
 	type: string;
 	formJson: unknown[];
 	analysis_result: Record<string, unknown>;
+	/** 工作流声明使用的生物数据库（表单下拉选项需要）。 */
+	databases?: unknown;
 }
 
 export const getWorkflowFormApi = (params: GetWorkflowFormParams) => {

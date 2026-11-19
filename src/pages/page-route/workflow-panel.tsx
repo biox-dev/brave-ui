@@ -20,13 +20,14 @@ import FormProject from "@/components/form-project"
 import { useSelector } from "react-redux"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
 import { useStickyTop } from "@/hooks/useStickyTop"
-import { ApartmentOutlined, DeleteOutlined, QuestionCircleOutlined, RedoOutlined } from '@ant-design/icons'
+import { ApartmentOutlined, ControlOutlined, DeleteOutlined, QuestionCircleOutlined, RedoOutlined } from '@ant-design/icons'
 import { useComponentStore } from "@/event-bus/stores/components"
 import { useStoreRender } from "@/context/render/RenderProvider"
 import ViewResolver from "@/core/ui-renderer/ViewResolver"
 import { invoke } from "@/core/ui-system/invokeV2"
 import { http } from "@/api/client/http"
 import GitStateActions from "../components-relation/components/git-state-actions"
+import { ParamsEdit, ParamsPanelDock, ParamsPanelLayout } from "@/components/edit-params/params-panel"
 import { useI18n } from "@/hooks/useI18n"
 import { useRouteMainTabTitle } from "@/hooks/useMainTabTitle"
 import "./workflow-panel.css"
@@ -58,6 +59,8 @@ const Pipeline: FC<any> = ({ }) => {
     const [messageApi, contextHolder] = message.useMessage();
     const [component, setComponent] = useState<any>()
     const [rightPanel, setRightPanel] = useState<any>("llmTools")
+    // 参数面板开关：页面显式声明编辑目标（当前工作流），面板在右侧停靠。
+    const [paramsOpen, setParamsOpen] = useState(false)
 
     const [size, setSize] = useState<any>((component_type && ["script111"].includes(component_type)) ? [18, 6] : [20, 0])
     const tableRef = {
@@ -407,7 +410,27 @@ const Pipeline: FC<any> = ({ }) => {
         message.success(zh ? "工作流已删除" : "Workflow deleted successfully")
     }
 
-    return <div className="workflow-panel">
+    return <ParamsPanelLayout
+        open={paramsOpen && Boolean(component?.id)}
+        side="right"
+        panel={
+            <ParamsPanelDock
+                side="right"
+                title={zh ? "参数" : "Parameters"}
+                onClose={() => setParamsOpen(false)}
+                storageKey="workflowParamsPanelWidth"
+            >
+                {component?.id ? (
+                    <ParamsEdit
+                        target={{ kind: "workflow", workflowId: String(component.id) }}
+                        onClose={() => setParamsOpen(false)}
+                        onSaved={loadData}
+                    />
+                ) : null}
+            </ParamsPanelDock>
+        }
+    >
+        <div className="workflow-panel">
         <Card size="small" className="workflow-panel-card" styles={{ body: { padding: 0 } }}>
             <Spin spinning={loading}>
                 {component ? <>
@@ -435,6 +458,25 @@ const Pipeline: FC<any> = ({ }) => {
                         </div>
 
                         <div className="workflow-panel-actions">
+                            {/* 参数面板开关：编辑当前工作流时页面只声明 target，
+                                面板在右侧停靠，不再依赖全局 sideView / rightPanelCollapsed。 */}
+                            <Tooltip
+                                title={
+                                    paramsOpen
+                                        ? (zh ? "关闭参数面板" : "Hide parameters panel")
+                                        : (zh ? "打开参数面板" : "Show parameters panel")
+                                }
+                            >
+                                <Button
+                                    size="small"
+                                    icon={<ControlOutlined />}
+                                    type={paramsOpen ? "primary" : "default"}
+                                    disabled={!component?.id}
+                                    onClick={() => setParamsOpen((prev) => !prev)}
+                                >
+                                    {zh ? "参数" : "Parameters"}
+                                </Button>
+                            </Tooltip>
                             <Segmented
                                 size="small"
                                 value={view}
@@ -641,6 +683,7 @@ const Pipeline: FC<any> = ({ }) => {
             params={modal.params}></PublishModal>
 
     </div>
+    </ParamsPanelLayout>
 }
 
 

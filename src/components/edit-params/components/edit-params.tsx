@@ -1,205 +1,171 @@
-import { Button, Input, Popover, Spin, Table, Image, Typography, Collapse, Flex, Card, Skeleton, Tag, Tabs, Row, Col, Popconfirm, Drawer, Form, Tooltip, Space, Empty } from "antd";
-import TextArea from "antd/es/input/TextArea";
-import { FC, forwardRef, lazy, Suspense, useEffect, useImperativeHandle, useRef, useState } from "react";
-import axios from "axios";
-import { useNavigate, useOutletContext } from "react-router";
-import CreateOrUpdateParsms from "./create-or-update-parsms";
-import { ClearOutlined, RedoOutlined } from "@ant-design/icons";
-import { useSelector } from "react-redux";
-const RenderFromJson = lazy(() => import("./render-form-json"));
-import { useStoreRender } from "@/context/render/RenderProvider";
-import { useSideViewContext } from "@/context/side/SideViewContext";
-const EditParamsPanel: FC<any> = () => {
-    const [form] = Form.useForm()
-    const { requestParam, analysisNodeId, formStatus, setAnalysisNodeId, relation, setAnalysisId, loadParams, analysisId,loading } = useStoreRender()
-    const { setSideView, sideView, sideOptions, setSideOptions } = useSideViewContext();
+import { Button, Empty, Form, Space, Spin, Tag, Tooltip } from "antd"
+import { FC, useEffect, useMemo, useRef } from "react"
+import { ClearOutlined, RedoOutlined } from "@ant-design/icons"
+import CreateOrUpdateParsms from "./create-or-update-parsms"
+import { useStoreRender } from "@/context/render/RenderProvider"
+import { useEditParamsTarget, type EditParamsTarget } from "../use-edit-params-target"
 
-    // const addedProject = Form.useWatch((values: any) => values?.addedProject, form);
+export type EditParamsPanelProps = {
+    /**
+     * 编辑哪个对象的参数。由页面显式传入（不再依赖 RenderProvider 里的
+     * analysisId / analysisNodeId / relation / script 组合出的隐式上下文）。
+     */
+    target?: EditParamsTarget | null
+    /** 关闭面板（标题栏 / 标签上的关闭按钮）。 */
+    onClose?: () => void
+    /** 保存成功后的回调（页面可用于刷新自己的数据）。 */
+    onSaved?: () => void
+}
+
+const EditParamsPanel: FC<EditParamsPanelProps> = ({ target, onClose, onSaved }) => {
+    const [form] = Form.useForm()
+    const store = useStoreRender() ?? {}
+    const {
+        // 运行状态仍然来自 RenderProvider：分析开始 / 结束由 SSE 写入，
+        // 面板只消费，避免和后端实时事件脱节。
+        formStatus,
+        setFormStatus,
+        setAnalysisId: setGlobalAnalysisId,
+        setAnalysisNodeId: setGlobalAnalysisNodeId,
+        // 旧入口（view="editParamsPanel"）没有显式 target，用全局上下文兜底。
+        analysisId: contextAnalysisId,
+        analysisNodeId: contextAnalysisNodeId,
+        relation,
+        script,
+    } = store
     const jobStatus = useRef<any>(null)
-    const [params, setParsms] = useState<any>(requestParam)
-    // const { requestParam, dataMap, formJson, databases } = params
-    const [data, setData] = useState<any>()
+
+    // 兼容旧入口：没传 target 时沿用 RenderProvider 的优先级（节点 > 分析 > 流程 > 脚本）。
+    // 新页面（script-panel / workflow-panel / 分析报告 / 节点详情）都显式传 target。
+    const fallbackTarget = useMemo<EditParamsTarget | null>(() => {
+        if (contextAnalysisNodeId) {
+            return { kind: "analysisNode", analysisNodeId: String(contextAnalysisNodeId) }
+        }
+        if (contextAnalysisId) {
+            return { kind: "analysis", analysisId: String(contextAnalysisId) }
+        }
+        if (relation?.id) {
+            return { kind: "workflow", workflowId: String(relation.id) }
+        }
+        if (script?.id) {
+            return { kind: "script", scriptId: String(script.id) }
+        }
+        return null
+    }, [contextAnalysisNodeId, contextAnalysisId, relation?.id, script?.id])
+
+    const {
+        data,
+        loading,
+        effectiveTarget,
+        analysisId,
+        analysisNodeId,
+        scriptId,
+        reload,
+        setAnalysisId,
+        setAnalysisNodeId,
+    } = useEditParamsTarget(target ?? fallbackTarget)
 
     useEffect(() => {
-        setParsms(requestParam)
-        // debugger
-        if (requestParam?.type && (requestParam?.type == "analysis" || requestParam?.type == "nodeAnalysis")) {
+        if (!data) {
+            return
+        }
+        if (effectiveTarget?.kind === "analysis" || effectiveTarget?.kind === "analysisNode") {
             form.resetFields()
             // request_param 只含分析参数；名称与缓存策略来自顶层元数据字段。
             form.setFieldsValue({
-                ...requestParam.requestParam,
-                analysis_name: requestParam.nodeName,
-                cache_type: requestParam.cacheType,
+                ...data.requestParam,
+                analysis_name: data.nodeName,
+                cache_type: data.cacheType,
             })
         }
-        // form.resetFields()
-        // if (analysisId) {
-        //     analysisIdRef.current = analysisId
-        //     loadData()
-        // } else {
-        //     setParsms(requestParam)
-        //     setData({
-        //         component_name: relation?.name,
-        //     })
-        // }
-        // loadData()
+        // 分析 / 节点返回真实 status，流程 / 脚本为 null（与旧行为一致）。
+        setFormStatus?.(data.status ?? null)
+        // form / setFormStatus 都是稳定引用；data 只在目标变化或刷新后更新。
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [data, effectiveTarget])
 
-    }, [requestParam,sideView])
-    // form.()
-    const [resultData, setResultData] = useState<any>()
-
-    // const navigate = useNavigate()
-    // const [loading, setLoading] = useState<any>()
-
-    // const loadData = async () => {
-    //     // if (type && bizKey) {
-    //     //     switch (type) {
-    //     //         case "tools":
-    //     //             loadToolsForm(bizKey)
-    //     //             break;
-    //     //     }
-    //     // }
-    // }
-
-    // const loadAnalysisResult = async (componentIdList: any) => {
-    //     let resp: any = await axios.post(`/analysis-result/list-analysis-result-grouped`, {
-    //         project: project,
-    //         component_ids: componentIdList,
-    //     })
-    //     setResultData(resp.data)
-    // }
-    // const loadAnalysis = async (analysisId: any) => {
-    //     setLoading(true)
-    //     const resp = await axios.post(`/analysis/edit-params/${analysisId}`)
-    //     jobStatus.current = resp.data?.job_status
-
-    //     setData(resp.data)
-    //     setParsms({
-    //         requestParam: resp.data.request_param,
-    //         dataMap: { ...resp.data.analysis_result, first_data_key: getFirstKey(resp.data.analysis_result) },
-    //         formJson: resp.data.formJson,
-    //         databases: resp.data.databases,
-    //         upstreamFormJson: resp.data.upstreamFormJson,
-    //         status: resp.data.status,
-    //     })
-
-    //     // await loadAnalysisResult(JSON.parse(resp.data.request_param.data_component_ids))
-    //     setResultData(resp.data.analysis_result)
-    //     form.resetFields()
-    //     // console.log(resp.data.request_param)
-    //     form.setFieldsValue(resp.data.request_param)
-    //     form.setFieldValue("anno", 6491)
-    //     // console.log([...resp.data.content?.formJson || [],...resp.data?.inputFormJson || []])
-    //     // console.log(resp.data.content?.formJson)
-    //     // console.log(resp.data?.inputFormJson)
-    //     // setTimeout(() => {
-    //     //     form.setFieldsValue(resp.data.request_param)
-
-    //     // }, 50);
-    //     setLoading(false)
-    // }
-
-
-
-
-    // const sseData = useSelector((state: any) => state.global.sseData)
-    // const analysisIdRef = useRef<any>(null)
-
-    // useEffect(() => {
-    //     const data = sseData
-    //     console.log("sseData in result list:", analysisIdRef.current, data)
-
-    //     if (analysisIdRef.current == data.analysis_id) {
-    //         //  || data.event == "analysis_started"
-    //         if (data.event == "analysis_complete" || data.event == "analysis_failed") {
-    //             // loadData()
-    //         } else if (data.event == "analysis_started") {
-    //             jobStatus.current = "running"
-    //         }
-    //     }
-    // }, [sseData])
-
-    const getFirstKey = (resultTableList: any) => {
-        if (resultTableList && Object.keys(resultTableList).length > 0) {
-            return Object.keys(resultTableList)[0]
-        } else {
-            return undefined
-        }
+    /**
+     * 保存后切换面板目标：让后续保存更新刚创建的对象，而不是重复创建。
+     * 同时同步到 RenderProvider 的全局 id —— SSE 事件（analysis_started 等）
+     * 仍然按这个 id 分发运行状态。
+     */
+    const handleSetAnalysisId = (id?: string | null) => {
+        setAnalysisId(id)
+        setGlobalAnalysisId?.(id ?? null)
+    }
+    const handleSetAnalysisNodeId = (id?: string | null) => {
+        setAnalysisNodeId(id)
+        setGlobalAnalysisNodeId?.(id ?? null)
     }
 
+    /** 标签上的关闭按钮：只关闭面板，不改变页面当前选中的分析 / 节点。 */
+    const handleCloseTarget = () => {
+        onClose?.()
+    }
 
+    return (
+        <Spin spinning={loading}>
+            {data ? (
+                <>
+                    <Space wrap>
+                        {analysisId ? (
+                            <Tooltip title={analysisId}>
+                                <Tag color="green" closable onClose={handleCloseTarget}>
+                                    Analysis({analysisId})
+                                </Tag>
+                            </Tooltip>
+                        ) : null}
+                        {analysisNodeId ? (
+                            <Tooltip title={analysisNodeId}>
+                                <Tag color="blue" closable onClose={handleCloseTarget}>
+                                    Node Analysis ({analysisNodeId})
+                                </Tag>
+                            </Tooltip>
+                        ) : null}
+                        <Button
+                            onClick={() => void reload()}
+                            size="small"
+                            icon={<RedoOutlined />}
+                            aria-label="Reload parameters"
+                        />
+                        <Tag>{formStatus}</Tag>
+                        <Tooltip title="Reset form">
+                            <Button
+                                onClick={() => {
+                                    form.resetFields()
+                                    void reload()
+                                }}
+                                size="small"
+                                icon={<ClearOutlined />}
+                                aria-label="Reset form"
+                            />
+                        </Tooltip>
+                    </Space>
 
-
-    return <Spin spinning={loading}>
-        {/* {JSON.stringify(requestParam)} */}
-        {/* {relationId} */}
-        {/* {JSON.stringify(params.formJson)} */}
-        {/* {type} - {bizKey} */}
-        {/* <Button onClick={()=>{
-            form.resetFields()
-            form.setFieldsValue(requestParam.requestParam)
-        111
-        }}>test</Button> */}
-        
-        {params ? <>
-            <Space wrap>
-
-                {/* <Tooltip title={bizKey}>
-                    <Tag>{type}</Tag>
-                </Tooltip> */}
-
-                {analysisId && <Tooltip title={analysisId}>
-                    <Tag color="green" closable onClose={() => {
-                        setAnalysisId(null)
-                        // form.resetFields()
-                    }}>Analysis({analysisId})</Tag>
-                </Tooltip>}
-                {analysisNodeId && <Tooltip title={analysisNodeId}>
-                    <Tag color="blue" closable onClose={() => {
-                        setAnalysisNodeId(null)
-                    }} >Node Analysis ({analysisNodeId})</Tag>
-                </Tooltip>}
-                {params && <>
-                    <Button onClick={() => loadParams(true)} size="small" icon={<RedoOutlined></RedoOutlined>}></Button>
-
-                    <Tag>{formStatus}</Tag>
-                    {/* <Tag color="success">{data?.analysis_name}</Tag>
-                    <Tooltip title={data?.analysis_id}>
-                        <Tag>{String(analysisIdRef.current).slice(0, 8)}</Tag>
-                    </Tooltip>
-                    <Tag>{jobStatus.current}</Tag> */}
-
-                    {/* <RedoOutlined style={{ cursor: "pointer" }} onClick={loadData} /> */}
-                </>}
-                <Tooltip title="Reset form">
-                    <Button onClick={() => {
-                        setAnalysisId(null)
-                        form.resetFields()
-                    }} size="small" icon={<ClearOutlined></ClearOutlined>}></Button>
-
-                </Tooltip>
-            </Space>
-            {/* {JSON.stringify(requestParam)} */}
-
-            <CreateOrUpdateParsms
-                showCreate={true}
-                form={form}
-
-                // requestParam={{ ...data.request_param, analysis_id: data?.analysis_id }}
-                // dataMap={{ ...resultData, first_data_key: getFirstKey(resultData) }}
-                // formJson={data.formJson}
-                // databases={data?.databases}
-                // upstreamFormJson={data?.upstreamFormJson}
-                {...params}
-
-                jobStatus={jobStatus}
-                callback={() => {
-                    // loadData()
-                    // callback && callback()
-                }} ></CreateOrUpdateParsms>
-
-        </> : <Empty ></Empty>}
-    </Spin>
+                    <CreateOrUpdateParsms
+                        showCreate
+                        form={form}
+                        {...data}
+                        // 目标参数显式覆盖 data 中的同名字段，保证保存请求带上正确的 id。
+                        // 非当前类型的目标传 null（而不是 undefined），避免回退到全局上下文。
+                        analysisId={analysisId ?? null}
+                        analysisNodeId={analysisNodeId ?? null}
+                        // 节点目标需要把节点绑定的脚本 id 一起提交，因此回退到加载到的 data.scriptId。
+                        scriptId={scriptId ?? data.scriptId ?? null}
+                        isScriptTarget={effectiveTarget?.kind === "script"}
+                        formStatus={formStatus}
+                        setFormStatus={setFormStatus}
+                        setAnalysisId={handleSetAnalysisId}
+                        setAnalysisNodeId={handleSetAnalysisNodeId}
+                        jobStatus={jobStatus}
+                        callback={onSaved}
+                    />
+                </>
+            ) : (
+                <Empty description={loading ? "Loading parameters" : "No parameters to edit"} />
+            )}
+        </Spin>
+    )
 }
 
 export default EditParamsPanel

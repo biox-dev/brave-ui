@@ -1,7 +1,6 @@
 import { Button, Card, Empty, Popconfirm, Segmented, Skeleton, Spin, Tag, Tooltip } from "antd"
 import { ControlOutlined, DeleteOutlined, FileTextOutlined, ReloadOutlined, RobotOutlined } from "@ant-design/icons"
 import { FC, useCallback, useEffect, useState } from "react"
-import { useDispatch, useSelector } from "react-redux"
 import { useParams } from "react-router"
 import { useModal } from "@/hooks/useModal"
 import { useGlobalMessage } from "@/hooks/useGlobalMessage"
@@ -10,12 +9,12 @@ import { useStoreRender } from "@/context/render/RenderProvider"
 import ViewResolver from "@/core/ui-renderer/ViewResolver"
 import Markdown from "@/components/markdown"
 import GitStateActions from "../components-relation/components/git-state-actions"
+import { ParamsEdit, ParamsPanelDock, ParamsPanelLayout } from "@/components/edit-params/params-panel"
 import { useI18n } from "@/hooks/useI18n"
 import { useRouteMainTabTitle } from "@/hooks/useMainTabTitle"
 import { useRouteView } from "@/hooks/useRouteView"
 import type { ScriptPanelView } from "@/routes/route-view"
 import { http } from "@/api/client/http"
-import { setUserItem } from "@/store/userSlice"
 import "./script-panel.css"
 
 /**
@@ -37,9 +36,9 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
     const message = useGlobalMessage()
     const { openModal } = useModal()
     const { script, setScript, clear } = useStoreRender()
-    const dispatch = useDispatch()
-    // 右侧参数面板被关闭后，可以从本页顶部重新打开（折叠状态持久化在 redux/localStorage）。
-    const rightPanelCollapsed = useSelector((state: any) => state.user.rightPanelCollapsed)
+    // 参数面板：由本页自己打开/关闭，并显式告诉面板要编辑哪个脚本；
+    // 不再依赖全局 sideView / rightPanelCollapsed。
+    const [paramsOpen, setParamsOpen] = useState(false)
 
     // 当前视图由路由视图段决定（/c/scripts/:script_id/:view?）：刷新、前进后退、切标签页都能恢复；
     // 切换到另一个脚本时地址里不带视图段，会自动回到默认视图。
@@ -109,7 +108,26 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
     }
 
     return (
-        <div className="script-panel">
+        <ParamsPanelLayout
+            open={paramsOpen && Boolean(script?.id)}
+            side="right"
+            panel={
+                <ParamsPanelDock
+                    side="right"
+                    title={zh ? "参数" : "Parameters"}
+                    onClose={() => setParamsOpen(false)}
+                    storageKey="scriptParamsPanelWidth"
+                >
+                    {script?.id ? (
+                        <ParamsEdit
+                            target={{ kind: "script", scriptId: String(script.id) }}
+                            onClose={() => setParamsOpen(false)}
+                        />
+                    ) : null}
+                </ParamsPanelDock>
+            }
+        >
+            <div className="script-panel">
             <Card size="small" className="script-panel-card" styles={{ body: { padding: 0 } }}>
                 <Spin spinning={loading}>
                     {script ? (
@@ -164,20 +182,25 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
                                             Ask Agent
                                         </Button>
                                     </Tooltip>
-                                    {/* 参数面板被隐藏时，从页面顶部重新打开它 */}
-                                    {rightPanelCollapsed ? (
-                                        <Tooltip title={zh ? "打开参数面板" : "Show parameters panel"}>
-                                            <Button
-                                                size="small"
-                                                icon={<ControlOutlined />}
-                                                onClick={() =>
-                                                    dispatch(setUserItem({ rightPanelCollapsed: false }))
-                                                }
-                                            >
-                                                {zh ? "参数" : "Parameters"}
-                                            </Button>
-                                        </Tooltip>
-                                    ) : null}
+                                    {/* 参数面板开关：页面显式声明编辑目标（当前脚本），
+                                        面板在右侧停靠，不再依赖全局 sideView 状态。 */}
+                                    <Tooltip
+                                        title={
+                                            paramsOpen
+                                                ? (zh ? "关闭参数面板" : "Hide parameters panel")
+                                                : (zh ? "打开参数面板" : "Show parameters panel")
+                                        }
+                                    >
+                                        <Button
+                                            size="small"
+                                            icon={<ControlOutlined />}
+                                            type={paramsOpen ? "primary" : "default"}
+                                            disabled={!script?.id}
+                                            onClick={() => setParamsOpen((prev) => !prev)}
+                                        >
+                                            {zh ? "参数" : "Parameters"}
+                                        </Button>
+                                    </Tooltip>
                                     {/* Git 状态与主操作并列：标题行只放「身份信息」，避免长标题把
                                         状态标签和按钮挤到下一行、或者把标题本身挤成省略号。 */}
                                     <GitStateActions entity="script" item={script} onReload={reload} />
@@ -242,7 +265,8 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
                     )}
                 </Spin>
             </Card>
-        </div>
+            </div>
+        </ParamsPanelLayout>
     )
 }
 

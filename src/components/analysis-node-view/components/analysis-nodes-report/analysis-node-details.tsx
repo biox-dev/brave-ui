@@ -14,10 +14,9 @@ import { useRouteMainTabTitle } from "@/hooks/useMainTabTitle";
 import { useRouteView } from "@/hooks/useRouteView";
 import type { AnalysisNodeReportView } from "@/routes/route-view";
 import { http } from "@/api/client/http";
-import { useDispatch, useSelector } from "react-redux";
-import { setUserItem } from "@/store/userSlice";
+import { useSelector } from "react-redux";
 import { useStoreRender } from "@/context/render/RenderProvider";
-import { useSideViewContext } from "@/context/side/SideViewContext";
+import { ParamsEdit, ParamsPanelDock, ParamsPanelLayout } from "@/components/edit-params/params-panel";
 import { useComponentStore } from "@/event-bus/stores/components";
 import { FilesRender } from "../result-render/components/files-render";
 import { AnalysisNodeFilesRender } from "../result-render/components/analysis-node-files-render";
@@ -80,7 +79,6 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
     const [detailLoading, setDetailLoading] = useState(false);
     const [sampleDetailMap, setSampleDetailMap] = useState<Record<string, Partial<AnalysisNodeSample>>>({});
     const { analysisNodeId, setAnalysisNodeId } = useStoreRender();
-    const { setSideView } = useSideViewContext();
     const { register, unregister } = useComponentStore();
     const message = useGlobalMessage();
     const [selectedSampleDetail, setSelectedSampleDetail] = useState<any>({});
@@ -105,9 +103,9 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
         enabled: viewFromRoute === true,
     });
     const { containerURL } = useSelector((state: any) => state.user);
-    const dispatch = useDispatch();
-    // 顶部「参数」按钮：右侧参数面板被关闭后，从这里重新打开它（关闭状态持久化在 redux/localStorage）。
-    const rightPanelCollapsed = useSelector((state: any) => state.user.rightPanelCollapsed);
+    // 参数面板开关：页面显式声明编辑目标（当前分析节点），面板在右侧停靠。
+    // 不再依赖全局 rightPanelCollapsed / sideView。
+    const [paramsOpen, setParamsOpen] = useState(false)
 
     // 把当前分析节点作为 @analysis_node:<id> 引用 chip 插进 Agent 输入框（面板未打开时自动切过去）。
     // Agent 侧用 get_analysis_node 调研：节点名称 / 类型 / 工作目录 / params.json / 脚本参数。
@@ -267,6 +265,26 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
     };
 
     return (
+        <ParamsPanelLayout
+            open={paramsOpen && Boolean(nodeId)}
+            side="right"
+            panel={
+                <ParamsPanelDock
+                    side="right"
+                    title="Parameters"
+                    onClose={() => setParamsOpen(false)}
+                    storageKey="analysisNodeParamsPanelWidth"
+                >
+                    {nodeId ? (
+                        <ParamsEdit
+                            target={{ kind: "analysisNode", analysisNodeId: nodeId }}
+                            onClose={() => setParamsOpen(false)}
+                            onSaved={() => loadSampleDetail(analysis_node_id)}
+                        />
+                    ) : null}
+                </ParamsPanelDock>
+            }
+        >
         <Card
             size="small"
             title={selectedSampleDetail?.node?.script_name || "Result Report"}
@@ -313,18 +331,18 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
                         </Button>
                     </Tooltip>
 
-                    {/* 参数面板被隐藏时，从卡片顶部重新打开它 */}
-                    {rightPanelCollapsed ? (
-                        <Tooltip title="Show parameters panel">
-                            <Button
-                                size="small"
-                                icon={<ControlOutlined />}
-                                onClick={() => dispatch(setUserItem({ rightPanelCollapsed: false }))}
-                            >
-                                Parameters
-                            </Button>
-                        </Tooltip>
-                    ) : null}
+                    {/* 参数面板开关：组件自己声明编辑目标（当前分析节点），面板在右侧停靠。 */}
+                    <Tooltip title={paramsOpen ? "Hide parameters panel" : "Show parameters panel"}>
+                        <Button
+                            size="small"
+                            icon={<ControlOutlined />}
+                            type={paramsOpen ? "primary" : "default"}
+                            disabled={!nodeId}
+                            onClick={() => setParamsOpen((prev) => !prev)}
+                        >
+                            Parameters
+                        </Button>
+                    </Tooltip>
 
                     {selectedSampleDetail && (
                         <Space>
@@ -579,6 +597,7 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
                             <Button
                                 size="small"
                                 onClick={() => {
+                                    setParamsOpen(false);
                                     setAnalysisNodeId(null);
                                 }}
                                 icon={<CloseOutlined />}
@@ -590,7 +609,8 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
                                 size="small"
                                 onClick={() => {
                                     setAnalysisNodeId(analysis_node_id || null);
-                                    setSideView("editParamsPanel");
+                                    // 参数面板在页面右侧停靠，只对本组件生效。
+                                    setParamsOpen(true);
                                 }}
                                 icon={<EditOutlined />}
                             />
@@ -791,6 +811,7 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
                 )}
             </Modal>
         </Card>
+        </ParamsPanelLayout>
     );
 };
 
