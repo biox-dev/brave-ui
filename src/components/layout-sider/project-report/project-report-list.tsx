@@ -8,16 +8,17 @@ import {
 import { LazyListFooter, LazyListSearch, LazyListSentinel, useLazyList } from "@/components/common/lazy-list";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
-import { useLeftMiddlePane } from "@/hooks/useLeftMiddlePane";
+import { useLeftMiddlePane, useLeftMiddlePaneState } from "@/hooks/useLeftMiddlePane";
 import { useOpenMainTab } from "@/hooks/useMainTabTitle";
 import { formatRelativeTime } from "@/utils/time";
-import { DeleteOutlined, EditOutlined, EyeOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined, SendOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, EyeOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined, SendOutlined, UnorderedListOutlined } from "@ant-design/icons";
 import { Button, Empty, Popconfirm, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo, useState } from "react";
 import { useLocation } from "react-router";
 import { useSelector } from "react-redux";
 import { invoke } from "@/core/ui-system/invokeV2";
+import { openLeftMiddlePane } from "@/layout/left-middle-pane-store";
 import SiderPanelLayout from "../common/sider-panel-layout";
 
 export interface ProjectReportListProps {
@@ -52,6 +53,22 @@ const ProjectReportList: FC<ProjectReportListProps> = ({ collapsed = false, onTo
     "projectReportItems",
     collapsed || !selectedId ? null : { reportId: selectedId },
   );
+
+  // 面板被关闭后（标题栏上的关闭按钮），可以通过列表顶部的按钮重新打开。
+  const leftMiddlePane = useLeftMiddlePaneState();
+  const isItemsPaneOpen =
+    Boolean(selectedId) &&
+    leftMiddlePane?.view === "projectReportItems" &&
+    leftMiddlePane.params?.reportId === selectedId;
+  const openItemsPane = () => {
+    if (!selectedId) {
+      return;
+    }
+    openLeftMiddlePane({
+      view: "projectReportItems",
+      params: { reportId: selectedId },
+    });
+  };
 
   const {
     items: data,
@@ -224,6 +241,16 @@ const ProjectReportList: FC<ProjectReportListProps> = ({ collapsed = false, onTo
             placeholder="Search reports"
             className="project-report-panel-search"
           />
+          {selectedId && !collapsed && !isItemsPaneOpen ? (
+            <Tooltip title="Show report items">
+              <Button
+                type="text"
+                size="small"
+                icon={<UnorderedListOutlined />}
+                onClick={openItemsPane}
+              />
+            </Tooltip>
+          ) : null}
           <Button type="text" size="small" icon={<PlusOutlined />} onClick={openCreate} />
           <Button type="text" size="small" icon={<ReloadOutlined />} onClick={() => refetch()} />
         </>
