@@ -3,16 +3,12 @@ import { Button, Empty } from 'antd';
 import { LeftOutlined, UserOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router';
 import AgentChat from '@/components/agent/agent-chat';
-import SessionResourcePanel from '@/components/agent/session-resource-panel';
-import { useAgentSessionResources } from '@/components/agent/use-agent-session-resources';
+import SessionResourceStack from '@/components/agent/session-resource-stack';
+
 import {
   subscribeAgentSessionApi,
   unsubscribeAgentSessionApi,
-  type AgentSessionResourceType,
 } from '@/api/agent';
-import SiderStackLayout, {
-  type SiderStackSection,
-} from '@/components/layout-sider/sider-stack-layout';
 import { useSiderStackCollapsed } from '@/components/layout-sider/use-sider-stack-collapsed';
 import SplitWorkspace from '@/layout/components/SplitWorkspace';
 import MainTabs from '@/layout/components/MainTabs';
@@ -24,8 +20,10 @@ import {
 } from '@/components/agent/agent-conversation-store';
 import {
   closeAgentWorkspaceTab,
+  resetAgentWorkspace,
   setActiveAgentWorkspaceTab,
   useAgentWorkspace,
+  type AgentWorkspaceTab,
 } from '@/layout/agent-workspace-store';
 import './agent-session-page.css';
 
@@ -36,33 +34,8 @@ import './agent-session-page.css';
 type WorkspaceViewProps = { view: string } & Record<string, unknown>;
 const WorkspaceViewResolver = ViewResolver as unknown as FC<WorkspaceViewProps>;
 
-/**
- * 右侧堆叠分区：五块会话结果（脚本 / 工作流 / 分析工作流 / 分析节点 / 应用会话）。
- * 每块各自持有折叠态；数据由所有面板共用的一次分组请求提供。
- */
-const STACK_SECTION_KEYS = [
-  'sessionScripts',
-  'sessionWorkflows',
-  'sessionAnalyses',
-  'sessionAnalysisNodes',
-  'sessionAppSessions',
-] as const;
-type StackSectionKey = (typeof STACK_SECTION_KEYS)[number];
-
-/**
- * 会话结果分区配置：标题与对应的资源类型。
- * 分区固定全部展示，不再支持显隐配置。
- */
-const SESSION_RESOURCE_SECTIONS: Record<
-  StackSectionKey,
-  { resourceType: AgentSessionResourceType; zh: string; en: string }
-> = {
-  sessionScripts: { resourceType: 'script', zh: '脚本', en: 'Scripts' },
-  sessionWorkflows: { resourceType: 'workflow', zh: '工作流', en: 'Workflows' },
-  sessionAnalyses: { resourceType: 'analysis', zh: '分析工作流', en: 'Analysis Workflow' },
-  sessionAnalysisNodes: { resourceType: 'analysis_node', zh: '分析节点', en: 'Analysis Nodes' },
-  sessionAppSessions: { resourceType: 'app_session', zh: '应用会话', en: 'App Sessions' },
-};
+/** New Chat 时使用的共享空标签数组，保持引用稳定（不渲染右侧标签页）。 */
+const NO_TABS: AgentWorkspaceTab[] = [];
 
 /**
  * Agent 会话页（`/session/:sessionId?`，无 sessionId 表示 New Chat）。
@@ -71,12 +44,12 @@ const SESSION_RESOURCE_SECTIONS: Record<
  * - 顶部：通栏 header，右侧只有一个展开 / 折叠按钮（总是显示）；
  * - main：当前会话的聊天（直接渲染 `<AgentChat />`），没有右侧面板时自动撑满；
  * - rightMiddle：聊天内容打开的标签页（有标签时才渲染，关闭全部后聊天自动撑开）；
- * - right：纵向堆叠面板（脚本 / 工作流 / 分析工作流 / 分析节点 / 应用会话），
- *   只渲染有数据的分区；每个分区可独立展开或折叠，并自带刷新按钮。
- *   没有任何数据时保留面板并展示空状态（同样由 SessionResourcePanel 渲染，带刷新按钮）。
+ * - right：`SessionResourceStack`（纵向堆叠脚本 / 工作流 / 分析工作流 / 分析节点 /
+ *   应用会话），「有数据就堆叠、没数据就空状态」的分支全部收在容器组件内部，
+ *   页面只负责传入 sessionId / active / cleared / onClose。
  *
- * 所有分区共用一次分组请求（`useAgentSessionResources`）：面板折叠时不发请求，
- * 展开时才请求；页面用同一份数据决定哪些分区有内容。刷新入口在分区标题栏里，
+ * 所有分区共用一次分组请求（`useAgentSessionResources`）：React Query 按同一个
+ * query key 去重，容器与各分区重复调用不会产生额外请求。刷新入口在分区标题栏里，
  * 只显示在第一个有数据的分区上（所有分区共享同一份数据）。
  *
  * 聊天里创建 / 切换会话时通过 `onConversationChange` 把地址同步成 `/session/:id`，
@@ -87,7 +60,9 @@ const AgentSessionPage: FC = () => {
   const navigate = useNavigate();
   const { locale } = useI18n();
   const workspace = useAgentWorkspace(sessionId);
-  const tabs = workspace.tabs;
+  // New Chat（无会话）时右侧清空：标签页与工作区内容都用这份空状态，不读取上一个会话的残留。
+  const isNewChat = !sessionId;
+  const tabs = isNewChat ? NO_TABS : workspace.tabs;
 
   // 会话实时流按会话订阅：进入页面时登记，离开 / 切换会话时撤销。
   //
@@ -126,11 +101,6 @@ const AgentSessionPage: FC = () => {
   // 使用过该会话的用户名：直接展示详情接口返回的 users，不做过滤 / 去重 / 兜底。
   const sessionUsernames = sessionId ? conversationParticipants[sessionId] ?? [] : [];
 
-  // 折叠状态持久化：切换面板 / 刷新浏览器后保持原样。
-  const [stackCollapsedKeys, setStackCollapsedKeys] = useSiderStackCollapsed(
-    'agentSessionRightStack',
-  );
-
   // 右侧堆叠面板整体折叠（持久化）：折叠后仍保留 DOM 与滚动位置。
   // 折叠按钮不在分隔条上（SplitWorkspace 的 showRightToggle=false），而是放在 header，
   // 使聊天区与面板之间的分隔条只用于拖拽调宽。
@@ -143,46 +113,13 @@ const AgentSessionPage: FC = () => {
     [setRightPaneCollapsedKeys],
   );
 
-  // 所有分区共用这一次分组请求（与各分区同一个 query key）：
-  // 右侧面板折叠时不请求接口，展开时才请求。
-  const { data: resourceGroups } = useAgentSessionResources(sessionId, !rightPaneCollapsed);
-
-  // 只渲染有数据的分区：没有结果的分区不占位。
-  const visibleSectionKeys = useMemo(
-    () =>
-      STACK_SECTION_KEYS.filter(
-        (key) =>
-          (resourceGroups?.[SESSION_RESOURCE_SECTIONS[key].resourceType]?.length ?? 0) > 0,
-      ),
-    [resourceGroups],
-  );
-
-  const stackSections = useMemo<SiderStackSection[]>(
-    () =>
-      visibleSectionKeys.map((key, index) => {
-        const resourceSection = SESSION_RESOURCE_SECTIONS[key];
-        return {
-          key,
-          render: ({ collapsed, toggle }) => (
-            <SessionResourcePanel
-              sessionId={sessionId}
-              resourceType={resourceSection.resourceType}
-              title={locale === 'en_US' ? resourceSection.en : resourceSection.zh}
-              active={!rightPaneCollapsed}
-              /* 所有分区共用一次请求：刷新入口只放在第一个分区，避免重复按钮。 */
-              showRefresh={index === 0}
-              /* 关闭整个右侧面板的按钮只放在最上方分区的标题栏里。 */
-              onClose={index === 0 ? () => setRightPaneCollapsed(true) : undefined}
-              collapsed={collapsed}
-              onToggleCollapse={toggle}
-            />
-          ),
-        };
-      }),
-    [locale, rightPaneCollapsed, sessionId, setRightPaneCollapsed, visibleSectionKeys],
-  );
-
-  const showStack = visibleSectionKeys.length > 0;
+  // New Chat 时清空右侧工作表（标签页）：上一个会话打开的页面不应留在新会话里。
+  useEffect(() => {
+    if (!isNewChat) {
+      return;
+    }
+    resetAgentWorkspace(undefined);
+  }, [isNewChat]);
 
   // 激活标签被关闭后 store 会切到邻居；这里再兜底一次，避免 active 指向已关闭的 key。
   const activeTab = useMemo(
@@ -288,24 +225,12 @@ const AgentSessionPage: FC = () => {
         }
         rightMiddleResizeLabel={locale === 'en_US' ? 'Resize tabs panel' : '调整标签面板'}
         right={
-          showStack ? (
-            <SiderStackLayout
-              sections={stackSections}
-              collapsedKeys={stackCollapsedKeys}
-              onCollapsedKeysChange={setStackCollapsedKeys}
-              resizeLabel={locale === 'en_US' ? 'Resize panels' : '调整面板高度'}
-            />
-          ) : (
-            /* 没有数据时也保留右侧面板：空状态与刷新按钮都由 SessionResourcePanel 渲染。 */
-            <SessionResourcePanel
-              sessionId={sessionId}
-              title={locale === 'en_US' ? 'Session results' : '会话结果'}
-              active={!rightPaneCollapsed}
-              showRefresh
-              onClose={() => setRightPaneCollapsed(true)}
-              collapsed={false}
-            />
-          )
+          <SessionResourceStack
+            sessionId={sessionId}
+            active={!rightPaneCollapsed}
+            cleared={isNewChat}
+            onClose={() => setRightPaneCollapsed(true)}
+          />
         }
         /* 折叠 / 展开由 header 控制，分隔条上不再渲染折叠按钮。 */
         showRightToggle={false}

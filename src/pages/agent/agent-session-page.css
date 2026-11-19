@@ -89,3 +89,43 @@
   min-height: 0;
 }
 
+/* 右侧会话结果：每个资源类型是一个可折叠 / 可拖高的堆叠分区（骨架用 PanelLayout） */
+.session-resource-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.session-resource-item {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 5px 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.session-resource-item:hover {
+  background: color-mix(in srgb, var(--sharp-panel-muted) 65%, transparent);
+}
+
+.session-resource-item-name {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--sharp-text);
+  font-size: 13px;
+}
+
+.ant-btn.session-resource-item-name {
+  height: auto;
+  padding: 0;
+  text-align: left;
+}
+
+.session-resource-item-id {
+  font-size: 12px;
+  color: var(--sharp-text-soft);
+}
+
