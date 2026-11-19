@@ -9,7 +9,7 @@ import { create } from 'zustand';
  *   也不落库（后续做「点击聊天内容打开右侧页面」时调用 `openAgentWorkspaceTab` 即可）。
  *
  * 标签用 `view`（ViewResolver 的视图名）+ `params` 描述要渲染的内容，
- * 右侧面板顶部是标签栏（MainTabs 本地模式），下方是 `<ViewResolver view={view} />`。
+ * 右侧面板顶部是标签栏（MainTabs），下方是 `<ViewResolver view={view} />`。
  */
 
 export type AgentWorkspaceTab = {

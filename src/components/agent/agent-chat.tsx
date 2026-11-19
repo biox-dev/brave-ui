@@ -1188,8 +1188,6 @@ const AgentChat: FC<AgentChatProps> = ({
                   view: "analysisNodeDetails",
                   params: {
                     analysis_node_id: nodeId,
-                    // 不在主标签栏登记名称（右侧工作区有自己的标签栏）。
-                    useTitle: false,
                   },
                 });
               }}

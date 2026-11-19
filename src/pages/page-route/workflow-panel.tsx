@@ -30,7 +30,6 @@ import GitStateActions from "../components-relation/components/git-state-actions
 import { ParamsEdit, ParamsPanelDock, ParamsPanelLayout } from "@/components/edit-params/params-panel"
 import PanelLayout from "@/components/common/panel-layout"
 import { useI18n } from "@/hooks/useI18n"
-import { useRouteMainTabTitle } from "@/hooks/useMainTabTitle"
 import "./workflow-panel.css"
 
 const Pipeline: FC<any> = ({ }) => {
@@ -373,12 +372,6 @@ const Pipeline: FC<any> = ({ }) => {
 
 
     const zh = locale !== "en_US"
-
-    // 统一标签页标题通道：详情加载完成后把工作流名同步给 MainTabs，
-    // 直接打开/刷新该路由时标签页也能显示工作流名。
-    // useRouteMainTabTitle 只登记「id 与当前路由一致」的数据：本组件在 /c/tools/:workflow_id
-    // 之间切换时不会重新挂载，旧数据会残留一帧，不加判断会把上一个工作流的名称写到新标签页上。
-    useRouteMainTabTitle(component, { fields: ["name", "workflow_path"] })
 
     const views = [
         { label: zh ? "分析" : "Analysis", value: "analysisPage" },

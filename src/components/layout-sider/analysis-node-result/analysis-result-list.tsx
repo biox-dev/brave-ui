@@ -4,13 +4,12 @@ import { invoke } from "@/core/ui-system/invokeV2";
 import { useComponentStore } from "@/event-bus/stores/components";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
-import { useOpenMainTab } from "@/hooks/useMainTabTitle";
 import { formatRelativeTime } from "@/utils/time";
 import { DeleteOutlined, ExperimentOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Descriptions, Empty, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 import SiderPanelLayout from "../common/sider-panel-layout";
 
@@ -107,10 +106,9 @@ export interface AnalysisResultListProps {
 
 const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel, close, multiple = false, collapsed = false, onToggleCollapse }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const message = useGlobalMessage();
   const { locale } = useI18n();
-  // 跳转 + 登记标签页名称一步完成；名称最终以详情页登记的真实数据为准。
-  const openMainTab = useOpenMainTab();
 
   // Derive the selected node id from the current route so the selection
   // survives a full page refresh.
@@ -203,13 +201,9 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
     refetch();
   };
 
-  /**
-   * 打开节点报告标签页。
-   * 统一通过 MainTabs 的标题通道登记节点名：标签页会直接显示节点名称，
-   * 而不是静态规则生成的「节点报告 · <id>」。
-   */
+  /** 跳转到节点报告页（普通路由跳转）。 */
   const openNodeReport = (node: AnalysisNodeItem) => {
-    openMainTab(`/analsyis-node-report/${node.id}`, nodeDisplayName(node));
+    navigate(`/analsyis-node-report/${node.id}`);
   };
 
   /**

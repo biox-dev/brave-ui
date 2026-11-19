@@ -9,13 +9,12 @@ import { LazyListFooter, LazyListSearch, LazyListSentinel, useLazyList } from "@
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { useLeftMiddlePane, useLeftMiddlePaneState } from "@/hooks/useLeftMiddlePane";
-import { useOpenMainTab } from "@/hooks/useMainTabTitle";
 import { formatRelativeTime } from "@/utils/time";
 import { DeleteOutlined, EditOutlined, EyeOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined, SendOutlined, UnorderedListOutlined } from "@ant-design/icons";
 import { Button, Empty, Popconfirm, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo, useState } from "react";
-import { useLocation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { openLeftMiddlePane } from "@/layout/left-middle-pane-store";
@@ -30,10 +29,9 @@ export interface ProjectReportListProps {
 
 const ProjectReportList: FC<ProjectReportListProps> = ({ collapsed = false, onToggleCollapse }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const message = useGlobalMessage();
   const { locale } = useI18n();
-  // 跳转 + 登记标签页名称一步完成（报告实体有 title 字段，默认标题规则即可）。
-  const openMainTab = useOpenMainTab();
   const { project } = useSelector((state: any) => state.user);
   const projectId = typeof project === "string" ? project : project?.project_id;
   const [publishingReportId, setPublishingReportId] = useState<string>();
@@ -110,7 +108,7 @@ const ProjectReportList: FC<ProjectReportListProps> = ({ collapsed = false, onTo
       );
       await refetch();
       if (created?.id) {
-        openMainTab(`/report/${created.id}`, created);
+        navigate(`/report/${created.id}`);
       }
     } catch {
       // User canceled the create modal.
@@ -198,7 +196,7 @@ const ProjectReportList: FC<ProjectReportListProps> = ({ collapsed = false, onTo
               type="text"
               size="small"
               icon={<EyeOutlined />}
-              onClick={() => openMainTab(`/report/${record.id}`, record)}
+              onClick={() => navigate(`/report/${record.id}`)}
             />
           </Tooltip>
           <Button
@@ -225,7 +223,7 @@ const ProjectReportList: FC<ProjectReportListProps> = ({ collapsed = false, onTo
       ),
     },
   ],
-    [locale, publishingReportId, openMainTab]
+    [locale, publishingReportId, navigate]
   );
 
   return (
@@ -274,7 +272,7 @@ const ProjectReportList: FC<ProjectReportListProps> = ({ collapsed = false, onTo
           // 不再以「展开行」的形式嵌在列表里。
           onRow={(record) => ({
             style: { cursor: "pointer" },
-            onClick: () => openMainTab(`/report-file/${record.id}`, record),
+            onClick: () => navigate(`/report-file/${record.id}`),
           })}
           rowClassName={(record) =>
             record.id === selectedId ? "project-report-row-selected" : ""

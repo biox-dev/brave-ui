@@ -27,12 +27,6 @@ export interface AgentProfileInfo {
 	is_builtin?: boolean;
 }
 
-// 主区域一个标签页：url = 路由地址（pathname + search），title = 最近一次登记的显示名（可空）。
-export interface UserMenuTab {
-	url: string;
-	title?: string;
-}
-
 // 底部面板一个标签页：kind 决定前端渲染器（terminal / log / …），params 是该渲染器的参数。
 export interface UserBottomTab {
 	key: string;
@@ -49,9 +43,8 @@ export interface UserBottomPanel {
 	tabs?: UserBottomTab[];
 }
 
-// 当前激活项目下的菜单配置（后端 user_project.menu_config）：主区域标签页 + 底部面板。
+// 当前激活项目下的菜单配置（后端 user_project.menu_config）：底部面板状态。
 export interface UserMenuConfig {
-	tabs?: UserMenuTab[];
 	bottom?: UserBottomPanel;
 }
 
@@ -62,7 +55,7 @@ export interface LoginUser {
 	avatar: string;
 	profile?: string;
 	agent_config?: AgentUserConfig;
-	/** 主区域标签页配置：刷新后据此回填标签栏与名称。 */
+	/** 底部面板配置：刷新后据此回填终端 / 日志等面板。 */
 	menu_config?: UserMenuConfig;
 	/** 当前 agent_config.profile_id 对应的 Profile 摘要（由 /auth/me 解析返回）。 */
 	agent_profile?: AgentProfileInfo;
@@ -155,22 +148,9 @@ export const updateAgentEnvApi = (payload: { env_id?: string; env_type?: string 
 };
 
 /**
- * 保存当前用户的主区域标签页配置（整体替换，数组顺序即标签栏顺序）。
- *
- * 前端以「本地乐观更新 + 后台异步落库」方式使用：调用方不要 await，也不要用它驱动 loading/提示。
- */
-export const updateMenuConfigApi = (tabs: UserMenuTab[]) => {
-	return http.post<{ success: boolean; message: string; tabs: UserMenuTab[] }>(
-		"/auth/menu-config",
-		{ tabs },
-		{ skipGlobalError: true }
-	);
-};
-
-/**
  * 保存当前用户的底部面板状态（整体替换：标签列表 + 激活标签 + 展开态 + 高度）。
  *
- * 与 `updateMenuConfigApi` 同构：调用方做本地乐观更新，后台异步落库，失败不影响使用。
+ * 调用方做本地乐观更新，后台异步落库，失败不影响使用。
  */
 export const updateBottomPanelApi = (payload: UserBottomPanel) => {
 	return http.post<{

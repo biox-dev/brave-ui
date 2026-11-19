@@ -10,7 +10,6 @@ import { invoke } from "@/core/ui-system/invokeV2";
 import { runAnalysisNodeApi, stopAnalysisNodeApi } from "@/api/analysisv1";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useInsertAgentRef } from "@/hooks/useInsertAgentRef";
-import { useRouteMainTabTitle } from "@/hooks/useMainTabTitle";
 import { useRouteView } from "@/hooks/useRouteView";
 import type { AnalysisNodeReportView } from "@/routes/route-view";
 import { http } from "@/api/client/http";
@@ -65,7 +64,6 @@ const CODE_VIEW_HEIGHT = "clamp(420px, 62vh, 760px)";
 
 export interface AnalysisNodeDetailsProps {
     analysis_node_id?: string;
-    useTitle?: boolean;
     /**
      * 当前组件是否由「带视图段的路由」渲染（/analsyis-node-report/:id/:view?）。
      *
@@ -76,23 +74,13 @@ export interface AnalysisNodeDetailsProps {
     viewFromRoute?: boolean;
 }
 
-const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, useTitle, viewFromRoute }) => {
+const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, viewFromRoute }) => {
     const [detailLoading, setDetailLoading] = useState(false);
     const [sampleDetailMap, setSampleDetailMap] = useState<Record<string, Partial<AnalysisNodeSample>>>({});
     const { analysisNodeId, setAnalysisNodeId } = useStoreRender();
     const { register, unregister } = useComponentStore();
     const message = useGlobalMessage();
     const [selectedSampleDetail, setSelectedSampleDetail] = useState<any>({});
-    // 统一标签页标题通道：详情加载完成后把节点名同步给 MainTabs，
-    // 直接打开/刷新该路由时标签页也能显示节点名。
-    // useRouteMainTabTitle 只登记「id 与当前路由一致」的数据：本组件在
-    // /analsyis-node-report/:id 之间切换时不会重新挂载，旧数据会残留一帧，
-    // 不加判断会把上一个节点的名称写到新标签页上。
-    // useTitle === false 时不参与标签页改名（交给上层/其它页面控制标题）。
-    useRouteMainTabTitle(selectedSampleDetail?.node, {
-        enabled: useTitle !== false,
-        fields: ["node_name"],
-    });
     // 运行中的节点可以打开容器终端（xterm.js -> WebSocket -> kubectl/docker exec）。
     const [terminalOpen, setTerminalOpen] = useState(false);
     // 底部 ViewResolver 当前展示的视图：由路由视图段决定（刷新 / 前进后退 / 切标签页都能恢复），

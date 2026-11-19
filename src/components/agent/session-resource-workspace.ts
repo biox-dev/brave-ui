@@ -29,7 +29,6 @@ export interface SessionResourceWorkspaceTarget {
  * - `analysis`（分析运行）没有独立路由页，打开该分析下的节点列表（analysisNodePage）；
  * - `analysis_node` 打开节点详情（analysisNodeDetails），它的 `analysis_node_id`
  *   语义上是分析节点 DB 主键，正好等于会话资源里的 `resource_id`；
- *   `useTitle: false` 让详情组件不要改主标签栏标题（工作区标签名由这里决定）；
  * - `app_session`（应用会话 = 终端会话）在右侧工作区打开 xterm 终端
  *   （`agentAppSessionTerminal`）；「移到下方」由终端组件自己的按钮完成
  *   （`AnalysisNodeTerminal` 的 `moveToBottom`），不经这里。
@@ -45,7 +44,7 @@ export const SESSION_RESOURCE_WORKSPACE_TARGETS: Partial<
   analysis_node: {
     view: 'analysisNodeDetails',
     tabKeyPrefix: 'session-analysis-node',
-    params: (item) => ({ analysis_node_id: item.resource_id, useTitle: false }),
+    params: (item) => ({ analysis_node_id: item.resource_id }),
   },
   app_session: {
     view: 'agentAppSessionTerminal',

@@ -5,13 +5,12 @@ import { http } from "@/api/client/http";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
-import { useOpenMainTab } from "@/hooks/useMainTabTitle";
 import { formatRelativeTime } from "@/utils/time";
 import { CodeOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Descriptions, Empty, Popconfirm, Popover, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo } from "react";
-import { useLocation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 import SiderPanelLayout from "../common/sider-panel-layout";
 
@@ -92,9 +91,8 @@ export interface ScriptPageListProps {
 const ScriptPageList: FC<ScriptPageListProps> = ({ collapsed = false, onToggleCollapse }) => {
   const message = useGlobalMessage();
   const location = useLocation();
+  const navigate = useNavigate();
   const { locale } = useI18n();
-  // 跳转 + 登记标签页名称一步完成；名称最终以详情页登记的真实数据为准。
-  const openMainTab = useOpenMainTab();
 
   // Derive the selected script id from the current route so the selection
   // survives a full page refresh.
@@ -133,16 +131,12 @@ const ScriptPageList: FC<ScriptPageListProps> = ({ collapsed = false, onToggleCo
   const isLoading = loading;
   const isFetching = loading || loadingMore;
 
-  /**
-   * 打开脚本详情标签页。
-   * 统一通过 MainTabs 的标题通道登记脚本名：标签页直接显示脚本名称，
-   * 而不是静态规则生成的「脚本 · <id>」。
-   */
+  /** 跳转到脚本详情页（普通路由跳转）。 */
   const handleOpen = (script: ScriptItem) => {
     if (!script?.id) {
       return;
     }
-    openMainTab(`/c/scripts/${encodeURIComponent(script.id)}`, scriptDisplayName(script));
+    navigate(`/c/scripts/${encodeURIComponent(script.id)}`);
   };
 
   const columns = useMemo<ColumnsType<ScriptItem>>(

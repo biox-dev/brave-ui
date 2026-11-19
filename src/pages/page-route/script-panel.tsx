@@ -12,7 +12,6 @@ import GitStateActions from "../components-relation/components/git-state-actions
 import { ParamsEdit, ParamsPanelDock, ParamsPanelLayout } from "@/components/edit-params/params-panel"
 import PanelLayout from "@/components/common/panel-layout"
 import { useI18n } from "@/hooks/useI18n"
-import { useRouteMainTabTitle } from "@/hooks/useMainTabTitle"
 import { useRouteView } from "@/hooks/useRouteView"
 import type { ScriptPanelView } from "@/routes/route-view"
 import { http } from "@/api/client/http"
@@ -78,12 +77,6 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
     
-
-    // 统一标签页标题通道：详情加载完成后把脚本名同步给 MainTabs，
-    // 直接打开/刷新该路由时标签页也能显示脚本名。
-    // useRouteMainTabTitle 只登记「id 与当前路由一致」的数据：本组件在 /c/scripts/:script_id
-    // 之间切换时不会重新挂载，旧数据会残留一帧，不加判断会把上一个脚本的名称写到新标签页上。
-    useRouteMainTabTitle(script, { fields: ["name", "script_path"] })
 
     // Static tab list, mirroring workflow-panel: every script shows the same tabs.
     const views: { label: string; value: ScriptViewKey }[] = [

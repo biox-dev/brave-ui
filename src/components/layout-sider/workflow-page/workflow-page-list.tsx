@@ -5,13 +5,12 @@ import { http } from "@/api/client/http";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
-import { useOpenMainTab } from "@/hooks/useMainTabTitle";
 import { formatRelativeTime } from "@/utils/time";
 import { ApartmentOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Descriptions, Empty, Popconfirm, Popover, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo } from "react";
-import { useLocation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 import SiderPanelLayout from "../common/sider-panel-layout";
 
@@ -95,9 +94,8 @@ export interface WorkflowPageListProps {
 const WorkflowPageList: FC<WorkflowPageListProps> = ({ collapsed = false, onToggleCollapse }) => {
   const message = useGlobalMessage();
   const location = useLocation();
+  const navigate = useNavigate();
   const { locale } = useI18n();
-  // 跳转 + 登记标签页名称一步完成；名称最终以详情页登记的真实数据为准。
-  const openMainTab = useOpenMainTab();
 
   // Derive the selected workflow id from the current route so the selection
   // survives a full page refresh.
@@ -136,16 +134,12 @@ const WorkflowPageList: FC<WorkflowPageListProps> = ({ collapsed = false, onTogg
   const isLoading = loading;
   const isFetching = loading || loadingMore;
 
-  /**
-   * 打开工作流详情标签页。
-   * 统一通过 MainTabs 的标题通道登记工作流名：标签页直接显示工作流名称，
-   * 而不是静态规则生成的「流程 · <id>」。
-   */
+  /** 跳转到工作流详情页（普通路由跳转）。 */
   const handleOpen = (workflow: WorkflowItem) => {
     if (!workflow?.workflow_id) {
       return;
     }
-    openMainTab(`/c/tools/${encodeURIComponent(String(workflow.id))}`, workflowDisplayName(workflow));
+    navigate(`/c/tools/${encodeURIComponent(String(workflow.id))}`);
   };
 
   const columns = useMemo<ColumnsType<WorkflowItem>>(

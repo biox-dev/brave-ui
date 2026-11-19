@@ -384,7 +384,7 @@ const AnalysisNodePage = ({
 
 			</Card>
 			<div style={{ marginTop: "1rem" }}>
-				{analysisNodeId && <AnalysisNodeDetails useTitle={false} analysis_node_id={analysisNodeId}></AnalysisNodeDetails>}
+				{analysisNodeId && <AnalysisNodeDetails analysis_node_id={analysisNodeId}></AnalysisNodeDetails>}
 
 			</div>
 

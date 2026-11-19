@@ -1,242 +1,38 @@
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { CloseOutlined } from '@ant-design/icons';
-import { useLocation, useNavigate } from 'react-router';
-import { useDispatch, useSelector } from 'react-redux';
 import { useI18n } from '@/hooks/useI18n';
-import { useMainTabTitles } from '@/hooks/useMainTabTitle';
-import type { UserMenuTab } from '@/api/auth';
-import { setUserMenuTabs } from '@/store/userSlice';
-import {
-  clearMainTabTitle,
-  pruneMainTabTitles,
-  seedMainTabTitles,
-  toMainTabBaseKey,
-  toMainTabKey,
-} from '../main-tab-title-store';
-import { cancelPendingMenuTabsSave, scheduleSaveMenuTabs } from '../main-tab-config-save';
-import { normalizeMainTabPath, resolveMainTabTitle } from '../main-tab-title';
 
-const MAX_TABS = 16;
-
-export type MainTabsHandle = {
-  /** 关闭当前激活的标签页（用于主卡片头部的关闭按钮）。 */
-  closeActiveTab: () => void;
-};
-
-/**
- * 判断本次回填是否属于「首次回填」。回填 key 形如 `userId::projectId`：
- *
- * - 首次挂载（没有旧 key）→ 首次；
- * - 换账号（userId 变化）→ 首次；
- * - 启动时 `/project/active-project` 比 `/auth/me` 晚返回（同一用户、projectId 由空变为有值）→ 仍属首次；
- * - 真正的「切换项目」（同一用户、projectId 从一个非空值变成另一个）→ 不是首次。
- *
- * 只有首次回填才会把当前深链路由补进标签栏，避免切换项目时把上一个项目的路由写进新项目。
- */
-const isFirstHydrationKey = (prevKey: string | null, nextKey: string): boolean => {
-  if (!prevKey) {
-    return true;
-  }
-  const [prevUser, prevProject = ''] = prevKey.split('::');
-  const [nextUser, nextProject = ''] = nextKey.split('::');
-  if (prevUser !== nextUser) {
-    return true;
-  }
-  return prevProject === '' && nextProject !== '';
+/** 标签栏的一项：`key` 是标签身份，`title` 是显示名。 */
+export type MainTabItem = {
+  key: string;
+  title: string;
 };
 
 type MainTabsProps = {
-  /**
-   * 标签页数量变化时通知父级。
-   * `undefined` 表示接口数据尚未回填，父级应把它当成「未知」而不是「空」。
-   */
-  onTabsChange?: (count: number | undefined) => void;
-  /**
-   * 本地（受控）模式：标签由外部提供，点击 / 关闭只触发回调。
-   * 该模式不读写路由、不回填也不落库，用于 Agent 会话页右侧的工作区标签栏。
-   * 传入空数组同样表示本地模式（此时标签栏为空）。
-   */
-  localTabs?: Array<{ key: string; title: string }>;
-  /** 本地模式下当前激活标签的 key。 */
+  /** 标签列表：顺序即标签栏顺序。 */
+  tabs: MainTabItem[];
+  /** 当前激活标签的 key。 */
   activeKey?: string;
-  /** 本地模式下点击标签的回调。 */
+  /** 点击标签的回调。 */
   onSelect?: (key: string) => void;
-  /** 本地模式下关闭标签的回调（不传则不显示关闭按钮的交互效果）。 */
+  /** 关闭标签的回调。 */
   onClose?: (key: string) => void;
 };
 
 /**
- * 主区域顶部的标签页。
- * 只记录访问过的路由并负责切换/关闭，页面内容仍由上层 <Outlet /> 渲染，
- * 因此切换标签页等价于路由跳转（页面组件会重新挂载）。
+ * 工作区标签栏：渲染在 SplitWorkspace 的 rightMiddle（如 Agent 会话页）里。
  *
- * 标签页列表的唯一数据源是后端：`/auth/me` 的 `user.menu_config.tabs`（当前激活项目）回填，
- * 之后的每次新增 / 关闭 / 改名都异步回写（不阻塞 UI）。
- *
- * 另外支持「本地受控模式」（传 `localTabs`）：标签由外部提供，点击 / 关闭只触发回调，
- * 不读写路由、不回填也不落库。Agent 会话页（/session/:sessionId）右侧的工作区标签栏
- * 用的就是这个模式。
+ * 标签由宿主维护（受控模式）：点击 / 关闭只触发回调，组件本身不读写路由、不回填也不落库。
+ * 普通页面的路由跳转直接调用 react-router 的 `navigate`，不再经过标签栏。
  */
-const MainTabs = forwardRef<MainTabsHandle, MainTabsProps>(
-  ({ onTabsChange, localTabs, activeKey, onSelect, onClose }, ref) => {
+const MainTabs: React.FC<MainTabsProps> = ({ tabs, activeKey, onSelect, onClose }) => {
   const { locale } = useI18n();
-  const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const { pathname, search } = useLocation();
-
-  const currentKey = `${normalizeMainTabPath(pathname)}${search}`;
-  // 标签页「身份」：去掉页面内部的视图段（…/:id/scriptCode），切视图不新增标签页。
-  const currentBaseKey = toMainTabBaseKey(currentKey);
-  const isRoot = normalizeMainTabPath(pathname) === '/';
-  // 本地受控模式：所有「路由 / 后端」相关逻辑都不参与。
-  const isLocal = localTabs !== undefined;
-
-  const userId = useSelector((state: any) => state.user.userInfo?.id as string | undefined);
-  // 菜单配置是项目维度的：切换激活项目后，用新项目的 menu_config 重新回填。
-  const projectId = useSelector((state: any) => state.user.projectId as string | undefined);
-  // 注意：selector 必须返回稳定引用，否则每次 render 都会被当成变化。
-  const menuConfig = useSelector((state: any) => state.user.userInfo?.menu_config);
-  const serverTabs = useMemo<UserMenuTab[]>(() => menuConfig?.tabs ?? [], [menuConfig]);
-  // 「同一用户的不同项目」是两份独立的配置，因此回填的 key 是 user + project。
-  const hydrationKey = `${userId ?? ''}::${projectId ?? ''}`;
-
-  // null = 接口数据还没到：此时不渲染标签、也不落库，避免用空列表覆盖后端。
-  // 本地状态直接持有 url + title：渲染与落库都用它，redux 里的 menu_config 只是同步出去的副本。
-  const [tabs, setTabs] = useState<UserMenuTab[] | null>(null);
   const tabsRef = useRef<HTMLDivElement | null>(null);
-  // 各组件登记的可读名称（如节点名）；没登记的标签页回退到静态标题规则。
-  const titleOverrides = useMainTabTitles();
-  // 已回填过的「用户+项目」key（换账号 / 切项目时重新回填）与最近一次已同步的标签页快照（避免重复请求）。
-  const hydratedUserRef = useRef<string | null>(null);
-  const savedSignatureRef = useRef<string | null>(null);
 
-  // 1) 回填：/auth/me 返回后，用后端列表 + 名称建立标签栏，并补上当前深链路由。
-  useEffect(() => {
-    if (isLocal || !userId || hydratedUserRef.current === hydrationKey) {
-      return;
-    }
-    // 只有首次回填（登录 / 刷新 / 换账号 / 启动时 projectId 稍后才知道）才补当前深链路由。
-    // 切换项目时调用方会跳回 /，这里也不能把上一个项目正在浏览的路由写进新项目。
-    const isFirstHydration = isFirstHydrationKey(hydratedUserRef.current, hydrationKey);
-    hydratedUserRef.current = hydrationKey;
-    // 切换项目：丢弃上一个项目尚未落库的防抖请求，避免写到新项目。
-    cancelPendingMenuTabsSave();
-    seedMainTabTitles(serverTabs);
-    const next: UserMenuTab[] = serverTabs
-      .map((tab) => ({ url: toMainTabKey(tab.url), title: (tab.title ?? '').trim() }))
-      .filter((tab) => tab.url !== '/');
-    // 后端已有内容：先记成「已同步」，避免回填后立刻再发一次相同的请求
-    savedSignatureRef.current = JSON.stringify(next);
-    if (isFirstHydration && !isRoot && !next.some((tab) => toMainTabBaseKey(tab.url) === currentBaseKey)) {
-      // 当前深链路由不在后端列表里 → 补一个，由下一轮同步落库
-      next.push({ url: currentKey, title: '' });
-    }
-    setTabs(next.slice(-MAX_TABS));
-  }, [currentBaseKey, currentKey, hydrationKey, isLocal, isRoot, serverTabs, userId]);
-
-  // 2) 路由变化时把当前地址写入标签页：
-  //    - 新路由 → 追加一个标签页；
-  //    - 同一路由的不同「视图段」（…/:id/scriptCode）→ 原地更新地址，不新增标签页。
-  //      这样切视图后标签页地址跟着走，切回来还能恢复上一次停留的视图。
-  useEffect(() => {
-    if (isLocal || isRoot) {
-      return;
-    }
-    setTabs((prev) => {
-      if (!prev) {
-        return prev;
-      }
-      const index = prev.findIndex((tab) => toMainTabBaseKey(tab.url) === currentBaseKey);
-      if (index < 0) {
-        return [...prev, { url: currentKey, title: '' }].slice(-MAX_TABS);
-      }
-      if (prev[index].url === currentKey) {
-        return prev;
-      }
-      const next = [...prev];
-      next[index] = { ...next[index], url: currentKey };
-      return next;
-    });
-  }, [currentBaseKey, currentKey, isLocal, isRoot]);
-
-  // 3) 把本地标签页的显示名同步成最新（页面登记的节点名可能晚于标签页创建）。
-  // 只在名称真的变化时才换状态，避免无意义的重渲染。
-  useEffect(() => {
-    if (isLocal || !tabs) {
-      return;
-    }
-    const next = tabs.map((tab) => ({
-      url: tab.url,
-      title: titleOverrides[tab.url] ?? '',
-    }));
-    if (next.every((tab, index) => tab.title === tabs[index].title)) {
-      return;
-    }
-    setTabs(next);
-  }, [isLocal, tabs, titleOverrides]);
-
-  // 4) 标签页变化后同步到 redux 并异步落库。
-  useEffect(() => {
-    if (isLocal || !tabs) {
-      return;
-    }
-    const signature = JSON.stringify(tabs);
-    if (signature === savedSignatureRef.current) {
-      return;
-    }
-    savedSignatureRef.current = signature;
-    dispatch(setUserMenuTabs(tabs));
-    scheduleSaveMenuTabs(tabs);
-  }, [dispatch, isLocal, tabs]);
-
-  // 5) 清理已关闭标签页残留的名称
-  useEffect(() => {
-    if (isLocal || !tabs) {
-      return;
-    }
-    pruneMainTabTitles([...tabs.map((tab) => tab.url), currentKey]);
-  }, [currentKey, isLocal, tabs]);
-
-  // 6) 把标签页数量上报给父级（主区域据此判断是否需要收起）
-  useEffect(() => {
-    if (isLocal) {
-      onTabsChange?.(localTabs?.length);
-      return;
-    }
-    onTabsChange?.(tabs ? tabs.length : undefined);
-  }, [isLocal, localTabs?.length, onTabsChange, tabs]);
-
-  const closeTab = useCallback(
-    (key: string) => {
-      // 本地模式只通知外部关闭，标签的增删由宿主维护。
-      if (isLocal) {
-        onClose?.(key);
-        return;
-      }
-      if (!tabs) {
-        return;
-      }
-      const index = tabs.findIndex((tab) => tab.url === key);
-      if (index < 0) {
-        return;
-      }
-      const next = tabs.filter((tab) => tab.url !== key);
-      setTabs(next);
-      // 标签页关闭后同步清理它登记的名称
-      clearMainTabTitle(key);
-      if (toMainTabBaseKey(key) === currentBaseKey) {
-        // 关闭当前标签：优先切到右侧相邻标签，没有则切到左侧，全部关闭后回到根路由
-        const fallback = next[index]?.url ?? next[index - 1]?.url ?? null;
-        navigate(fallback ?? '/');
-      }
-    },
-    [currentBaseKey, isLocal, navigate, onClose, tabs],
-  );
-
-  useImperativeHandle(ref, () => ({ closeActiveTab: () => closeTab(currentKey) }), [
-    closeTab,
-    currentKey,
-  ]);
+  // 关闭标签只通知宿主，标签的增删由宿主维护。
+  const closeTab = (key: string) => {
+    onClose?.(key);
+  };
 
   // 标签栏溢出时，支持鼠标滚轮 / 触控板左右滚动（wheel 需要非 passive 才能阻止默认滚动）
   useEffect(() => {
@@ -262,35 +58,22 @@ const MainTabs = forwardRef<MainTabsHandle, MainTabsProps>(
   // 标签过多时把当前激活的标签滚动到可见区域
   useEffect(() => {
     const container = tabsRef.current;
-    if ((isRoot && !isLocal) || !container) {
+    if (!container || !activeKey) {
       return;
     }
-    const target = isLocal ? activeKey : currentBaseKey;
     const active = Array.from(
       container.querySelectorAll<HTMLElement>('[data-tab-key]'),
-    ).find((node) => {
-      const tabKey = node.dataset.tabKey;
-      if (!tabKey) {
-        return false;
-      }
-      return isLocal ? tabKey === target : toMainTabBaseKey(tabKey) === target;
-    });
+    ).find((node) => node.dataset.tabKey === activeKey);
     active?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, [activeKey, currentBaseKey, isLocal, isRoot, localTabs?.length, tabs?.length]);
+  }, [activeKey, tabs.length]);
 
   return (
     <div className="layout-sharp-main-tabs" ref={tabsRef} role="tablist">
       <div className="layout-sharp-main-tabs-track">
-        {(isLocal
-          ? localTabs ?? []
-          : (tabs ?? []).map((tab) => ({ key: tab.url, title: tab.title }))
-        ).map((tab) => {
+        {tabs.map((tab) => {
           const key = tab.key;
-          const title = tab.title || resolveMainTabTitle(key, locale);
-          // 本地模式由外部决定激活项；路由模式按「去掉视图段」的 key 比较。
-          const isActive = isLocal
-            ? key === activeKey
-            : toMainTabBaseKey(key) === currentBaseKey && !isRoot;
+          const title = tab.title || key;
+          const isActive = key === activeKey;
           return (
             <div
               key={key}
@@ -300,15 +83,11 @@ const MainTabs = forwardRef<MainTabsHandle, MainTabsProps>(
               aria-selected={isActive}
               title={title}
               className={`layout-sharp-main-tab${isActive ? ' is-active' : ''}`}
-              onClick={() => (isLocal ? onSelect?.(key) : navigate(key))}
+              onClick={() => onSelect?.(key)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault();
-                  if (isLocal) {
-                    onSelect?.(key);
-                  } else {
-                    navigate(key);
-                  }
+                  onSelect?.(key);
                 }
               }}
               onMouseDown={(event) => {
@@ -345,8 +124,6 @@ const MainTabs = forwardRef<MainTabsHandle, MainTabsProps>(
       </div>
     </div>
   );
-});
-
-MainTabs.displayName = 'MainTabs';
+};
 
 export default MainTabs;

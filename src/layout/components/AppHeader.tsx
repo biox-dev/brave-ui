@@ -11,7 +11,6 @@ import { activateProjectApi, type ProjectItem } from '@/api/project';
 import { clearUserSession, loadActiveProject, loadCurrentUser, loadRuntimeInfo } from '@/store/userSlice';
 import { logoutApi } from '@/api/auth';
 import { getPathname } from '@/utils/utils';
-import { cancelPendingMenuTabsSave } from '../main-tab-config-save';
 import { cancelPendingBottomPanelSave } from '../bottom-panel-store';
 
 type AppHeaderProps = {
@@ -74,16 +73,14 @@ const AppHeader: React.FC<AppHeaderProps> = ({ backgroundColor }) => {
 
             if (!value?.project_id) return;
 
-            // 菜单配置写入的是「服务端当前激活项目」：切换前先丢弃还在防抖中、尚未发出的
-            // 旧项目配置，否则它们会在切换完成后到达，被写到新项目上。
-            cancelPendingMenuTabsSave();
+            // 底部面板配置写入的是「服务端当前激活项目」：切换前先丢弃还在防抖中、
+            // 尚未发出的旧项目配置，否则它们会在切换完成后到达，被写到新项目上。
             cancelPendingBottomPanelSave();
 
             await activateProjectApi({ project_id: value.project_id });
             // 切换项目后回到首页：当前深链路由属于上一个项目，不应带到新项目里去。
-            // 必须在刷新菜单配置前跳转，否则新项目的标签页会先把旧路由补进去并落库。
             navigate('/');
-            // 菜单配置（标签页 / 底部面板）按项目落库，切换后先刷新 userInfo
+            // 底部面板配置按项目落库，切换后先刷新 userInfo
             // （/auth/me 会按新的激活项目返回 menu_config），再刷新项目信息。
             await dispatch(loadCurrentUser() as any);
             await dispatch(loadActiveProject() as any);

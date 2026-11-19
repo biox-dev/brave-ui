@@ -4,7 +4,7 @@ import { updateBottomPanelApi, type UserBottomPanel } from '@/api/auth';
 /**
  * 主区域底部面板（终端 / 日志 …）的共享状态。
  *
- * 数据流与主区域标签页（MainTabs）保持一致：
+ * 数据流：
  * - 唯一数据源是后端 `user_project.menu_config.bottom`（当前激活项目），`/auth/me` 返回后由 `hydrateBottomPanel` 回填；
  * - 之后的每次打开 / 关闭 / 切换 / 拖动高度都先更新本地状态（乐观更新），
  *   再由 `scheduleSave` 防抖异步落库，不阻塞 UI、失败也不打扰用户；
@@ -63,8 +63,8 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null;
 /**
  * 丢弃尚未发出的底部面板保存请求。
  *
- * 与 `cancelPendingMenuTabsSave` 同理：菜单配置写入「服务端当前激活项目」，
- * 切项目必须在 activate 之前调用，避免旧项目的面板状态被写到新项目。
+ * 菜单配置写入「服务端当前激活项目」，切项目必须在 activate 之前调用，
+ * 避免旧项目的面板状态被写到新项目。
  */
 export const cancelPendingBottomPanelSave = () => {
   if (saveTimer) {

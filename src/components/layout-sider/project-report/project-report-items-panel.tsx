@@ -8,7 +8,6 @@ import {
 } from "@/api/project";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
-import { useOpenMainTab } from "@/hooks/useMainTabTitle";
 import {
 	CloseOutlined,
 	DeleteOutlined,
@@ -23,6 +22,7 @@ import {
 import { Button, Dropdown, Empty, Input, Modal, Popconfirm, Spin, Tree } from "antd";
 import type { MenuProps, TreeProps } from "antd";
 import { FC, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useNavigate } from "react-router";
 import { useQuery } from "react-query";
 import {
 	countReportTreeNodes,
@@ -145,10 +145,9 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({
 	onClose,
 }) => {
 	const message = useGlobalMessage();
-	// 跳转 + 登记标签页名称一步完成；analysis_node 条目可直达对应节点报告页。
-	const openMainTab = useOpenMainTab();
+	const navigate = useNavigate();
 
-	// handleOpenItem：未传入 onOpenItem 时以「报告条目」标签页打开详情，
+	// handleOpenItem：未传入 onOpenItem 时跳转到「报告条目」详情页，
 	// 让本组件既能嵌在列表行里，也能独立渲染到布局的 leftMiddle 面板。
 	// 链接带上所属报告 id（二级路由），刷新后左中面板仍能恢复。
 	const handleOpenItem = (item: ProjectReportItem) => {
@@ -156,7 +155,7 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({
 			onOpenItem(item);
 			return;
 		}
-		openMainTab(`/report/${reportId}/item/${item.id}`, item);
+		navigate(`/report/${reportId}/item/${item.id}`);
 	};
 	const {
 		data = [],
@@ -348,9 +347,7 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({
 						size="small"
 						icon={<ExportOutlined />}
 						title="Open analysis node report"
-						onClick={() =>
-							openMainTab(`/analsyis-node-report/${node.item.owner_id}`, node.title)
-						}
+						onClick={() => navigate(`/analsyis-node-report/${node.item.owner_id}`)}
 					/>
 				) : null}
 				{/* 在当前节点下新增子条目：选择类型后以该节点 id 作为 parent_id 写入。 */}

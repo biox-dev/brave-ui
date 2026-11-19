@@ -164,8 +164,8 @@ const AgentSessionPage: FC = () => {
     [tabs, workspace.active],
   );
 
-  // MainTabs 本地模式只关心 key / title。
-  const localTabs = useMemo(
+  // MainTabs 只关心 key / title。
+  const tabItems = useMemo(
     () => tabs.map((tab) => ({ key: tab.key, title: tab.title })),
     [tabs],
   );
@@ -222,7 +222,7 @@ const AgentSessionPage: FC = () => {
               className="agent-session-tabs-card"
               title={
                 <MainTabs
-                  localTabs={localTabs}
+                  tabs={tabItems}
                   activeKey={activeTab?.key}
                   onSelect={(key) => setActiveAgentWorkspaceTab(sessionId, key)}
                   onClose={(key) => closeAgentWorkspaceTab(sessionId, key)}

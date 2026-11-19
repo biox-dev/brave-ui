@@ -1,7 +1,7 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { getActiveProjectApi } from '@/api/project'
 import { getContainerRuntimeInfoApi, type ContainerRuntimeHealth } from '@/api/container'
-import { getCurrentUserApi, type AgentProfileInfo, type AgentUserConfig, type UserMenuConfig, type UserMenuTab } from '@/api/auth'
+import { getCurrentUserApi, type AgentProfileInfo, type AgentUserConfig, type UserMenuConfig } from '@/api/auth'
 import { getPathname } from "@/utils/utils";
 
 const locale = localStorage.getItem('locale')
@@ -136,7 +136,7 @@ export interface LoginUserInfo {
     avatar: string;
     profile?: string;
     agent_config?: AgentUserConfig;
-    /** 当前激活项目下的菜单配置（url + 显示名 + 底部面板），由 MainTabs 回填。 */
+    /** 当前激活项目下的菜单配置（底部面板），由布局层回填。 */
     menu_config?: UserMenuConfig;
     /** 当前 agent_config.profile_id 对应的 Profile 摘要（由 /auth/me 解析返回）。 */
     agent_profile?: AgentProfileInfo;
@@ -320,18 +320,6 @@ const contextSlice = createSlice({
             // userInfo 不再持久化到 localStorage，刷新时由 loadCurrentUser 从后台获取
             // debugger
         },
-        /**
-         * 乐观更新当前用户的主区域标签页配置（MainTabs 在本地变更时立即调用）。
-         * 真正的落库由 MainTabs 异步调用 /auth/menu-config 完成，这里只保证 redux 内的数据是最新的，
-         * 避免用户信息重新拉取前读到旧值。
-         */
-        setUserMenuTabs(state, action: PayloadAction<UserMenuTab[]>) {
-            if (!state.userInfo) {
-                return;
-            }
-            // 只覆盖标签页，保留底部面板配置（菜单配置整体存在同一个字段里）。
-            state.userInfo.menu_config = { ...state.userInfo.menu_config, tabs: action.payload };
-        },
         clearUserSession(state) {
             state.authorization = null;
             state.refreshToken = null;
@@ -377,7 +365,7 @@ const contextSlice = createSlice({
 })
 
 
-export const { setUserItem, setUserMenuTabs, clearUserSession } = contextSlice.actions
+export const { setUserItem, clearUserSession } = contextSlice.actions
 export default contextSlice.reducer
 
 
