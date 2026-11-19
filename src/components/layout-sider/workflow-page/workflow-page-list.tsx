@@ -1,5 +1,6 @@
-import { useWorkflowPageQuery } from "@/hooks/usePaginationV2";
-import type { WorkflowItem } from "@/api/workflow";
+import type { WorkflowItem, WorkflowPageQuery } from "@/api/workflow";
+import { pageWorkflowApi } from "@/api/workflow";
+import { LazyListFooter, LazyListSearch, LazyListSentinel, useLazyList } from "@/components/common/lazy-list";
 import { http } from "@/api/client/http";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
@@ -7,7 +8,7 @@ import { useI18n } from "@/hooks/useI18n";
 import { useOpenMainTab } from "@/hooks/useMainTabTitle";
 import { formatRelativeTime } from "@/utils/time";
 import { ApartmentOutlined, CaretDownOutlined, CaretRightOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
-import { Button, Descriptions, Empty, Pagination, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
+import { Button, Descriptions, Empty, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo } from "react";
 import { useLocation } from "react-router";
@@ -105,25 +106,34 @@ const WorkflowPageList: FC<WorkflowPageListProps> = ({ collapsed = false, onTogg
   }, [location.pathname]);
   const { projectId } = useSelector((state: any) => state.user);
 
+  // 统一懒加载 + 服务端关键字搜索：滚动到底部自动加载下一页。
   const {
-    data,
+    items: data,
+    loading,
+    loadingMore,
+    hasMore,
     total,
-    page,
-    pageSize,
-    setPage,
-    setPageSize,
-    isLoading,
-    isFetching,
-    refetch,
-  } = useWorkflowPageQuery(
-    {},
-    {
-      initialPageSize: 20,
-      scopeKey: projectId,
-      // 纵向堆叠折叠时只保留标题栏：停止列表请求，展开后自动按需加载（缓存 <30s 直接复用）。
-      enabled: !collapsed,
-    }
-  );
+    keyword,
+    setKeyword,
+    reload,
+    sentinelRef,
+  } = useLazyList<WorkflowItem, WorkflowPageQuery>({
+    fetcher: (payload) => {
+      const { page, page_size, keyword: kw, ...rest } = payload;
+      return pageWorkflowApi({
+        page,
+        page_size,
+        query: { ...rest, ...(kw ? { keywords: kw } : {}) },
+      }).then((response) => response.data);
+    },
+    pageSize: 20,
+    scopeKey: projectId,
+    // 纵向堆叠折叠时只保留标题栏：停止列表请求，展开后自动恢复。
+    enabled: !collapsed,
+  });
+  const refetch = reload;
+  const isLoading = loading;
+  const isFetching = loading || loadingMore;
 
   /**
    * 打开工作流详情标签页。
@@ -310,6 +320,12 @@ const WorkflowPageList: FC<WorkflowPageListProps> = ({ collapsed = false, onTogg
           <span className="project-report-panel-title">Workflows</span>
         )}
         <div className="project-report-panel-actions">
+          <LazyListSearch
+            value={keyword}
+            onChange={setKeyword}
+            placeholder="Search workflows"
+            className="project-report-panel-search"
+          />
           <Tooltip title="Install Workflow">
             <Button
               type="text"
@@ -375,29 +391,13 @@ const WorkflowPageList: FC<WorkflowPageListProps> = ({ collapsed = false, onTogg
             })}
           />
         )}
-      </div>
-
-      <div
-        style={{
-          padding: "6px 10px",
-          borderTop: "1px solid var(--sharp-divider)",
-          ...(collapsed ? { display: "none" } : null),
-        }}
-      >
-        <Pagination
-          size="small"
-          current={page}
-          pageSize={pageSize}
+        <LazyListSentinel sentinelRef={sentinelRef} />
+        <LazyListFooter
+          loadingMore={loadingMore}
+          hasMore={hasMore}
+          hasItems={data.length > 0}
           total={total}
-          showSizeChanger
-          showTotal={(t) => `${t} workflows`}
-          onChange={(nextPage, nextSize) => {
-            if (nextSize !== pageSize) {
-              setPageSize(nextSize);
-            } else {
-              setPage(nextPage);
-            }
-          }}
+          labels={{ loading: "Loading more…", noMore: "No more workflows", totalPrefix: "total " }}
         />
       </div>
     </div>

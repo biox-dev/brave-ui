@@ -3,7 +3,6 @@ import {
   Button,
   Descriptions,
   Empty,
-  Pagination,
   Popconfirm,
   Popover,
   Table,
@@ -28,17 +27,19 @@ import {
   ReloadOutlined,
   SendOutlined,
 } from "@ant-design/icons";
-import { useAppSessionPageQuery } from "@/hooks/usePaginationV2";
 import {
   createAppSessionApi,
   createAppSessionByAnalysisNodeApi,
   deleteAppSessionApi,
+  pageAppSessionApi,
   recreateAppSessionContainerApi,
   startAppSessionApi,
   stopAppSessionApi,
   type AppSessionItem,
+  type AppSessionPageQuery,
   type ContainerTemplateItem,
 } from "@/api/container";
+import { LazyListFooter, LazyListSearch, LazyListSentinel, useLazyList } from "@/components/common/lazy-list";
 import { createContainerTerminalSessionApi } from "@/api/container-template-terminal";
 import { useSelector } from "react-redux";
 import { invoke } from "@/core/ui-system/invokeV2";
@@ -378,47 +379,42 @@ const AppSessionPage = ({
   const { containerURL } = useSelector((state: any) => state.user);
 
   const {
-    data,
+    items: data,
+    loading,
+    loadingMore,
+    hasMore,
     total,
-    page,
-    pageSize,
-    setPage,
-    setPageSize,
-    setQuery,
-    isLoading,
-    isFetching,
+    keyword,
+    setKeyword,
+    reload,
     error,
-    refetch,
-  } = useAppSessionPageQuery(
-    {},
-    {
-      initialPageSize: normalizePageSize(page_size),
-      keepPreviousData: true,
-      staleTime: 30_000,
-      cacheTime: 5 * 60_000,
-      // 折叠时仅保留标题栏：不请求接口，展开后再加载（与右侧会话结果面板一致）。
-      enabled: !collapsed,
-    }
-  );
-
-  useEffect(() => {
-    setQuery({
+    sentinelRef,
+  } = useLazyList<AppSessionItem, AppSessionPageQuery>({
+    fetcher: (payload) => pageAppSessionApi(payload).then((response) => response.data),
+    query: {
       id: normalizeText(id),
       analysis_node_id: normalizeText(analysis_node_id),
       container_template_id: normalizeText(container_template_id),
       name: normalizeText(name),
       status: normalizeText(status),
       workspace_path: normalizeText(workspace_path),
-    });
-  }, [
-    id,
-    analysis_node_id,
-    container_template_id,
-    name,
-    status,
-    workspace_path,
-    setQuery,
-  ]);
+    },
+    pageSize: normalizePageSize(page_size),
+    scopeKey: JSON.stringify([
+      id,
+      analysis_node_id,
+      container_template_id,
+      name,
+      status,
+      workspace_path,
+      page_size,
+    ]),
+    // 折叠时仅保留标题栏：不请求接口，展开后再加载。
+    enabled: !collapsed,
+  });
+  const refetch = reload;
+  const isLoading = loading;
+  const isFetching = loading || loadingMore;
 
   // 底部面板当前激活的标签决定左栏的高亮项：激活 `terminal:<sessionId>` 标签时，
   // 列表里对应的会话行即为选中态。底部面板状态由 `/auth/me` 回填（后端持久化），
@@ -922,6 +918,12 @@ const AppSessionPage = ({
    */
   const headerActions = (
     <>
+      <LazyListSearch
+        value={keyword}
+        onChange={setKeyword}
+        placeholder="Search sessions"
+        className="project-report-panel-search"
+      />
       <Tooltip title="Create app session">
         <Button
           type="text"
@@ -1050,30 +1052,13 @@ const AppSessionPage = ({
             })}
           />
         )}
-      </div>
-
-      <div
-        style={{
-          padding: "6px 10px",
-          borderTop: "1px solid var(--sharp-divider)",
-          ...(collapsed ? { display: "none" } : null),
-        }}
-      >
-        <Pagination
-          size="small"
-          current={page}
-          pageSize={pageSize}
+        <LazyListSentinel sentinelRef={sentinelRef} />
+        <LazyListFooter
+          loadingMore={loadingMore}
+          hasMore={hasMore}
+          hasItems={data.length > 0}
           total={total}
-          showSizeChanger
-          pageSizeOptions={[20, 50, 100, 200, 500, 1000]}
-          showTotal={(value) => `${value} sessions`}
-          onChange={(nextPage, nextSize) => {
-            if (nextSize !== pageSize) {
-              setPageSize(nextSize);
-            } else {
-              setPage(nextPage);
-            }
-          }}
+          labels={{ loading: "Loading more…", noMore: "No more sessions", totalPrefix: "total " }}
         />
       </div>
 

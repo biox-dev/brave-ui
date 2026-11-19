@@ -7,34 +7,58 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { useQuery } from 'react-query';
-import {
-  listAgentSessionResourcesApi,
-  type AgentSessionResourceItem,
-  type AgentSessionResourceType,
-} from '@/api/agent';
+import type { AgentSessionResourceItem, AgentSessionResourceType } from '@/api/agent';
 import { useI18n } from '@/hooks/useI18n';
 import {
   isSessionResourceOpenable,
   openSessionResourceTab,
 } from '@/components/agent/session-resource-workspace';
+import { useAgentSessionResources } from '@/components/agent/use-agent-session-resources';
+
+/** 分组数据未就绪时的共享空数组，保持 dataSource 引用稳定。 */
+const EMPTY_RESOURCE_ITEMS: AgentSessionResourceItem[] = [];
 
 export interface SessionResourcePanelProps {
   /** 当前会话 ID；New Chat（无会话）时不发起请求。 */
   sessionId?: string;
-  resourceType: AgentSessionResourceType;
+  /**
+   * 资源类型。
+   *
+   * 不传表示「空状态面板」：没有可展示的资源时，仍保留标题栏（含刷新按钮）
+   * 与空状态，方便用户在无数据时手动刷新。
+   */
+  resourceType?: AgentSessionResourceType;
   title: string;
-  /** 折叠时仅保留标题栏，并且不发起 / 不刷新请求。 */
+  /** 右侧堆叠面板整体是否展开：只有展开时才会请求接口。 */
+  active: boolean;
+  /**
+   * 是否在该分区标题栏显示刷新按钮。
+   *
+   * 所有分区共用一次分组请求，因此页面上只让第一个分区显示刷新入口，
+   * 避免多个重复的刷新按钮（点击后刷新的仍是同一份数据）。
+   */
+  showRefresh?: boolean;
+  /**
+   * 关闭整个右侧面板（由页面把 overall 面板折叠）。
+   *
+   * 只传第一个分区：关闭按钮放在面板最上方的标题栏里，避免每个分区都重复一个 ×。
+   */
+  onClose?: () => void;
+  /** 当前分区折叠时仅保留标题栏（不影响其它分区，也不影响共享请求）。 */
   collapsed: boolean;
   onToggleCollapse?: () => void;
-  onClose?: () => void;
 }
 
 /**
  * 会话结果面板：展示当前会话产生 / 修改过的某一类资源（脚本 / 工作流 / 分析节点 / 分析运行）。
  *
- * 只在展开（`collapsed=false`）且存在会话 ID 时请求接口：折叠或关闭后
- * React Query 的 `enabled` 变为 false / 组件卸载，不会继续请求 API。
+ * 数据来自 `useAgentSessionResources`：所有分区共用一个 query key，
+ * 无论渲染多少个分区都只会发一次请求，本组件只取自己的 `resourceType` 那一组。
+ * 刷新按钮也在这里（由 `showRefresh` 控制只在一处显示）：
+ * 刷新的是共享数据，点击后所有分区同时更新。
+ *
+ * 不传 `resourceType` 时作为「空状态面板」使用：没有数据时依然渲染标题栏
+ * （含刷新按钮）和空状态，而不是整块面板消失。
  *
  * 点击名称在右侧工作区（SplitWorkspace 的 rightMiddle）打开对应页面：
  * 视图名 / 参数 / 标签 key 由 `session-resource-workspace.ts` 的
@@ -44,31 +68,28 @@ const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
   sessionId,
   resourceType,
   title,
+  active,
+  showRefresh = false,
+  onClose,
   collapsed,
   onToggleCollapse,
-  onClose,
 }) => {
   const { locale } = useI18n();
 
   const {
-    data: items,
+    data: groups,
     isLoading,
     isFetching,
     refetch,
-  } = useQuery(
-    ['agent-session-resources', sessionId, resourceType],
-    async () => {
-      const response = await listAgentSessionResourcesApi(sessionId!, resourceType);
-      return response.data.data;
-    },
-    {
-      enabled: Boolean(sessionId) && !collapsed,
-      staleTime: 30_000,
-      keepPreviousData: true,
-    },
-  );
+  } = useAgentSessionResources(sessionId, active);
+
+  const items = (resourceType ? groups?.[resourceType] : undefined) ?? EMPTY_RESOURCE_ITEMS;
 
   const columns = useMemo<ColumnsType<AgentSessionResourceItem>>(() => {
+    // 空状态面板不渲染表格列。
+    if (!resourceType) {
+      return [];
+    }
     // 是否可点击由统一映射决定（登记过的类型才渲染成按钮），
     // 新增可点击的资源类型只需改 session-resource-workspace.ts。
     const openableType = isSessionResourceOpenable(resourceType);
@@ -120,8 +141,10 @@ const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
       : '暂无结果';
 
   const refreshLabel = locale === 'en_US' ? 'Refresh' : '刷新';
-  // 折叠或无会话时不请求接口，刷新按钮同步禁用，避免无意义的空请求。
-  const canRefresh = Boolean(sessionId) && !collapsed;
+  const closeLabel = locale === 'en_US' ? 'Close panel' : '关闭面板';
+  // 右侧面板折叠或无会话时不请求接口，刷新按钮同步禁用，避免无意义的空请求。
+  const canRefresh = Boolean(sessionId) && active;
+
 
   return (
     <div className={`project-report-panel${collapsed ? ' is-collapsed' : ''}`}>
@@ -144,26 +167,26 @@ const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
           <span className="project-report-panel-title">{title}</span>
         )}
         <div className="project-report-panel-actions">
-          <Tooltip title={refreshLabel}>
-            <Button
-              type="text"
-              size="small"
-              icon={<ReloadOutlined spin={isFetching} />}
-              aria-label={refreshLabel}
-              disabled={!canRefresh}
-              onClick={() => void refetch()}
-            />
-          </Tooltip>
-          {onClose && (
-            <Tooltip title={locale === 'en_US' ? 'Close' : '关闭'}>
+          {showRefresh && (
+            <Tooltip title={refreshLabel}>
               <Button
                 type="text"
                 size="small"
-                icon={<CloseOutlined />}
-                aria-label={locale === 'en_US' ? 'Close panel' : '关闭面板'}
-                onClick={onClose}
+                icon={<ReloadOutlined spin={isFetching} />}
+                aria-label={refreshLabel}
+                disabled={!canRefresh}
+                onClick={() => void refetch()}
               />
             </Tooltip>
+          )}
+          {onClose && (
+            <Button
+              type="text"
+              size="small"
+              icon={<CloseOutlined />}
+              aria-label={closeLabel}
+              onClick={onClose}
+            />
           )}
         </div>
       </div>
@@ -172,7 +195,7 @@ const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
         className="project-report-panel-body"
         style={collapsed ? { display: 'none' } : undefined}
       >
-        {!isLoading && (items?.length ?? 0) === 0 ? (
+        {!isLoading && items.length === 0 ? (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyDescription} />
         ) : (
           <Table<AgentSessionResourceItem>
@@ -181,7 +204,7 @@ const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
             showHeader={false}
             pagination={false}
             columns={columns}
-            dataSource={items ?? []}
+            dataSource={items}
             loading={isLoading || isFetching}
           />
         )}

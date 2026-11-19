@@ -1,10 +1,11 @@
 import {
   deleteLiteratureApi,
   getLiteratureDetailApi,
+  pageLiteratureApi,
   unbindLiteratureApi,
   type ProjectLiteratureItem,
 } from "@/api/project";
-import { useProjectLiteraturePageQuery } from "@/hooks/usePaginationV2";
+import { LazyListFooter, LazyListSearch, LazyListSentinel, useLazyList } from "@/components/common/lazy-list";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { formatRelativeTime } from "@/utils/time";
@@ -16,7 +17,7 @@ import {
   PlusOutlined,
   ReloadOutlined,
 } from "@ant-design/icons";
-import { Button, Empty, Pagination, Popconfirm, Table } from "antd";
+import { Button, Empty, Popconfirm, Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
@@ -37,17 +38,23 @@ const ProjectLiteratureList: FC<any> = () => {
   }, [location.pathname]);
 
   const {
-    data,
+    items: data,
+    loading,
+    loadingMore,
+    hasMore,
     total,
-    page,
-    pageSize,
-    setPage,
-    setPageSize,
-    isLoading,
-    isFetching,
-    refetch,
-  } = useProjectLiteraturePageQuery({},
-     { initialPageSize: 10, scopeKey: projectId });
+    keyword,
+    setKeyword,
+    reload,
+    sentinelRef,
+  } = useLazyList<ProjectLiteratureItem>({
+    fetcher: (payload) => pageLiteratureApi(payload).then((response) => response.data),
+    pageSize: 10,
+    scopeKey: projectId,
+  });
+  const refetch = reload;
+  const isLoading = loading;
+  const isFetching = loading || loadingMore;
 
   const openCreate = async () => {
     if (!projectId) {
@@ -180,6 +187,12 @@ const ProjectLiteratureList: FC<any> = () => {
       <div className="project-report-panel-header">
         <span className="project-report-panel-title">Literature</span>
         <div className="project-report-panel-actions">
+          <LazyListSearch
+            value={keyword}
+            onChange={setKeyword}
+            placeholder="Search literature"
+            className="project-report-panel-search"
+          />
           <Button type="text" size="small" icon={<PlusOutlined />} onClick={openCreate} />
           <Button type="text" size="small" icon={<LinkOutlined />} onClick={openBind} />
           <Button type="text" size="small" icon={<ReloadOutlined />} onClick={() => refetch()} />
@@ -209,23 +222,13 @@ const ProjectLiteratureList: FC<any> = () => {
             })}
           />
         )}
-      </div>
-
-      <div style={{ padding: "6px 10px", borderTop: "1px solid var(--sharp-divider)" }}>
-        <Pagination
-          size="small"
-          current={page}
-          pageSize={pageSize}
+        <LazyListSentinel sentinelRef={sentinelRef} />
+        <LazyListFooter
+          loadingMore={loadingMore}
+          hasMore={hasMore}
+          hasItems={data.length > 0}
           total={total}
-          showSizeChanger
-          showTotal={(t) => `${t} items`}
-          onChange={(nextPage, nextSize) => {
-            if (nextSize !== pageSize) {
-              setPageSize(nextSize);
-            } else {
-              setPage(nextPage);
-            }
-          }}
+          labels={{ loading: "Loading more…", noMore: "No more literature", totalPrefix: "total " }}
         />
       </div>
     </div>

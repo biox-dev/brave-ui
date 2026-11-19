@@ -5,6 +5,8 @@ export type ListFileByProjectGroupResponse = Record<string, any[]>;
 export type PageRequest<TQuery extends object = Record<string, unknown>> = TQuery & {
 	page?: number;
 	page_size?: number;
+	/** 统一关键字搜索：对应后端 types.Pagination.Keyword，各分页接口按名称列模糊匹配。 */
+	keyword?: string;
 };
 
 export interface PageResponse<TItem> {

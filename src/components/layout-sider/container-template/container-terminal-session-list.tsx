@@ -26,6 +26,7 @@ import {
 } from "@/api/container-template-terminal";
 import type { ContainerTemplateItem } from "@/api/container";
 import { invoke } from "@/core/ui-system/invokeV2";
+import { LazyListSearch } from "@/components/common/lazy-list";
 import { useComponentStore } from "@/event-bus/stores/components";
 import { useContainerTerminalSessionListQuery } from "@/hooks/usePaginationV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
@@ -130,6 +131,8 @@ const ContainerTerminalSessionList = ({
   const { register, unregister } = useComponentStore();
   const [deletingId, setDeletingId] = useState<string>();
   const [creating, setCreating] = useState(false);
+  // 会话数量受 terminal_max_sessions_per_user 限制，本地直接过滤即可。
+  const [keyword, setKeyword] = useState("");
   // 默认只显示当前激活项目下的会话（后端用 GetActiveProjectByUserID 过滤）。
   const [onlyCurrentProject, setOnlyCurrentProject] = useState(true);
   // 不轮询：会话增删由后端 component.invoke 实时事件驱动（含 shell 退出 / TTL 回收）。
@@ -137,6 +140,19 @@ const ContainerTerminalSessionList = ({
     allProjects: !onlyCurrentProject,
     staleTime: 5_000,
   });
+
+  // 统一搜索：匹配展示名 / 模板名 / 会话 ID / 镜像名。
+  const filteredData = useMemo(() => {
+    const kw = keyword.trim().toLowerCase();
+    if (!kw) {
+      return data;
+    }
+    return data.filter((item) =>
+      [item.display_name, item.template_name, item.session_id, item.image_name]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(kw))
+    );
+  }, [data, keyword]);
 
   // 切换过滤条件后重新拉取，避免短时间内看到上一份缓存。
   useEffect(() => {
@@ -445,6 +461,12 @@ const ContainerTerminalSessionList = ({
           <span className="project-report-panel-title">{title || "Terminal Sessions"}</span>
         )}
         <div className="project-report-panel-actions">
+          <LazyListSearch
+            value={keyword}
+            onChange={setKeyword}
+            placeholder="Search sessions"
+            className="project-report-panel-search"
+          />
           <Tooltip title="New terminal session">
             <Button
               type="text"
@@ -482,7 +504,7 @@ const ContainerTerminalSessionList = ({
       </div>
 
       <div className="project-report-panel-body" style={collapsed ? { display: "none" } : undefined}>
-        {data.length === 0 && !isLoading ? (
+        {filteredData.length === 0 && !isLoading ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             description={
@@ -494,7 +516,7 @@ const ContainerTerminalSessionList = ({
             rowKey="session_id"
             size="small"
             columns={columns}
-            dataSource={data}
+            dataSource={filteredData}
             loading={isLoading || isFetching}
             pagination={false}
             showHeader={false}

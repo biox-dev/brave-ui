@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
 import { useNavigate } from "react-router";
-import { Button, Descriptions, Empty, Flex, Pagination, Popconfirm, Popover, Table, Tooltip } from "antd";
+import { Button, Descriptions, Empty, Flex, Popconfirm, Popover, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
   CaretDownOutlined,
@@ -15,9 +15,9 @@ import {
   UploadOutlined,
 } from "@ant-design/icons";
 import { useSelector } from "react-redux";
-import { useProjectFilePageQuery } from "@/hooks/usePaginationV2";
-import type { DatasetFileItem } from "@/api/data";
-import { deleteFileApi } from "@/api/data";
+import { LazyListFooter, LazyListSearch, LazyListSentinel, useLazyList } from "@/components/common/lazy-list";
+import type { DatasetFileItem, DatasetFilePageQuery } from "@/api/data";
+import { deleteFileApi, pageFileByProjectApi, pageFileByProjectViaAnalysisNodeApi } from "@/api/data";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useUI } from "@/core/ui-system/useUI";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
@@ -272,44 +272,44 @@ const FileListPage = ({
   const { projectId } = useSelector((state: { user: { projectId?: string } }) => state.user);
 
   const {
-    data,
+    items: data,
+    loading,
+    loadingMore,
+    hasMore,
     total,
-    page,
-    pageSize,
-    setPage,
-    setPageSize,
-    setQuery,
-    isLoading,
-    isFetching,
+    keyword,
+    setKeyword,
+    reload,
     error,
-    refetch,
-  } = useProjectFilePageQuery(source, {}, {
-    initialPageSize: normalizePageSize(page_size),
-    keepPreviousData: true,
-    staleTime: 30_000,
-    cacheTime: 5 * 60_000,
-    // scopeKey 同时带上数据来源：切换视图时缓存与页码都会重置。
-    scopeKey: `${projectId ?? ""}:${source}`,
-    // 纵向堆叠折叠时只保留标题栏：停止列表请求，展开后自动按需加载（缓存 <30s 直接复用）。
+    sentinelRef,
+  } = useLazyList<DatasetFileItem, DatasetFilePageQuery>({
+    fetcher: (payload) =>
+      (isDatasetSource
+        ? pageFileByProjectApi(payload)
+        : pageFileByProjectViaAnalysisNodeApi(payload)
+      ).then((response) => response.data),
+    query: isDatasetSource
+      ? {
+          file_id: normalizeText(file_id),
+          file_name: normalizeText(file_name),
+          path: normalizeText(path),
+          format: normalizeText(format),
+          storage: normalizeText(storage),
+          description: normalizeText(description),
+          dataset_id: normalizeText(dataset_id),
+          dataset_name: normalizeText(dataset_name),
+          role: normalizeRoles(role),
+        }
+      : {},
+    pageSize: normalizePageSize(page_size),
+    // scopeKey 同时带上数据来源：切换视图时重置分页。
+    scopeKey: `${projectId ?? ""}:${source}:${file_id ?? ""}:${dataset_id ?? ""}`,
+    // 纵向堆叠折叠时只保留标题栏：停止列表请求，展开后自动恢复。
     enabled: !collapsed,
   });
-
-  useEffect(() => {
-    if (!isDatasetSource) {
-      return;
-    }
-    setQuery({
-      file_id: normalizeText(file_id),
-      file_name: normalizeText(file_name),
-      path: normalizeText(path),
-      format: normalizeText(format),
-      storage: normalizeText(storage),
-      description: normalizeText(description),
-      dataset_id: normalizeText(dataset_id),
-      dataset_name: normalizeText(dataset_name),
-      role: normalizeRoles(role),
-    });
-  }, [isDatasetSource, file_id, file_name, path, format, storage, description, dataset_id, dataset_name, role, setQuery]);
+  const refetch = reload;
+  const isLoading = loading;
+  const isFetching = loading || loadingMore;
 
   // 切换数据来源后清空选中行，避免把另一种来源的记录带进选择结果。
   useEffect(() => {
@@ -537,6 +537,12 @@ const FileListPage = ({
           {total > 0 && <span className="file-list-toolbar-count">{total}</span>}
         </div>
         <div className="file-list-toolbar-actions">
+          <LazyListSearch
+            value={keyword}
+            onChange={setKeyword}
+            placeholder="Search files"
+            className="project-report-panel-search"
+          />
           {isDatasetSource && (
             <>
               <Tooltip title="Upload">
@@ -614,6 +620,14 @@ const FileListPage = ({
             })}
           />
         )}
+        <LazyListSentinel sentinelRef={sentinelRef} />
+        <LazyListFooter
+          loadingMore={loadingMore}
+          hasMore={hasMore}
+          hasItems={data.length > 0}
+          total={total}
+          labels={{ loading: "Loading more…", noMore: "No more files", totalPrefix: "total " }}
+        />
       </div>
 
       <div
@@ -621,21 +635,9 @@ const FileListPage = ({
         style={collapsed ? { display: "none" } : undefined}
       >
         <Flex justify="space-between" align="center" gap="small" wrap>
-          <Pagination
-            size="small"
-            current={page}
-            pageSize={pageSize}
-            total={total}
-            showSizeChanger
-            showTotal={(t) => `${t} files`}
-            onChange={(nextPage, nextSize) => {
-              if (nextSize !== pageSize) {
-                setPageSize(nextSize);
-              } else {
-                setPage(nextPage);
-              }
-            }}
-          />
+          <span style={{ fontSize: 12, color: "var(--sharp-text-soft)" }}>
+            {total > 0 ? `${total} files` : ""}
+          </span>
           {selectable && (
             <Flex gap="small">
               <Button size="small" onClick={handleCancel}>Cancel</Button>

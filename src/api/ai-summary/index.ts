@@ -41,6 +41,8 @@ export interface AISummaryPageQuery {
 export interface AISummaryPageRequest {
 	page?: number;
 	page_size?: number;
+	/** 统一关键字搜索（后端 types.Pagination.Keyword，命中摘要标题）。 */
+	keyword?: string;
 }
 
 /** 按当前用户激活项目分页查询 AI 摘要（不返回 content）。 */

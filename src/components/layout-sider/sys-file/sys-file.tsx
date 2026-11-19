@@ -35,7 +35,7 @@
 
 
 import React, { FC, useEffect, useRef, useState } from "react";
-import { Breadcrumb, Button, Input, List, Pagination, Popconfirm, Tooltip, message } from "antd";
+import { Breadcrumb, Button, Input, List, Popconfirm, Tooltip, message } from "antd";
 import { useNavigate } from "react-router";
 const { Search } = Input
 type FileItem = {
@@ -82,7 +82,8 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
     const loadFiles = async (
         pathVal: string = currentPath,
         keywordVal: string = keyword,
-        pageNum: number = page
+        pageNum: number = page,
+        append: boolean = false
     ) => {
         try {
             setLoading(true)
@@ -95,7 +96,9 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
                     limit,
                 },
             })
-            setFiles(res.data.items)
+            const items = res.data.items ?? []
+            // 懒加载：第一页替换数据，后续页追加。
+            setFiles((prev) => (append ? [...prev, ...items] : items))
             setTotal(res.data.total)
             setDir(res.data.dir)
             setCurrentPath(res.data.dir || pathVal)
@@ -106,6 +109,26 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
             setLoading(false)
         }
     }
+
+    // 底部哨兵：进入视口自动加载下一页（滚动懒加载）。
+    const hasMore = total > files.length
+    const sentinelRef = useRef<HTMLDivElement | null>(null)
+    useEffect(() => {
+        const node = sentinelRef.current
+        if (!node || typeof IntersectionObserver === "undefined" || !hasMore || loading) {
+            return
+        }
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries.some((entry) => entry.isIntersecting)) {
+                    void loadFiles(currentPath, keyword, page + 1, true)
+                }
+            },
+            { rootMargin: "160px" }
+        )
+        observer.observe(node)
+        return () => observer.disconnect()
+    }, [currentPath, keyword, page, loading, hasMore, files.length])
 
     useEffect(() => {
         loadFiles(path)
@@ -429,17 +452,17 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
                         </List.Item>
                     )}
                 />
-            </div>
-
-            <div style={{ padding: "6px 10px", borderTop: "1px solid var(--sharp-divider)" }}>
-                <Pagination
-                    size="small"
-                    current={page}
-                    pageSize={limit}
-                    total={total}
-                    showTotal={(t) => `${t} files`}
-                    onChange={(pageNum) => loadFiles(currentPath, keyword, pageNum)}
-                />
+                <div ref={sentinelRef} style={{ height: 1 }} aria-hidden />
+                {loading && files.length > 0 && (
+                    <div style={{ textAlign: "center", padding: "6px 0", fontSize: 12, opacity: 0.65 }}>
+                        Loading more…
+                    </div>
+                )}
+                {!hasMore && files.length > 0 && (
+                    <div style={{ textAlign: "center", padding: "6px 0", fontSize: 12, opacity: 0.5 }}>
+                        No more files
+                    </div>
+                )}
             </div>
         </div>
     )

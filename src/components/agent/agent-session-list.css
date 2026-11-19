@@ -40,6 +40,29 @@
   padding: 2px 6px 8px;
 }
 
+.agent-session-list-search {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 2px 2px 6px;
+  background: var(--sharp-panel-bg);
+}
+
+.agent-session-list-sentinel {
+  width: 100%;
+  height: 1px;
+}
+
+.agent-session-list-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 0;
+  font-size: 11px;
+  color: var(--sharp-text-soft);
+}
+
 .agent-session-item {
   display: flex;
   align-items: center;
@@ -94,6 +117,11 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.agent-session-item-meta-user {
+  margin-right: 4px;
+  font-size: 10px;
 }
 
 .agent-session-item-dot {

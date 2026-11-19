@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Empty, Flex, Pagination, Popconfirm, Table, Tooltip, Typography } from "antd";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Button, Empty, Flex, Popconfirm, Table, Tooltip, Typography } from "antd";
+import { LazyListSearch } from "@/components/common/lazy-list";
 import type { ColumnsType } from "antd/es/table";
 import {
   DeleteOutlined,
@@ -105,8 +106,10 @@ const AssayProjectPage = ({
   const [failed, setFailed] = useState(false);
   const [selectedId, setSelectedId] = useState<string>();
   const [expandedAssays, setExpandedAssays] = useState<string[]>([]);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(() => normalizePageSize(page_size));
+  const [keyword, setKeyword] = useState("");
+  // 懒加载的可见条数：滚动到底部时增加一页（数据仍在本页过滤）。
+  const pageSize = normalizePageSize(page_size);
+  const [visibleCount, setVisibleCount] = useState(pageSize);
 
   const selectable = Boolean(onOk || onCancel);
 
@@ -147,6 +150,7 @@ const AssayProjectPage = ({
     const nameFilter = normalizeText(sample_name)?.toLowerCase();
     const typeFilter = normalizeText(assay_type)?.toLowerCase();
     const roleFilter = normalizeText(role)?.toLowerCase();
+    const keywordFilter = keyword.trim().toLowerCase();
 
     return assays.filter((assay) => {
       if (idFilter && String(assay.id) !== idFilter) return false;
@@ -159,14 +163,47 @@ const AssayProjectPage = ({
       if (roleFilter && !(assay.role ?? "").toLowerCase().includes(roleFilter)) {
         return false;
       }
+      if (
+        keywordFilter &&
+        ![assay.sample_name, assay.assay_type, assay.role]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(keywordFilter))
+      ) {
+        return false;
+      }
       return true;
     });
-  }, [assays, id, sample_name, assay_type, role]);
+  }, [assays, id, sample_name, assay_type, role, keyword]);
 
-  const pagedAssays = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return filteredAssays.slice(start, start + pageSize);
-  }, [filteredAssays, page, pageSize]);
+  // 关键字 / 筛选条件变化时重新从第一页开始渲染。
+  useEffect(() => {
+    setVisibleCount(pageSize);
+  }, [keyword, id, sample_name, assay_type, role, pageSize]);
+
+  const visibleAssays = useMemo(
+    () => filteredAssays.slice(0, visibleCount),
+    [filteredAssays, visibleCount]
+  );
+  const hasMoreAssays = visibleCount < filteredAssays.length;
+
+  // 底部哨兵：进入视口时追加一页。
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || !hasMoreAssays || typeof IntersectionObserver === "undefined") {
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisibleCount((count) => Math.min(count + pageSize, filteredAssays.length));
+        }
+      },
+      { rootMargin: "160px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMoreAssays, pageSize, filteredAssays.length]);
 
   const selectedItem = useMemo(
     () => assays.find((item) => item.id === selectedId),
@@ -407,6 +444,12 @@ const AssayProjectPage = ({
       <div className="project-report-panel-header">
         <span className="project-report-panel-title">{title || "Assays"}</span>
         <div className="project-report-panel-actions">
+          <LazyListSearch
+            value={keyword}
+            onChange={setKeyword}
+            placeholder="Search assays"
+            className="project-report-panel-search"
+          />
           <Tooltip title="Import TSV">
             <Button
               type="text"
@@ -430,7 +473,7 @@ const AssayProjectPage = ({
       </div>
 
       <div className="project-report-panel-body">
-        {pagedAssays.length === 0 && !loading ? (
+        {visibleAssays.length === 0 && !loading ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             description={failed ? "Failed to load assays" : "No assays"}
@@ -440,7 +483,7 @@ const AssayProjectPage = ({
             rowKey="id"
             size="small"
             columns={assayColumns}
-            dataSource={pagedAssays}
+            dataSource={visibleAssays}
             loading={loading}
             pagination={false}
             showHeader={selectable}
@@ -486,37 +529,24 @@ const AssayProjectPage = ({
             })}
           />
         )}
+        <div ref={sentinelRef} style={{ height: 1 }} aria-hidden />
+        {hasMoreAssays && (
+          <div style={{ textAlign: "center", padding: "6px 0", fontSize: 12, opacity: 0.55 }}>
+            Scroll to load more…
+          </div>
+        )}
       </div>
 
-      <div style={{ padding: "6px 10px", borderTop: "1px solid var(--sharp-divider)" }}>
-        <Flex justify="space-between" align="center" gap="small" wrap>
-          <Pagination
-            size="small"
-            current={page}
-            pageSize={pageSize}
-            total={filteredAssays.length}
-            showSizeChanger
-            pageSizeOptions={[10, 20, 50, 100]}
-            onChange={(nextPage, nextPageSize) => {
-              if (nextPageSize !== pageSize) {
-                setPageSize(nextPageSize);
-              }
-              setPage(nextPage);
-            }}
-            showTotal={(value) => `Total ${value}`}
-          />
-          {selectable && (
-            <Flex gap="small">
-              <Button size="small" onClick={handleCancel}>
-                Cancel
-              </Button>
-              <Button size="small" type="primary" disabled={!selectedItem} onClick={handleConfirm}>
-                Confirm
-              </Button>
-            </Flex>
-          )}
+      {selectable && (
+        <Flex justify="end" gap="small" style={{ padding: "8px 10px", borderTop: "1px solid var(--sharp-divider)" }}>
+          <Button size="small" onClick={handleCancel}>
+            Cancel
+          </Button>
+          <Button size="small" type="primary" disabled={!selectedItem} onClick={handleConfirm}>
+            Confirm
+          </Button>
         </Flex>
-      </div>
+      )}
     </div>
   );
 };

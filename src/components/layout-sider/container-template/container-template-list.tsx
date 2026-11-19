@@ -5,7 +5,6 @@ import {
   Empty,
   Input,
   Modal,
-  Pagination,
   Popconfirm,
   Popover,
   Table,
@@ -27,13 +26,15 @@ import {
 import {
   deleteContainerTemplateApi,
   exportContainerTemplateApi,
+  pageContainerTemplateApi,
   type ContainerTemplateItem,
+  type ContainerTemplatePageQuery,
 } from "@/api/container";
 import {
   createContainerTerminalSessionApi,
   execContainerTerminalSessionApi,
 } from "@/api/container-template-terminal";
-import { useContainerTemplatePageQuery } from "@/hooks/usePaginationV2";
+import { LazyListFooter, LazyListSearch, LazyListSentinel, useLazyList } from "@/components/common/lazy-list";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
@@ -191,36 +192,33 @@ const ContainerTemplateList = ({
   const selectable = Boolean(onOk || onCancel);
 
   const {
-    data,
+    items: data,
+    loading,
+    loadingMore,
+    hasMore,
     total,
-    page,
-    pageSize,
-    setPage,
-    setPageSize,
-    setQuery,
-    isLoading,
-    isFetching,
-    refetch,
-  } = useContainerTemplatePageQuery(
-    {},
-    {
-      initialPageSize: normalizePageSize(page_size),
-      keepPreviousData: true,
-      staleTime: 30_000,
-      cacheTime: 5 * 60_000,
-    }
-  );
-
-  useEffect(() => {
-    setQuery({
+    keyword,
+    setKeyword,
+    reload,
+    sentinelRef,
+  } = useLazyList<ContainerTemplateItem, ContainerTemplatePageQuery>({
+    fetcher: (payload) => pageContainerTemplateApi(payload).then((response) => response.data),
+    query: {
       id: normalizeText(id),
       name: normalizeText(name),
       description: normalizeText(description),
       type: normalizeText(type),
       spec_id: normalizeText(spec_id),
       command: normalizeText(command),
-    });
-  }, [id, name, description, type, spec_id, command, setQuery]);
+    },
+    pageSize: normalizePageSize(page_size),
+    // 外部固定筛选条件变化时重新从第一页拉取。
+    scopeKey: JSON.stringify([id, name, description, type, spec_id, command, page_size]),
+    enabled: !collapsed,
+  });
+  const refetch = reload;
+  const isLoading = loading;
+  const isFetching = loading || loadingMore;
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 
@@ -564,6 +562,12 @@ const ContainerTemplateList = ({
           <span className="project-report-panel-title">{title || "Container Templates"}</span>
         )}
         <div className="project-report-panel-actions">
+          <LazyListSearch
+            value={keyword}
+            onChange={setKeyword}
+            placeholder="Search templates"
+            className="project-report-panel-search"
+          />
           <Tooltip title="Create container template">
             <Button type="text" size="small" icon={<PlusOutlined />} onClick={handleCreate} />
           </Tooltip>
@@ -602,30 +606,13 @@ const ContainerTemplateList = ({
             })}
           />
         )}
-      </div>
-
-      <div
-        style={{
-          padding: "6px 10px",
-          borderTop: "1px solid var(--sharp-divider)",
-          ...(collapsed ? { display: "none" } : null),
-        }}
-      >
-        <Pagination
-          size="small"
-          current={page}
-          pageSize={pageSize}
+        <LazyListSentinel sentinelRef={sentinelRef} />
+        <LazyListFooter
+          loadingMore={loadingMore}
+          hasMore={hasMore}
+          hasItems={data.length > 0}
           total={total}
-          showSizeChanger
-          pageSizeOptions={[20, 50, 100, 200, 500, 1000]}
-          showTotal={(t) => `${t} templates`}
-          onChange={(nextPage, nextSize) => {
-            if (nextSize !== pageSize) {
-              setPageSize(nextSize);
-            } else {
-              setPage(nextPage);
-            }
-          }}
+          labels={{ loading: "Loading more…", noMore: "No more templates", totalPrefix: "total " }}
         />
       </div>
 

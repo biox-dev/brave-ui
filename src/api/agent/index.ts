@@ -255,6 +255,8 @@ export const resumeAgentTaskApi = (id: string) => {
 export interface AgentConversationItem {
   id: string;
   user_id: string;
+  /** 会话发起人的显示名（后端按 user_id join users 表回填，用于项目内会话列表）。 */
+  username?: string;
   provider: string;
   model?: string;
   /** 会话标题（首轮对话时由后端用用户输入初始化）。 */
@@ -346,13 +348,18 @@ export interface AgentSessionResourceItem {
   created_at: string;
 }
 
-// 按资源类型查询某个会话的结果列表。
-export const listAgentSessionResourcesApi = (
-  sessionId: string,
-  resourceType: AgentSessionResourceType
-) => {
-  return http.get<{ data: AgentSessionResourceItem[] }>("/agent/session/resources", {
-    params: { session_id: sessionId, resource_type: resourceType },
+// 会话结果按资源类型分组后的结构：每个分组始终是数组（无结果时为空数组）。
+export type AgentSessionResourceGroups = Record<
+  AgentSessionResourceType,
+  AgentSessionResourceItem[]
+>;
+
+// 一次查询某个会话的全部结果（后端按资源类型分组返回）。
+//
+// 会话页右侧的各个分区共用同一份数据，不再按资源类型分别请求。
+export const listAllAgentSessionResourcesApi = (sessionId: string) => {
+  return http.get<{ data: AgentSessionResourceGroups }>("/agent/session/resources/all", {
+    params: { session_id: sessionId },
   });
 };
 

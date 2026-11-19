@@ -127,6 +127,8 @@ export interface AnalysisPageQuery {
 export interface AnalysisPageRequest {
 	page?: number;
 	page_size?: number;
+	/** 统一关键字搜索（后端 types.Pagination.Keyword，命中分析名称 / ID）。 */
+	keyword?: string;
 	query?: AnalysisPageQuery;
 }
 

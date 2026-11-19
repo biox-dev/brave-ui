@@ -1,17 +1,18 @@
 import {
   deleteProjectReportApi,
   getProjectReportDetailApi,
+  pageProjectReportApi,
   publishProjectReportToDocApi,
   type ProjectReport,
 } from "@/api/project";
 import ProjectReportItemsPanel from "./project-report-items-panel";
-import { useProjectReportPageQuery } from "@/hooks/usePaginationV2";
+import { LazyListFooter, LazyListSearch, LazyListSentinel, useLazyList } from "@/components/common/lazy-list";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { useOpenMainTab } from "@/hooks/useMainTabTitle";
 import { formatRelativeTime } from "@/utils/time";
 import { DeleteOutlined, EditOutlined, EyeOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined, SendOutlined } from "@ant-design/icons";
-import { Button, Empty, Pagination, Popconfirm, Table, Tooltip } from "antd";
+import { Button, Empty, Popconfirm, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo, useState } from "react";
 import { useLocation } from "react-router";
@@ -38,16 +39,23 @@ const ProjectReportList: FC<any> = () => {
   }, [location.pathname]);
 
   const {
-    data,
+    items: data,
+    loading,
+    loadingMore,
+    hasMore,
     total,
-    page,
-    pageSize,
-    setPage,
-    setPageSize,
-    isLoading,
-    isFetching,
-    refetch,
-  } = useProjectReportPageQuery({}, { initialPageSize: 10, scopeKey: projectId });
+    keyword,
+    setKeyword,
+    reload,
+    sentinelRef,
+  } = useLazyList<ProjectReport>({
+    fetcher: (payload) => pageProjectReportApi(payload).then((response) => response.data),
+    pageSize: 10,
+    scopeKey: projectId,
+  });
+  const refetch = reload;
+  const isLoading = loading;
+  const isFetching = loading || loadingMore;
 
   const openCreate = async () => {
     if (!projectId) {
@@ -191,6 +199,12 @@ const ProjectReportList: FC<any> = () => {
       <div className="project-report-panel-header">
         <span className="project-report-panel-title">Project Reports</span>
         <div className="project-report-panel-actions">
+          <LazyListSearch
+            value={keyword}
+            onChange={setKeyword}
+            placeholder="Search reports"
+            className="project-report-panel-search"
+          />
           <Button type="text" size="small" icon={<PlusOutlined />} onClick={openCreate} />
           <Button type="text" size="small" icon={<ReloadOutlined />} onClick={() => refetch()} />
         </div>
@@ -245,23 +259,13 @@ const ProjectReportList: FC<any> = () => {
             }
           />
         )}
-      </div>
-
-      <div style={{ padding: "6px 10px", borderTop: "1px solid var(--sharp-divider)" }}>
-        <Pagination
-          size="small"
-          current={page}
-          pageSize={pageSize}
+        <LazyListSentinel sentinelRef={sentinelRef} />
+        <LazyListFooter
+          loadingMore={loadingMore}
+          hasMore={hasMore}
+          hasItems={data.length > 0}
           total={total}
-          showSizeChanger
-          showTotal={(t) => `${t} reports`}
-          onChange={(nextPage, nextSize) => {
-            if (nextSize !== pageSize) {
-              setPageSize(nextSize);
-            } else {
-              setPage(nextPage);
-            }
-          }}
+          labels={{ loading: "Loading more…", noMore: "No more reports", totalPrefix: "total " }}
         />
       </div>
     </div>

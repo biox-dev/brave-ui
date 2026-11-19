@@ -1,0 +1,43 @@
+.lazy-list-search {
+	width: 100%;
+}
+
+/* 侧栏标题栏里的搜索框：给按钮留出空间，窄面板下自动收缩。 */
+.project-report-panel-search {
+	width: 140px;
+	min-width: 90px;
+	flex: 1 1 120px;
+}
+
+/* 标题栏容纳搜索框后需要允许收缩，避免窄侧栏被撑溢出。 */
+.project-report-panel-header {
+	gap: 6px;
+}
+
+.project-report-panel-actions {
+	min-width: 0;
+}
+
+.project-report-panel-actions .lazy-list-search {
+	min-width: 0;
+}
+
+.lazy-list-footer {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 8px 0;
+	color: var(--ant-color-text-tertiary, rgba(0, 0, 0, 0.45));
+	font-size: 12px;
+	min-height: 28px;
+}
+
+.lazy-list-footer-end {
+	color: var(--ant-color-text-quaternary, rgba(0, 0, 0, 0.35));
+}
+
+.lazy-list-sentinel {
+	width: 100%;
+	height: 1px;
+}

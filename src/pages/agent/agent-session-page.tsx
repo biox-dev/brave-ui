@@ -1,15 +1,15 @@
 import { FC, useCallback, useMemo } from 'react';
-import { Button, Checkbox, Empty, Popover } from 'antd';
-import { LayoutOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons';
+import { Button, Empty } from 'antd';
+import { LeftOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router';
 import AgentChat from '@/components/agent/agent-chat';
 import SessionResourcePanel from '@/components/agent/session-resource-panel';
+import { useAgentSessionResources } from '@/components/agent/use-agent-session-resources';
 import type { AgentSessionResourceType } from '@/api/agent';
 import SiderStackLayout, {
   type SiderStackSection,
 } from '@/components/layout-sider/sider-stack-layout';
 import { useSiderStackCollapsed } from '@/components/layout-sider/use-sider-stack-collapsed';
-import { useSiderStackVisible } from '@/components/layout-sider/use-sider-stack-visible';
 import SplitWorkspace from '@/layout/components/SplitWorkspace';
 import MainTabs from '@/layout/components/MainTabs';
 import BorderlessCard from '@/components/common/borderless-card';
@@ -34,7 +34,7 @@ const WorkspaceViewResolver = ViewResolver as unknown as FC<WorkspaceViewProps>;
 
 /**
  * 右侧堆叠分区：五块会话结果（脚本 / 工作流 / 分析工作流 / 分析节点 / 应用会话）。
- * 每块各自持有折叠态，折叠或关闭后对应面板不再请求接口。
+ * 每块各自持有折叠态；数据由所有面板共用的一次分组请求提供。
  */
 const STACK_SECTION_KEYS = [
   'sessionScripts',
@@ -45,7 +45,10 @@ const STACK_SECTION_KEYS = [
 ] as const;
 type StackSectionKey = (typeof STACK_SECTION_KEYS)[number];
 
-/** 会话结果分区配置：标题与对应的资源类型。 */
+/**
+ * 会话结果分区配置：标题与对应的资源类型。
+ * 分区固定全部展示，不再支持显隐配置。
+ */
 const SESSION_RESOURCE_SECTIONS: Record<
   StackSectionKey,
   { resourceType: AgentSessionResourceType; zh: string; en: string }
@@ -58,23 +61,19 @@ const SESSION_RESOURCE_SECTIONS: Record<
 };
 
 /**
- * 默认只显示「分析节点 + 应用会话」两块：作为未持久化时的稳定回退值（保持引用不变）。
- * 脚本 / 工作流 / 分析工作流仍可在 Layout 弹层里手动勾选显示。
- */
-const DEFAULT_VISIBLE_STACK_SECTIONS: readonly string[] = [
-  'sessionAnalysisNodes',
-  'sessionAppSessions',
-];
-
-/**
  * Agent 会话页（`/session/:sessionId?`，无 sessionId 表示 New Chat）。
  *
  * 布局是一个独立的工作组：
- * - 顶部：通栏 header，右侧 Layout 按钮点击后可勾选要显示的堆叠分区（持久化）；
+ * - 顶部：通栏 header，右侧只有一个展开 / 折叠按钮（总是显示）；
  * - main：当前会话的聊天（直接渲染 `<AgentChat />`），没有右侧面板时自动撑满；
  * - rightMiddle：聊天内容打开的标签页（有标签时才渲染，关闭全部后聊天自动撑开）；
- * - right：可关闭的纵向堆叠面板（会话结果 + 应用会话列表），
- *   每个分区折叠或关闭后不再请求自己的接口。
+ * - right：纵向堆叠面板（脚本 / 工作流 / 分析工作流 / 分析节点 / 应用会话），
+ *   只渲染有数据的分区；每个分区可独立展开或折叠，并自带刷新按钮。
+ *   没有任何数据时保留面板并展示空状态（同样由 SessionResourcePanel 渲染，带刷新按钮）。
+ *
+ * 所有分区共用一次分组请求（`useAgentSessionResources`）：面板折叠时不发请求，
+ * 展开时才请求；页面用同一份数据决定哪些分区有内容。刷新入口在分区标题栏里，
+ * 只显示在第一个有数据的分区上（所有分区共享同一份数据）。
  *
  * 聊天里创建 / 切换会话时通过 `onConversationChange` 把地址同步成 `/session/:id`，
  * 这样刷新、分享、左侧会话列表高亮都能保持一致。
@@ -101,52 +100,10 @@ const AgentSessionPage: FC = () => {
     return title || sessionId;
   }, [conversationTitles, conversations, locale, sessionId]);
 
-  // 右侧堆叠：分区显示状态持久化（redux + localStorage），全部取消勾选时右侧面板不渲染。
-  // 存储 key 用 v2：默认显示规则变更后，避免旧的「全部显示」持久化值覆盖新默认。
-  const [visibleSectionKeys, setVisibleSectionKeys] = useSiderStackVisible(
-    'agentSessionRightStack:v2',
-    DEFAULT_VISIBLE_STACK_SECTIONS,
-  );
   // 折叠状态持久化：切换面板 / 刷新浏览器后保持原样。
   const [stackCollapsedKeys, setStackCollapsedKeys] = useSiderStackCollapsed(
     'agentSessionRightStack',
   );
-
-  // 按固定顺序渲染当前可见的分区，持久化里多余的 key（版本变更遗留）会被自动忽略。
-  const stackSectionKeys = useMemo(
-    () => STACK_SECTION_KEYS.filter((key) => visibleSectionKeys.includes(key)),
-    [visibleSectionKeys],
-  );
-
-  const closeStackSection = useCallback(
-    (key: StackSectionKey) => {
-      setVisibleSectionKeys(stackSectionKeys.filter((item) => item !== key));
-    },
-    [setVisibleSectionKeys, stackSectionKeys],
-  );
-
-  const stackSections = useMemo<SiderStackSection[]>(
-    () =>
-      stackSectionKeys.map((key) => {
-        const resourceSection = SESSION_RESOURCE_SECTIONS[key];
-        return {
-          key,
-          render: ({ collapsed, toggle }) => (
-            <SessionResourcePanel
-              sessionId={sessionId}
-              resourceType={resourceSection.resourceType}
-              title={locale === 'en_US' ? resourceSection.en : resourceSection.zh}
-              collapsed={collapsed}
-              onToggleCollapse={toggle}
-              onClose={() => closeStackSection(key)}
-            />
-          ),
-        };
-      }),
-    [closeStackSection, locale, sessionId, stackSectionKeys],
-  );
-
-  const showStack = stackSectionKeys.length > 0;
 
   // 右侧堆叠面板整体折叠（持久化）：折叠后仍保留 DOM 与滚动位置。
   // 折叠按钮不在分隔条上（SplitWorkspace 的 showRightToggle=false），而是放在 header，
@@ -159,22 +116,47 @@ const AgentSessionPage: FC = () => {
     (collapsed: boolean) => setRightPaneCollapsedKeys(collapsed ? ['collapsed'] : []),
     [setRightPaneCollapsedKeys],
   );
-  // 展开状态才显示 Layout（分区勾选）；折叠后 header 只留展开按钮，避免误以为面板还在。
-  // 没有勾选任何分区时右侧面板本就不渲染，仍保留 Layout 入口用于重新开启分区。
-  const showLayoutButton = !(showStack && rightPaneCollapsed);
 
-  // Layout 弹层里的分区勾选项：与右侧堆叠的固定顺序一致。
-  const sectionOptions = useMemo(
+  // 所有分区共用这一次分组请求（与各分区同一个 query key）：
+  // 右侧面板折叠时不请求接口，展开时才请求。
+  const { data: resourceGroups } = useAgentSessionResources(sessionId, !rightPaneCollapsed);
+
+  // 只渲染有数据的分区：没有结果的分区不占位。
+  const visibleSectionKeys = useMemo(
     () =>
-      STACK_SECTION_KEYS.map((key) => ({
-        value: key,
-        label:
-          locale === 'en_US'
-            ? SESSION_RESOURCE_SECTIONS[key].en
-            : SESSION_RESOURCE_SECTIONS[key].zh,
-      })),
-    [locale],
+      STACK_SECTION_KEYS.filter(
+        (key) =>
+          (resourceGroups?.[SESSION_RESOURCE_SECTIONS[key].resourceType]?.length ?? 0) > 0,
+      ),
+    [resourceGroups],
   );
+
+  const stackSections = useMemo<SiderStackSection[]>(
+    () =>
+      visibleSectionKeys.map((key, index) => {
+        const resourceSection = SESSION_RESOURCE_SECTIONS[key];
+        return {
+          key,
+          render: ({ collapsed, toggle }) => (
+            <SessionResourcePanel
+              sessionId={sessionId}
+              resourceType={resourceSection.resourceType}
+              title={locale === 'en_US' ? resourceSection.en : resourceSection.zh}
+              active={!rightPaneCollapsed}
+              /* 所有分区共用一次请求：刷新入口只放在第一个分区，避免重复按钮。 */
+              showRefresh={index === 0}
+              /* 关闭整个右侧面板的按钮只放在最上方分区的标题栏里。 */
+              onClose={index === 0 ? () => setRightPaneCollapsed(true) : undefined}
+              collapsed={collapsed}
+              onToggleCollapse={toggle}
+            />
+          ),
+        };
+      }),
+    [locale, rightPaneCollapsed, sessionId, setRightPaneCollapsed, visibleSectionKeys],
+  );
+
+  const showStack = visibleSectionKeys.length > 0;
 
   // 激活标签被关闭后 store 会切到邻居；这里再兜底一次，避免 active 指向已关闭的 key。
   const activeTab = useMemo(
@@ -208,61 +190,18 @@ const AgentSessionPage: FC = () => {
               {sessionTitle}
             </span>
             <div className="agent-session-header-actions">
-              {showLayoutButton && (
-                <Popover
-                  trigger="click"
-                  placement="bottomRight"
-                  title={locale === 'en_US' ? 'Visible panels' : '显示面板'}
-                  content={
-                    <Checkbox.Group
-                      value={[...stackSectionKeys]}
-                      options={sectionOptions}
-                      onChange={(values) =>
-                        setVisibleSectionKeys(
-                          STACK_SECTION_KEYS.filter((key) => values.includes(key)),
-                        )
-                      }
-                      style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
-                    />
-                  }
-                >
-                  <Button
-                    type={showStack ? 'text' : 'default'}
-                    size="small"
-                    icon={<LayoutOutlined />}
-                    aria-pressed={showStack}
-                    aria-label={locale === 'en_US' ? 'Choose panels' : '选择面板'}
-                  >
-                    Layout
-                  </Button>
-                </Popover>
-              )}
-              {/* 折叠 / 展开右侧堆叠面板：折叠时只显示图标，展开时与 Layout 并排。 */}
-              {showStack && (
+              {/*
+               * 只在面板折叠时显示「打开」按钮；关闭入口放在右侧面板自己的标题栏里
+               * （见 SessionResourcePanel 的 onClose）。
+               */}
+              {rightPaneCollapsed && (
                 <Button
                   size="small"
-                  type={rightPaneCollapsed ? 'default' : 'text'}
-                  icon={rightPaneCollapsed ? <LeftOutlined /> : <RightOutlined />}
-                  aria-pressed={!rightPaneCollapsed}
-                  aria-label={
-                    rightPaneCollapsed
-                      ? locale === 'en_US'
-                        ? 'Expand panels'
-                        : '展开面板'
-                      : locale === 'en_US'
-                        ? 'Collapse panels'
-                        : '折叠面板'
-                  }
-                  title={
-                    rightPaneCollapsed
-                      ? locale === 'en_US'
-                        ? 'Expand panels'
-                        : '展开面板'
-                      : locale === 'en_US'
-                        ? 'Collapse panels'
-                        : '折叠面板'
-                  }
-                  onClick={() => setRightPaneCollapsed(!rightPaneCollapsed)}
+                  type="default"
+                  icon={<LeftOutlined />}
+                  aria-label={locale === 'en_US' ? 'Open panels' : '展开面板'}
+                  title={locale === 'en_US' ? 'Open panels' : '展开面板'}
+                  onClick={() => setRightPaneCollapsed(false)}
                 />
               )}
             </div>
@@ -317,7 +256,17 @@ const AgentSessionPage: FC = () => {
               onCollapsedKeysChange={setStackCollapsedKeys}
               resizeLabel={locale === 'en_US' ? 'Resize panels' : '调整面板高度'}
             />
-          ) : undefined
+          ) : (
+            /* 没有数据时也保留右侧面板：空状态与刷新按钮都由 SessionResourcePanel 渲染。 */
+            <SessionResourcePanel
+              sessionId={sessionId}
+              title={locale === 'en_US' ? 'Session results' : '会话结果'}
+              active={!rightPaneCollapsed}
+              showRefresh
+              onClose={() => setRightPaneCollapsed(true)}
+              collapsed={false}
+            />
+          )
         }
         /* 折叠 / 展开由 header 控制，分隔条上不再渲染折叠按钮。 */
         showRightToggle={false}

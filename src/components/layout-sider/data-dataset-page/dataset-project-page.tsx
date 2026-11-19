@@ -3,9 +3,15 @@ import { Button, Card, Flex, Popconfirm, Space, Table, Tooltip, Typography } fro
 import type { ColumnsType } from "antd/es/table";
 import { DeleteOutlined, EditOutlined, FolderAddOutlined, ImportOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
-import { useDatasetProjectPageQuery } from "@/hooks/usePaginationV2";
-import { deleteDatasetApi, ensureDatasetDirApi, importDatasetDirFilesApi, listDatasetFilesApi } from "@/api/data";
-import type { DatasetFileItem, DatasetItem } from "@/api/data";
+import { LazyListFooter, LazyListSearch, LazyListSentinel, useLazyList } from "@/components/common/lazy-list";
+import {
+  deleteDatasetApi,
+  ensureDatasetDirApi,
+  importDatasetDirFilesApi,
+  listDatasetFilesApi,
+  pageDatasetByProjectApi,
+} from "@/api/data";
+import type { DatasetFileItem, DatasetItem, DatasetPageQuery } from "@/api/data";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 
@@ -209,38 +215,30 @@ const DatasetProjectPage = ({
   );
 
   const {
-    data,
+    items: data,
+    loading,
+    loadingMore,
+    hasMore,
     total,
-    page,
-    pageSize,
-    setPage,
-    setPageSize,
-    setQuery,
-    isLoading,
-    isFetching,
+    keyword,
+    setKeyword,
+    reload,
     error,
-    refetch,
-  } = useDatasetProjectPageQuery(
-    {
-      project_id: resolvedProjectId,
-    },
-    {
-      initialPageSize: normalizePageSize(page_size),
-      keepPreviousData: true,
-      staleTime: 30_000,
-      cacheTime: 5 * 60_000,
-      scopeKey: projectId,
-    }
-  );
-
-  useEffect(() => {
-    setQuery({
+    sentinelRef,
+  } = useLazyList<DatasetItem, DatasetPageQuery>({
+    fetcher: (payload) => pageDatasetByProjectApi(payload).then((response) => response.data),
+    query: {
       project_id: resolvedProjectId,
       dataset_name: normalizeText(dataset_name),
       description: normalizeText(description),
       metadata: normalizeText(metadata),
-    });
-  }, [resolvedProjectId, dataset_name, description, metadata, setQuery]);
+    },
+    pageSize: normalizePageSize(page_size),
+    scopeKey: JSON.stringify([resolvedProjectId, dataset_name, description, metadata, page_size]),
+  });
+  const refetch = reload;
+  const isLoading = loading;
+  const isFetching = loading || loadingMore;
 
   const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
 
@@ -425,6 +423,12 @@ const DatasetProjectPage = ({
       title={title || "Dataset List By Project"}
       extra={
         <Space>
+          <LazyListSearch
+            value={keyword}
+            onChange={setKeyword}
+            placeholder="Search datasets"
+            className="project-report-panel-search"
+          />
           <Text type="secondary">Total: {total}</Text>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
             New
@@ -468,20 +472,15 @@ const DatasetProjectPage = ({
         onRow={(record) => ({
           onClick: (event) => handleRowClick(record, event),
         })}
-        pagination={{
-          current: page,
-          pageSize,
-          total,
-          showSizeChanger: true,
-          pageSizeOptions: [20, 50, 100, 200, 500, 1000],
-          onChange: (nextPage, nextPageSize) => {
-            if (nextPageSize !== pageSize) {
-              setPageSize(nextPageSize);
-            }
-            setPage(nextPage);
-          },
-          showTotal: (value) => `Total ${value} items`,
-        }}
+        pagination={false}
+      />
+      <LazyListSentinel sentinelRef={sentinelRef} />
+      <LazyListFooter
+        loadingMore={loadingMore}
+        hasMore={hasMore}
+        hasItems={data.length > 0}
+        total={total}
+        labels={{ loading: "Loading more…", noMore: "No more datasets", totalPrefix: "total " }}
       />
 
       {selectable && (

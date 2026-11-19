@@ -1,12 +1,13 @@
 import {
   deleteAISummaryApi,
   getAISummaryApi,
+  pageAISummaryByProjectApi,
   regenerateAISummaryApi,
   type AISummaryListItem,
   type AISummaryStatus,
 } from "@/api/ai-summary";
+import { LazyListFooter, LazyListSearch, LazyListSentinel, useLazyList } from "@/components/common/lazy-list";
 import { invoke } from "@/core/ui-system/invokeV2";
-import { useAISummaryPageQuery } from "@/hooks/usePaginationV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { formatRelativeTime } from "@/utils/time";
@@ -23,7 +24,6 @@ import {
   Button,
   Descriptions,
   Empty,
-  Pagination,
   Popconfirm,
   Popover,
   Table,
@@ -149,16 +149,23 @@ const AISummaryProjectList: FC<AISummaryProjectListProps> = ({ title, onOk, onCa
   };
 
   const {
-    data,
+    items: data,
+    loading,
+    loadingMore,
+    hasMore,
     total,
-    page,
-    pageSize,
-    setPage,
-    setPageSize,
-    isLoading,
-    isFetching,
-    refetch,
-  } = useAISummaryPageQuery({}, { initialPageSize: 10, scopeKey: projectId });
+    keyword,
+    setKeyword,
+    reload,
+    sentinelRef,
+  } = useLazyList<AISummaryListItem>({
+    fetcher: (payload) => pageAISummaryByProjectApi(payload).then((response) => response.data),
+    pageSize: 10,
+    scopeKey: projectId,
+  });
+  const refetch = reload;
+  const isLoading = loading;
+  const isFetching = loading || loadingMore;
 
   const handleOpen = (item: AISummaryListItem) => {
     navigate(`/c/ai-summaries/${encodeURIComponent(item.id)}`);
@@ -397,6 +404,12 @@ const AISummaryProjectList: FC<AISummaryProjectListProps> = ({ title, onOk, onCa
           {title || (locale === "en_US" ? "AI Summary" : "AI 摘要")}
         </span>
         <div className="project-report-panel-actions">
+          <LazyListSearch
+            value={keyword}
+            onChange={setKeyword}
+            placeholder={locale === "en_US" ? "Search summaries" : "搜索摘要"}
+            className="project-report-panel-search"
+          />
           <Tooltip title={locale === "en_US" ? "Refresh" : "刷新"}>
             <Button
               type="text"
@@ -433,25 +446,13 @@ const AISummaryProjectList: FC<AISummaryProjectListProps> = ({ title, onOk, onCa
             })}
           />
         )}
-      </div>
-
-      <div
-        style={{ padding: "6px 10px", borderTop: "1px solid var(--sharp-divider)" }}
-      >
-        <Pagination
-          size="small"
-          current={page}
-          pageSize={pageSize}
+        <LazyListSentinel sentinelRef={sentinelRef} />
+        <LazyListFooter
+          loadingMore={loadingMore}
+          hasMore={hasMore}
+          hasItems={data.length > 0}
           total={total}
-          showSizeChanger
-          showTotal={(t) => `${t} summaries`}
-          onChange={(nextPage, nextSize) => {
-            if (nextSize !== pageSize) {
-              setPageSize(nextSize);
-            } else {
-              setPage(nextPage);
-            }
-          }}
+          labels={{ loading: "Loading more…", noMore: "No more summaries", totalPrefix: "total " }}
         />
       </div>
 

@@ -225,6 +225,8 @@ export interface ProjectReportPageQuery {
 export interface ProjectReportPageRequest {
 	page?: number;
 	page_size?: number;
+	/** 统一关键字搜索（后端 types.Pagination.Keyword，命中报告标题）。 */
+	keyword?: string;
 }
 
 export interface UploadProjectReportImageResponse {
@@ -393,6 +395,8 @@ export interface UnbindLiteratureRequest {
 export interface LiteraturePageRequest {
 	page?: number;
 	page_size?: number;
+	/** 统一关键字搜索（后端 types.Pagination.Keyword，命中文献标题）。 */
+	keyword?: string;
 }
 
 export const addLiteratureApi = (payload: AddLiteratureRequest) => http.post<ProjectLiteratureDetailItem>("/project/add-literature", payload)

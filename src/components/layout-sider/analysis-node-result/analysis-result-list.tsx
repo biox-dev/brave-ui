@@ -1,13 +1,13 @@
-import { deleteAnalysisNodeApi, type AnalysisNodeItem } from "@/api/analysis";
+import { deleteAnalysisNodeApi, pageAnalysisNodeByProjectApi, type AnalysisNodeItem, type AnalysisNodePageQuery } from "@/api/analysis";
+import { LazyListFooter, LazyListSearch, LazyListSentinel, useLazyList } from "@/components/common/lazy-list";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useComponentStore } from "@/event-bus/stores/components";
-import { useAnalysisNodePageQuery } from "@/hooks/usePaginationV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { useOpenMainTab } from "@/hooks/useMainTabTitle";
 import { formatRelativeTime } from "@/utils/time";
 import { CaretDownOutlined, CaretRightOutlined, DeleteOutlined, ExperimentOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
-import { Button, Descriptions, Empty, Pagination, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
+import { Button, Descriptions, Empty, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router";
@@ -150,24 +150,25 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
   };
 
   const {
-    data,
+    items: data,
+    loading,
+    loadingMore,
+    hasMore,
     total,
-    page,
-    pageSize,
-    setPage,
-    setPageSize,
-    isLoading,
-    isFetching,
-    refetch,
-  } = useAnalysisNodePageQuery(
-    {},
-    {
-      initialPageSize: 20,
-      scopeKey: projectId,
-      // 纵向堆叠折叠时只保留标题栏：停止列表请求，展开后自动按需加载（缓存 <30s 直接复用）。
-      enabled: !collapsed,
-    }
-  );
+    keyword,
+    setKeyword,
+    reload,
+    sentinelRef,
+  } = useLazyList<AnalysisNodeItem, AnalysisNodePageQuery>({
+    fetcher: (payload) => pageAnalysisNodeByProjectApi(payload).then((response) => response.data),
+    pageSize: 20,
+    scopeKey: projectId,
+    // 纵向堆叠折叠时只保留标题栏：停止列表请求，展开后自动恢复。
+    enabled: !collapsed,
+  });
+  const refetch = reload;
+  const isLoading = loading;
+  const isFetching = loading || loadingMore;
 
   // 订阅 ws 分析事件：节点开始/结束后自动刷新列表。
   const { register, unregister } = useComponentStore();
@@ -391,6 +392,12 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
           <span className="project-report-panel-title">{title || "Analysis Nodes"}</span>
         )}
         <div className="project-report-panel-actions">
+          <LazyListSearch
+            value={keyword}
+            onChange={setKeyword}
+            placeholder="Search nodes"
+            className="project-report-panel-search"
+          />
           <Tooltip title="Create command analysis node">
             <Button
               type="text"
@@ -436,29 +443,13 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
             })}
           />
         )}
-      </div>
-
-      <div
-        style={{
-          padding: "6px 10px",
-          borderTop: "1px solid var(--sharp-divider)",
-          ...(collapsed ? { display: "none" } : null),
-        }}
-      >
-        <Pagination
-          size="small"
-          current={page}
-          pageSize={pageSize}
+        <LazyListSentinel sentinelRef={sentinelRef} />
+        <LazyListFooter
+          loadingMore={loadingMore}
+          hasMore={hasMore}
+          hasItems={data.length > 0}
           total={total}
-          showSizeChanger
-          showTotal={(t) => `${t} nodes`}
-          onChange={(nextPage, nextSize) => {
-            if (nextSize !== pageSize) {
-              setPageSize(nextSize);
-            } else {
-              setPage(nextPage);
-            }
-          }}
+          labels={{ loading: "Loading more…", noMore: "No more nodes", totalPrefix: "total " }}
         />
       </div>
 

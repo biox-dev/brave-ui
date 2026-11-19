@@ -14,7 +14,14 @@ import { pageConversationApi, type AgentConversationItem } from "@/api/agent";
  */
 type AgentConversationStore = {
   conversations: AgentConversationItem[];
+  /** 后端返回的会话总数（当前项目）。 */
+  total: number;
+  /** 当前搜索关键字。 */
+  keyword: string;
   loading: boolean;
+  /** 追加下一页加载中。 */
+  loadingMore: boolean;
+  hasMore: boolean;
   /** 是否至少成功拉取过一次（用于区分「还没拉过」与「确实为空」）。 */
   loaded: boolean;
   /**
@@ -26,42 +33,137 @@ type AgentConversationStore = {
   titles: Record<string, string>;
 };
 
+/** 每页条数（懒加载分页大小）。 */
+export const PAGE_SIZE = 20;
+
 export const useAgentConversationStore = create<AgentConversationStore>(() => ({
   conversations: [],
+  total: 0,
+  keyword: "",
   loading: false,
+  loadingMore: false,
+  hasMore: false,
   loaded: false,
   titles: {},
 }));
 
-let inflight: Promise<void> | null = null;
+// 请求序号：关键字 / 重置会让旧请求的响应直接作废；nextPage 是下一次追加的页码。
+let seq = 0;
+let nextPage = 1;
+let inflightReset: Promise<void> | null = null;
+let inflightMore: Promise<void> | null = null;
 
-/** 拉取当前用户的会话列表（左侧会话面板与聊天页共用）。 */
-export const loadAgentConversations = (): Promise<void> => {
-  if (inflight) {
-    return inflight;
+const collectTitles = (items: AgentConversationItem[]) => {
+  const titles = { ...useAgentConversationStore.getState().titles };
+  let changed = false;
+  for (const item of items) {
+    const title = (item.title ?? "").trim();
+    if (title && titles[item.id] !== title) {
+      titles[item.id] = title;
+      changed = true;
+    }
   }
+  return changed ? titles : null;
+};
+
+/** 重置到第一页（保留当前关键字）；返回本轮请求的 Promise。 */
+export const loadAgentConversations = (): Promise<void> => {
+  const current = useAgentConversationStore.getState();
+  const requestSeq = ++seq;
+  nextPage = 1;
   useAgentConversationStore.setState({ loading: true });
-  inflight = pageConversationApi({ page: 1, page_size: 100 })
+  const task = pageConversationApi({
+    page: 1,
+    page_size: PAGE_SIZE,
+    ...(current.keyword.trim() ? { keyword: current.keyword.trim() } : {}),
+  })
     .then((res) => {
-      const conversations = res.data?.data ?? [];
-      // 列表接口自带 title：顺手回填标题缓存，使顶部标题无需等聊天详情返回。
-      const titles = { ...useAgentConversationStore.getState().titles };
-      for (const item of conversations) {
-        const title = (item.title ?? "").trim();
-        if (title) {
-          titles[item.id] = title;
-        }
+      if (requestSeq !== seq) {
+        return;
       }
-      useAgentConversationStore.setState({ conversations, titles, loaded: true });
+      const conversations = res.data?.data ?? [];
+      const total = res.data?.total ?? 0;
+      nextPage = 2;
+      const titles = collectTitles(conversations);
+      useAgentConversationStore.setState({
+        conversations,
+        total,
+        hasMore: conversations.length > 0 && conversations.length < total,
+        loaded: true,
+        ...(titles ? { titles } : {}),
+      });
     })
     .catch(() => {
       // 错误由全局拦截器提示。
     })
     .finally(() => {
-      inflight = null;
-      useAgentConversationStore.setState({ loading: false });
+      if (requestSeq === seq) {
+        useAgentConversationStore.setState({ loading: false });
+      }
+      if (inflightReset === task) {
+        inflightReset = null;
+      }
     });
-  return inflight;
+  inflightReset = task;
+  return task;
+};
+
+/** 追加下一页（滚动到底部触发）。 */
+export const loadMoreAgentConversations = (): Promise<void> => {
+  if (inflightMore) {
+    return inflightMore;
+  }
+  const state = useAgentConversationStore.getState();
+  if (!state.hasMore || state.loading) {
+    return Promise.resolve();
+  }
+  const requestSeq = seq;
+  const page = nextPage;
+  useAgentConversationStore.setState({ loadingMore: true });
+  const task = pageConversationApi({
+    page,
+    page_size: PAGE_SIZE,
+    ...(state.keyword.trim() ? { keyword: state.keyword.trim() } : {}),
+  })
+    .then((res) => {
+      if (requestSeq !== seq) {
+        return;
+      }
+      const rows = res.data?.data ?? [];
+      const total = res.data?.total ?? 0;
+      nextPage = page + 1;
+      const titles = collectTitles(rows);
+      useAgentConversationStore.setState((prev) => {
+        const conversations = [...prev.conversations, ...rows];
+        return {
+          conversations,
+          total,
+          hasMore: rows.length > 0 && conversations.length < total,
+          ...(titles ? { titles } : {}),
+        };
+      });
+    })
+    .catch(() => {
+      // 错误由全局拦截器提示。
+    })
+    .finally(() => {
+      if (requestSeq === seq) {
+        useAgentConversationStore.setState({ loadingMore: false });
+      }
+      inflightMore = null;
+    });
+  inflightMore = task;
+  return task;
+};
+
+/** 设置搜索关键字（防抖由调用方处理），并重置到第一页。 */
+export const setAgentConversationKeyword = (keyword: string): Promise<void> => {
+  const next = keyword ?? "";
+  if (useAgentConversationStore.getState().keyword === next) {
+    return Promise.resolve();
+  }
+  useAgentConversationStore.setState({ keyword: next });
+  return loadAgentConversations();
 };
 
 /**
@@ -75,7 +177,7 @@ export const ensureAgentConversations = (): Promise<void> => {
   if (useAgentConversationStore.getState().loaded) {
     return Promise.resolve();
   }
-  return loadAgentConversations();
+  return inflightReset ?? loadAgentConversations();
 };
 
 /**
