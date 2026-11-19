@@ -282,6 +282,10 @@ export interface AgentConversationMessageItem {
   kind?: string;
   task_id?: string;
   data?: unknown;
+  /** 用户消息归属者的显示名（后端按 user_id IN 查询 users 表回填）。 */
+  username?: string;
+  /** Agent 侧消息执行者的 Profile 展示名（后端按 profile id IN 查询 agent_profiles 表回填）。 */
+  profile_name?: string;
 }
 
 // 获取会话的分页参数：不传表示取最新一页。

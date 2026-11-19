@@ -115,6 +115,10 @@ interface ChatMessage {
   seq?: number;
   data?: unknown;
   error?: boolean;
+  /** 用户消息发起人显示名（后端回填），展示在用户头像下方。 */
+  username?: string;
+  /** Agent 侧消息执行 Profile 展示名（后端回填），展示在助手头像下方。 */
+  profileName?: string;
 }
 
 // 后端用字符串 "0" 表示“无当前任务”，需一并视为空。
@@ -137,6 +141,8 @@ const mapMessages = (conv: AgentConversationItem): ChatMessage[] =>
     seq: m.seq,
     data: m.data,
     error: m.kind === "error",
+    username: m.username,
+    profileName: m.profile_name,
   }));
 
 // 活跃轮次（running / waiting_permission）的中间态，按 taskID 索引，
@@ -1249,7 +1255,22 @@ const AgentChat: FC<AgentChatProps> = ({
                 gap={8}
               >
                 {m.role === "assistant" && (
-                  <RobotOutlined style={{ color: "#1677ff", marginTop: 4 }} />
+                  <Flex
+                    vertical
+                    align="center"
+                    style={{ flexShrink: 0, width: 64, marginTop: 4 }}
+                  >
+                    <RobotOutlined style={{ color: "#1677ff" }} />
+                    {/* Profile 名称：后端按消息的 Profile ID 回填，展示在助手头像下方。 */}
+                    {m.profileName && (
+                      <Text
+                        type="secondary"
+                        style={{ fontSize: 11, lineHeight: 1.2, marginTop: 2, textAlign: "center" }}
+                      >
+                        {m.profileName}
+                      </Text>
+                    )}
+                  </Flex>
                 )}
                 <div
                   style={
@@ -1319,7 +1340,23 @@ const AgentChat: FC<AgentChatProps> = ({
                     </Flex>
                   )}
                 </div>
-                {m.role === "user" && <UserOutlined style={{ color: "#1677ff", marginTop: 4 }} />}
+                {m.role === "user" && (
+                  <Flex
+                    vertical
+                    align="center"
+                    style={{ flexShrink: 0, width: 64, marginTop: 4 }}
+                  >
+                    <UserOutlined style={{ color: "#1677ff" }} />
+                    {/* 发起人用户名：后端按 user_id 回填，展示在用户头像下方。 */}
+                    {m.username && (
+                      <Text
+                        style={{ fontSize: 11, lineHeight: 1.2, marginTop: 2, textAlign: "center", color: "#595959" }}
+                      >
+                        {m.username}
+                      </Text>
+                    )}
+                  </Flex>
+                )}
               </Flex>
             ))}
             {/* 进行中的任务展示完整实时事件流（reasoning/tool/message）。
