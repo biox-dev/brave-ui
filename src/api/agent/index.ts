@@ -257,6 +257,8 @@ export interface AgentConversationItem {
   user_id: string;
   /** 会话发起人的显示名（后端按 user_id join users 表回填，用于项目内会话列表）。 */
   username?: string;
+  /** 使用过该会话的用户（仅详情 / fork 接口返回）：后端按 user 消息去重并回填用户名。 */
+  users?: AgentSessionUser[];
   provider: string;
   model?: string;
   /** 会话标题（首轮对话时由后端用用户输入初始化）。 */
@@ -270,6 +272,12 @@ export interface AgentConversationItem {
   next_cursor?: number;
   created_at: string;
   updated_at: string;
+}
+
+/** 会话参与者（对应后端 agenttypes.SessionUser）。 */
+export interface AgentSessionUser {
+  id: string;
+  username?: string;
 }
 
 export interface AgentConversationMessageItem {

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { pageConversationApi, type AgentConversationItem } from "@/api/agent";
+import { pageConversationApi, type AgentConversationItem, type AgentSessionUser } from "@/api/agent";
 
 /**
  * Agent 会话列表的共享状态。
@@ -31,6 +31,13 @@ type AgentConversationStore = {
    * 这里；顶部标题读这份缓存即可，不必再为了显示一个标题去拉整张会话列表。
    */
   titles: Record<string, string>;
+  /**
+   * 会话参与者缓存（id → users）。
+   *
+   * 同样由聊天页的 `/agent/conversation/get` 回填：后端按 user 消息去重并回填
+   * 用户名，顶部可直接展示「谁用过这个会话」，无需再发请求。
+   */
+  participants: Record<string, AgentSessionUser[]>;
 };
 
 /** 每页条数（懒加载分页大小）。 */
@@ -45,6 +52,7 @@ export const useAgentConversationStore = create<AgentConversationStore>(() => ({
   hasMore: false,
   loaded: false,
   titles: {},
+  participants: {},
 }));
 
 // 请求序号：关键字 / 重置会让旧请求的响应直接作废；nextPage 是下一次追加的页码。
@@ -188,17 +196,19 @@ export const ensureAgentConversations = (): Promise<void> => {
  * - `conversations`：列表已加载时同步对应条目，保持列表标题与详情一致。
  */
 export const upsertConversation = (conv?: AgentConversationItem | null) => {
-  const title = (conv?.title ?? "").trim();
-  if (!conv || !conv.id || !title) {
+  if (!conv || !conv.id) {
     return;
   }
+  const title = (conv.title ?? "").trim();
   useAgentConversationStore.setState((state) => {
     const next: Partial<AgentConversationStore> = {};
-    if (state.titles[conv.id] !== title) {
+    if (title && state.titles[conv.id] !== title) {
       next.titles = { ...state.titles, [conv.id]: title };
     }
+    // 详情接口返回的参与者：直接缓存，不做差异比较 / 旧数据兼容。
+    next.participants = { ...state.participants, [conv.id]: conv.users ?? [] };
     const index = state.conversations.findIndex((item) => item.id === conv.id);
-    if (index >= 0 && state.conversations[index].title !== title) {
+    if (index >= 0 && title && state.conversations[index].title !== title) {
       const conversations = [...state.conversations];
       conversations[index] = { ...conversations[index], title };
       next.conversations = conversations;

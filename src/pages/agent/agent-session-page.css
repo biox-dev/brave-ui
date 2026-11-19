@@ -27,6 +27,14 @@
   border-bottom: 1px solid var(--sharp-divider);
 }
 
+.agent-session-header-main {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .agent-session-header-title {
   min-width: 0;
   overflow: hidden;
@@ -34,6 +42,23 @@
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 使用过该会话的用户名：紧随标题，空间不足时省略。 */
+.agent-session-header-users {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  color: var(--sharp-text-secondary, #8c8c8c);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.agent-session-header-users-text {
+  overflow: hidden;
   text-overflow: ellipsis;
 }
 

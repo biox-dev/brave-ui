@@ -1,6 +1,6 @@
 import { FC, useCallback, useMemo } from 'react';
 import { Button, Empty } from 'antd';
-import { LeftOutlined } from '@ant-design/icons';
+import { LeftOutlined, UserOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router';
 import AgentChat from '@/components/agent/agent-chat';
 import SessionResourcePanel from '@/components/agent/session-resource-panel';
@@ -90,6 +90,7 @@ const AgentSessionPage: FC = () => {
   // 这里不再触发列表请求：标题不需要整张列表，列表请求由它自己的面板负责。
   const conversations = useAgentConversationStore((state) => state.conversations);
   const conversationTitles = useAgentConversationStore((state) => state.titles);
+  const conversationParticipants = useAgentConversationStore((state) => state.participants);
   const sessionTitle = useMemo(() => {
     if (!sessionId) {
       return locale === 'en_US' ? 'New Chat' : '新建会话';
@@ -99,6 +100,9 @@ const AgentSessionPage: FC = () => {
       conversations.find((item) => item.id === sessionId)?.title?.trim();
     return title || sessionId;
   }, [conversationTitles, conversations, locale, sessionId]);
+
+  // 使用过该会话的用户名：直接展示详情接口返回的 users，不做过滤 / 去重 / 兜底。
+  const sessionUsernames = sessionId ? conversationParticipants[sessionId] ?? [] : [];
 
   // 折叠状态持久化：切换面板 / 刷新浏览器后保持原样。
   const [stackCollapsedKeys, setStackCollapsedKeys] = useSiderStackCollapsed(
@@ -186,9 +190,22 @@ const AgentSessionPage: FC = () => {
       <SplitWorkspace
         header={
           <div className="agent-session-header">
-            <span className="agent-session-header-title" title={sessionTitle}>
-              {sessionTitle}
-            </span>
+            <div className="agent-session-header-main">
+              <span className="agent-session-header-title" title={sessionTitle}>
+                {sessionTitle}
+              </span>
+              {sessionUsernames.length > 0 && (
+                <span
+                  className="agent-session-header-users"
+                  title={sessionUsernames.map((user) => user.username).join(', ')}
+                >
+                  <UserOutlined />
+                  <span className="agent-session-header-users-text">
+                    {sessionUsernames.map((user) => user.username).join(', ')}
+                  </span>
+                </span>
+              )}
+            </div>
             <div className="agent-session-header-actions">
               {/*
                * 只在面板折叠时显示「打开」按钮；关闭入口放在右侧面板自己的标题栏里
