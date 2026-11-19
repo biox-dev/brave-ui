@@ -14,13 +14,14 @@
   min-height: 0;
 }
 
-/* 通栏 header：左侧标题 + 右侧 Layout 按钮（用于重新显示被关闭的右侧堆叠） */
+/* 通栏 header：左侧标题 + 右侧 Layout 按钮（用于重新显示被关闭的右侧堆叠）。
+   高度与 PanelLayout 标题栏共用 --sharp-head-height，两条分割线保持对齐。 */
 .agent-session-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  height: 36px;
+  height: var(--sharp-head-height, 36px);
   padding: 0 8px;
   box-sizing: border-box;
   border-bottom: 1px solid var(--sharp-divider);

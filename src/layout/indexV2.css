@@ -9,6 +9,8 @@
   --sharp-text: #1b1f27;
   --sharp-text-soft: #5d6678;
   --project-report-selected-bg: #eaf1fb;
+  /* 工作台通栏 header 与 PanelLayout 标题栏共用的高度：两者相邻时分割线能对齐。 */
+  --sharp-head-height: 36px;
 }
 
 .layout-sharp.layout-sharp-dark {
@@ -504,10 +506,13 @@
   min-height: calc(100dvh - 44px - 28px);
 }
 
-/* 顶部通栏 header：横跨所有面板，不参与分隔条拖拽 */
+/* 顶部通栏 header：横跨所有面板，不参与分隔条拖拽。
+   高度与 PanelLayout 标题栏共用 --sharp-head-height，保证两条分割线对齐。 */
 .layout-sharp-workspace-header {
   flex: 0 0 auto;
   min-width: 0;
+  height: var(--sharp-head-height, 36px);
+  box-sizing: border-box;
 }
 
 /* 面板行：左 / 中间 / 主 / 右侧面板始终横向排列，占满 header 之下的剩余高度。

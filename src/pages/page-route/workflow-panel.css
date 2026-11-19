@@ -1,5 +1,5 @@
 /* Workflow panel (rendered in the layout <Outlet /> main pane).
-   标题栏与内容区由统一的 PanelLayout 提供（固定 44px 标题栏 + title 下分割线）。 */
+   标题栏与内容区由统一的 PanelLayout 提供（固定高度标题栏 + title 下分割线）。 */
 
 .workflow-panel-icon {
   color: #722ed1;

@@ -45,7 +45,7 @@
   border-left: 1px solid var(--sharp-divider, #eceff4);
 }
 
-/* 标题栏与 body 由统一的 PanelLayout 提供（高度 44px、title 下分割线），
+/* 标题栏与 body 由统一的 PanelLayout 提供（固定高度标题栏、title 下分割线），
    这里只负责面板外壳与宽度拖拽。 */
 
 .params-panel-dock > .panel-layout {

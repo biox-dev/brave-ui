@@ -1,5 +1,5 @@
 import { FC, useEffect, useState } from "react";
-import { Button, Card, Flex, Skeleton, Spin, Tag } from "antd";
+import { Button, Flex, Skeleton, Spin, Tag } from "antd";
 import { EditOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useParams } from "react-router";
 import { useSelector } from "react-redux";
@@ -8,6 +8,7 @@ import { renderViewButton } from "@/utils/render-view-btn";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { getLiteratureDetailApi, type ProjectLiteratureDetailItem } from "@/api/project";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
+import PanelLayout from "@/components/common/panel-layout";
 
 const LiteratureWriting: FC<any> = () => {
   const message = useGlobalMessage();
@@ -63,25 +64,9 @@ const LiteratureWriting: FC<any> = () => {
   };
 
   return (
-    <Card
-      style={{
-        flex: 1,
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        boxShadow: "none",
-      }}
-      styles={{
-        body: {
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          height: "100%",
-          overflowY: "auto",
-        },
-      }}
-      variant="borderless"
-      size="small"
+    <PanelLayout
+      className="literature-writing-page page-flat"
+      bodyStyle={{ padding: 12 }}
       title={
         <Flex align="center" gap="small">
           <span>{activeLiterature?.title || "Literature"}</span> ({activeLiterature?.id})
@@ -127,7 +112,7 @@ const LiteratureWriting: FC<any> = () => {
           <Tag color="orange">Literature not found</Tag>
         )}
       </Spin>
-    </Card>
+    </PanelLayout>
   );
 };
 

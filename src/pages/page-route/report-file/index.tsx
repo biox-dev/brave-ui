@@ -1,5 +1,5 @@
 import { FC, useEffect, useState } from "react";
-import { Button, Card, Dropdown, Flex, Segmented, Skeleton, Spin, Tag, Tooltip } from "antd";
+import { Button, Dropdown, Flex, Segmented, Skeleton, Spin, Tag, Tooltip } from "antd";
 import {
   ArrowLeftOutlined,
   DownloadOutlined,
@@ -25,6 +25,7 @@ import {
 import ProjectReportGitActions from "@/components/project-report-git/project-report-git-actions";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useInsertAgentRef } from "@/hooks/useInsertAgentRef";
+import PanelLayout from "@/components/common/panel-layout";
 import { LLMEnvType, setLLMEnv } from "@/utils/llm-env";
 import { printHtmlDocument } from "@/utils/print-html";
 
@@ -155,25 +156,9 @@ const ReportFile: FC<any> = () => {
   };
 
   return (
-    <Card
-      style={{
-        flex: 1,
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        boxShadow: "none",
-      }}
-      styles={{
-        body: {
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          height: "100%",
-          overflowY: "auto",
-        },
-      }}
-      variant="borderless"
-      size="small"
+    <PanelLayout
+      className="report-file-page page-flat"
+      bodyStyle={{ padding: 12 }}
       title={
         <Flex align="center" gap="small">
           {/* <Button size="small" type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} /> */}
@@ -295,7 +280,7 @@ const ReportFile: FC<any> = () => {
           />
         )}
       </Spin>
-    </Card>
+    </PanelLayout>
   );
 };
 

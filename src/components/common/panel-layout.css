@@ -12,7 +12,8 @@
   color: var(--sharp-text, rgba(0, 0, 0, 0.88));
 }
 
-/* 标题栏：高度固定 44px，底部一条分割线（title 下分割线，始终保留）。 */
+/* 标题栏：高度固定（与 SplitWorkspace 通栏 header 一致，默认 36px），
+   底部一条分割线（title 下分割线，始终保留）。 */
 .panel-layout-head {
   flex: 0 0 auto;
   display: flex;
@@ -20,8 +21,8 @@
   justify-content: space-between;
   gap: 12px;
   box-sizing: border-box;
-  height: 44px;
-  min-height: 44px;
+  height: var(--sharp-head-height, 36px);
+  min-height: var(--sharp-head-height, 36px);
   padding: 0 8px 0 16px;
   border-bottom: 1px solid var(--sharp-divider, #eceff4);
   background: var(--sharp-panel-bg, #ffffff);
