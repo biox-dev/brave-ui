@@ -1,4 +1,4 @@
-import { FC, useEffect, useMemo } from 'react';
+import { FC, useEffect, useMemo, useRef } from 'react';
 import { Button, Empty, Tooltip } from 'antd';
 import {
   CaretDownOutlined,
@@ -16,10 +16,22 @@ import { useSiderStackCollapsed } from '@/components/layout-sider/use-sider-stac
 import { useComponentStore } from '@/event-bus/stores/components';
 import { useI18n } from '@/hooks/useI18n';
 
-/** 后端「会话资源有新增」事件的组件类目 / 方法名 / 注册 ID。 */
+/** 后端「会话资源有新增」事件的组件类目 / 方法名。 */
 const REALTIME_CATEGORY = 'agent-session-resource';
 const REALTIME_METHOD = 'sessionResourcesChanged';
-const REALTIME_ID = '*';
+
+/** 后端可能把 args 作为 map 或数组下发，这里统一成对象。 */
+const normalizeRealtimeArgs = (
+  args: unknown,
+): { session_id?: string; resource_type?: string } => {
+  if (Array.isArray(args)) {
+    return (args[0] ?? {}) as { session_id?: string; resource_type?: string };
+  }
+  if (args && typeof args === 'object') {
+    return args as { session_id?: string; resource_type?: string };
+  }
+  return {};
+};
 
 /** 折叠状态持久化的 key（redux `user.leftStackCollapsed`）。 */
 const STACK_COLLAPSED_STORAGE_KEY = 'agentSessionRightStack';
@@ -75,22 +87,46 @@ const SessionResourceStack: FC<SessionResourceStackProps> = ({
 
   // 后端新增「会话 ↔ 资源」关联时刷新共享数据：只响应本会话的事件；
   // 资源明细可能稍后才落库，延迟一次再拉。
+  //
+  // 注册不依赖 active：面板折叠时后端仍会推送，若此时没有监听者，
+  // 之后展开只能等 staleTime 过期，表现为「事件到了但 UI 没刷新」。
+  // 折叠期收到的事件只做标记，展开时补一次刷新。
   const { register, unregister } = useComponentStore();
+  const pendingRefreshRef = useRef(false);
+  const activeRef = useRef(active);
+  activeRef.current = active;
+
   useEffect(() => {
-    if (!sessionId || !active) {
+    if (!sessionId) {
       return;
     }
     const instance = {
-      [REALTIME_METHOD]: (args?: { session_id?: string }) => {
-        if (args?.session_id && args.session_id !== sessionId) {
+      [REALTIME_METHOD]: (rawArgs?: unknown) => {
+        const args = normalizeRealtimeArgs(rawArgs);
+        if (args.session_id && String(args.session_id) !== String(sessionId)) {
           return;
         }
+        if (!activeRef.current) {
+          pendingRefreshRef.current = true;
+          return;
+        }
+        pendingRefreshRef.current = false;
         window.setTimeout(() => void refetch(), 300);
       },
     };
-    register(REALTIME_CATEGORY, REALTIME_ID, instance);
-    return () => unregister(REALTIME_CATEGORY, REALTIME_ID, instance);
-  }, [active, refetch, register, sessionId, unregister]);
+    // 按会话 ID 注册：后端推送的 component.invoke 里 id 就是会话 ID，
+    // 定向投递到本会话，其它会话的面板不会被误触发。
+    register(REALTIME_CATEGORY, sessionId, instance);
+    return () => unregister(REALTIME_CATEGORY, sessionId, instance);
+  }, [refetch, register, sessionId, unregister]);
+
+  // 折叠期错过的推送：展开时补拉一次。
+  useEffect(() => {
+    if (active && pendingRefreshRef.current && sessionId) {
+      pendingRefreshRef.current = false;
+      void refetch();
+    }
+  }, [active, refetch, sessionId]);
 
   // 只有有数据的分组才展示。
   const visibleSections = useMemo(
