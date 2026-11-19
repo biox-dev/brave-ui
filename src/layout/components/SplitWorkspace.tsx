@@ -57,10 +57,29 @@ type SplitWorkspaceProps = {
   defaultRightWidth?: number;
   /** 拖动右侧分隔条时，主区域（如 agentChat）至少保留的宽度（px）。 */
   minMainWidth?: number;
-  mobileBreakpoint?: number;
 };
 
 type DividerKey = 'left' | 'assistant' | 'rightMiddle' | 'right';
+
+type PanePlan = { key: DividerKey; width: number; min: number };
+
+// 工作台布局不做响应式堆叠：窗口变窄时先把侧边面板等比压缩（各面板不低于自身 min），
+// 连 min 都放不下时才按 min 比例继续压缩，把剩余宽度留给主区域（主区域不再被挤成 0 或换行）。
+const fitPaneWidths = (panes: PanePlan[], budget: number): number[] => {
+  const desiredTotal = panes.reduce((sum, pane) => sum + pane.width, 0);
+  if (!Number.isFinite(budget) || desiredTotal <= budget) {
+    return panes.map((pane) => pane.width);
+  }
+  const minTotal = panes.reduce((sum, pane) => sum + pane.min, 0);
+  if (minTotal <= 0) {
+    return panes.map(() => 0);
+  }
+  if (budget <= minTotal) {
+    return panes.map((pane) => (pane.min * budget) / minTotal);
+  }
+  const scale = (budget - minTotal) / (desiredTotal - minTotal);
+  return panes.map((pane) => pane.min + (pane.width - pane.min) * scale);
+};
 
 const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
   left,
@@ -109,7 +128,6 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
   maxRightWidth = 640,
   defaultRightWidth = 360,
   minMainWidth = 320,
-  mobileBreakpoint = 991,
 }) => {
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const assistantPaneRef = useRef<HTMLDivElement | null>(null);
@@ -129,64 +147,80 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
   const [innerRightWidth, setInnerRightWidth] = useState(defaultRightWidth);
   const [innerLeftCollapsed, setInnerLeftCollapsed] = useState(false);
   const [innerRightCollapsed, setInnerRightCollapsed] = useState(false);
-  const [isCompact, setIsCompact] = useState(false);
-  // 容器实测宽度：窄窗口（仍是桌面布局）时用它给主区域留出空间，避免面板的 min 宽度把聊天区挤没
+  // 容器实测宽度：窗口变窄时据此重新分配各面板宽度，保证主区域不被挤没
   const [workspaceWidth, setWorkspaceWidth] = useState(0);
   const hasLeftPane = Boolean(left);
   const hasMainPane = Boolean(main);
   const hasAssistantPane = Boolean(assistant);
   const hasRightMiddlePane = Boolean(rightMiddle);
   const hasRightPane = Boolean(right);
-  // 移动端左右面板是上下堆叠的，折叠只在桌面端生效，避免隐藏后无法恢复
-  const isLeftCollapsed = Boolean(leftCollapsed ?? innerLeftCollapsed) && !isCompact;
-  const isRightCollapsed = Boolean(rightCollapsed ?? innerRightCollapsed) && !isCompact;
+  const isLeftCollapsed = Boolean(leftCollapsed ?? innerLeftCollapsed);
+  const isRightCollapsed = Boolean(rightCollapsed ?? innerRightCollapsed);
   // 主区域没有内容时，由最靠近主区域的面板撑满剩余空间：有中间面板时是中间面板，否则是右侧面板
   const isRightExpanded = expandRight && !hasMainPane && hasRightPane && !hasAssistantPane;
   const isAssistantExpanded = expandRight && !hasMainPane && hasAssistantPane;
-  const currentLeftWidth = Math.min(
+
+  // 面板宽度分两步：先按用户设定值（受 min/max 约束）算出「期望宽度」，窗口变宽后能原样恢复；
+  // 再按容器实测宽度统一分配：工作台在任何窗口宽度下都保持横向排列，空间不足时先等比压缩
+  // 侧边面板（各面板不低于自身 min），把剩余宽度留给主区域，而不是把面板改成上下堆叠。
+  const configuredLeftWidth = Math.min(
     maxLeftWidth,
     Math.max(minLeftWidth, leftWidth ?? innerLeftWidth),
   );
-  const currentAssistantWidth = Math.min(
+  const configuredAssistantWidth = Math.min(
     maxAssistantWidth,
     Math.max(minAssistantWidth, assistantWidth ?? innerAssistantWidth),
   );
-  // 容器宽度已知时，min 宽度不能压过「主区域最小宽度」：窗口不够宽时先让右侧面板变窄
-  // （lowerBound 由可用空间反推），而不是把主区域挤到 0。容器未测量时（首帧）沿用 min/max 夹取。
-  const leftOccupiedWidth = hasLeftPane && !isLeftCollapsed ? currentLeftWidth : 0;
-  const assistantOccupiedWidth = hasAssistantPane ? currentAssistantWidth : 0;
-  const clampByAvailableWidth = (
-    candidate: number,
-    min: number,
-    max: number,
-    occupied: number,
-  ) => {
-    if (workspaceWidth <= 0) {
-      return Math.min(max, Math.max(min, candidate));
-    }
-    const maxBySpace = Math.max(0, workspaceWidth - occupied - (hasMainPane ? minMainWidth : 0));
-    const upperBound = Math.max(0, Math.min(max, maxBySpace));
-    const lowerBound = Math.min(min, upperBound);
-    return Math.min(upperBound, Math.max(lowerBound, candidate));
-  };
-  const currentRightMiddleWidth = clampByAvailableWidth(
-    rightMiddleWidth ?? innerRightMiddleWidth,
-    minRightMiddleWidth,
+  const configuredRightMiddleWidth = Math.min(
     maxRightMiddleWidth,
-    leftOccupiedWidth +
-      assistantOccupiedWidth +
-      (hasRightPane && !isRightCollapsed && !isRightExpanded
-        ? (rightWidth ?? innerRightWidth)
-        : 0),
+    Math.max(minRightMiddleWidth, rightMiddleWidth ?? innerRightMiddleWidth),
   );
-  const currentRightWidth = clampByAvailableWidth(
-    rightWidth ?? innerRightWidth,
-    minRightWidth,
+  const configuredRightWidth = Math.min(
     maxRightWidth,
-    leftOccupiedWidth +
-      assistantOccupiedWidth +
-      (hasRightMiddlePane ? currentRightMiddleWidth : 0),
+    Math.max(minRightWidth, rightWidth ?? innerRightWidth),
   );
+  const panePlans: PanePlan[] = [];
+  if (hasLeftPane && !isLeftCollapsed) {
+    panePlans.push({ key: 'left', width: configuredLeftWidth, min: minLeftWidth });
+  }
+  // 撑满剩余空间的面板（expandRight）宽度由 flex 决定，不参与空间分配，避免白占预算。
+  if (hasAssistantPane && !isAssistantExpanded) {
+    panePlans.push({
+      key: 'assistant',
+      width: configuredAssistantWidth,
+      min: minAssistantWidth,
+    });
+  }
+  if (hasRightMiddlePane) {
+    panePlans.push({
+      key: 'rightMiddle',
+      width: configuredRightMiddleWidth,
+      min: minRightMiddleWidth,
+    });
+  }
+  if (hasRightPane && !isRightCollapsed && !isRightExpanded) {
+    panePlans.push({ key: 'right', width: configuredRightWidth, min: minRightWidth });
+  }
+  // 容器未测量时（首帧）沿用期望宽度；测量后先把「主区域最小宽度」从预算里扣掉，
+  // 再交给 fitPaneWidths 分配。
+  const paneWidthBudget =
+    workspaceWidth > 0
+      ? Math.max(0, workspaceWidth - (hasMainPane ? minMainWidth : 0))
+      : Number.POSITIVE_INFINITY;
+  const fittedPaneWidths = fitPaneWidths(panePlans, paneWidthBudget);
+  const paneWidths: Record<DividerKey, number> = {
+    left: 0,
+    assistant: 0,
+    rightMiddle: 0,
+    right: 0,
+  };
+  panePlans.forEach((pane, index) => {
+    paneWidths[pane.key] = fittedPaneWidths[index];
+  });
+  const currentLeftWidth = paneWidths.left;
+  const currentAssistantWidth = paneWidths.assistant;
+  const currentRightMiddleWidth = paneWidths.rightMiddle;
+  const currentRightWidth = paneWidths.right;
 
   const applyLeftWidth = (width: number) => {
     if (leftWidthRef.current === width) {
@@ -233,14 +267,6 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
   };
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia(`(max-width: ${mobileBreakpoint}px)`);
-    const syncCompact = () => setIsCompact(mediaQuery.matches);
-    syncCompact();
-    mediaQuery.addEventListener('change', syncCompact);
-    return () => mediaQuery.removeEventListener('change', syncCompact);
-  }, [mobileBreakpoint]);
-
-  useEffect(() => {
     const element = workspaceRef.current;
     if (!element) {
       return;
@@ -268,21 +294,23 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
     rightWidthPropRef.current = rightWidth;
   }, [rightWidth]);
 
+  // ref 同步的是「用户期望宽度」而不是压缩后的显示宽度：拖拽 / 其他分隔条的可用空间
+  // 都按用户意图计算，窗口恢复宽度时布局能还原，不会把压缩结果写回状态。
   useEffect(() => {
-    leftWidthRef.current = currentLeftWidth;
-  }, [currentLeftWidth]);
+    leftWidthRef.current = configuredLeftWidth;
+  }, [configuredLeftWidth]);
 
   useEffect(() => {
-    assistantWidthRef.current = currentAssistantWidth;
-  }, [currentAssistantWidth]);
+    assistantWidthRef.current = configuredAssistantWidth;
+  }, [configuredAssistantWidth]);
 
   useEffect(() => {
-    rightMiddleWidthRef.current = currentRightMiddleWidth;
-  }, [currentRightMiddleWidth]);
+    rightMiddleWidthRef.current = configuredRightMiddleWidth;
+  }, [configuredRightMiddleWidth]);
 
   useEffect(() => {
-    rightWidthRef.current = currentRightWidth;
-  }, [currentRightWidth]);
+    rightWidthRef.current = configuredRightWidth;
+  }, [configuredRightWidth]);
 
   useEffect(() => {
     if (leftWidth !== undefined) {
@@ -455,9 +483,6 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
     }
     // 中间面板撑满剩余宽度时宽度由 flex 决定，拖拽没有意义
     if (divider === 'assistant' && isAssistantExpanded) {
-      return;
-    }
-    if (window.matchMedia(`(max-width: ${mobileBreakpoint}px)`).matches) {
       return;
     }
     setActiveDivider(divider);

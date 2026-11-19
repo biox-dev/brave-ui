@@ -106,6 +106,8 @@ const AnalysisNodeSnapshot: FC<any> = ({ analysis_id }) => {
 
     return <>
         <Card title="Analysis Snapshot" size="small"
+            variant="borderless"
+            style={{ boxShadow: "none" }}
             extra={<Space>
                 {/* {data?.server_status == "running" ?
 

@@ -473,6 +473,7 @@
 .layout-sharp-content-inner {
   margin: 0;
   min-height: calc(100vh - 44px - 28px);
+  min-height: calc(100dvh - 44px - 28px);
   padding: 0;
   border-left: 1px solid transparent;
   background: var(--sharp-panel-bg);
@@ -483,7 +484,9 @@
   flex-direction: column;
   align-items: stretch;
   height: calc(100vh - 44px - 28px);
+  height: calc(100dvh - 44px - 28px);
   min-height: calc(100vh - 44px - 28px);
+  min-height: calc(100dvh - 44px - 28px);
 }
 
 /* 顶部通栏 header：横跨所有面板，不参与分隔条拖拽 */
@@ -492,13 +495,16 @@
   min-width: 0;
 }
 
-/* 面板行：左 / 中间 / 主 / 右侧面板横向排列，占满 header 之下的剩余高度 */
+/* 面板行：左 / 中间 / 主 / 右侧面板始终横向排列，占满 header 之下的剩余高度。
+   工作台不随窗口宽度改为上下堆叠（否则主区域会被挤到面板下方）；
+   空间不足时由 SplitWorkspace 在 JS 中压缩侧边面板宽度，主区域始终保留最小宽度。 */
 .layout-sharp-workspace-body {
   display: flex;
   flex: 1 1 auto;
   align-items: stretch;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
 }
 
 .layout-sharp-main-pane {
@@ -864,17 +870,19 @@ body.layout-bottom-panel-resizing {
   user-select: none;
 }
 
+/* 面板宽度完全由 SplitWorkspace 的 min/max props 在 JS 里夹取（拖动 / 双击复位 /
+   窗口变窄时统一分配）。这里不再用 CSS 的 min/max-width 卡死：窗口变窄时
+   JS 需要把面板压到 min 以下，把宽度让给主区域，而不是堆叠换行。
+   overflow: hidden 防止面板内容在极窄宽度下画到相邻区域、撑出页面横向滚动条。 */
 .layout-sharp-left-pane,
 .layout-sharp-assistant-pane,
 .layout-sharp-right-middle-pane,
 .layout-sharp-right-pane {
   flex: 0 0 auto;
+  min-width: 0;
+  max-width: none;
+  overflow: hidden;
   background: var(--sharp-panel-bg);
-}
-
-.layout-sharp-left-pane {
-  min-width: 240px;
-  max-width: 560px;
 }
 
 /* 左侧面板折叠：宽度归零但保留 DOM，避免丢失滚动位置与展开状态 */
@@ -884,21 +892,6 @@ body.layout-bottom-panel-resizing {
   max-width: 0;
   border: 0;
   overflow: hidden;
-}
-
-/* 宽度完全由 SplitWorkspace 的 min/max props 在 JS 里夹取（拖动 / 双击复位）。
-   这里不再用 CSS 的 max-width 卡死：之前在 640px 就停住，导致向右拖动分隔条时
-   聊天区无法继续变窄。 */
-.layout-sharp-right-middle-pane,
-.layout-sharp-right-pane {
-  min-width: 0;
-  max-width: none;
-}
-
-/* 中间面板（Assistant）：夹在主区域与右侧面板之间，可单独拖拽调宽 */
-.layout-sharp-assistant-pane {
-  min-width: 240px;
-  max-width: 560px;
 }
 
 /* 主区域无内容时，中间面板撑满剩余空间 */
@@ -1147,63 +1140,3 @@ body.layout-sharp-resizing {
   user-select: none;
 }
 
-@media (max-width: 991px) {
-  .layout-sharp-content-inner {
-    padding: 16px;
-  }
-
-  .layout-sharp-workspace {
-    display: block;
-    height: auto;
-    min-height: auto;
-  }
-
-  .layout-sharp-workspace-body {
-    display: block;
-    height: auto;
-  }
-
-  .layout-sharp-main-pane {
-    padding: 0;
-    margin-bottom: 16px;
-  }
-
-  .layout-sharp-pane-divider {
-    display: none;
-  }
-
-  .layout-sharp-right-middle-pane,
-  .layout-sharp-right-pane {
-    width: auto !important;
-    min-width: 0;
-    max-width: none;
-    margin-bottom: 16px;
-  }
-
-  .layout-sharp-assistant-pane {
-    width: auto !important;
-    min-width: 0;
-    max-width: none;
-    margin-bottom: 16px;
-  }
-
-  .layout-sharp-left-pane {
-    width: auto !important;
-    min-width: 0;
-    max-width: none;
-    margin-bottom: 16px;
-  }
-
-  .layout-sharp-side-card {
-    height: auto;
-  }
-
-  /* 移动端左右面板上下堆叠，面板内容限制高度，主区域不受影响 */
-  .layout-sharp-left-pane .layout-sharp-side-card-body,
-  .layout-sharp-assistant-pane .layout-sharp-side-card-body,
-  .layout-sharp-right-middle-pane .layout-sharp-side-card-body,
-  .layout-sharp-right-pane .layout-sharp-side-card-body {
-    flex: 0 1 auto;
-    max-height: 60vh;
-  }
-}

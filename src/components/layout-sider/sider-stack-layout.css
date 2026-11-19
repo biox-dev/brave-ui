@@ -113,21 +113,3 @@ body.sider-stack-resizing {
   min-height: 0;
 }
 
-/* 窄屏时左侧栏不再是固定高度容器，退化为纵向自然排列，避免 flex-basis:0 把分区压成 0 高。 */
-@media (max-width: 991px) {
-  .sider-stack {
-    height: auto;
-  }
-
-  .sider-stack-section:not(.is-collapsed) {
-    flex: 0 0 auto !important;
-  }
-
-  .sider-stack-section:not(.is-collapsed) > .sider-stack-section-body > * {
-    height: auto;
-  }
-
-  .sider-stack-divider {
-    display: none;
-  }
-}

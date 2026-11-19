@@ -300,6 +300,8 @@ const AnalysisNodePage = ({
 
 			<Card
 				size="small"
+				variant="borderless"
+				style={{ boxShadow: "none" }}
 				title={title || "Analysis Node List By Active Project"}
 				extra={
 					<Space>

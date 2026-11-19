@@ -63,18 +63,3 @@
   min-height: 0;
 }
 
-@media (max-width: 991px) {
-  .agent-session-page .layout-sharp-workspace {
-    height: auto;
-    min-height: auto;
-  }
-
-  .agent-session-chat {
-    height: auto;
-    min-height: 320px;
-  }
-
-  .agent-session-tabs-card {
-    height: auto;
-  }
-}

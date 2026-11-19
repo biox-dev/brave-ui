@@ -284,7 +284,6 @@ const AgentSessionPage: FC = () => {
             <BorderlessCard
               size="small"
               className="agent-session-tabs-card"
-              styles={{ body: { padding: 8 } }}
               title={
                 <MainTabs
                   localTabs={localTabs}

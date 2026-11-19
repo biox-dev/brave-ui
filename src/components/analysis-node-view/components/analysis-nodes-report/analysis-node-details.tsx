@@ -287,6 +287,8 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
         >
         <Card
             size="small"
+            variant="borderless"
+            style={{ boxShadow: "none" }}
             title={selectedSampleDetail?.node?.script_name || "Result Report"}
             extra={
                 <Space>
