@@ -20,6 +20,13 @@ type SplitWorkspaceProps = {
   showLeftToggle?: boolean;
   leftCollapseLabel?: string;
   leftExpandLabel?: string;
+  /** 右侧面板是否折叠隐藏（受控）；不传时组件内部维护 */
+  rightCollapsed?: boolean;
+  onRightCollapsedChange?: (collapsed: boolean) => void;
+  /** 是否显示右侧面板折叠按钮 */
+  showRightToggle?: boolean;
+  rightCollapseLabel?: string;
+  rightExpandLabel?: string;
   leftWidth?: number;
   assistantWidth?: number;
   rightMiddleWidth?: number;
@@ -68,6 +75,11 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
   showLeftToggle = true,
   leftCollapseLabel = 'Hide left panel',
   leftExpandLabel = 'Show left panel',
+  rightCollapsed,
+  onRightCollapsedChange,
+  showRightToggle = true,
+  rightCollapseLabel = 'Hide right panel',
+  rightExpandLabel = 'Show right panel',
   leftWidth,
   assistantWidth,
   rightMiddleWidth,
@@ -116,6 +128,7 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
   const [innerRightMiddleWidth, setInnerRightMiddleWidth] = useState(defaultRightMiddleWidth);
   const [innerRightWidth, setInnerRightWidth] = useState(defaultRightWidth);
   const [innerLeftCollapsed, setInnerLeftCollapsed] = useState(false);
+  const [innerRightCollapsed, setInnerRightCollapsed] = useState(false);
   const [isCompact, setIsCompact] = useState(false);
   const hasLeftPane = Boolean(left);
   const hasMainPane = Boolean(main);
@@ -124,6 +137,7 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
   const hasRightPane = Boolean(right);
   // 移动端左右面板是上下堆叠的，折叠只在桌面端生效，避免隐藏后无法恢复
   const isLeftCollapsed = Boolean(leftCollapsed ?? innerLeftCollapsed) && !isCompact;
+  const isRightCollapsed = Boolean(rightCollapsed ?? innerRightCollapsed) && !isCompact;
   // 主区域没有内容时，由最靠近主区域的面板撑满剩余空间：有中间面板时是中间面板，否则是右侧面板
   const isRightExpanded = expandRight && !hasMainPane && hasRightPane && !hasAssistantPane;
   const isAssistantExpanded = expandRight && !hasMainPane && hasAssistantPane;
@@ -382,9 +396,21 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
     onLeftCollapsedChange?.(next);
   };
 
+  const toggleRightCollapsed = () => {
+    const next = !isRightCollapsed;
+    if (rightCollapsed === undefined) {
+      setInnerRightCollapsed(next);
+    }
+    onRightCollapsedChange?.(next);
+  };
+
   const onStartResize = (divider: DividerKey) => {
     // 折叠状态下左侧面板不参与拖拽，避免改变不可见面板的宽度
     if (divider === 'left' && isLeftCollapsed) {
+      return;
+    }
+    // 右侧面板同理：折叠后分隔条只作为展开按钮的载体
+    if (divider === 'right' && isRightCollapsed) {
       return;
     }
     // 中间面板撑满剩余宽度时宽度由 flex 决定，拖拽没有意义
@@ -419,6 +445,10 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
       onRightMiddleWidthCommit?.(defaultRightMiddleWidth);
       return;
     }
+    // 折叠状态下双击分隔条没有意义（面板不可见），保持折叠不变。
+    if (isRightCollapsed) {
+      return;
+    }
     applyRightWidth(defaultRightWidth);
     onRightWidthCommit?.(defaultRightWidth);
   };
@@ -431,7 +461,9 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
     <div
       className={`layout-sharp-pane-divider${
         divider === 'left' && isLeftCollapsed ? ' is-left-collapsed' : ''
-      } ${activeDivider === divider ? 'is-resizing' : ''}`}
+      }${divider === 'right' && isRightCollapsed ? ' is-right-collapsed' : ''} ${
+        activeDivider === divider ? 'is-resizing' : ''
+      }`}
     >
       <div
         role="separator"
@@ -513,10 +545,34 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
           <>
             {(hasMainPane || hasLeftPane || hasAssistantPane) &&
               !isRightExpanded &&
-              renderDivider('right', rightResizeLabel)}
+              renderDivider(
+                'right',
+                rightResizeLabel,
+                showRightToggle && (
+                  <button
+                    type="button"
+                    className="layout-sharp-pane-toggle"
+                    title={isRightCollapsed ? rightExpandLabel : rightCollapseLabel}
+                    aria-label={isRightCollapsed ? rightExpandLabel : rightCollapseLabel}
+                    aria-expanded={!isRightCollapsed}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onDoubleClick={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleRightCollapsed();
+                    }}
+                  >
+                    {isRightCollapsed ? <LeftOutlined /> : <RightOutlined />}
+                  </button>
+                ),
+              )}
             <div
-              className={`layout-sharp-right-pane${isRightExpanded ? ' is-expanded' : ''}`}
+              className={`layout-sharp-right-pane${isRightExpanded ? ' is-expanded' : ''}${
+                isRightCollapsed ? ' is-collapsed' : ''
+              }`}
               style={isRightExpanded ? undefined : { width: currentRightWidth }}
+              aria-hidden={isRightCollapsed || undefined}
+              inert={isRightCollapsed || undefined}
             >
               {right}
             </div>

@@ -917,6 +917,15 @@ body.layout-bottom-panel-resizing {
   max-width: none;
 }
 
+/* 右侧面板折叠：与左侧一致，宽度归零但保留 DOM，避免丢失滚动位置 */
+.layout-sharp-right-pane.is-collapsed {
+  width: 0 !important;
+  min-width: 0;
+  max-width: 0;
+  border: 0;
+  overflow: hidden;
+}
+
 /* 分隔条本身就做成 1px 的面板边界线：两侧面板紧贴它，
    卡片头部的 border-bottom 自然与分隔线相接（左右两侧都一样），不存在空隙。
    这里用 border 绘制（而不是 background），与 sider / footer 等分割线保持同一种绘制方式：
@@ -961,6 +970,11 @@ body.layout-bottom-panel-resizing {
 }
 
 .layout-sharp-pane-divider.is-left-collapsed .layout-sharp-pane-divider-line {
+  cursor: default;
+}
+
+/* 右侧面板折叠后分隔条不再可拖拽（仅保留展开按钮的热区） */
+.layout-sharp-pane-divider.is-right-collapsed .layout-sharp-pane-divider-line {
   cursor: default;
 }
 

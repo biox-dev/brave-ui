@@ -1,6 +1,6 @@
 import { FC, useCallback, useEffect, useMemo } from 'react';
 import { Button, Checkbox, Empty, Popover } from 'antd';
-import { LayoutOutlined } from '@ant-design/icons';
+import { LayoutOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router';
 import AgentChat from '@/components/agent/agent-chat';
 import SessionResourcePanel from '@/components/agent/session-resource-panel';
@@ -151,6 +151,21 @@ const AgentSessionPage: FC = () => {
 
   const showStack = stackSectionKeys.length > 0;
 
+  // 右侧堆叠面板整体折叠（持久化）：折叠后仍保留 DOM 与滚动位置。
+  // 折叠按钮不在分隔条上（SplitWorkspace 的 showRightToggle=false），而是放在 header，
+  // 使聊天区与面板之间的分隔条只用于拖拽调宽。
+  const [rightPaneCollapsedKeys, setRightPaneCollapsedKeys] = useSiderStackCollapsed(
+    'agentSessionRightPane',
+  );
+  const rightPaneCollapsed = rightPaneCollapsedKeys.length > 0;
+  const setRightPaneCollapsed = useCallback(
+    (collapsed: boolean) => setRightPaneCollapsedKeys(collapsed ? ['collapsed'] : []),
+    [setRightPaneCollapsedKeys],
+  );
+  // 展开状态才显示 Layout（分区勾选）；折叠后 header 只留展开按钮，避免误以为面板还在。
+  // 没有勾选任何分区时右侧面板本就不渲染，仍保留 Layout 入口用于重新开启分区。
+  const showLayoutButton = !(showStack && rightPaneCollapsed);
+
   // Layout 弹层里的分区勾选项：与右侧堆叠的固定顺序一致。
   const sectionOptions = useMemo(
     () =>
@@ -196,33 +211,63 @@ const AgentSessionPage: FC = () => {
               {sessionTitle}
             </span>
             <div className="agent-session-header-actions">
-              <Popover
-                trigger="click"
-                placement="bottomRight"
-                title={locale === 'en_US' ? 'Visible panels' : '显示面板'}
-                content={
-                  <Checkbox.Group
-                    value={[...stackSectionKeys]}
-                    options={sectionOptions}
-                    onChange={(values) =>
-                      setVisibleSectionKeys(
-                        STACK_SECTION_KEYS.filter((key) => values.includes(key)),
-                      )
-                    }
-                    style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
-                  />
-                }
-              >
-                <Button
-                  type={showStack ? 'text' : 'default'}
-                  size="small"
-                  icon={<LayoutOutlined />}
-                  aria-pressed={showStack}
-                  aria-label={locale === 'en_US' ? 'Choose panels' : '选择面板'}
+              {showLayoutButton && (
+                <Popover
+                  trigger="click"
+                  placement="bottomRight"
+                  title={locale === 'en_US' ? 'Visible panels' : '显示面板'}
+                  content={
+                    <Checkbox.Group
+                      value={[...stackSectionKeys]}
+                      options={sectionOptions}
+                      onChange={(values) =>
+                        setVisibleSectionKeys(
+                          STACK_SECTION_KEYS.filter((key) => values.includes(key)),
+                        )
+                      }
+                      style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                    />
+                  }
                 >
-                  Layout
-                </Button>
-              </Popover>
+                  <Button
+                    type={showStack ? 'text' : 'default'}
+                    size="small"
+                    icon={<LayoutOutlined />}
+                    aria-pressed={showStack}
+                    aria-label={locale === 'en_US' ? 'Choose panels' : '选择面板'}
+                  >
+                    Layout
+                  </Button>
+                </Popover>
+              )}
+              {/* 折叠 / 展开右侧堆叠面板：折叠时只显示图标，展开时与 Layout 并排。 */}
+              {showStack && (
+                <Button
+                  size="small"
+                  type={rightPaneCollapsed ? 'default' : 'text'}
+                  icon={rightPaneCollapsed ? <LeftOutlined /> : <RightOutlined />}
+                  aria-pressed={!rightPaneCollapsed}
+                  aria-label={
+                    rightPaneCollapsed
+                      ? locale === 'en_US'
+                        ? 'Expand panels'
+                        : '展开面板'
+                      : locale === 'en_US'
+                        ? 'Collapse panels'
+                        : '折叠面板'
+                  }
+                  title={
+                    rightPaneCollapsed
+                      ? locale === 'en_US'
+                        ? 'Expand panels'
+                        : '展开面板'
+                      : locale === 'en_US'
+                        ? 'Collapse panels'
+                        : '折叠面板'
+                  }
+                  onClick={() => setRightPaneCollapsed(!rightPaneCollapsed)}
+                />
+              )}
             </div>
           </div>
         }
@@ -278,7 +323,11 @@ const AgentSessionPage: FC = () => {
             />
           ) : undefined
         }
-        minMainWidth={320}
+        /* 折叠 / 展开由 header 控制，分隔条上不再渲染折叠按钮。 */
+        showRightToggle={false}
+        rightCollapsed={rightPaneCollapsed}
+        onRightCollapsedChange={setRightPaneCollapsed}
+        minMainWidth={400}
         minRightMiddleWidth={320}
         maxRightMiddleWidth={1600}
         defaultRightMiddleWidth={560}
