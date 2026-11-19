@@ -1,11 +1,15 @@
-import { FC, useCallback, useMemo } from 'react';
+import { FC, useCallback, useEffect, useMemo } from 'react';
 import { Button, Empty } from 'antd';
 import { LeftOutlined, UserOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router';
 import AgentChat from '@/components/agent/agent-chat';
 import SessionResourcePanel from '@/components/agent/session-resource-panel';
 import { useAgentSessionResources } from '@/components/agent/use-agent-session-resources';
-import type { AgentSessionResourceType } from '@/api/agent';
+import {
+  subscribeAgentSessionApi,
+  unsubscribeAgentSessionApi,
+  type AgentSessionResourceType,
+} from '@/api/agent';
 import SiderStackLayout, {
   type SiderStackSection,
 } from '@/components/layout-sider/sider-stack-layout';
@@ -84,6 +88,23 @@ const AgentSessionPage: FC = () => {
   const { locale } = useI18n();
   const workspace = useAgentWorkspace(sessionId);
   const tabs = workspace.tabs;
+
+  // 会话实时流按会话订阅：进入页面时登记，离开 / 切换会话时撤销。
+  //
+  // 订阅在服务端按 SessionID 维护，因此同一项目内打开该会话的所有用户会收到同一份
+  // WS 事件流。新建会话时页面还没有会话 ID，发起人由 /agent/chat 自动登记；本轮任务
+  // 结束后后端会清理该会话的全部订阅，发起新一轮时再重新登记（前端无需额外处理）。
+  useEffect(() => {
+    if (!sessionId) return;
+    void subscribeAgentSessionApi(sessionId).catch(() => {
+      // 订阅失败不阻塞页面：历史消息仍可通过会话详情接口正常加载。
+    });
+    return () => {
+      void unsubscribeAgentSessionApi(sessionId).catch(() => {
+        // 退订失败无需提示：服务端会在本轮结束 / 连接断开时自动清理。
+      });
+    };
+  }, [sessionId]);
 
   // 顶部标题显示当前会话名称：优先用聊天页（AgentChat）从 `/agent/conversation/get`
   // 回填的标题缓存；左侧列表已加载时作为兜底；两者都没有（详情未返回）时回退到 sessionId。

@@ -130,6 +130,8 @@ export interface AgentQuestionItem {
 export interface AgentEventItem {
   id: string;
   task_id: string;
+  /** 事件所属会话：订阅按会话生效，前端据此把事件路由到对应会话。 */
+  session_id?: string;
   type: string;
   payload?: unknown;
   created_at: string;
@@ -340,7 +342,23 @@ export const forkConversationApi = (
 ) => {
   return http.post<AgentConversationItem>("/agent/conversation/fork", { id, ...(payload ?? {}) });
 };
+// 订阅 / 退订会话实时事件（WS 推送 agent.event）。
+//
+// 订阅粒度是会话而不是任务：进入会话页时订阅一次，该会话后续每一轮的任务事件都会
+// 推给订阅者；离开页面时退订。会话按项目共享，项目内成员都可以订阅。
+export const subscribeAgentSessionApi = (sessionId: string) => {
+  return http.post<{ ok: boolean; session_id: string; subscribed: boolean }>(
+    "/agent/session/subscribe",
+    { session_id: sessionId }
+  );
+};
 
+export const unsubscribeAgentSessionApi = (sessionId: string) => {
+  return http.post<{ ok: boolean; session_id: string; subscribed: boolean }>(
+    "/agent/session/unsubscribe",
+    { session_id: sessionId }
+  );
+};
 // 会话结果（会话 ↔ 资源的关联）类型。
 // analysis 对应 create_analysis_workflow / update_analysis_workflow 创建或修改的分析运行；
 // app_session 不落关联表，后端按 AppSession.AgentSessionID 实时查询。
