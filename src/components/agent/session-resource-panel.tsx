@@ -1,4 +1,4 @@
-import { FC, useMemo } from 'react';
+import { FC, useEffect, useMemo } from 'react';
 import { Button, Empty, Table, Tooltip } from 'antd';
 import {
   CaretDownOutlined,
@@ -9,6 +9,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import type { AgentSessionResourceItem, AgentSessionResourceType } from '@/api/agent';
 import { useI18n } from '@/hooks/useI18n';
+import { useComponentStore } from '@/event-bus/stores/components';
 import {
   isSessionResourceOpenable,
   openSessionResourceTab,
@@ -17,6 +18,24 @@ import { useAgentSessionResources } from '@/components/agent/use-agent-session-r
 
 /** 分组数据未就绪时的共享空数组，保持 dataSource 引用稳定。 */
 const EMPTY_RESOURCE_ITEMS: AgentSessionResourceItem[] = [];
+
+/**
+ * 后端「会话资源有新增」事件的组件类目 / 方法名 / 注册 ID。
+ *
+ * 对应 gobrave 的 service.SessionResourceRealtimeCategory：任何工具新增了一条
+ * 「会话 ↔ 资源」关联，都会以 component.invoke(category, id=*, method=args) 推给
+ * 当前用户；这里收到后刷新共享查询（所有分区使用同一个 query key）。
+ */
+const SESSION_RESOURCE_REALTIME_CATEGORY = 'agent-session-resource';
+const SESSION_RESOURCE_REALTIME_METHOD = 'sessionResourcesChanged';
+const SESSION_RESOURCE_REALTIME_ID = '*';
+
+/** 后端推送的 args：只用来判断「这次变化是否属于本会话」，不参与渲染。 */
+interface SessionResourceRealtimeArgs {
+  session_id?: string;
+  resource_type?: AgentSessionResourceType;
+  added?: number;
+}
 
 export interface SessionResourcePanelProps {
   /** 当前会话 ID；New Chat（无会话）时不发起请求。 */
@@ -57,6 +76,9 @@ export interface SessionResourcePanelProps {
  * 刷新按钮也在这里（由 `showRefresh` 控制只在一处显示）：
  * 刷新的是共享数据，点击后所有分区同时更新。
  *
+ * 后端新增「会话 ↔ 资源」关联时会推 component.invoke（见下方 realtime 注册），
+ * 本组件收到后自动刷新这份共享数据，用户不必手动点刷新。
+ *
  * 不传 `resourceType` 时作为「空状态面板」使用：没有数据时依然渲染标题栏
  * （含刷新按钮）和空状态，而不是整块面板消失。
  *
@@ -84,6 +106,27 @@ const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
   } = useAgentSessionResources(sessionId, active);
 
   const items = (resourceType ? groups?.[resourceType] : undefined) ?? EMPTY_RESOURCE_ITEMS;
+
+  // 后端新增「会话 ↔ 资源」关联时自动刷新（用户无需手动点刷新按钮）：
+  // 只响应本会话的事件；资源明细（名称等）可能稍后才落库，延迟一次再拉。
+  const { register, unregister } = useComponentStore();
+  useEffect(() => {
+    if (!sessionId || !active) {
+      return;
+    }
+    const realtimeInstance = {
+      [SESSION_RESOURCE_REALTIME_METHOD]: (args?: SessionResourceRealtimeArgs) => {
+        if (args?.session_id && args.session_id !== sessionId) {
+          return;
+        }
+        window.setTimeout(() => void refetch(), 300);
+      },
+    };
+    register(SESSION_RESOURCE_REALTIME_CATEGORY, SESSION_RESOURCE_REALTIME_ID, realtimeInstance);
+    return () => {
+      unregister(SESSION_RESOURCE_REALTIME_CATEGORY, SESSION_RESOURCE_REALTIME_ID, realtimeInstance);
+    };
+  }, [active, refetch, register, sessionId, unregister]);
 
   const columns = useMemo<ColumnsType<AgentSessionResourceItem>>(() => {
     // 空状态面板不渲染表格列。
