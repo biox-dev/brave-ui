@@ -210,9 +210,15 @@ if (appType == "index") {
         },{
             path: "/report/:project-report-id",
             element: <ReportWriting />        },{
+            // 报告条目详情（二级路由）：路径里带上所属报告 id，
+            // 刷新 / 分享时左侧栏能据此恢复「报告 + 条目」两栏布局。
+            path: "/report/:project-report-id/item/:item-id",
+            element: <ReportWriting />
+        },{
             path: "/report-file/:report-id",
             element: <ReportFile />
         },{
+            // 兼容旧链接（无报告 id）：从报告条目面板新打开的链接使用上面的二级路由。
             path: "/report-item/:item-id",
             element: <ReportWriting />
         },{

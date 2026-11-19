@@ -17,6 +17,7 @@ const scmOrigin = localStorage.getItem('scmOrigin')
 const activeProjectReportId = localStorage.getItem('activeProjectReportId')
 const activeLLMSessionId = localStorage.getItem('activeLLMSessionId')
 const leftPanelWidth = Number(localStorage.getItem('leftPanelWidth'))
+const leftMiddlePanelWidth = Number(localStorage.getItem('leftMiddlePanelWidth'))
 const assistantPanelWidth = Number(localStorage.getItem('assistantPanelWidth'))
 const rightPanelWidth = Number(localStorage.getItem('rightPanelWidth'))
 // 左侧面板是否折叠隐藏
@@ -163,6 +164,7 @@ interface UserState {
     activeLLMSessionId:string | null;
     llmEnv:any;
     leftPanelWidth:number;
+    leftMiddlePanelWidth:number;
     assistantPanelWidth:number;
     rightPanelWidth:number;
     /** 左侧面板是否折叠隐藏 */
@@ -205,6 +207,7 @@ const contextSlice = createSlice({
         activeLLMSessionId:activeLLMSessionId?activeLLMSessionId:null,
         llmEnv:null,
         leftPanelWidth:Number.isFinite(leftPanelWidth)?leftPanelWidth:320,
+        leftMiddlePanelWidth:Number.isFinite(leftMiddlePanelWidth)?leftMiddlePanelWidth:360,
         assistantPanelWidth:Number.isFinite(assistantPanelWidth)?assistantPanelWidth:360,
         rightPanelWidth:Number.isFinite(rightPanelWidth)?rightPanelWidth:360,
         leftPanelCollapsed,
@@ -282,6 +285,9 @@ const contextSlice = createSlice({
             }
             if (action.payload.leftPanelWidth !== undefined) {
                 localStorage.setItem('leftPanelWidth', String(action.payload.leftPanelWidth))
+            }
+            if (action.payload.leftMiddlePanelWidth !== undefined) {
+                localStorage.setItem('leftMiddlePanelWidth', String(action.payload.leftMiddlePanelWidth))
             }
             if (action.payload.assistantPanelWidth !== undefined) {
                 localStorage.setItem('assistantPanelWidth', String(action.payload.assistantPanelWidth))

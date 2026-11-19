@@ -3,6 +3,8 @@ import type { InferViewRegistryFromLoaders } from "@/core/component-registry/reg
 
 const viewLoaders = {
     projectReport: () => import("./project-report/project-report-list"),
+    // 报告条目树：由 projectReport 列表选中后渲染到布局的 leftMiddle 面板（二级详情）。
+    projectReportItems: () => import("./project-report/project-report-items-panel"),
     projectLiterature: () => import("./literature/project-literature-list"),
     aiSummaryProject: () => import("./ai-summary/ai-summary-project-list"),
     analysisNodeList: () => import("./analysis-node-result/analysis-result-list"),

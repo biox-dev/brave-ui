@@ -10,6 +10,7 @@ import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useOpenMainTab } from "@/hooks/useMainTabTitle";
 import {
+	CloseOutlined,
 	DeleteOutlined,
 	ExperimentOutlined,
 	ExportOutlined,
@@ -129,15 +130,34 @@ const AddReportItemModal: FC<AddReportItemModalProps> = ({
 
 interface ProjectReportItemsPanelProps {
 	reportId: string;
-	onOpenItem: (item: ProjectReportItem) => void;
+	/** 点击条目时的回调；缺省时直接打开主区域标签页（作为 leftMiddle 面板时使用）。 */
+	onOpenItem?: (item: ProjectReportItem) => void;
 	onChanged?: () => void;
+	/** 关闭面板（由布局层在 leftMiddle 中渲染时传入）。 */
+	onClose?: () => void;
 }
 
 // ProjectReportItemsPanel 以 antd Tree 展示报告下所有条目，支持拖拽调整层级与顺序。
-const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, onOpenItem, onChanged }) => {
+const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({
+	reportId,
+	onOpenItem,
+	onChanged,
+	onClose,
+}) => {
 	const message = useGlobalMessage();
 	// 跳转 + 登记标签页名称一步完成；analysis_node 条目可直达对应节点报告页。
 	const openMainTab = useOpenMainTab();
+
+	// handleOpenItem：未传入 onOpenItem 时以「报告条目」标签页打开详情，
+	// 让本组件既能嵌在列表行里，也能独立渲染到布局的 leftMiddle 面板。
+	// 链接带上所属报告 id（二级路由），刷新后左中面板仍能恢复。
+	const handleOpenItem = (item: ProjectReportItem) => {
+		if (onOpenItem) {
+			onOpenItem(item);
+			return;
+		}
+		openMainTab(`/report/${reportId}/item/${item.id}`, item);
+	};
 	const {
 		data = [],
 		isLoading,
@@ -384,6 +404,15 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
 							onClick={() => handleAddItem(action.key)}
 						/>
 					))}
+					{onClose ? (
+						<Button
+							type="text"
+							size="small"
+							icon={<CloseOutlined />}
+							title="Close"
+							onClick={onClose}
+						/>
+					) : null}
 				</span>
 			</div>
 
@@ -402,7 +431,9 @@ const ProjectReportItemsPanel: FC<ProjectReportItemsPanelProps> = ({ reportId, o
 					onExpand={(keys) => setExpandedKeys(keys as string[])}
 					titleRender={titleRender}
 					onDrop={handleDrop}
-					onSelect={(_, info) => onOpenItem((info.node as unknown as ReportTreeNode).item)}
+					onSelect={(_, info) =>
+						handleOpenItem((info.node as unknown as ReportTreeNode).item)
+					}
 				/>
 			)}
 

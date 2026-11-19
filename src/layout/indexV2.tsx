@@ -8,6 +8,8 @@ import ViewResolver from '@/core/ui-renderer/ViewResolver';
 import ContainerQueueMonitor from '@/components/container-manager/container-monitor';
 import RuntimeStatus from '@/components/runtime-status';
 import { setUserItem } from '@/store/userSlice';
+import { closeLeftMiddlePane } from './left-middle-pane-store';
+import { useLeftMiddlePaneState } from '@/hooks/useLeftMiddlePane';
 import { buildLayoutMenus, type LayoutLocale } from './layout-menu';
 import AppHeader from './components/AppHeader';
 import ActivityBar from './components/ActivityBar';
@@ -17,6 +19,15 @@ import { hydrateBottomPanel } from './bottom-panel-store';
 import './indexV2.css';
 
 const { Content, Footer, Sider } = Layout;
+
+// leftMiddle 的视图名由左侧列表页在运行时登记（如 projectReportItems），
+// 这里把 ViewResolver 的强类型联合放宽成 string，避免每处都 `as any`。
+const LeftMiddlePaneView = ViewResolver as unknown as React.FC<{
+  view: string;
+  onClose?: () => void;
+  [key: string]: unknown;
+}>;
+
 type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'analysisScriptStack' | 'analysisWorkflowStack' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'assayProjectPage' | 'agentSessionStack' | 'containerTemplateList' | 'containerTemplateStack';
 
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
@@ -50,6 +61,7 @@ const App: React.FC = () => {
   const appTheme = useSelector((state: any) => state.user.theme);
   const leftActivityKey = useSelector((state: any) => state.user.leftActivityKey);
   const leftPanelWidth = useSelector((state: any) => state.user.leftPanelWidth);
+  const leftMiddlePanelWidth = useSelector((state: any) => state.user.leftMiddlePanelWidth);
   const leftPanelCollapsed = useSelector((state: any) => state.user.leftPanelCollapsed);
   const layoutTheme: 'light' | 'dark' = appTheme === 'dark' ? 'dark' : 'light';
   const isDark = layoutTheme === 'dark';
@@ -60,6 +72,9 @@ const App: React.FC = () => {
     isLeftPanelViewKey(leftActivityKey) ? leftActivityKey : 'agentSessionStack',
   );
   const [leftWidthDraft, setLeftWidthDraft] = useState<number>(leftPanelWidth);
+  // 左侧二级面板（leftMiddle）的当前内容：由左侧列表页通过 store 登记。
+  const leftMiddlePane = useLeftMiddlePaneState();
+  const [leftMiddleWidthDraft, setLeftMiddleWidthDraft] = useState<number>(leftMiddlePanelWidth);
 
   const leftActivityItems = useMemo(
     () => [
@@ -119,6 +134,10 @@ const App: React.FC = () => {
   useEffect(() => {
     setLeftWidthDraft(leftPanelWidth);
   }, [leftPanelWidth]);
+
+  useEffect(() => {
+    setLeftMiddleWidthDraft(leftMiddlePanelWidth);
+  }, [leftMiddlePanelWidth]);
 
   useEffect(() => {
     if (!leftActivityKey) {
@@ -234,6 +253,23 @@ const App: React.FC = () => {
                 onLeftWidthChange={setLeftWidthDraft}
                 onLeftWidthCommit={(width) => dispatch(setUserItem({ leftPanelWidth: width }))}
                 left={<ViewResolver view={leftSideView} view_mode="card" />}
+                leftMiddle={
+                  leftMiddlePane ? (
+                    <LeftMiddlePaneView
+                      view={leftMiddlePane.view}
+                      {...(leftMiddlePane.params ?? {})}
+                      onClose={() => closeLeftMiddlePane()}
+                    />
+                  ) : undefined
+                }
+                leftMiddleResizeLabel={
+                  locale === 'en_US' ? 'Resize report items panel' : '调整条目面板'
+                }
+                leftMiddleWidth={leftMiddleWidthDraft}
+                onLeftMiddleWidthChange={setLeftMiddleWidthDraft}
+                onLeftMiddleWidthCommit={(width) =>
+                  dispatch(setUserItem({ leftMiddlePanelWidth: width }))
+                }
                 main={
                   <div className="layout-sharp-main-stack">
                     {/* 常规路由直接在 main 的 <Outlet /> 中渲染；
