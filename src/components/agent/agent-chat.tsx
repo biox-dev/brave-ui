@@ -59,7 +59,7 @@ import AgentTaskStream from "./agent-task-stream";
 import AgentAskUserCard from "./agent-ask-user";
 import AgentSender from "./agent-sender";
 import { renderAssistantMessage } from "./agent-message-render";
-import { loadAgentConversations } from "./agent-conversation-store";
+import { loadAgentConversations, ensureAgentConversations, upsertConversation } from "./agent-conversation-store";
 import { openAgentWorkspaceTab } from "@/layout/agent-workspace-store";
 import UnifiedDiff from "@/components/common/unified-diff";
 
@@ -608,6 +608,8 @@ const AgentChat: FC<AgentChatProps> = ({
     try {
       const res = await getConversationApi(id);
       const conv = res.data;
+      // 详情自带最新 title：回填共享缓存，顶部标题不必再依赖会话列表。
+      upsertConversation(conv);
 
       selectedConvIdRef.current = conv.id;
       setConversationId(conv.id);
@@ -691,9 +693,10 @@ const AgentChat: FC<AgentChatProps> = ({
     setInput("");
   };
 
-  // 会话列表由左侧「Agent 会话」面板共享，这里只需保证挂载时拉一次。
+  // 会话列表由左侧「Agent 会话」面板共享：挂载时只在尚未加载过时兜底拉一次
+  // （列表自己的面板已挂载时会先拉，这里不再重复请求）。
   useEffect(() => {
-    void loadAgentConversations();
+    void ensureAgentConversations();
   }, []);
 
   // 外部会话变化（左侧会话列表点击 / New Chat）时同步内容：
@@ -735,6 +738,7 @@ const AgentChat: FC<AgentChatProps> = ({
       const conv = res.data;
       // 仅在仍是同一会话时回填，避免请求期间用户已切换会话造成覆盖。
       if (conv.id !== selectedConvIdRef.current) return;
+      upsertConversation(conv);
       applySessionPage(conv);
       // 同步刷新待确认权限 / 待作答提问，保证按钮与卡片与后端一致。
       if (isValidTaskId(conv.current_task_id)) {
@@ -779,6 +783,8 @@ const AgentChat: FC<AgentChatProps> = ({
       try {
         const res = await getConversationApi(turn.convId);
         const conv = res.data;
+        // 首轮对话后后端才会生成 title：轮次结束回填一次，头部标题随之更新。
+        upsertConversation(conv);
         const nextMessages = mapMessages(conv);
         if (type === "task.failed") {
           await appendTaskError(nextMessages, turn.taskId);
@@ -1006,6 +1012,7 @@ const AgentChat: FC<AgentChatProps> = ({
     selectedConvIdRef.current = conv.id;
     setConversationId(conv.id);
     onConversationChange?.(conv.id);
+    upsertConversation(conv);
     applySessionPage(conv);
     setCurrentTaskId(undefined);
     setSending(false);

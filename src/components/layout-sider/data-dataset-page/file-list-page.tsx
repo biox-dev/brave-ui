@@ -290,6 +290,8 @@ const FileListPage = ({
     cacheTime: 5 * 60_000,
     // scopeKey 同时带上数据来源：切换视图时缓存与页码都会重置。
     scopeKey: `${projectId ?? ""}:${source}`,
+    // 纵向堆叠折叠时只保留标题栏：停止列表请求，展开后自动按需加载（缓存 <30s 直接复用）。
+    enabled: !collapsed,
   });
 
   useEffect(() => {

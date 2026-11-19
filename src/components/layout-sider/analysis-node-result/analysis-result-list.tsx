@@ -9,7 +9,7 @@ import { formatRelativeTime } from "@/utils/time";
 import { CaretDownOutlined, CaretRightOutlined, DeleteOutlined, ExperimentOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Descriptions, Empty, Pagination, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { FC, useEffect, useMemo, useState } from "react";
+import { FC, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import { useSelector } from "react-redux";
 
@@ -164,17 +164,28 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
     {
       initialPageSize: 20,
       scopeKey: projectId,
+      // 纵向堆叠折叠时只保留标题栏：停止列表请求，展开后自动按需加载（缓存 <30s 直接复用）。
+      enabled: !collapsed,
     }
   );
 
   // 订阅 ws 分析事件：节点开始/结束后自动刷新列表。
   const { register, unregister } = useComponentStore();
+  // 用 ref 读取最新折叠态：折叠切换时不必重建 handler（register 是多实例 Set，重建会反复增删）。
+  const collapsedRef = useRef(collapsed);
+  useEffect(() => {
+    collapsedRef.current = collapsed;
+  }, [collapsed]);
+
   const instanceNode = useMemo(
     () => ({
+      // WS 事件驱动的刷新也要看折叠态：折叠时 refetch() 同样会发请求（enabled 不拦手动 refetch）。
       analysisStarted: () => {
+        if (collapsedRef.current) return;
         refetch();
       },
       analysisDone: () => {
+        if (collapsedRef.current) return;
         refetch();
       },
     }),

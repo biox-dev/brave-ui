@@ -120,6 +120,8 @@ const WorkflowPageList: FC<WorkflowPageListProps> = ({ collapsed = false, onTogg
     {
       initialPageSize: 20,
       scopeKey: projectId,
+      // 纵向堆叠折叠时只保留标题栏：停止列表请求，展开后自动按需加载（缓存 <30s 直接复用）。
+      enabled: !collapsed,
     }
   );
 

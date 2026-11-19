@@ -10,7 +10,7 @@ import {
 import { useLocation, useNavigate } from 'react-router';
 import { useI18n } from '@/hooks/useI18n';
 import type { AgentConversationItem } from '@/api/agent';
-import { loadAgentConversations, useAgentConversationStore } from './agent-conversation-store';
+import { loadAgentConversations, ensureAgentConversations, useAgentConversationStore } from './agent-conversation-store';
 import './agent-session-list.css';
 
 /**
@@ -73,10 +73,12 @@ const AgentSessionList: FC<AgentSessionListProps> = ({
   const loading = useAgentConversationStore((state) => state.loading);
   const loaded = useAgentConversationStore((state) => state.loaded);
 
-  // 路由变化（切换会话 / 进入 New Chat）时刷新一次，保证标题与排序是最新的。
+  // 只在挂载时加载一次（已加载过则跳过）。
+  // 不要监听 pathname：切换会话 / New Chat 都不改变列表数据，刷新由真正改变数据的
+  // 动作（新建会话 / 轮次结束 / fork，见 agent-chat.tsx）显式触发。
   useEffect(() => {
-    void loadAgentConversations();
-  }, [pathname]);
+    void ensureAgentConversations();
+  }, []);
 
   const labels = {
     title: locale === 'en_US' ? 'Agent Sessions' : '智能体会话',

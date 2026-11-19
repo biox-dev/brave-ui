@@ -1,4 +1,4 @@
-import { FC, useCallback, useEffect, useMemo } from 'react';
+import { FC, useCallback, useMemo } from 'react';
 import { Button, Checkbox, Empty, Popover } from 'antd';
 import { LayoutOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router';
@@ -16,7 +16,6 @@ import BorderlessCard from '@/components/common/borderless-card';
 import ViewResolver from '@/core/ui-renderer/ViewResolver';
 import { useI18n } from '@/hooks/useI18n';
 import {
-  loadAgentConversations,
   useAgentConversationStore,
 } from '@/components/agent/agent-conversation-store';
 import {
@@ -87,22 +86,20 @@ const AgentSessionPage: FC = () => {
   const workspace = useAgentWorkspace(sessionId);
   const tabs = workspace.tabs;
 
-  // 顶部标题显示当前会话名称：优先用会话列表里的 title（与左侧列表同源）。
-  // 直接访问地址时列表可能还没拉过，这里补一次加载。
+  // 顶部标题显示当前会话名称：优先用聊天页（AgentChat）从 `/agent/conversation/get`
+  // 回填的标题缓存；左侧列表已加载时作为兜底；两者都没有（详情未返回）时回退到 sessionId。
+  // 这里不再触发列表请求：标题不需要整张列表，列表请求由它自己的面板负责。
   const conversations = useAgentConversationStore((state) => state.conversations);
-  const conversationsLoaded = useAgentConversationStore((state) => state.loaded);
-  useEffect(() => {
-    if (!conversationsLoaded) {
-      void loadAgentConversations();
-    }
-  }, [conversationsLoaded]);
+  const conversationTitles = useAgentConversationStore((state) => state.titles);
   const sessionTitle = useMemo(() => {
     if (!sessionId) {
       return locale === 'en_US' ? 'New Chat' : '新建会话';
     }
-    const current = conversations.find((item) => item.id === sessionId);
-    return current?.title?.trim() || sessionId;
-  }, [conversations, locale, sessionId]);
+    const title =
+      conversationTitles[sessionId]?.trim() ||
+      conversations.find((item) => item.id === sessionId)?.title?.trim();
+    return title || sessionId;
+  }, [conversationTitles, conversations, locale, sessionId]);
 
   // 右侧堆叠：分区显示状态持久化（redux + localStorage），全部取消勾选时右侧面板不渲染。
   // 存储 key 用 v2：默认显示规则变更后，避免旧的「全部显示」持久化值覆盖新默认。
