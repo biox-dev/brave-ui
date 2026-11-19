@@ -92,8 +92,9 @@ const AgentSessionPage: FC = () => {
   // 会话实时流按会话订阅：进入页面时登记，离开 / 切换会话时撤销。
   //
   // 订阅在服务端按 SessionID 维护，因此同一项目内打开该会话的所有用户会收到同一份
-  // WS 事件流。新建会话时页面还没有会话 ID，发起人由 /agent/chat 自动登记；本轮任务
-  // 结束后后端会清理该会话的全部订阅，发起新一轮时再重新登记（前端无需额外处理）。
+  // WS 事件流。新建会话时页面还没有会话 ID，发起人由 /agent/chat 自动登记。
+  // 订阅不会因某一轮任务结束而被清理：只要页面还在，后续每一轮都能收到；
+  // 用户离线（最后一条 WS 连接断开超过宽限期）时由服务端兜底清理。
   useEffect(() => {
     if (!sessionId) return;
     void subscribeAgentSessionApi(sessionId).catch(() => {
