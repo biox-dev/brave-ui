@@ -735,8 +735,11 @@ const AgentChat: FC<AgentChatProps> = ({
   };
 
   // 重新拉取当前会话（最新一页消息）：用于手动同步后端最新状态。
+  //
+  // 用 selectedConvIdRef 而不是 conversationId state：本函数会被 WS 回调（首次渲染
+  // 时注册的闭包）间接调用，state 可能已经过期（例如从 /session 新建会话后跳转）。
   const handleReloadConversation = async () => {
-    const id = conversationId;
+    const id = selectedConvIdRef.current;
     if (!id) return;
     setReloadingConversation(true);
     try {
@@ -818,6 +821,43 @@ const AgentChat: FC<AgentChatProps> = ({
     void loadAgentConversations();
   };
 
+  // 事件是否属于当前打开的会话。
+  //
+  // 服务端已按会话订阅推送，这里再按 session_id 兜底过滤：同一条 WS 连接上可能
+  // 还有其他来源的事件（例如旧订阅尚未撤销），不能把别的会话的事件记到当前轮次。
+  const isSelectedConversationEvent = (ev: AgentEventItem) =>
+    !ev.session_id || ev.session_id === selectedConvIdRef.current;
+
+  // 收到「别人发起」的一轮任务时，在本地补登记活跃轮次。
+  //
+  // A 发起一轮后，B 的页面只收到 WS 事件，本地没有对应的 turn 记录：
+  // applyEvent 会因为找不到 turn 而丢弃全部事件，表现为「WS 有数据但 UI 不更新」。
+  // 这里用事件自带的 session_id 判断它属于当前会话，补一条 turn，后续
+  // AgentTaskStream / 权限卡片 / 终态收尾就能正常路由。
+  //
+  // 终态事件不补登记：这一轮已经结束，只需要刷新会话拿到最终投影。
+  const adoptForeignTurn = (ev: AgentEventItem): ActiveTurn | undefined => {
+    const convId = ev.session_id ?? selectedConvIdRef.current;
+    if (!convId || convId !== selectedConvIdRef.current || !isValidTaskId(ev.task_id)) {
+      return undefined;
+    }
+    if (TERMINAL_EVENT_TYPES.has(ev.type ?? "")) return undefined;
+
+    const turn: ActiveTurn = {
+      taskId: ev.task_id,
+      convId,
+      waiting: ev.type === "task.waiting",
+      sending: true,
+    };
+    activeTurnsRef.current.set(ev.task_id, turn);
+    setCurrentTaskId(ev.task_id);
+    setSending(true);
+    setWaiting(turn.waiting);
+    // 事件里不带用户输入，拉一次会话补上对方刚发出的那条 user 消息。
+    void handleReloadConversation();
+    return turn;
+  };
+
   // 统一处理一个任务事件（实时 WS 推送与历史恢复共用）。
   //
   // 去重表（seenRef）与 AgentTaskStream 共享，因此这里必须先按「是否归本组件处理」
@@ -825,8 +865,30 @@ const AgentChat: FC<AgentChatProps> = ({
   // task.started / task.waiting 等状态事件）提前登记为已见，导致时间线组件收不到、
   // 实时流状态停更新（刷新后批准权限后不恢复 running 就是这个原因）。
   const applyEvent = (ev: AgentEventItem) => {
-    const turn = activeTurnsRef.current.get(ev.task_id);
-    if (!turn) return;
+    if (!isSelectedConversationEvent(ev)) return;
+
+    let turn = activeTurnsRef.current.get(ev.task_id);
+    if (!turn) {
+      turn = adoptForeignTurn(ev);
+      if (!turn) {
+        // 只收到终态（订阅前任务已结束 / 页面加载竞态）：刷新会话把最终结果投影出来。
+        if (TERMINAL_EVENT_TYPES.has(ev.type ?? "")) {
+          void handleReloadConversation();
+        }
+        return;
+      }
+    }
+
+    // task.started / task.waiting 归 AgentTaskStream 渲染状态，但顶层的 sending / waiting
+    // 也要跟着变化；这两个事件不写去重表，避免时间线组件收不到。
+    if (ev.type === "task.started") {
+      setWaiting(false);
+      return;
+    }
+    if (ev.type === "task.waiting") {
+      setWaiting(true);
+      return;
+    }
 
     // 所有权判定：AgentChat 只负责「业务状态」类事件（权限 / 提问 / 终态收尾）。
     // stream 增量与 task.started / task.waiting 归 AgentTaskStream，本组件既不处理
@@ -858,7 +920,8 @@ const AgentChat: FC<AgentChatProps> = ({
     }
   };
 
-  // 全局订阅 WS：把 agent.event 路由到对应活跃轮次。
+  // 全局订阅 WS：把 agent.event 路由到对应活跃轮次；
+  // 其他用户发起的一轮在首次收到事件时补登记（见 adoptForeignTurn）。
   useEffect(() => {
     const unsubscribe = sseClient.onMessage((raw: unknown) => {
       if (!raw || typeof raw !== "object") return;
