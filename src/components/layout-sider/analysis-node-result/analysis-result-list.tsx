@@ -6,12 +6,13 @@ import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { useOpenMainTab } from "@/hooks/useMainTabTitle";
 import { formatRelativeTime } from "@/utils/time";
-import { CaretDownOutlined, CaretRightOutlined, DeleteOutlined, ExperimentOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import { DeleteOutlined, ExperimentOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Descriptions, Empty, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import { useSelector } from "react-redux";
+import SiderPanelLayout from "../common/sider-panel-layout";
 
 const statusColor = (status: string) => {
   switch (status) {
@@ -33,14 +34,11 @@ const statusColor = (status: string) => {
   }
 };
 
-const formatDateTime = (value?: string) =>
-  value ? new Date(value).toLocaleString() : "-";
-
 /** 节点的人类可读名称：优先 node_name，其次 analysis_node_id，最后回退到 id。 */
 const nodeDisplayName = (node: AnalysisNodeItem) =>
   node.node_name || node.analysis_node_id || `Node-${node.id}`;
 
-const AnalysisNodeDetailCard = ({ item }: { item: AnalysisNodeItem }) => (
+const AnalysisNodeDetailCard = ({ item, locale }: { item: AnalysisNodeItem; locale: string }) => (
   <div style={{ width: 380 }}>
     <Descriptions
       size="small"
@@ -67,10 +65,10 @@ const AnalysisNodeDetailCard = ({ item }: { item: AnalysisNodeItem }) => (
           label: "Retry",
           children: `${item.retry ?? 0} / ${item.max_retry ?? 0}`,
         },
-        // { key: "created_at", label: "Created At", children: formatDateTime(item.created_at) },
-        { key: "updated_at", label: "Updated At", children: formatDateTime(item.updated_at) },
-        // { key: "started_at", label: "Started At", children: formatDateTime(item.started_at) },
-        { key: "finished_at", label: "Finished At", children: formatDateTime(item.finished_at) },
+        // { key: "created_at", label: "Created At", children: formatRelativeTime(item.created_at, locale) },
+        { key: "updated_at", label: "Updated At", children: formatRelativeTime(item.updated_at, locale) },
+        // { key: "started_at", label: "Started At", children: formatRelativeTime(item.started_at, locale) },
+        { key: "finished_at", label: "Finished At", children: formatRelativeTime(item.finished_at, locale) },
         {
           key: "output_dir",
           label: "Output Dir",
@@ -299,7 +297,7 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
                       {title}
                     </span>
                   }
-                  content={<AnalysisNodeDetailCard item={record} />}
+                  content={<AnalysisNodeDetailCard item={record} locale={locale} />}
                 >
                   <span className="project-report-item-title">{title}</span>
                 </Popover>
@@ -372,26 +370,12 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
   };
 
   return (
-    <div className={`project-report-panel${collapsed ? " is-collapsed" : ""}`}>
-      <div className="project-report-panel-header">
-        {onToggleCollapse ? (
-          <button
-            type="button"
-            className="project-report-panel-title project-report-panel-title-button"
-            aria-expanded={!collapsed}
-            onClick={onToggleCollapse}
-          >
-            {collapsed ? (
-              <CaretRightOutlined className="project-report-panel-chevron" />
-            ) : (
-              <CaretDownOutlined className="project-report-panel-chevron" />
-            )}
-            <span>{title || "Analysis Nodes"}</span>
-          </button>
-        ) : (
-          <span className="project-report-panel-title">{title || "Analysis Nodes"}</span>
-        )}
-        <div className="project-report-panel-actions">
+    <SiderPanelLayout
+      title={title || "Analysis Nodes"}
+      collapsed={collapsed}
+      onToggleCollapse={onToggleCollapse}
+      actions={
+        <>
           <LazyListSearch
             value={keyword}
             onChange={setKeyword}
@@ -412,71 +396,62 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
             icon={<ReloadOutlined />}
             onClick={() => refetch()}
           />
-        </div>
-      </div>
-
-      <div className="project-report-panel-body" style={collapsed ? { display: "none" } : undefined}>
-        {data.length === 0 && !isLoading ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="No analysis node"
-          />
-        ) : (
-          <Table<AnalysisNodeItem>
-            rowKey="id"
-            size="small"
-            columns={selectable ? [...columns, selectColumn] : columns}
-            dataSource={data}
-            loading={isLoading || isFetching}
-            pagination={false}
-            showHeader={false}
-            rowClassName={(record) =>
-              isPicked(record.id) || String(record.id) === String(selectedId)
-                ? "project-report-row-selected"
-                : ""
-            }
-            onRow={(record) => ({
-              onClick: () =>
-                selectable
-                  ? handleSelect(record)
-                  : openNodeReport(record),
-            })}
-          />
-        )}
-        <LazyListSentinel sentinelRef={sentinelRef} />
-        <LazyListFooter
-          loadingMore={loadingMore}
-          hasMore={hasMore}
-          hasItems={data.length > 0}
-          total={total}
-          labels={{ loading: "Loading more…", noMore: "No more nodes", totalPrefix: "total " }}
+        </>
+      }
+      footer={
+        selectable ? (
+          <>
+            {multiple && pickedItems.length > 0 && (
+              <span style={{ marginRight: "auto" }}>{pickedItems.length} selected</span>
+            )}
+            <Button onClick={handleCancel}>Cancel</Button>
+            <Button
+              type="primary"
+              disabled={pickedItems.length === 0}
+              onClick={handleConfirm}
+            >
+              Confirm
+            </Button>
+          </>
+        ) : undefined
+      }
+    >
+      {data.length === 0 && !isLoading ? (
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description="No analysis node"
         />
-      </div>
-
-      {selectable && (
-        <div
-          style={{
-            display: collapsed ? "none" : "flex",
-            justifyContent: "flex-end",
-            gap: 8,
-            padding: "8px 10px",
-            borderTop: "1px solid var(--sharp-divider)",
-          }}
-        >
-          {multiple && pickedItems.length > 0 && (
-            <span style={{ marginRight: "auto" }}>{pickedItems.length} selected</span>
-          )}
-          <Button onClick={handleCancel}>Cancel</Button>
-          <Button
-            type="primary"
-            disabled={pickedItems.length === 0}
-            onClick={handleConfirm}
-          >
-            Confirm
-          </Button>
-        </div>
+      ) : (
+        <Table<AnalysisNodeItem>
+          rowKey="id"
+          size="small"
+          columns={selectable ? [...columns, selectColumn] : columns}
+          dataSource={data}
+          loading={isLoading || isFetching}
+          pagination={false}
+          showHeader={false}
+          rowClassName={(record) =>
+            isPicked(record.id) || String(record.id) === String(selectedId)
+              ? "project-report-row-selected"
+              : ""
+          }
+          onRow={(record) => ({
+            onClick: () =>
+              selectable
+                ? handleSelect(record)
+                : openNodeReport(record),
+          })}
+        />
       )}
-    </div>
+      <LazyListSentinel sentinelRef={sentinelRef} />
+      <LazyListFooter
+        loadingMore={loadingMore}
+        hasMore={hasMore}
+        hasItems={data.length > 0}
+        total={total}
+        labels={{ loading: "Loading more…", noMore: "No more nodes", totalPrefix: "total " }}
+      />
+    </SiderPanelLayout>
   );
 };
 

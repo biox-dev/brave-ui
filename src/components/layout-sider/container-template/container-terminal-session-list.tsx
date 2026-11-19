@@ -12,8 +12,6 @@ import {
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
-  CaretDownOutlined,
-  CaretRightOutlined,
   CodeOutlined,
   DeleteOutlined,
   PlayCircleOutlined,
@@ -33,6 +31,7 @@ import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { closeBottomTab, openBottomTerminal } from "@/layout/bottom-panel-store";
 import { formatRelativeTime } from "@/utils/time";
+import SiderPanelLayout from "../common/sider-panel-layout";
 import type { ContainerTerminalSessionItem } from "@/api/container-template-terminal";
 
 export interface ContainerTerminalSessionListProps {
@@ -66,7 +65,13 @@ const statusTag = (item: ContainerTerminalSessionItem) => {
 };
 
 /** 悬停标题时展示的会话详情卡片。 */
-const SessionDetailCard = ({ item }: { item: ContainerTerminalSessionItem }) => (
+const SessionDetailCard = ({
+  item,
+  locale,
+}: {
+  item: ContainerTerminalSessionItem;
+  locale: string;
+}) => (
   <div style={{ width: 360 }}>
     <Descriptions
       size="small"
@@ -93,7 +98,7 @@ const SessionDetailCard = ({ item }: { item: ContainerTerminalSessionItem }) => 
         {
           key: "last_active",
           label: "Last Active",
-          children: item.last_active ? new Date(item.last_active).toLocaleString() : "-",
+          children: formatRelativeTime(item.last_active, locale),
         },
       ]}
     />
@@ -373,7 +378,7 @@ const ContainerTerminalSessionList = ({
                       {displayName}
                     </span>
                   }
-                  content={<SessionDetailCard item={record} />}
+                  content={<SessionDetailCard item={record} locale={locale} />}
                 >
                   <span className="project-report-item-title">{displayName}</span>
                 </Popover>
@@ -441,26 +446,12 @@ const ContainerTerminalSessionList = ({
   );
 
   return (
-    <div className={`project-report-panel${collapsed ? " is-collapsed" : ""}`}>
-      <div className="project-report-panel-header">
-        {onToggleCollapse ? (
-          <button
-            type="button"
-            className="project-report-panel-title project-report-panel-title-button"
-            aria-expanded={!collapsed}
-            onClick={onToggleCollapse}
-          >
-            {collapsed ? (
-              <CaretRightOutlined className="project-report-panel-chevron" />
-            ) : (
-              <CaretDownOutlined className="project-report-panel-chevron" />
-            )}
-            <span>{title || "Terminal Sessions"}</span>
-          </button>
-        ) : (
-          <span className="project-report-panel-title">{title || "Terminal Sessions"}</span>
-        )}
-        <div className="project-report-panel-actions">
+    <SiderPanelLayout
+      title={title || "Terminal Sessions"}
+      collapsed={collapsed}
+      onToggleCollapse={onToggleCollapse}
+      actions={
+        <>
           <LazyListSearch
             value={keyword}
             onChange={setKeyword}
@@ -500,33 +491,31 @@ const ContainerTerminalSessionList = ({
               onClick={() => refetch()}
             />
           </Tooltip>
-        </div>
-      </div>
-
-      <div className="project-report-panel-body" style={collapsed ? { display: "none" } : undefined}>
-        {filteredData.length === 0 && !isLoading ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={
-              onlyCurrentProject ? "No terminal session in current project" : "No terminal session"
-            }
-          />
-        ) : (
-          <Table<ContainerTerminalSessionItem>
-            rowKey="session_id"
-            size="small"
-            columns={columns}
-            dataSource={filteredData}
-            loading={isLoading || isFetching}
-            pagination={false}
-            showHeader={false}
-            onRow={(record) => ({
-              onClick: () => openTerminalTab(record),
-            })}
-          />
-        )}
-      </div>
-    </div>
+        </>
+      }
+    >
+      {filteredData.length === 0 && !isLoading ? (
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description={
+            onlyCurrentProject ? "No terminal session in current project" : "No terminal session"
+          }
+        />
+      ) : (
+        <Table<ContainerTerminalSessionItem>
+          rowKey="session_id"
+          size="small"
+          columns={columns}
+          dataSource={filteredData}
+          loading={isLoading || isFetching}
+          pagination={false}
+          showHeader={false}
+          onRow={(record) => ({
+            onClick: () => openTerminalTab(record),
+          })}
+        />
+      )}
+    </SiderPanelLayout>
   );
 };
 

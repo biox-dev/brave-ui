@@ -3,12 +3,13 @@ import { LazyListFooter, LazyListSearch, LazyListSentinel, useLazyList } from "@
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { formatRelativeTime } from "@/utils/time";
-import { CaretDownOutlined, CaretRightOutlined, DeleteOutlined, FileSearchOutlined, ReloadOutlined } from "@ant-design/icons";
-import { Button, Descriptions, Empty, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
+import { DeleteOutlined, FileSearchOutlined, ReloadOutlined } from "@ant-design/icons";
+import { Button, Descriptions, Empty, Popconfirm, Popover, Table, Tag } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
+import SiderPanelLayout from "../common/sider-panel-layout";
 
 const statusColor = (status: string) => {
   switch (status) {
@@ -31,10 +32,7 @@ const statusColor = (status: string) => {
   }
 };
 
-const formatDateTime = (value?: string) =>
-  value ? new Date(value).toLocaleString() : "-";
-
-const AnalysisDetailCard = ({ item }: { item: AnalysisItem }) => (
+const AnalysisDetailCard = ({ item, locale }: { item: AnalysisItem; locale: string }) => (
   <div style={{ width: 380 }}>
     <Descriptions
       size="small"
@@ -58,8 +56,8 @@ const AnalysisDetailCard = ({ item }: { item: AnalysisItem }) => (
         { key: "server_status", label: "Server Status", children: item.server_status || "-" },
         { key: "is_report", label: "Is Report", children: item.is_report ? "Yes" : "No" },
         { key: "cache_type", label: "Cache Type", children: item.cache_type ?? "-" },
-        { key: "created_at", label: "Created At", children: formatDateTime(item.created_at) },
-        { key: "updated_at", label: "Updated At", children: formatDateTime(item.updated_at) },
+        { key: "created_at", label: "Created At", children: formatRelativeTime(item.created_at, locale) },
+        { key: "updated_at", label: "Updated At", children: formatRelativeTime(item.updated_at, locale) },
       ]}
     />
   </div>
@@ -190,9 +188,21 @@ const AnalysisList: FC<AnalysisListProps> = ({ title, onOk, onCancel, close, mul
             <div className="project-report-item">
               <FileSearchOutlined className="project-report-item-icon" />
               <div className="project-report-item-text">
-                <Tooltip placement="topLeft" title={title}>
+                {/* 详情卡片只在鼠标悬停到标题上时显示，避免整行悬停就弹卡。 */}
+                <Popover
+                  placement="left"
+                  mouseEnterDelay={0.2}
+                  mouseLeaveDelay={0.1}
+                  title={
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <FileSearchOutlined />
+                      {title}
+                    </span>
+                  }
+                  content={<AnalysisDetailCard item={record} locale={locale} />}
+                >
                   <span className="project-report-item-title">{title}</span>
-                </Tooltip>
+                </Popover>
                 {meta && (
                   <span className="project-report-item-meta" title={meta}>
                     {meta}
@@ -234,37 +244,6 @@ const AnalysisList: FC<AnalysisListProps> = ({ title, onOk, onCancel, close, mul
     [locale]
   );
 
-  const bodyRow = useMemo(() => {
-    const Row = (props: any) => {
-      const rowKey = props?.["data-row-key"];
-      const record = data.find((item) => String(item.id) === String(rowKey));
-      const rowElement = <tr {...props} />;
-
-      if (!record) {
-        return rowElement;
-      }
-
-      return (
-        <Popover
-          placement="left"
-          mouseEnterDelay={0.2}
-          mouseLeaveDelay={0.1}
-          title={
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <FileSearchOutlined />
-              {record.analysis_name || record.analysis_id || `Analysis-${record.id}`}
-            </span>
-          }
-          content={<AnalysisDetailCard item={record} />}
-        >
-          {rowElement}
-        </Popover>
-      );
-    };
-
-    return Row;
-  }, [data]);
-
   const selectColumn: ColumnsType<AnalysisItem>[number] = {
     title: "Select",
     key: "select",
@@ -285,26 +264,12 @@ const AnalysisList: FC<AnalysisListProps> = ({ title, onOk, onCancel, close, mul
   };
 
   return (
-    <div className={`project-report-panel${collapsed ? " is-collapsed" : ""}`}>
-      <div className="project-report-panel-header">
-        {onToggleCollapse ? (
-          <button
-            type="button"
-            className="project-report-panel-title project-report-panel-title-button"
-            aria-expanded={!collapsed}
-            onClick={onToggleCollapse}
-          >
-            {collapsed ? (
-              <CaretRightOutlined className="project-report-panel-chevron" />
-            ) : (
-              <CaretDownOutlined className="project-report-panel-chevron" />
-            )}
-            <span>{title || "Analysis"}</span>
-          </button>
-        ) : (
-          <span className="project-report-panel-title">{title || "Analysis"}</span>
-        )}
-        <div className="project-report-panel-actions">
+    <SiderPanelLayout
+      title={title || "Analysis"}
+      collapsed={collapsed}
+      onToggleCollapse={onToggleCollapse}
+      actions={
+        <>
           <LazyListSearch
             value={keyword}
             onChange={setKeyword}
@@ -317,72 +282,62 @@ const AnalysisList: FC<AnalysisListProps> = ({ title, onOk, onCancel, close, mul
             icon={<ReloadOutlined />}
             onClick={() => refetch()}
           />
-        </div>
-      </div>
-
-      <div className="project-report-panel-body" style={collapsed ? { display: "none" } : undefined}>
-        {data.length === 0 && !isLoading ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="No analysis"
-          />
-        ) : (
-          <Table<AnalysisItem>
-            rowKey="id"
-            size="small"
-            columns={selectable ? [...columns, selectColumn] : columns}
-            dataSource={data}
-            loading={isLoading || isFetching}
-            pagination={false}
-            showHeader={false}
-            components={{ body: { row: bodyRow } }}
-            rowClassName={(record) =>
-              isPicked(record.id) || String(record.id) === String(selectedId)
-                ? "project-report-row-selected"
-                : ""
-            }
-            onRow={(record) => ({
-              onClick: () =>
-                selectable
-                  ? handleSelect(record)
-                  : navigate(`/analysis-report/${record.id}`),
-            })}
-          />
-        )}
-        <LazyListSentinel sentinelRef={sentinelRef} />
-        <LazyListFooter
-          loadingMore={loadingMore}
-          hasMore={hasMore}
-          hasItems={data.length > 0}
-          total={total}
-          labels={{ loading: "Loading more…", noMore: "No more analyses", totalPrefix: "total " }}
+        </>
+      }
+      footer={
+        selectable ? (
+          <>
+            {multiple && pickedItems.length > 0 && (
+              <span style={{ marginRight: "auto" }}>{pickedItems.length} selected</span>
+            )}
+            <Button onClick={handleCancel}>Cancel</Button>
+            <Button
+              type="primary"
+              disabled={pickedItems.length === 0}
+              onClick={handleConfirm}
+            >
+              Confirm
+            </Button>
+          </>
+        ) : undefined
+      }
+    >
+      {data.length === 0 && !isLoading ? (
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description="No analysis"
         />
-      </div>
-
-      {selectable && (
-        <div
-          style={{
-            display: collapsed ? "none" : "flex",
-            justifyContent: "flex-end",
-            gap: 8,
-            padding: "8px 10px",
-            borderTop: "1px solid var(--sharp-divider)",
-          }}
-        >
-          {multiple && pickedItems.length > 0 && (
-            <span style={{ marginRight: "auto" }}>{pickedItems.length} selected</span>
-          )}
-          <Button onClick={handleCancel}>Cancel</Button>
-          <Button
-            type="primary"
-            disabled={pickedItems.length === 0}
-            onClick={handleConfirm}
-          >
-            Confirm
-          </Button>
-        </div>
+      ) : (
+        <Table<AnalysisItem>
+          rowKey="id"
+          size="small"
+          columns={selectable ? [...columns, selectColumn] : columns}
+          dataSource={data}
+          loading={isLoading || isFetching}
+          pagination={false}
+          showHeader={false}
+          rowClassName={(record) =>
+            isPicked(record.id) || String(record.id) === String(selectedId)
+              ? "project-report-row-selected"
+              : ""
+          }
+          onRow={(record) => ({
+            onClick: () =>
+              selectable
+                ? handleSelect(record)
+                : navigate(`/analysis-report/${record.id}`),
+          })}
+        />
       )}
-    </div>
+      <LazyListSentinel sentinelRef={sentinelRef} />
+      <LazyListFooter
+        loadingMore={loadingMore}
+        hasMore={hasMore}
+        hasItems={data.length > 0}
+        total={total}
+        labels={{ loading: "Loading more…", noMore: "No more analyses", totalPrefix: "total " }}
+      />
+    </SiderPanelLayout>
   );
 };
 

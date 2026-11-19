@@ -7,12 +7,13 @@ import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { useOpenMainTab } from "@/hooks/useMainTabTitle";
 import { formatRelativeTime } from "@/utils/time";
-import { CaretDownOutlined, CaretRightOutlined, CodeOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
-import { Button, Descriptions, Empty, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
+import { CodeOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import { Button, Descriptions, Empty, Popconfirm, Popover, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo } from "react";
 import { useLocation } from "react-router";
 import { useSelector } from "react-redux";
+import SiderPanelLayout from "../common/sider-panel-layout";
 
 // const splitTags = (tags?: string) =>
 //   (tags ?? "")
@@ -24,7 +25,7 @@ import { useSelector } from "react-redux";
 const scriptDisplayName = (script: ScriptItem) =>
   script.name || script.component_id || `Script-${script.id}`;
 
-const ScriptDetailCard = ({ item }: { item: ScriptItem }) => {
+const ScriptDetailCard = ({ item, locale }: { item: ScriptItem; locale: string }) => {
   // const tags = splitTags(item.tags);
 
   return (
@@ -68,12 +69,12 @@ const ScriptDetailCard = ({ item }: { item: ScriptItem }) => {
           {
             key: "created_at",
             label: "Created At",
-            children: item.created_at ? new Date(item.created_at).toLocaleString() : "-",
+            children: formatRelativeTime(item.created_at, locale),
           },
           {
             key: "updated_at",
             label: "Updated At",
-            children: item.updated_at ? new Date(item.updated_at).toLocaleString() : "-",
+            children: formatRelativeTime(item.updated_at, locale),
           },
         ]}
       />
@@ -160,7 +161,6 @@ const ScriptPageList: FC<ScriptPageListProps> = ({ collapsed = false, onToggleCo
             record.script_type,
             // record.category,
             // record.tags
-            ,
           ]
             .filter(Boolean)
             .join(" · ");
@@ -169,9 +169,21 @@ const ScriptPageList: FC<ScriptPageListProps> = ({ collapsed = false, onToggleCo
             <div className="project-report-item">
               <CodeOutlined className="project-report-item-icon" />
               <div className="project-report-item-text">
-                <Tooltip placement="topLeft" title={title}>
+                {/* 详情卡片只在鼠标悬停到标题上时显示，避免整行悬停就弹卡。 */}
+                <Popover
+                  placement="left"
+                  mouseEnterDelay={0.2}
+                  mouseLeaveDelay={0.1}
+                  title={
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <CodeOutlined />
+                      {title}
+                    </span>
+                  }
+                  content={<ScriptDetailCard item={record} locale={locale} />}
+                >
                   <span className="project-report-item-title">{title}</span>
-                </Tooltip>
+                </Popover>
                 {meta && (
                   <span className="project-report-item-meta" title={meta}>
                     {meta}
@@ -193,37 +205,6 @@ const ScriptPageList: FC<ScriptPageListProps> = ({ collapsed = false, onToggleCo
     ],
     [locale]
   );
-
-  const bodyRow = useMemo(() => {
-    const Row = (props: any) => {
-      const rowKey = props?.["data-row-key"];
-      const record = data.find((item) => String(item.id) === String(rowKey));
-      const rowElement = <tr {...props} />;
-
-      if (!record) {
-        return rowElement;
-      }
-
-      return (
-        <Popover
-          placement="left"
-          mouseEnterDelay={0.2}
-          mouseLeaveDelay={0.1}
-          title={
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <CodeOutlined />
-              {scriptDisplayName(record)}
-            </span>
-          }
-          content={<ScriptDetailCard item={record} />}
-        >
-          {rowElement}
-        </Popover>
-      );
-    };
-
-    return Row;
-  }, [data]);
 
   const actionsColumn: ColumnsType<ScriptItem>[number] = {
     title: "Actions",
@@ -297,26 +278,12 @@ const ScriptPageList: FC<ScriptPageListProps> = ({ collapsed = false, onToggleCo
   };
 
   return (
-    <div className={`project-report-panel${collapsed ? " is-collapsed" : ""}`}>
-      <div className="project-report-panel-header">
-        {onToggleCollapse ? (
-          <button
-            type="button"
-            className="project-report-panel-title project-report-panel-title-button"
-            aria-expanded={!collapsed}
-            onClick={onToggleCollapse}
-          >
-            {collapsed ? (
-              <CaretRightOutlined className="project-report-panel-chevron" />
-            ) : (
-              <CaretDownOutlined className="project-report-panel-chevron" />
-            )}
-            <span>Scripts</span>
-          </button>
-        ) : (
-          <span className="project-report-panel-title">Scripts</span>
-        )}
-        <div className="project-report-panel-actions">
+    <SiderPanelLayout
+      title="Scripts"
+      collapsed={collapsed}
+      onToggleCollapse={onToggleCollapse}
+      actions={
+        <>
           <LazyListSearch
             value={keyword}
             onChange={setKeyword}
@@ -362,43 +329,40 @@ const ScriptPageList: FC<ScriptPageListProps> = ({ collapsed = false, onToggleCo
             icon={<ReloadOutlined />}
             onClick={() => refetch()}
           />
-        </div>
-      </div>
-
-      <div className="project-report-panel-body" style={collapsed ? { display: "none" } : undefined}>
-        {data.length === 0 && !isLoading ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="No script"
-          />
-        ) : (
-          <Table<ScriptItem>
-            rowKey="id"
-            size="small"
-            columns={[...columns, actionsColumn]}
-            dataSource={data}
-            loading={isLoading || isFetching}
-            pagination={false}
-            showHeader={false}
-            components={{ body: { row: bodyRow } }}
-            rowClassName={(record) =>
-              String(record.id) === selectedId ? "project-report-row-selected" : ""
-            }
-            onRow={(record) => ({
-              onClick: () => handleOpen(record),
-            })}
-          />
-        )}
-        <LazyListSentinel sentinelRef={sentinelRef} />
-        <LazyListFooter
-          loadingMore={loadingMore}
-          hasMore={hasMore}
-          hasItems={data.length > 0}
-          total={total}
-          labels={{ loading: "Loading more…", noMore: "No more scripts", totalPrefix: "total " }}
+        </>
+      }
+    >
+      {data.length === 0 && !isLoading ? (
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description="No script"
         />
-      </div>
-    </div>
+      ) : (
+        <Table<ScriptItem>
+          rowKey="id"
+          size="small"
+          columns={[...columns, actionsColumn]}
+          dataSource={data}
+          loading={isLoading || isFetching}
+          pagination={false}
+          showHeader={false}
+          rowClassName={(record) =>
+            String(record.id) === selectedId ? "project-report-row-selected" : ""
+          }
+          onRow={(record) => ({
+            onClick: () => handleOpen(record),
+          })}
+        />
+      )}
+      <LazyListSentinel sentinelRef={sentinelRef} />
+      <LazyListFooter
+        loadingMore={loadingMore}
+        hasMore={hasMore}
+        hasItems={data.length > 0}
+        total={total}
+        labels={{ loading: "Loading more…", noMore: "No more scripts", totalPrefix: "total " }}
+      />
+    </SiderPanelLayout>
   );
 };
 

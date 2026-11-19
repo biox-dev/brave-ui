@@ -19,7 +19,7 @@ const AgentSessionStack = () => {
   const sections = useMemo<SiderStackSection[]>(
     () => [
       {
-        // 智能体会话列表（components/agent/agent-session-list.tsx）。
+        // 智能体会话列表（layout-sider/agent-session/agent-session-list.tsx）。
         key: 'agentSessionList',
         render: ({ collapsed, toggle }) => (
           <ViewResolver

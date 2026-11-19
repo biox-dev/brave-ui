@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Button,
   Descriptions,
@@ -12,7 +12,6 @@ import {
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
-  CaretDownOutlined,
   CaretRightOutlined,
   CodeOutlined,
   ContainerOutlined,
@@ -40,6 +39,7 @@ import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { openBottomTerminal } from "@/layout/bottom-panel-store";
 import { formatRelativeTime } from "@/utils/time";
+import SiderPanelLayout from "../common/sider-panel-layout";
 
 /**
  * 选择模式下底部的一个动作按钮。
@@ -542,51 +542,61 @@ const ContainerTemplateList = ({
   };
 
   return (
-    <div className={`project-report-panel${collapsed ? " is-collapsed" : ""}`}>
-      <div className="project-report-panel-header">
-        {onToggleCollapse ? (
-          <button
-            type="button"
-            className="project-report-panel-title project-report-panel-title-button"
-            aria-expanded={!collapsed}
-            onClick={onToggleCollapse}
-          >
-            {collapsed ? (
-              <CaretRightOutlined className="project-report-panel-chevron" />
-            ) : (
-              <CaretDownOutlined className="project-report-panel-chevron" />
-            )}
-            <span>{title || "Container Templates"}</span>
-          </button>
-        ) : (
-          <span className="project-report-panel-title">{title || "Container Templates"}</span>
-        )}
-        <div className="project-report-panel-actions">
-          <LazyListSearch
-            value={keyword}
-            onChange={setKeyword}
-            placeholder="Search templates"
-            className="project-report-panel-search"
-          />
-          <Tooltip title="Create container template">
-            <Button type="text" size="small" icon={<PlusOutlined />} onClick={handleCreate} />
-          </Tooltip>
-          <Tooltip title="Import container template">
-            <Button type="text" size="small" icon={<ImportOutlined />} onClick={handleImport} />
-          </Tooltip>
-          <Tooltip title="Refresh">
-            <Button
-              type="text"
-              size="small"
-              icon={<ReloadOutlined />}
-              loading={isFetching}
-              onClick={() => refetch()}
+    <>
+      <SiderPanelLayout
+        title={title || "Container Templates"}
+        collapsed={collapsed}
+        onToggleCollapse={onToggleCollapse}
+        actions={
+          <>
+            <LazyListSearch
+              value={keyword}
+              onChange={setKeyword}
+              placeholder="Search templates"
+              className="project-report-panel-search"
             />
-          </Tooltip>
-        </div>
-      </div>
-
-      <div className="project-report-panel-body" style={collapsed ? { display: "none" } : undefined}>
+            <Tooltip title="Create container template">
+              <Button type="text" size="small" icon={<PlusOutlined />} onClick={handleCreate} />
+            </Tooltip>
+            <Tooltip title="Import container template">
+              <Button type="text" size="small" icon={<ImportOutlined />} onClick={handleImport} />
+            </Tooltip>
+            <Tooltip title="Refresh">
+              <Button
+                type="text"
+                size="small"
+                icon={<ReloadOutlined />}
+                loading={isFetching}
+                onClick={() => refetch()}
+              />
+            </Tooltip>
+          </>
+        }
+        footer={
+          selectable ? (
+            <>
+              <Button onClick={handleCancel}>Cancel</Button>
+              {okActions && okActions.length > 0 ? (
+                okActions.map((action) => (
+                  <Button
+                    key={action.key}
+                    type={action.primary ? "primary" : "default"}
+                    disabled={!selectedItem || Boolean(pendingActionKey)}
+                    loading={pendingActionKey === action.key}
+                    onClick={() => void runOkAction(action)}
+                  >
+                    {action.label}
+                  </Button>
+                ))
+              ) : (
+                <Button type="primary" disabled={!selectedItem} onClick={handleConfirm}>
+                  Confirm
+                </Button>
+              )}
+            </>
+          ) : undefined
+        }
+      >
         {data.length === 0 && !isLoading ? (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No container template" />
         ) : (
@@ -614,38 +624,7 @@ const ContainerTemplateList = ({
           total={total}
           labels={{ loading: "Loading more…", noMore: "No more templates", totalPrefix: "total " }}
         />
-      </div>
-
-      {selectable && (
-        <div
-          style={{
-            display: collapsed ? "none" : "flex",
-            justifyContent: "flex-end",
-            gap: 8,
-            padding: "8px 10px",
-            borderTop: "1px solid var(--sharp-divider)",
-          }}
-        >
-          <Button onClick={handleCancel}>Cancel</Button>
-          {okActions && okActions.length > 0 ? (
-            okActions.map((action) => (
-              <Button
-                key={action.key}
-                type={action.primary ? "primary" : "default"}
-                disabled={!selectedItem || Boolean(pendingActionKey)}
-                loading={pendingActionKey === action.key}
-                onClick={() => void runOkAction(action)}
-              >
-                {action.label}
-              </Button>
-            ))
-          ) : (
-            <Button type="primary" disabled={!selectedItem} onClick={handleConfirm}>
-              Confirm
-            </Button>
-          )}
-        </div>
-      )}
+      </SiderPanelLayout>
 
       <Modal
         open={Boolean(runTarget)}
@@ -674,7 +653,7 @@ const ContainerTemplateList = ({
           命令会写入该模板的持久终端（同一模板复用同一个容器），提交后自动打开底部终端面板。
         </div>
       </Modal>
-    </div>
+    </>
   );
 };
 

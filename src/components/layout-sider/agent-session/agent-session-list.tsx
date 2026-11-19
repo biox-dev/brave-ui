@@ -1,15 +1,13 @@
 import { FC, useCallback, useEffect, useRef, useState } from 'react';
-import { Button, Empty, Flex, Input, Spin, Tooltip } from 'antd';
+import { Button, Empty, Flex, Spin, Tooltip } from 'antd';
 import {
-  CaretDownOutlined,
-  CaretRightOutlined,
   CommentOutlined,
   PlusOutlined,
   ReloadOutlined,
-  SearchOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router';
+import { LazyListSearch } from '@/components/common/lazy-list';
 import { useI18n } from '@/hooks/useI18n';
 import type { AgentConversationItem } from '@/api/agent';
 import {
@@ -18,7 +16,9 @@ import {
   loadMoreAgentConversations,
   setAgentConversationKeyword,
   useAgentConversationStore,
-} from './agent-conversation-store';
+} from '@/components/agent/agent-conversation-store';
+import { formatRelativeTime } from '@/utils/time';
+import SiderPanelLayout from '../common/sider-panel-layout';
 import './agent-session-list.css';
 
 /**
@@ -45,14 +45,6 @@ const isValidTaskId = (id?: string): boolean => !!id && id !== '0';
 const conversationTitle = (item: AgentConversationItem): string => {
   const title = item.title?.trim();
   return title || item.id;
-};
-
-const formatTime = (value?: string): string => {
-  if (!value) {
-    return '';
-  }
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleString();
 };
 
 /** 关键字输入防抖（毫秒）。 */
@@ -138,7 +130,9 @@ const AgentSessionList: FC<AgentSessionListProps> = ({
   };
 
   const metaText = (item: AgentConversationItem): string => {
-    const time = formatTime(item.updated_at);
+    const time = item.updated_at
+      ? formatRelativeTime(item.updated_at, locale)
+      : '';
     const user = item.username?.trim();
     if (user && time) {
       return `${user} · ${time}`;
@@ -147,26 +141,20 @@ const AgentSessionList: FC<AgentSessionListProps> = ({
   };
 
   return (
-    <div className={`agent-session-list${collapsed ? ' is-collapsed' : ''}`}>
-      <div className="agent-session-list-header">
-        {onToggleCollapse ? (
-          <button
-            type="button"
-            className="agent-session-list-title project-report-panel-title-button"
-            aria-expanded={!collapsed}
-            onClick={onToggleCollapse}
-          >
-            {collapsed ? (
-              <CaretRightOutlined className="project-report-panel-chevron" />
-            ) : (
-              <CaretDownOutlined className="project-report-panel-chevron" />
-            )}
-            <span>{labels.title}</span>
-          </button>
-        ) : (
-          <span className="agent-session-list-title">{labels.title}</span>
-        )}
-        <Flex align="center" gap={2}>
+    <SiderPanelLayout
+      className="agent-session-list"
+      bodyClassName="agent-session-list-body"
+      title={labels.title}
+      collapsed={collapsed}
+      onToggleCollapse={onToggleCollapse}
+      actions={
+        <>
+          <LazyListSearch
+            value={keyword}
+            onChange={setKeyword}
+            placeholder={labels.search}
+            className="project-report-panel-search"
+          />
           <Tooltip title={labels.refresh}>
             <Button
               size="small"
@@ -185,80 +173,65 @@ const AgentSessionList: FC<AgentSessionListProps> = ({
               onClick={() => navigate('/session')}
             />
           </Tooltip>
+        </>
+      }
+    >
+      {!loaded && loading ? (
+        <Flex justify="center" style={{ padding: 24 }}>
+          <Spin size="small" />
         </Flex>
-      </div>
-      <div
-        className="agent-session-list-body"
-        style={collapsed ? { display: 'none' } : undefined}
-      >
-        <div className="agent-session-list-search">
-          <Input
-            size="small"
-            allowClear
-            prefix={<SearchOutlined />}
-            value={keyword}
-            placeholder={labels.search}
-            aria-label={labels.search}
-            onChange={(event) => setKeyword(event.target.value)}
-          />
-        </div>
-        {!loaded && loading ? (
-          <Flex justify="center" style={{ padding: 24 }}>
-            <Spin size="small" />
-          </Flex>
-        ) : conversations.length === 0 ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={labels.empty}
-            style={{ marginTop: 24 }}
-          />
-        ) : (
-          <>
-            {conversations.map((item) => {
-              const isActive = item.id === activeSessionId;
-              const meta = metaText(item);
-              const username = item.username?.trim();
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`agent-session-item${isActive ? ' is-active' : ''}`}
-                  title={`${conversationTitle(item)}${username ? ` · ${username}` : ''}`}
-                  aria-current={isActive ? 'page' : undefined}
-                  onClick={() => navigate(`/session/${encodeURIComponent(item.id)}`)}
-                >
-                  <span className="agent-session-item-icon">
-                    <CommentOutlined />
+      ) : conversations.length === 0 ? (
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description={labels.empty}
+          style={{ marginTop: 24 }}
+        />
+      ) : (
+        <>
+          {conversations.map((item) => {
+            const isActive = item.id === activeSessionId;
+            const meta = metaText(item);
+            const username = item.username?.trim();
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={`agent-session-item${isActive ? ' is-active' : ''}`}
+                title={`${conversationTitle(item)}${username ? ` · ${username}` : ''}`}
+                aria-current={isActive ? 'page' : undefined}
+                onClick={() => navigate(`/session/${encodeURIComponent(item.id)}`)}
+              >
+                <span className="agent-session-item-icon">
+                  <CommentOutlined />
+                </span>
+                <span className="agent-session-item-text">
+                  <span className="agent-session-item-title">{conversationTitle(item)}</span>
+                  <span className="agent-session-item-meta">
+                    <UserOutlined className="agent-session-item-meta-user" />
+                    {meta || labels.unknownUser}
                   </span>
-                  <span className="agent-session-item-text">
-                    <span className="agent-session-item-title">{conversationTitle(item)}</span>
-                    <span className="agent-session-item-meta">
-                      <UserOutlined className="agent-session-item-meta-user" />
-                      {meta || labels.unknownUser}
-                    </span>
-                  </span>
-                  {isValidTaskId(item.current_task_id) && (
-                    <span className="agent-session-item-dot" aria-hidden />
-                  )}
-                </button>
-              );
-            })}
-            <div ref={sentinelRef} className="agent-session-list-sentinel" aria-hidden />
-            {loadingMore ? (
-              <div className="agent-session-list-footer">
-                <Spin size="small" />
-                <span>{labels.loadingMore}</span>
-              </div>
-            ) : !hasMore ? (
-              <div className="agent-session-list-footer">
-                {labels.noMore}
-                {total > 0 ? ` · ${labels.total} ${total}` : ''}
-              </div>
-            ) : null}
-          </>
-        )}
-      </div>
-    </div>
+                </span>
+                {isValidTaskId(item.current_task_id) && (
+                  <span className="agent-session-item-dot" aria-hidden />
+                )}
+              </button>
+            );
+          })}
+          <div ref={sentinelRef} className="agent-session-list-sentinel" aria-hidden />
+          {loadingMore ? (
+            <div className="agent-session-list-footer">
+              <Spin size="small" />
+              <span>{labels.loadingMore}</span>
+            </div>
+          ) : !hasMore ? (
+            <div className="agent-session-list-footer">
+              {labels.noMore}
+              {total > 0 ? ` · ${labels.total} ${total}` : ''}
+            </div>
+          ) : null}
+        </>
+      )}
+    </SiderPanelLayout>
   );
 };
 

@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import type { HTMLAttributes, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { Button, Descriptions, Empty, Flex, Popconfirm, Popover, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
-  CaretDownOutlined,
-  CaretRightOutlined,
   DeleteOutlined,
   EditOutlined,
   FileOutlined,
@@ -21,6 +19,9 @@ import { deleteFileApi, pageFileByProjectApi, pageFileByProjectViaAnalysisNodeAp
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useUI } from "@/core/ui-system/useUI";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
+import { useI18n } from "@/hooks/useI18n";
+import { formatRelativeTime } from "@/utils/time";
+import SiderPanelLayout from "../common/sider-panel-layout";
 import "./file-list-page.css";
 
 /**
@@ -123,8 +124,16 @@ const formatBytes = (size?: number) => {
   return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 };
 
-/** 行悬停详情；分析节点文件的 role 实际是 file_key，标签沿用旧页面的叫法。 */
-const FileDetailCard = ({ item, isDatasetSource }: { item: DatasetFileItem; isDatasetSource: boolean }) => (
+/** 标题悬停详情；分析节点文件的 role 实际是 file_key，标签沿用旧页面的叫法。 */
+const FileDetailCard = ({
+  item,
+  isDatasetSource,
+  locale,
+}: {
+  item: DatasetFileItem;
+  isDatasetSource: boolean;
+  locale: string;
+}) => (
   <div style={{ width: 380 }}>
     <Descriptions
       size="small"
@@ -155,7 +164,7 @@ const FileDetailCard = ({ item, isDatasetSource }: { item: DatasetFileItem; isDa
         {
           key: "created_at",
           label: "Created At",
-          children: item.created_at ? new Date(item.created_at).toLocaleString() : "-",
+          children: formatRelativeTime(item.created_at, locale),
         },
       ]}
     />
@@ -163,7 +172,10 @@ const FileDetailCard = ({ item, isDatasetSource }: { item: DatasetFileItem; isDa
 );
 
 /** 列表态（非选择器）的单列渲染：下拉说明行内只展示摘要信息。 */
-const buildListColumn = (isDatasetSource: boolean): ColumnsType<DatasetFileItem>[number] => ({
+const buildListColumn = (
+  isDatasetSource: boolean,
+  locale: string
+): ColumnsType<DatasetFileItem>[number] => ({
   title: "File Name",
   dataIndex: "file_name",
   key: "file_name",
@@ -181,9 +193,21 @@ const buildListColumn = (isDatasetSource: boolean): ColumnsType<DatasetFileItem>
       <div className="project-report-item">
         <FileOutlined className="project-report-item-icon" />
         <div className="project-report-item-text">
-          <Tooltip placement="topLeft" title={title}>
+          {/* 详情卡片只在鼠标悬停到标题上时显示，避免整行悬停就弹卡。 */}
+          <Popover
+            placement="left"
+            mouseEnterDelay={0.2}
+            mouseLeaveDelay={0.1}
+            title={
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <FileOutlined />
+                {title}
+              </span>
+            }
+            content={<FileDetailCard item={record} isDatasetSource={isDatasetSource} locale={locale} />}
+          >
             <span className="project-report-item-title">{title}</span>
-          </Tooltip>
+          </Popover>
           {meta && (
             <span className="project-report-item-meta" title={meta}>
               {meta}
@@ -196,7 +220,7 @@ const buildListColumn = (isDatasetSource: boolean): ColumnsType<DatasetFileItem>
 });
 
 /** 选择器态使用的详情列（仅数据集文件沿用）。 */
-const detailColumns: ColumnsType<DatasetFileItem> = [
+const buildDetailColumns = (locale: string): ColumnsType<DatasetFileItem> => [
   {
     title: "File Name",
     dataIndex: "file_name",
@@ -237,7 +261,7 @@ const detailColumns: ColumnsType<DatasetFileItem> = [
     dataIndex: "created_at",
     key: "created_at",
     width: 210,
-    render: (value: string) => (value ? new Date(value).toLocaleString() : "-"),
+    render: (value: string) => formatRelativeTime(value, locale),
   },
 ];
 
@@ -262,6 +286,7 @@ const FileListPage = ({
   close,
 }: FileListPageProps) => {
   const message = useGlobalMessage();
+  const { locale } = useI18n();
   const navigate = useNavigate();
   const { close: closeUI } = useUI();
   const [selectedId, setSelectedId] = useState<string>();
@@ -320,39 +345,6 @@ const FileListPage = ({
     () => data.find((item) => String(item.id) === String(selectedId)),
     [data, selectedId]
   );
-
-  const bodyRow = useMemo(() => {
-    // antd Table 会向自定义行组件传入 data-row-key 等属性，这里只用到行 key 做记录匹配。
-    type TableRowProps = HTMLAttributes<HTMLTableRowElement> & { "data-row-key"?: string };
-    const Row = (props: TableRowProps) => {
-      const rowKey = props?.["data-row-key"];
-      const record = data.find((item) => String(item.id) === String(rowKey));
-      const rowElement = <tr {...props} />;
-
-      if (!record) {
-        return rowElement;
-      }
-
-      return (
-        <Popover
-          placement="left"
-          mouseEnterDelay={0.2}
-          mouseLeaveDelay={0.1}
-          title={
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <FileOutlined />
-              {record.file_name || record.file_id || `File-${record.id}`}
-            </span>
-          }
-          content={<FileDetailCard item={record} isDatasetSource={isDatasetSource} />}
-        >
-          {rowElement}
-        </Popover>
-      );
-    };
-
-    return Row;
-  }, [data, isDatasetSource]);
 
   const handleOpenSheet = (item: DatasetFileItem) => {
     if (!isSpreadsheetFile(item)) {
@@ -483,11 +475,14 @@ const FileListPage = ({
     ),
   };
 
-  const listColumn = useMemo(() => buildListColumn(isDatasetSource), [isDatasetSource]);
+  const listColumn = useMemo(
+    () => buildListColumn(isDatasetSource, locale),
+    [isDatasetSource, locale]
+  );
 
   const columns: ColumnsType<DatasetFileItem> = selectable
     ? [
-      ...(isDatasetSource ? detailColumns : [listColumn]),
+      ...(isDatasetSource ? buildDetailColumns(locale) : [listColumn]),
       actionsColumn,
       selectColumn,
     ]
@@ -513,30 +508,14 @@ const FileListPage = ({
   const panelTitle = title || (isDatasetSource ? "Files" : "Analysis Node Files");
 
   return (
-    <div className={`project-report-panel file-list-panel${collapsed ? " is-collapsed" : ""}`}>
-      {/* 顶部操作区：标题 + 文件数 + 操作按钮 */}
-      <div className="file-list-toolbar">
-        <div className="file-list-toolbar-heading">
-          {onToggleCollapse ? (
-            <button
-              type="button"
-              className="file-list-toolbar-title file-list-toolbar-title-button project-report-panel-title-button"
-              aria-expanded={!collapsed}
-              onClick={onToggleCollapse}
-            >
-              {collapsed ? (
-                <CaretRightOutlined className="project-report-panel-chevron" />
-              ) : (
-                <CaretDownOutlined className="project-report-panel-chevron" />
-              )}
-              <span>{panelTitle}</span>
-            </button>
-          ) : (
-            <span className="file-list-toolbar-title">{panelTitle}</span>
-          )}
-          {total > 0 && <span className="file-list-toolbar-count">{total}</span>}
-        </div>
-        <div className="file-list-toolbar-actions">
+    <SiderPanelLayout
+      className="file-list-panel"
+      title={panelTitle}
+      titleExtra={total > 0 ? <span className="sider-panel-count">{total}</span> : undefined}
+      collapsed={collapsed}
+      onToggleCollapse={onToggleCollapse}
+      actions={
+        <>
           <LazyListSearch
             value={keyword}
             onChange={setKeyword}
@@ -572,69 +551,18 @@ const FileListPage = ({
               onClick={() => refetch()}
             />
           </Tooltip>
-        </div>
-      </div>
-
-      {/* 视图切换：位于操作区下方 */}
-      {subHeader && !collapsed && <div className="file-list-switch">{subHeader}</div>}
-      {!collapsed && <div className="file-list-divider" />}
-
-      <div
-        className="project-report-panel-body"
-        style={collapsed ? { display: "none" } : undefined}
-      >
-        {data.length === 0 && !isLoading ? (
-          <div className="file-list-empty">
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={error ? "Failed to load files" : "No files"}
-            />
-          </div>
-        ) : (
-          <Table<DatasetFileItem>
-            rowKey="id"
-            size="small"
-            columns={columns}
-            dataSource={data}
-            loading={isLoading || isFetching}
-            pagination={false}
-            showHeader={selectable}
-            scroll={selectable ? { x: isDatasetSource ? 1200 : 900 } : undefined}
-            components={{ body: { row: bodyRow } }}
-            rowClassName={(record) =>
-              String(record.id) === String(selectedId) ? "project-report-row-selected" : ""
-            }
-            rowSelection={
-              selectable
-                ? {
-                  type: "radio",
-                  selectedRowKeys: selectedId ? [selectedId] : [],
-                  onChange: (selectedRowKeys) => {
-                    setSelectedId(String(selectedRowKeys[0] || ""));
-                  },
-                }
-                : undefined
-            }
-            onRow={(record) => ({
-              onClick: () => handleRowClick(record),
-            })}
-          />
-        )}
-        <LazyListSentinel sentinelRef={sentinelRef} />
-        <LazyListFooter
-          loadingMore={loadingMore}
-          hasMore={hasMore}
-          hasItems={data.length > 0}
-          total={total}
-          labels={{ loading: "Loading more…", noMore: "No more files", totalPrefix: "total " }}
-        />
-      </div>
-
-      <div
-        className="file-list-footer"
-        style={collapsed ? { display: "none" } : undefined}
-      >
-        <Flex justify="space-between" align="center" gap="small" wrap>
+        </>
+      }
+      subHeader={
+        subHeader ? (
+          <>
+            <div className="file-list-switch">{subHeader}</div>
+            <div className="file-list-divider" />
+          </>
+        ) : undefined
+      }
+      footer={
+        <Flex justify="space-between" align="center" gap="small" wrap style={{ width: "100%" }}>
           <span style={{ fontSize: 12, color: "var(--sharp-text-soft)" }}>
             {total > 0 ? `${total} files` : ""}
           </span>
@@ -647,8 +575,53 @@ const FileListPage = ({
             </Flex>
           )}
         </Flex>
-      </div>
-    </div>
+      }
+    >
+      {data.length === 0 && !isLoading ? (
+        <div className="file-list-empty">
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={error ? "Failed to load files" : "No files"}
+          />
+        </div>
+      ) : (
+        <Table<DatasetFileItem>
+          rowKey="id"
+          size="small"
+          columns={columns}
+          dataSource={data}
+          loading={isLoading || isFetching}
+          pagination={false}
+          showHeader={selectable}
+          scroll={selectable ? { x: isDatasetSource ? 1200 : 900 } : undefined}
+          rowClassName={(record) =>
+            String(record.id) === String(selectedId) ? "project-report-row-selected" : ""
+          }
+          rowSelection={
+            selectable
+              ? {
+                type: "radio",
+                selectedRowKeys: selectedId ? [selectedId] : [],
+                onChange: (selectedRowKeys) => {
+                  setSelectedId(String(selectedRowKeys[0] || ""));
+                },
+              }
+              : undefined
+          }
+          onRow={(record) => ({
+            onClick: () => handleRowClick(record),
+          })}
+        />
+      )}
+      <LazyListSentinel sentinelRef={sentinelRef} />
+      <LazyListFooter
+        loadingMore={loadingMore}
+        hasMore={hasMore}
+        hasItems={data.length > 0}
+        total={total}
+        labels={{ loading: "Loading more…", noMore: "No more files", totalPrefix: "total " }}
+      />
+    </SiderPanelLayout>
   );
 };
 

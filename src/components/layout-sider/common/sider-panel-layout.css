@@ -1,0 +1,47 @@
+/* 左侧栏面板统一布局的补充样式。
+ *
+ * 基础面板外观（.project-report-panel / header / title / actions / body）定义在
+ * layout/indexV2.css；这里只补充标题行容器、副标题、底部操作区与计数徽标。
+ */
+
+.sider-panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sider-panel-heading .project-report-panel-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sider-panel-subheader {
+  padding: 0 10px 8px;
+}
+
+.sider-panel-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--sharp-divider, #e2e6ee);
+}
+
+.sider-panel-count {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 9px;
+  background: var(--sharp-panel-muted, #f1f4f9);
+  color: var(--sharp-text-soft, #5d6678);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}

@@ -18,8 +18,16 @@ import { FC, useMemo, useState } from "react";
 import { useLocation } from "react-router";
 import { useSelector } from "react-redux";
 import { invoke } from "@/core/ui-system/invokeV2";
+import SiderPanelLayout from "../common/sider-panel-layout";
 
-const ProjectReportList: FC<any> = () => {
+export interface ProjectReportListProps {
+  /** 纵向堆叠布局注入的折叠态：折叠时仅保留标题栏。 */
+  collapsed?: boolean;
+  /** 点击标题栏时切换折叠态（未传入则标题栏不可点击）。 */
+  onToggleCollapse?: () => void;
+}
+
+const ProjectReportList: FC<ProjectReportListProps> = ({ collapsed = false, onToggleCollapse }) => {
   const location = useLocation();
   const message = useGlobalMessage();
   const { locale } = useI18n();
@@ -52,6 +60,8 @@ const ProjectReportList: FC<any> = () => {
     fetcher: (payload) => pageProjectReportApi(payload).then((response) => response.data),
     pageSize: 10,
     scopeKey: projectId,
+    // 纵向堆叠折叠时只保留标题栏：停止列表请求，展开后自动恢复。
+    enabled: !collapsed,
   });
   const refetch = reload;
   const isLoading = loading;
@@ -195,10 +205,12 @@ const ProjectReportList: FC<any> = () => {
   );
 
   return (
-    <div className="project-report-panel">
-      <div className="project-report-panel-header">
-        <span className="project-report-panel-title">Project Reports</span>
-        <div className="project-report-panel-actions">
+    <SiderPanelLayout
+      title="Project Reports"
+      collapsed={collapsed}
+      onToggleCollapse={onToggleCollapse}
+      actions={
+        <>
           <LazyListSearch
             value={keyword}
             onChange={setKeyword}
@@ -207,68 +219,66 @@ const ProjectReportList: FC<any> = () => {
           />
           <Button type="text" size="small" icon={<PlusOutlined />} onClick={openCreate} />
           <Button type="text" size="small" icon={<ReloadOutlined />} onClick={() => refetch()} />
-        </div>
-      </div>
-
-      <div className="project-report-panel-body">
-        {data.length === 0 && !isLoading ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="No project report item"
-          />
-        ) : (
-          <Table<ProjectReport>
-            rowKey="id"
-            size="small"
-            columns={columns}
-            dataSource={data}
-            loading={isLoading || isFetching}
-            pagination={false}
-            showHeader={false}
-            // 点击行跳转到报告文件页面；展开图标单独阻止冒泡以免误触发跳转。
-            onRow={(record) => ({
-              style: { cursor: "pointer" },
-              onClick: () => openMainTab(`/report-file/${record.id}`, record),
-            })}
-            expandable={{
-              expandedRowKeys,
-              onExpandedRowsChange: (keys) => setExpandedRowKeys(keys as string[]),
-              expandIcon: ({ expanded, onExpand, record }) => (
-                <span
-                  className={
-                    expanded
-                      ? "ant-table-row-expand-icon ant-table-row-expand-icon-expanded"
-                      : "ant-table-row-expand-icon ant-table-row-expand-icon-collapsed"
-                  }
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onExpand(record, e);
-                  }}
-                />
-              ),
-              expandedRowRender: (record) => (
-                <ProjectReportItemsPanel
-                  reportId={record.id}
-                  onOpenItem={(item) => openMainTab(`/report-item/${item.id}`, item)}
-                  onChanged={refetch}
-                />
-              ),
-            }}
-            rowClassName={(record) =>
-              record.id === selectedId ? "project-report-row-selected" : ""
-            }
-          />
-        )}
-        <LazyListSentinel sentinelRef={sentinelRef} />
-        <LazyListFooter
-          loadingMore={loadingMore}
-          hasMore={hasMore}
-          hasItems={data.length > 0}
-          total={total}
-          labels={{ loading: "Loading more…", noMore: "No more reports", totalPrefix: "total " }}
+        </>
+      }
+    >
+      {data.length === 0 && !isLoading ? (
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description="No project report item"
         />
-      </div>
-    </div>
+      ) : (
+        <Table<ProjectReport>
+          rowKey="id"
+          size="small"
+          columns={columns}
+          dataSource={data}
+          loading={isLoading || isFetching}
+          pagination={false}
+          showHeader={false}
+          // 点击行跳转到报告文件页面；展开图标单独阻止冒泡以免误触发跳转。
+          onRow={(record) => ({
+            style: { cursor: "pointer" },
+            onClick: () => openMainTab(`/report-file/${record.id}`, record),
+          })}
+          expandable={{
+            expandedRowKeys,
+            onExpandedRowsChange: (keys) => setExpandedRowKeys(keys as string[]),
+            expandIcon: ({ expanded, onExpand, record }) => (
+              <span
+                className={
+                  expanded
+                    ? "ant-table-row-expand-icon ant-table-row-expand-icon-expanded"
+                    : "ant-table-row-expand-icon ant-table-row-expand-icon-collapsed"
+                }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onExpand(record, e);
+                }}
+              />
+            ),
+            expandedRowRender: (record) => (
+              <ProjectReportItemsPanel
+                reportId={record.id}
+                onOpenItem={(item) => openMainTab(`/report-item/${item.id}`, item)}
+                onChanged={refetch}
+              />
+            ),
+          }}
+          rowClassName={(record) =>
+            record.id === selectedId ? "project-report-row-selected" : ""
+          }
+        />
+      )}
+      <LazyListSentinel sentinelRef={sentinelRef} />
+      <LazyListFooter
+        loadingMore={loadingMore}
+        hasMore={hasMore}
+        hasItems={data.length > 0}
+        total={total}
+        labels={{ loading: "Loading more…", noMore: "No more reports", totalPrefix: "total " }}
+      />
+    </SiderPanelLayout>
   );
 };
 

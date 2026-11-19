@@ -7,12 +7,13 @@ import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { useOpenMainTab } from "@/hooks/useMainTabTitle";
 import { formatRelativeTime } from "@/utils/time";
-import { ApartmentOutlined, CaretDownOutlined, CaretRightOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
-import { Button, Descriptions, Empty, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
+import { ApartmentOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import { Button, Descriptions, Empty, Popconfirm, Popover, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FC, useMemo } from "react";
 import { useLocation } from "react-router";
 import { useSelector } from "react-redux";
+import SiderPanelLayout from "../common/sider-panel-layout";
 
 // const splitTags = (tags?: string) =>
 //   (tags ?? "")
@@ -24,7 +25,7 @@ import { useSelector } from "react-redux";
 const workflowDisplayName = (workflow: WorkflowItem) =>
   workflow.name || workflow.workflow_id || `Workflow-${workflow.id}`;
 
-const WorkflowDetailCard = ({ item }: { item: WorkflowItem }) => {
+const WorkflowDetailCard = ({ item, locale }: { item: WorkflowItem; locale: string }) => {
   // const tags = splitTags(item.tags);
 
   return (
@@ -71,12 +72,12 @@ const WorkflowDetailCard = ({ item }: { item: WorkflowItem }) => {
           {
             key: "created_at",
             label: "Created At",
-            children: item.created_at ? new Date(item.created_at).toLocaleString() : "-",
+            children: formatRelativeTime(item.created_at, locale),
           },
           {
             key: "updated_at",
             label: "Updated At",
-            children: item.updated_at ? new Date(item.updated_at).toLocaleString() : "-",
+            children: formatRelativeTime(item.updated_at, locale),
           },
         ]}
       />
@@ -172,9 +173,21 @@ const WorkflowPageList: FC<WorkflowPageListProps> = ({ collapsed = false, onTogg
             <div className="project-report-item">
               <ApartmentOutlined className="project-report-item-icon" />
               <div className="project-report-item-text">
-                <Tooltip placement="topLeft" title={title}>
+                {/* 详情卡片只在鼠标悬停到标题上时显示，避免整行悬停就弹卡。 */}
+                <Popover
+                  placement="left"
+                  mouseEnterDelay={0.2}
+                  mouseLeaveDelay={0.1}
+                  title={
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <ApartmentOutlined />
+                      {title}
+                    </span>
+                  }
+                  content={<WorkflowDetailCard item={record} locale={locale} />}
+                >
                   <span className="project-report-item-title">{title}</span>
-                </Tooltip>
+                </Popover>
                 {meta && (
                   <span className="project-report-item-meta" title={meta}>
                     {meta}
@@ -196,37 +209,6 @@ const WorkflowPageList: FC<WorkflowPageListProps> = ({ collapsed = false, onTogg
     ],
     [locale]
   );
-
-  const bodyRow = useMemo(() => {
-    const Row = (props: any) => {
-      const rowKey = props?.["data-row-key"];
-      const record = data.find((item) => String(item.id) === String(rowKey));
-      const rowElement = <tr {...props} />;
-
-      if (!record) {
-        return rowElement;
-      }
-
-      return (
-        <Popover
-          placement="left"
-          mouseEnterDelay={0.2}
-          mouseLeaveDelay={0.1}
-          title={
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <ApartmentOutlined />
-              {workflowDisplayName(record)}
-            </span>
-          }
-          content={<WorkflowDetailCard item={record} />}
-        >
-          {rowElement}
-        </Popover>
-      );
-    };
-
-    return Row;
-  }, [data]);
 
   const actionsColumn: ColumnsType<WorkflowItem>[number] = {
     title: "Actions",
@@ -300,26 +282,12 @@ const WorkflowPageList: FC<WorkflowPageListProps> = ({ collapsed = false, onTogg
   };
 
   return (
-    <div className={`project-report-panel${collapsed ? " is-collapsed" : ""}`}>
-      <div className="project-report-panel-header">
-        {onToggleCollapse ? (
-          <button
-            type="button"
-            className="project-report-panel-title project-report-panel-title-button"
-            aria-expanded={!collapsed}
-            onClick={onToggleCollapse}
-          >
-            {collapsed ? (
-              <CaretRightOutlined className="project-report-panel-chevron" />
-            ) : (
-              <CaretDownOutlined className="project-report-panel-chevron" />
-            )}
-            <span>Workflows</span>
-          </button>
-        ) : (
-          <span className="project-report-panel-title">Workflows</span>
-        )}
-        <div className="project-report-panel-actions">
+    <SiderPanelLayout
+      title="Workflows"
+      collapsed={collapsed}
+      onToggleCollapse={onToggleCollapse}
+      actions={
+        <>
           <LazyListSearch
             value={keyword}
             onChange={setKeyword}
@@ -364,43 +332,40 @@ const WorkflowPageList: FC<WorkflowPageListProps> = ({ collapsed = false, onTogg
             icon={<ReloadOutlined />}
             onClick={() => refetch()}
           />
-        </div>
-      </div>
-
-      <div className="project-report-panel-body" style={collapsed ? { display: "none" } : undefined}>
-        {data.length === 0 && !isLoading ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="No workflow"
-          />
-        ) : (
-          <Table<WorkflowItem>
-            rowKey="id"
-            size="small"
-            columns={[...columns, actionsColumn]}
-            dataSource={data}
-            loading={isLoading || isFetching}
-            pagination={false}
-            showHeader={false}
-            components={{ body: { row: bodyRow } }}
-            rowClassName={(record) =>
-              String(record.id) === selectedId ? "project-report-row-selected" : ""
-            }
-            onRow={(record) => ({
-              onClick: () => handleOpen(record),
-            })}
-          />
-        )}
-        <LazyListSentinel sentinelRef={sentinelRef} />
-        <LazyListFooter
-          loadingMore={loadingMore}
-          hasMore={hasMore}
-          hasItems={data.length > 0}
-          total={total}
-          labels={{ loading: "Loading more…", noMore: "No more workflows", totalPrefix: "total " }}
+        </>
+      }
+    >
+      {data.length === 0 && !isLoading ? (
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description="No workflow"
         />
-      </div>
-    </div>
+      ) : (
+        <Table<WorkflowItem>
+          rowKey="id"
+          size="small"
+          columns={[...columns, actionsColumn]}
+          dataSource={data}
+          loading={isLoading || isFetching}
+          pagination={false}
+          showHeader={false}
+          rowClassName={(record) =>
+            String(record.id) === selectedId ? "project-report-row-selected" : ""
+          }
+          onRow={(record) => ({
+            onClick: () => handleOpen(record),
+          })}
+        />
+      )}
+      <LazyListSentinel sentinelRef={sentinelRef} />
+      <LazyListFooter
+        loadingMore={loadingMore}
+        hasMore={hasMore}
+        hasItems={data.length > 0}
+        total={total}
+        labels={{ loading: "Loading more…", noMore: "No more workflows", totalPrefix: "total " }}
+      />
+    </SiderPanelLayout>
   );
 };
 

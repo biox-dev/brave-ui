@@ -12,8 +12,6 @@ import {
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
-  CaretDownOutlined,
-  CaretRightOutlined,
   CloseOutlined,
   DeleteOutlined,
   DesktopOutlined,
@@ -48,6 +46,7 @@ import { useComponentStore } from "@/event-bus/stores/components";
 import { useI18n } from "@/hooks/useI18n";
 import { openBottomTerminal, useBottomPanelStore } from "@/layout/bottom-panel-store";
 import { formatRelativeTime } from "@/utils/time";
+import SiderPanelLayout from "../common/sider-panel-layout";
 
 export interface AppSessionPageProps {
   id?: string;
@@ -1000,85 +999,57 @@ const AppSessionPage = ({
   // 单一面板骨架：左侧栏堆叠形态、独立路由页、invoke 选择弹窗共用同一套结构
   // （与容器模板列表 / 分析节点列表一致，不再区分 Card 形态）。
   return (
-    <div className={`project-report-panel${collapsed ? " is-collapsed" : ""}`}>
-      <div className="project-report-panel-header">
-        {onToggleCollapse ? (
-          <button
-            type="button"
-            className="project-report-panel-title project-report-panel-title-button"
-            aria-expanded={!collapsed}
-            onClick={onToggleCollapse}
-          >
-            {collapsed ? (
-              <CaretRightOutlined className="project-report-panel-chevron" />
-            ) : (
-              <CaretDownOutlined className="project-report-panel-chevron" />
-            )}
-            <span>{title || "App Sessions"}</span>
-          </button>
-        ) : (
-          <span className="project-report-panel-title">{title || "App Sessions"}</span>
-        )}
-        <div className="project-report-panel-actions">{headerActions}</div>
-      </div>
-
-      <div
-        className="project-report-panel-body"
-        style={collapsed ? { display: "none" } : undefined}
-      >
-        {contextHolder}
-        {data.length === 0 && !isLoading ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={error ? "Failed to load app sessions" : "No app session"}
-          />
-        ) : (
-          <Table<AppSessionItem>
-            rowKey="id"
-            size="small"
-            columns={selectable ? [...columns, selectColumn] : columns}
-            dataSource={data}
-            loading={isLoading || isFetching}
-            pagination={false}
-            showHeader={false}
-            rowClassName={(record) =>
-              String(record.id) === String(selectedId) ? "project-report-row-selected" : ""
-            }
-            // 选择模式下点击行即选中；否则打开（或聚焦）该会话的终端标签，
-            // 激活标签再反过来决定选中行。
-            onRow={(record) => ({
-              onClick: () =>
-                selectable ? setSelectedID(record.id) : handleActivateSession(record),
-            })}
-          />
-        )}
-        <LazyListSentinel sentinelRef={sentinelRef} />
-        <LazyListFooter
-          loadingMore={loadingMore}
-          hasMore={hasMore}
-          hasItems={data.length > 0}
-          total={total}
-          labels={{ loading: "Loading more…", noMore: "No more sessions", totalPrefix: "total " }}
+    <SiderPanelLayout
+      title={title || "App Sessions"}
+      collapsed={collapsed}
+      onToggleCollapse={onToggleCollapse}
+      actions={headerActions}
+      footer={
+        selectable ? (
+          <>
+            <Button onClick={handleCancel}>Cancel</Button>
+            <Button type="primary" disabled={!selectedItem} onClick={handleConfirm}>
+              Confirm
+            </Button>
+          </>
+        ) : undefined
+      }
+    >
+      {contextHolder}
+      {data.length === 0 && !isLoading ? (
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description={error ? "Failed to load app sessions" : "No app session"}
         />
-      </div>
-
-      {selectable && (
-        <div
-          style={{
-            display: collapsed ? "none" : "flex",
-            justifyContent: "flex-end",
-            gap: 8,
-            padding: "8px 10px",
-            borderTop: "1px solid var(--sharp-divider)",
-          }}
-        >
-          <Button onClick={handleCancel}>Cancel</Button>
-          <Button type="primary" disabled={!selectedItem} onClick={handleConfirm}>
-            Confirm
-          </Button>
-        </div>
+      ) : (
+        <Table<AppSessionItem>
+          rowKey="id"
+          size="small"
+          columns={selectable ? [...columns, selectColumn] : columns}
+          dataSource={data}
+          loading={isLoading || isFetching}
+          pagination={false}
+          showHeader={false}
+          rowClassName={(record) =>
+            String(record.id) === String(selectedId) ? "project-report-row-selected" : ""
+          }
+          // 选择模式下点击行即选中；否则打开（或聚焦）该会话的终端标签，
+          // 激活标签再反过来决定选中行。
+          onRow={(record) => ({
+            onClick: () =>
+              selectable ? setSelectedID(record.id) : handleActivateSession(record),
+          })}
+        />
       )}
-    </div>
+      <LazyListSentinel sentinelRef={sentinelRef} />
+      <LazyListFooter
+        loadingMore={loadingMore}
+        hasMore={hasMore}
+        hasItems={data.length > 0}
+        total={total}
+        labels={{ loading: "Loading more…", noMore: "No more sessions", totalPrefix: "total " }}
+      />
+    </SiderPanelLayout>
   );
 };
 
