@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ApartmentOutlined, BookOutlined, SettingOutlined, BarChartOutlined, CodeOutlined, ContainerOutlined, CommentOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, DeploymentUnitOutlined, FileTextOutlined, SettingOutlined, CodeOutlined, CommentOutlined } from '@ant-design/icons';
 import { Dropdown, Layout, theme } from 'antd';
 import { Outlet, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
@@ -28,14 +28,15 @@ const LeftMiddlePaneView = ViewResolver as unknown as React.FC<{
   [key: string]: unknown;
 }>;
 
-type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'analysisScriptStack' | 'analysisWorkflowStack' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'assayProjectPage' | 'agentSessionStack' | 'containerTemplateList' | 'containerTemplateStack';
+type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'analysisScriptStack' | 'analysisWorkflowStack' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'projectReportLiteratureStack' | 'assayProjectPage' | 'agentSessionStack' | 'containerTemplateList' | 'containerTemplateStack';
 
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
-  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'analysisScriptStack' || key === 'analysisWorkflowStack' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'assayProjectPage' || key === 'agentSessionStack' || key === 'containerTemplateList' || key === 'containerTemplateStack';
+  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'analysisScriptStack' || key === 'analysisWorkflowStack' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'projectReportLiteratureStack' || key === 'assayProjectPage' || key === 'agentSessionStack' || key === 'containerTemplateList' || key === 'containerTemplateStack';
 
 // 旧版活动栏 key 与合并后视图的映射：datasetFilePage / analysisNodeFilePage 已合并为 projectFilePage，
 // analysisNodeList / scriptPage 已合并为上下堆叠的 analysisScriptStack，
 // analysisList / workflowPage 已合并为上下堆叠的 analysisWorkflowStack，
+// projectReport / projectLiterature 已合并为上下堆叠的 projectReportLiteratureStack，
 // agentSessionList / projectFilePage 已合并为上下堆叠的 agentSessionStack。
 const LEGACY_VIEW_KEY_MAP: Record<string, LeftPanelViewKey> = {
   // 数据集文件 / 分析节点文件合并为项目文件，现位于 agentSessionStack 的下半栏。
@@ -45,6 +46,9 @@ const LEGACY_VIEW_KEY_MAP: Record<string, LeftPanelViewKey> = {
   scriptPage: 'analysisScriptStack',
   analysisList: 'analysisWorkflowStack',
   workflowPage: 'analysisWorkflowStack',
+  // 项目报告与参考文献已合并为上下堆叠的 projectReportLiteratureStack。
+  projectReport: 'projectReportLiteratureStack',
+  projectLiterature: 'projectReportLiteratureStack',
   // 智能体会话与项目文件已合并为上下堆叠的 agentSessionStack。
   agentSessionList: 'agentSessionStack',
   projectFilePage: 'agentSessionStack',
@@ -103,29 +107,25 @@ const App: React.FC = () => {
       {
         key: 'analysisWorkflowStack',
         label: locale === 'en_US' ? 'Analyses & Workflows' : '分析与流程',
-        icon: <ApartmentOutlined />,
-      },{
-        key: 'containerTemplateStack',
-        label: locale === 'en_US' ? 'Container Templates' : '容器模板',
-        icon: <ContainerOutlined />,
+        icon: <DeploymentUnitOutlined />,
       },
 
+      // 项目报告与参考文献已合并为上下堆叠的 projectReportLiteratureStack。
       {
-        key: 'projectReport',
-        label: locale === 'en_US' ? 'Project Report' : '项目报告',
-        icon: <BarChartOutlined />,
+        key: 'projectReportLiteratureStack',
+        label: locale === 'en_US' ? 'Reports & Literature' : '报告与文献',
+        icon: <FileTextOutlined />,
       },
       // {
       //   key: 'sysFileBrowser',
       //   label: locale === 'en_US' ? 'System Files' : '系统文件',
       //   icon: <FolderOpenOutlined />,
       // },
-
       {
-        key: 'projectLiterature',
-        label: locale === 'en_US' ? 'Literature' : '参考文献',
-        icon: <BookOutlined />,
-      },  
+        key: 'containerTemplateStack',
+        label: locale === 'en_US' ? 'Container Templates' : '容器模板',
+        icon: <AppstoreOutlined />,
+      },
 
     ],
     [locale],
