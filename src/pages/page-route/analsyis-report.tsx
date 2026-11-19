@@ -1,4 +1,5 @@
-import { Button, Card, Col, Empty, Flex, Row, Segmented, Skeleton, Tabs, Tag, Tooltip, Tree, TreeDataNode, TreeProps } from "antd"
+import { Button, Col, Empty, Row, Segmented, Skeleton, Tabs, Tag, Tooltip, Tree, TreeDataNode, TreeProps } from "antd"
+import PanelLayout from "@/components/common/panel-layout"
 import axios from "axios"
 import { FC, lazy, Suspense, use, useEffect, useRef, useState } from "react"
 import { useLocation, useNavigate, useOutletContext, useParams } from "react-router"
@@ -168,40 +169,45 @@ const AnalysisReport: FC<any> = () => {
             </ParamsPanelDock>
         }
     >
-    <div >
-        <Flex justify="flex-end" gap={8} style={{ marginBottom: 8 }}>
-            {/* 参数面板开关：页面显式声明编辑目标（当前分析），面板在右侧停靠。 */}
-            <Tooltip title={paramsOpen ? "Hide parameters panel" : "Show parameters panel"}>
-                <Button
-                    size="small"
-                    icon={<ControlOutlined />}
-                    type={paramsOpen ? "primary" : "default"}
-                    disabled={!analysisId}
-                    onClick={() => setParamsOpen((prev) => !prev)}
-                >
-                    Parameters
-                </Button>
-            </Tooltip>
-            <Tooltip title="Bind this analysis as the current Agent context">
-                <Button
-                    size="small"
-                    color="geekblue"
-                    variant="solid"
-                    disabled={!analysisId}
-                    onClick={async () => {
-                        await setLLMEnv(analysisId, LLMEnvType.Analysis);
-                        message.success("Agent context bound to analysis");
-                    }}
-                >
-                    Use as Agent Context
-                </Button>
-            </Tooltip>
-        </Flex>
+    <PanelLayout
+        className="analysis-report-page page-flat"
+        title="Analysis Report"
+        extra={
+            <>
+                {/* 参数面板开关：页面显式声明 edit 目标（当前分析），面板在右侧停靠。 */}
+                <Tooltip title={paramsOpen ? "Hide parameters panel" : "Show parameters panel"}>
+                    <Button
+                        size="small"
+                        icon={<ControlOutlined />}
+                        type={paramsOpen ? "primary" : "default"}
+                        disabled={!analysisId}
+                        onClick={() => setParamsOpen((prev) => !prev)}
+                    >
+                        Parameters
+                    </Button>
+                </Tooltip>
+                <Tooltip title="Bind this analysis as the current Agent context">
+                    <Button
+                        size="small"
+                        color="geekblue"
+                        variant="solid"
+                        disabled={!analysisId}
+                        onClick={async () => {
+                            await setLLMEnv(analysisId, LLMEnvType.Analysis);
+                            message.success("Agent context bound to analysis");
+                        }}
+                    >
+                        Use as Agent Context
+                    </Button>
+                </Tooltip>
+            </>
+        }
+    >
         <AnalysisToolsComp
             analysisId={analysisKey}
             panelView={"analysisNodePanel"}
         ></AnalysisToolsComp>
-    </div>
+    </PanelLayout>
     </ParamsPanelLayout>
 }
 

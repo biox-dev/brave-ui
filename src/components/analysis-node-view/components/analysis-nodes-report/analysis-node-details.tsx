@@ -17,6 +17,7 @@ import { http } from "@/api/client/http";
 import { useSelector } from "react-redux";
 import { useStoreRender } from "@/context/render/RenderProvider";
 import { ParamsEdit, ParamsPanelDock, ParamsPanelLayout } from "@/components/edit-params/params-panel";
+import PanelLayout from "@/components/common/panel-layout";
 import { useComponentStore } from "@/event-bus/stores/components";
 import { FilesRender } from "../result-render/components/files-render";
 import { AnalysisNodeFilesRender } from "../result-render/components/analysis-node-files-render";
@@ -285,11 +286,10 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
                 </ParamsPanelDock>
             }
         >
-        <Card
-            size="small"
-            variant="borderless"
-            style={{ boxShadow: "none" }}
+        <PanelLayout
+            className="analysis-node-details-page page-flat"
             title={selectedSampleDetail?.node?.script_name || "Result Report"}
+            bodyStyle={{ padding: 12 }}
             extra={
                 <Space>
                     {/* <Tooltip title="Bind this analysis node as the current Agent context">
@@ -633,7 +633,7 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
                 <Skeleton active paragraph={{ rows: 2 }} />
             ) : (
                 <Flex vertical gap={12}>
-                    <Card size="small" styles={{ body: { padding: 12 } }}>
+                    <Card size="small" variant="borderless" styles={{ body: { padding: 12 } }}>
                         <Flex justify="space-between" align="flex-start" gap={12} wrap>
                             <Flex vertical gap={4}>
                                 <Typography.Text type="secondary">node: {selectedSampleDetail.node?.node_id}</Typography.Text>
@@ -796,23 +796,24 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, u
 
                 </Flex>
             )}
+        </PanelLayout>
 
-            <Modal
-                open={terminalOpen}
-                onCancel={() => setTerminalOpen(false)}
-                footer={null}
-                destroyOnClose
-                width={960}
-                title={`Terminal - ${selectedSampleDetail.node?.node_name || selectedSampleDetail.node?.node_id || ""}`}
-            >
-                {terminalOpen && (
-                    <AnalysisNodeTerminal
-                        id={selectedSampleDetail.node?.id ?? analysisNodeId ?? analysis_node_id ?? ""}
-                        name={selectedSampleDetail.node?.node_name}
-                    />
-                )}
-            </Modal>
-        </Card>
+        {/* 终端弹窗不参与页面滚动区，挂在面板外层（antd Modal 会 portal 到 body）。 */}
+        <Modal
+            open={terminalOpen}
+            onCancel={() => setTerminalOpen(false)}
+            footer={null}
+            destroyOnClose
+            width={960}
+            title={`Terminal - ${selectedSampleDetail.node?.node_name || selectedSampleDetail.node?.node_id || ""}`}
+        >
+            {terminalOpen && (
+                <AnalysisNodeTerminal
+                    id={selectedSampleDetail.node?.id ?? analysisNodeId ?? analysis_node_id ?? ""}
+                    name={selectedSampleDetail.node?.node_name}
+                />
+            )}
+        </Modal>
         </ParamsPanelLayout>
     );
 };

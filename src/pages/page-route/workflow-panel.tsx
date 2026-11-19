@@ -1,4 +1,4 @@
-import { Button, Card, message, Empty, Flex, Modal, Popconfirm, Skeleton, Switch, Tag, Tooltip, Spin, Space, Segmented } from "antd"
+import { Button, message, Empty, Flex, Modal, Popconfirm, Skeleton, Switch, Tag, Tooltip, Spin, Space, Segmented } from "antd"
 import { FC, useEffect, useMemo, useRef, useState } from "react"
 
 import axios from "axios"
@@ -28,6 +28,7 @@ import { invoke } from "@/core/ui-system/invokeV2"
 import { http } from "@/api/client/http"
 import GitStateActions from "../components-relation/components/git-state-actions"
 import { ParamsEdit, ParamsPanelDock, ParamsPanelLayout } from "@/components/edit-params/params-panel"
+import PanelLayout from "@/components/common/panel-layout"
 import { useI18n } from "@/hooks/useI18n"
 import { useRouteMainTabTitle } from "@/hooks/useMainTabTitle"
 import "./workflow-panel.css"
@@ -430,34 +431,31 @@ const Pipeline: FC<any> = ({ }) => {
             </ParamsPanelDock>
         }
     >
-        <div className="workflow-panel">
-        <Card size="small" className="workflow-panel-card" styles={{ body: { padding: 0 } }}>
-            <Spin spinning={loading}>
-                {component ? <>
-                    <header className="workflow-panel-header">
-                        <div className="workflow-panel-heading">
-                            <div className="workflow-panel-title-row">
-                                <ApartmentOutlined className="workflow-panel-icon" />
-                                <Tooltip title={component?.workflow_path || component?.name}>
-                                    <span className="workflow-panel-title">{component?.name || component?.id}</span>
-                                </Tooltip>
-                                {component?.relation_type ? (
-                                    <Tag color="purple" style={{ marginInlineEnd: 0 }}>{component.relation_type}</Tag>
-                                ) : null}
-                                <GitStateActions
-                                    entity="workflow"
-                                    item={component}
-                                    onReload={loadData}
-                                />
-                            </div>
-                            {/* {component?.workflow_path ? (
-                                <Tooltip title={component.workflow_path}>
-                                    <span className="workflow-panel-path">{component.workflow_path}</span>
-                                </Tooltip>
-                            ) : null} */}
-                        </div>
-
-                        <div className="workflow-panel-actions">
+            <PanelLayout
+                className="workflow-panel page-flat"
+                title={
+                    component ? (
+                        <>
+                            <ApartmentOutlined className="workflow-panel-icon" />
+                            <Tooltip title={component?.workflow_path || component?.name}>
+                                <span className="workflow-panel-title">{component?.name || component?.id}</span>
+                            </Tooltip>
+                            {component?.relation_type ? (
+                                <Tag color="purple" style={{ marginInlineEnd: 0 }}>{component.relation_type}</Tag>
+                            ) : null}
+                            <GitStateActions
+                                entity="workflow"
+                                item={component}
+                                onReload={loadData}
+                            />
+                        </>
+                    ) : (
+                        <span className="workflow-panel-title">{zh ? "工作流" : "Workflow"}</span>
+                    )
+                }
+                extra={
+                    component ? (
+                        <>
                             {/* 参数面板开关：编辑当前工作流时页面只声明 target，
                                 面板在右侧停靠，不再依赖全局 sideView / rightPanelCollapsed。 */}
                             <Tooltip
@@ -477,12 +475,6 @@ const Pipeline: FC<any> = ({ }) => {
                                     {zh ? "参数" : "Parameters"}
                                 </Button>
                             </Tooltip>
-                            <Segmented
-                                size="small"
-                                value={view}
-                                options={views}
-                                onChange={handleViewChange}
-                            />
                             {component?.description ? (
                                 <Tooltip title={zh ? "查看说明" : "View description"}>
                                     <Button
@@ -509,12 +501,23 @@ const Pipeline: FC<any> = ({ }) => {
                                     <Button size="small" danger icon={<DeleteOutlined />} />
                                 </Tooltip>
                             </Popconfirm>
-                        </div>
-                    </header>
-
-                    {openAnalysis && openAnalysis.length > 0 ? (
-                        <div className="workflow-panel-tabs">
-                            {openAnalysis.map((item: any) => (
+                        </>
+                    ) : null
+                }
+            >
+                <Spin spinning={loading}>
+                    {component ? (
+                        <>
+                            {/* 视图切换 + 已打开分析放在内容区顶部同一行：
+                                标题栏保持固定高度，标签再多也不会把标题栏撑高。 */}
+                            <div className="workflow-panel-tabs">
+                                <Segmented
+                                    size="small"
+                                    value={view}
+                                    options={views}
+                                    onChange={handleViewChange}
+                                />
+                                {openAnalysis?.map((item: any) => (
                                 <Tag
                                     key={item.analysis_id}
                                     className={`workflow-panel-analysis-tag${item.analysis_id === analysisId ? " is-active" : ""}`}
@@ -531,11 +534,10 @@ const Pipeline: FC<any> = ({ }) => {
                                 >
                                     {item.analysis_name || (zh ? "分析" : "Analysis")}
                                 </Tag>
-                            ))}
-                        </div>
-                    ) : null}
+                                ))}
+                            </div>
 
-                    <div className="workflow-panel-body">
+                            <div className="workflow-panel-body">
                         <ViewResolver
                             type={"workflow"}
                             store={component}
@@ -555,7 +557,8 @@ const Pipeline: FC<any> = ({ }) => {
                             {...parsms}
                         />
                     </div>
-                </> : (
+                        </>
+                    ) : (
                     <div className="workflow-panel-placeholder">
                         {loading ? (
                             <Skeleton active />
@@ -567,8 +570,8 @@ const Pipeline: FC<any> = ({ }) => {
                         )}
                     </div>
                 )}
-            </Spin>
-        </Card>
+                </Spin>
+            </PanelLayout>
 
         {contextHolder}
 
@@ -682,7 +685,6 @@ const Pipeline: FC<any> = ({ }) => {
             onClose={closeModal}
             params={modal.params}></PublishModal>
 
-    </div>
     </ParamsPanelLayout>
 }
 

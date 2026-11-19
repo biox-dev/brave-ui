@@ -1,37 +1,5 @@
-/* Script panel (rendered in the layout <Outlet /> main pane). */
-.script-panel {
-  min-height: 100%;
-}
-
-.script-panel-card {
-  border-radius: 0;
-  overflow: hidden;
-}
-
-.script-panel-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px 16px;
-  flex-wrap: wrap;
-  padding: 14px 16px 12px;
-}
-
-.script-panel-heading {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1 1 320px;
-  min-width: 0;
-}
-
-.script-panel-title-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
+/* Script panel (rendered in the layout <Outlet /> main pane).
+   标题栏与内容区由统一的 PanelLayout 提供（固定 44px 标题栏 + title 下分割线）。 */
 
 .script-panel-icon {
   color: #1677ff;
@@ -39,11 +7,7 @@
 }
 
 .script-panel-title {
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1.4;
-  color: var(--sharp-text, rgba(0, 0, 0, 0.88));
-  /* 长标题只在必要时收缩并省略，不再被固定 420px 截断，也不会把右侧操作挤走。 */
+  /* 字号 / 字重 / 颜色统一继承 .panel-layout-title，只负责溢出省略。 */
   flex: 0 1 auto;
   min-width: 0;
   max-width: min(640px, 100%);
@@ -64,27 +28,15 @@
   text-align: left;
 }
 
-.script-panel-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
-  flex: 0 1 auto;
-  min-width: 0;
-}
-
 /* View switcher strip: always its own row, so an over-long script name can never
    push the tabs (or be pushed by them) onto unexpected lines.
-   白底 + 一条发丝线：和卡片同色，头部与内容区视觉上连成一体，只靠分割线分层；
-   灰色块容易被误读成「另一块内容区」，也会和下方 description 的灰底叠成两条色带。 */
+   上面一条线由 PanelLayout 标题栏提供，这里只留底部一条，和内容区分开。 */
 .script-panel-tabs {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
   padding: 8px 16px;
-  border-top: 1px solid var(--sharp-divider, #eceff4);
   border-bottom: 1px solid var(--sharp-divider, #eceff4);
   background: var(--sharp-panel-bg, #ffffff);
 }
@@ -96,7 +48,6 @@
 
 .script-panel-description {
   padding: 12px 16px;
-  border-bottom: 1px solid var(--sharp-divider, #eceff4);
   background: var(--sharp-panel-muted, #f8fafc);
   color: var(--sharp-text-soft, rgba(0, 0, 0, 0.65));
   font-size: 13px;
@@ -128,17 +79,17 @@
    stacked cards with duplicated headers, borders and shadows.
    --------------------------------------------------------------------------- */
 
-/* Nested cards keep a single hairline border, no elevation. */
+/* Nested cards: no border, no elevation — the page is a flat sheet. */
 .script-panel-body .ant-card {
+  border: 0;
   border-radius: 0;
   box-shadow: none;
 }
 
-/* Turn the nested card head into a compact, muted section bar. */
+/* Turn the nested card head into a compact, muted section bar (no divider line). */
 .script-panel-body .ant-card > .ant-card-head {
   min-height: 42px;
   padding: 0 14px;
-  border-bottom: 1px solid var(--sharp-divider, #eceff4);
   background: color-mix(in srgb, var(--sharp-panel-muted, #f8fafc) 72%, transparent);
 }
 

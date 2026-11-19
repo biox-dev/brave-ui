@@ -1,37 +1,5 @@
-/* Workflow panel (rendered in the layout <Outlet /> main pane). */
-.workflow-panel {
-  min-height: 100%;
-}
-
-.workflow-panel-card {
-  border-radius: 0;
-  overflow: hidden;
-}
-
-.workflow-panel-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px 16px;
-  flex-wrap: wrap;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--sharp-divider, #eceff4);
-}
-
-.workflow-panel-heading {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 220px;
-  flex: 1 1 auto;
-}
-
-.workflow-panel-title-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
+/* Workflow panel (rendered in the layout <Outlet /> main pane).
+   标题栏与内容区由统一的 PanelLayout 提供（固定 44px 标题栏 + title 下分割线）。 */
 
 .workflow-panel-icon {
   color: #722ed1;
@@ -39,10 +7,9 @@
 }
 
 .workflow-panel-title {
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1.4;
-  color: var(--sharp-text, rgba(0, 0, 0, 0.88));
+  /* 字号 / 字重 / 颜色统一继承 .panel-layout-title，只负责溢出省略。 */
+  flex: 0 1 auto;
+  min-width: 0;
   max-width: 420px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -61,15 +28,7 @@
   text-align: left;
 }
 
-.workflow-panel-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  flex: 0 0 auto;
-}
-
-/* Open-analysis tabs strip. */
+/* Open-analysis tabs strip：上面一条线由 PanelLayout 标题栏提供，这里只留底部一条。 */
 .workflow-panel-tabs {
   display: flex;
   align-items: center;
@@ -115,6 +74,7 @@
    --------------------------------------------------------------------------- */
 
 .workflow-panel-body .ant-card {
+  border: 0;
   border-radius: 0;
   box-shadow: none;
 }
@@ -122,7 +82,6 @@
 .workflow-panel-body .ant-card > .ant-card-head {
   min-height: 42px;
   padding: 0 14px;
-  border-bottom: 1px solid var(--sharp-divider, #eceff4);
   background: color-mix(in srgb, var(--sharp-panel-muted, #f8fafc) 72%, transparent);
 }
 

@@ -1,6 +1,6 @@
-import { CloseOutlined } from "@ant-design/icons"
-import { Button, Skeleton, Space } from "antd"
+import { Skeleton } from "antd"
 import { FC, lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react"
+import PanelLayout from "@/components/common/panel-layout"
 import type { EditParamsTarget } from "./use-edit-params-target"
 import "./params-panel.css"
 
@@ -120,22 +120,16 @@ export const ParamsPanelDock: FC<ParamsPanelDockProps> = ({
                 className="params-panel-dock-resizer"
                 onPointerDown={handleResizeStart}
             />
-            <div className="params-panel-dock-head">
-                <span className="params-panel-dock-title">{title}</span>
-                <Space size={4} className="params-panel-dock-actions">
-                    {extra}
-                    {onClose ? (
-                        <Button
-                            type="text"
-                            size="small"
-                            icon={<CloseOutlined />}
-                            aria-label="Close parameters panel"
-                            onClick={onClose}
-                        />
-                    ) : null}
-                </Space>
-            </div>
-            <div className="params-panel-dock-body">{children}</div>
+            {/* 标题栏与路由页面共用同一个骨架：高度、分割线、标题样式完全一致。 */}
+            <PanelLayout
+                title={title}
+                extra={extra}
+                onClose={onClose}
+                closeLabel="Close parameters panel"
+                bodyClassName="params-panel-dock-body"
+            >
+                {children}
+            </PanelLayout>
         </aside>
     )
 }

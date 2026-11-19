@@ -1,0 +1,63 @@
+/* 统一页面面板骨架：固定标题栏 + 可滚动内容区。
+   标题栏高度固定，内容再多也不会撑高标题栏；body 独立滚动，标题始终可见。 */
+
+.panel-layout {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  background: var(--sharp-panel-bg, #ffffff);
+  color: var(--sharp-text, rgba(0, 0, 0, 0.88));
+}
+
+/* 标题栏：高度固定 44px，底部一条分割线（title 下分割线，始终保留）。 */
+.panel-layout-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-sizing: border-box;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 8px 0 16px;
+  border-bottom: 1px solid var(--sharp-divider, #eceff4);
+  background: var(--sharp-panel-bg, #ffffff);
+  /* 极窄宽度下也不换行：标题让位收缩，保证标题栏高度恒定。 */
+  overflow: hidden;
+}
+
+.panel-layout-title {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.panel-layout-title > * {
+  min-width: 0;
+}
+
+.panel-layout-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+/* 内容区：独立滚动，标题栏保持固定。 */
+.panel-layout-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}

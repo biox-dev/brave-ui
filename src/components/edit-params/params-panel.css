@@ -5,7 +5,9 @@
 .params-panel-layout {
   display: flex;
   align-items: stretch;
-  gap: 8px;
+  /* 面板与内容区之间不留间隙：面板的分割线就是布局线条的一部分，
+     紧贴内容区边缘后才能和上下的 header / footer 线条接上。 */
+  gap: 0;
   height: 100%;
   min-height: 0;
   min-width: 0;
@@ -31,7 +33,8 @@
   /* 只保留与内容区之间的一条竖线：不再画上下边框，避免和页面头/底部线条重合。 */
   border: 0;
   border-radius: 0;
-  overflow: hidden;
+  /* 允许拖拽高亮条以分割线为中心向两侧各溢出 3px（见下方 resizer）。 */
+  overflow: visible;
 }
 
 .params-panel-dock.is-left {
@@ -42,59 +45,40 @@
   border-left: 1px solid var(--sharp-divider, #eceff4);
 }
 
-/* 标题栏：与卡片头部一致（透明底、只保留一条分割线）。 */
-.params-panel-dock-head {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  height: 44px;
-  min-height: 44px;
-  padding: 0 8px 0 14px;
-  border-bottom: 1px solid var(--sharp-divider, #eceff4);
-  background: transparent;
-}
+/* 标题栏与 body 由统一的 PanelLayout 提供（高度 44px、title 下分割线），
+   这里只负责面板外壳与宽度拖拽。 */
 
-.params-panel-dock-title {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-
-.params-panel-dock-actions {
-  flex: 0 0 auto;
-}
-
-.params-panel-dock-body {
+.params-panel-dock > .panel-layout {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+}
+
+/* 面板内容区留白；滚动由 .panel-layout-body 负责。 */
+.params-panel-dock-body {
   padding: 12px 14px 14px;
 }
 
-/* 拖拽条贴在内侧边缘；命中区域比视觉线条宽，便于操作。 */
+/* 拖拽高亮：6px 宽、以分割线为中心（左右各溢出 3px），与 SplitWorkspace 的
+   分隔条悬停高亮保持一致；命中区域比视觉线条宽，便于操作。 */
 .params-panel-dock-resizer {
   position: absolute;
   top: 0;
   bottom: 0;
   z-index: 2;
   width: 6px;
+  border-radius: 3px;
   cursor: col-resize;
   background: transparent;
   transition: background-color 0.15s ease;
 }
 
 .params-panel-dock.is-left .params-panel-dock-resizer {
-  right: 0;
+  /* 绝对定位以 padding box 为基准，外框有 1px 边框，-3.5px 才能让 6px 色块正好压在边框线中心 */
+  right: -3.5px;
 }
 
 .params-panel-dock.is-right .params-panel-dock-resizer {
-  left: 0;
+  left: -3.5px;
 }
 
 .params-panel-dock-resizer:hover,
@@ -102,9 +86,10 @@
   background: color-mix(in srgb, #1890ff 35%, transparent);
 }
 
-body.params-panel-resizing {
-  cursor: col-resize;
-  user-select: none;
+body.params-panel-resizing,
+body.params-panel-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
 }
 
 /* 窄屏（移动端上下堆叠布局）下不抢宽度：面板改为置于内容下方。 */

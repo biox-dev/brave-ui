@@ -1,4 +1,4 @@
-import { Button, Card, Empty, Popconfirm, Segmented, Skeleton, Spin, Tag, Tooltip } from "antd"
+import { Button, Empty, Popconfirm, Segmented, Skeleton, Spin, Tag, Tooltip } from "antd"
 import { ControlOutlined, DeleteOutlined, FileTextOutlined, ReloadOutlined, RobotOutlined } from "@ant-design/icons"
 import { FC, useCallback, useEffect, useState } from "react"
 import { useParams } from "react-router"
@@ -10,6 +10,7 @@ import ViewResolver from "@/core/ui-renderer/ViewResolver"
 import Markdown from "@/components/markdown"
 import GitStateActions from "../components-relation/components/git-state-actions"
 import { ParamsEdit, ParamsPanelDock, ParamsPanelLayout } from "@/components/edit-params/params-panel"
+import PanelLayout from "@/components/common/panel-layout"
 import { useI18n } from "@/hooks/useI18n"
 import { useRouteMainTabTitle } from "@/hooks/useMainTabTitle"
 import { useRouteView } from "@/hooks/useRouteView"
@@ -127,32 +128,28 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
                 </ParamsPanelDock>
             }
         >
-            <div className="script-panel">
-            <Card size="small" className="script-panel-card" styles={{ body: { padding: 0 } }}>
-                <Spin spinning={loading}>
-                    {script ? (
+            <PanelLayout
+                className="script-panel page-flat"
+                title={
+                    script ? (
                         <>
-                            <header className="script-panel-header">
-                                <div className="script-panel-heading">
-                                    <div className="script-panel-title-row">
-                                        <FileTextOutlined className="script-panel-icon" />
-                                        <Tooltip title={script.script_path || script.name}>
-                                            <span className="script-panel-title">
-                                                {script.name || script.script_path || script.id}
-                                            </span>
-                                        </Tooltip>
-                                        {script.script_type ? (
-                                            <Tag color="blue" style={{ marginInlineEnd: 0 }}>{script.script_type}</Tag>
-                                        ) : null}
-                                    </div>
-                                    {/* {script.script_path ? (
-                                        <Tooltip title={script.script_path}>
-                                            <span className="script-panel-path">{script.script_path}</span>
-                                        </Tooltip>
-                                    ) : null} */}
-                                </div>
-
-                                <div className="script-panel-actions">
+                            <FileTextOutlined className="script-panel-icon" />
+                            <Tooltip title={script.script_path || script.name}>
+                                <span className="script-panel-title">
+                                    {script.name || script.script_path || script.id}
+                                </span>
+                            </Tooltip>
+                            {script.script_type ? (
+                                <Tag color="blue" style={{ marginInlineEnd: 0 }}>{script.script_type}</Tag>
+                            ) : null}
+                        </>
+                    ) : (
+                        <span className="script-panel-title">{zh ? "脚本" : "Script"}</span>
+                    )
+                }
+                extra={
+                    script ? (
+                        <>
                                     {/* 把当前脚本作为 @script:<id> 引用插进 Agent 输入框，
                                         模型收到引用后会用 get_script 读取脚本名称 / 描述 /
                                         容器模板 / 脚本文件与 io_schema 路径。 */}
@@ -218,9 +215,13 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
                                             <Button size="small" danger icon={<DeleteOutlined />} />
                                         </Tooltip>
                                     </Popconfirm>
-                                </div>
-                            </header>
-
+                        </>
+                    ) : null
+                }
+            >
+                <Spin spinning={loading}>
+                    {script ? (
+                        <>
                             {/* 视图切换单独占一行：脚本标题长度不可控，和 Segmented 同排时
                                 要么标签被挤换行、要么整块被压到下面，视觉上很不稳定。 */}
                             <nav className="script-panel-tabs" aria-label={zh ? "脚本视图" : "Script views"}>
@@ -264,8 +265,7 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
                         </div>
                     )}
                 </Spin>
-            </Card>
-            </div>
+            </PanelLayout>
         </ParamsPanelLayout>
     )
 }

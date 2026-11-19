@@ -68,15 +68,32 @@
   background: var(--sharp-divider, #d7dbe2);
 }
 
-.sider-stack-divider:hover::before,
-.sider-stack-divider.is-resizing::before {
-  height: 2px;
-  background: var(--sharp-divider-strong, #c7cdd8);
+/* 悬停 / 拖拽高亮：6px 高的半透明色块压在线条上，与左右分隔条（竖线）保持一致。
+   用绝对定位居中，不改变 1px 线条的绘制方式，也不影响拖拽比例换算。 */
+.sider-stack-divider::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 6px;
+  transform: translateY(-50%);
+  border-radius: 3px;
+  background: transparent;
+  pointer-events: none;
+  transition: background-color 0.15s ease;
 }
 
-body.sider-stack-resizing {
-  cursor: row-resize;
-  user-select: none;
+.sider-stack-divider:hover::after,
+.sider-stack-divider.is-resizing::after {
+  background: color-mix(in srgb, #1890ff 35%, transparent);
+}
+
+/* 拖拽期间锁定光标与选中状态（面板内的按钮 / 文本有自己的 cursor） */
+body.sider-stack-resizing,
+body.sider-stack-resizing * {
+  cursor: row-resize !important;
+  user-select: none !important;
 }
 
 /* 面板标题栏中的折叠箭头。 */
