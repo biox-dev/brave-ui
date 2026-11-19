@@ -130,6 +130,8 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
   const [innerLeftCollapsed, setInnerLeftCollapsed] = useState(false);
   const [innerRightCollapsed, setInnerRightCollapsed] = useState(false);
   const [isCompact, setIsCompact] = useState(false);
+  // 容器实测宽度：窄窗口（仍是桌面布局）时用它给主区域留出空间，避免面板的 min 宽度把聊天区挤没
+  const [workspaceWidth, setWorkspaceWidth] = useState(0);
   const hasLeftPane = Boolean(left);
   const hasMainPane = Boolean(main);
   const hasAssistantPane = Boolean(assistant);
@@ -149,13 +151,41 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
     maxAssistantWidth,
     Math.max(minAssistantWidth, assistantWidth ?? innerAssistantWidth),
   );
-  const currentRightMiddleWidth = Math.min(
+  // 容器宽度已知时，min 宽度不能压过「主区域最小宽度」：窗口不够宽时先让右侧面板变窄
+  // （lowerBound 由可用空间反推），而不是把主区域挤到 0。容器未测量时（首帧）沿用 min/max 夹取。
+  const leftOccupiedWidth = hasLeftPane && !isLeftCollapsed ? currentLeftWidth : 0;
+  const assistantOccupiedWidth = hasAssistantPane ? currentAssistantWidth : 0;
+  const clampByAvailableWidth = (
+    candidate: number,
+    min: number,
+    max: number,
+    occupied: number,
+  ) => {
+    if (workspaceWidth <= 0) {
+      return Math.min(max, Math.max(min, candidate));
+    }
+    const maxBySpace = Math.max(0, workspaceWidth - occupied - (hasMainPane ? minMainWidth : 0));
+    const upperBound = Math.max(0, Math.min(max, maxBySpace));
+    const lowerBound = Math.min(min, upperBound);
+    return Math.min(upperBound, Math.max(lowerBound, candidate));
+  };
+  const currentRightMiddleWidth = clampByAvailableWidth(
+    rightMiddleWidth ?? innerRightMiddleWidth,
+    minRightMiddleWidth,
     maxRightMiddleWidth,
-    Math.max(minRightMiddleWidth, rightMiddleWidth ?? innerRightMiddleWidth),
+    leftOccupiedWidth +
+      assistantOccupiedWidth +
+      (hasRightPane && !isRightCollapsed && !isRightExpanded
+        ? (rightWidth ?? innerRightWidth)
+        : 0),
   );
-  const currentRightWidth = Math.min(
+  const currentRightWidth = clampByAvailableWidth(
+    rightWidth ?? innerRightWidth,
+    minRightWidth,
     maxRightWidth,
-    Math.max(minRightWidth, rightWidth ?? innerRightWidth),
+    leftOccupiedWidth +
+      assistantOccupiedWidth +
+      (hasRightMiddlePane ? currentRightMiddleWidth : 0),
   );
 
   const applyLeftWidth = (width: number) => {
@@ -209,6 +239,18 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
     mediaQuery.addEventListener('change', syncCompact);
     return () => mediaQuery.removeEventListener('change', syncCompact);
   }, [mobileBreakpoint]);
+
+  useEffect(() => {
+    const element = workspaceRef.current;
+    if (!element) {
+      return;
+    }
+    const syncWidth = () => setWorkspaceWidth(element.getBoundingClientRect().width);
+    syncWidth();
+    const observer = new ResizeObserver(syncWidth);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     leftWidthPropRef.current = leftWidth;
@@ -313,12 +355,11 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
         const maxAvailable = hasMainPane
           ? rightMiddleRight - rect.left - leftSpace - assistantSpace - minMainWidth
           : rightMiddleRight - rect.left - leftSpace - assistantSpace;
-        const upperBound = Math.max(
-          minRightMiddleWidth,
-          Math.min(maxRightMiddleWidth, maxAvailable),
-        );
+        // min 宽度在空间不足时让步：lowerBound 由可用空间反推，避免把主区域挤到 0
+        const upperBound = Math.max(0, Math.min(maxRightMiddleWidth, maxAvailable));
+        const lowerBound = Math.min(minRightMiddleWidth, upperBound);
         const nextWidth = rightMiddleRight - event.clientX;
-        const clampedWidth = Math.min(upperBound, Math.max(minRightMiddleWidth, nextWidth));
+        const clampedWidth = Math.min(upperBound, Math.max(lowerBound, nextWidth));
         applyRightMiddleWidth(clampedWidth);
       }
       if (activeDivider === 'right' && hasRightPane) {
@@ -331,11 +372,10 @@ const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({
         const maxAvailable = hasMainPane
           ? rect.width - leftSpace - assistantSpace - rightMiddleSpace - minMainWidth
           : rect.width - leftSpace - assistantSpace - rightMiddleSpace;
-        const upperBound = Math.max(
-          minRightWidth,
-          Math.min(maxRightWidth, maxAvailable),
-        );
-        const clampedWidth = Math.min(upperBound, Math.max(minRightWidth, nextWidth));
+        // 同上：空间不足时允许右面板窄于 minRightWidth，优先保住主区域
+        const upperBound = Math.max(0, Math.min(maxRightWidth, maxAvailable));
+        const lowerBound = Math.min(minRightWidth, upperBound);
+        const clampedWidth = Math.min(upperBound, Math.max(lowerBound, nextWidth));
         applyRightWidth(clampedWidth);
       }
     };

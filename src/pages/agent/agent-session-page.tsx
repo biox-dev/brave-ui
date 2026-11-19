@@ -328,7 +328,7 @@ const AgentSessionPage: FC = () => {
         rightCollapsed={rightPaneCollapsed}
         onRightCollapsedChange={setRightPaneCollapsed}
         minMainWidth={400}
-        minRightMiddleWidth={320}
+        minRightMiddleWidth={400}
         maxRightMiddleWidth={1600}
         defaultRightMiddleWidth={560}
         minRightWidth={320}

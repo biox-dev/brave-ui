@@ -978,6 +978,20 @@ body.layout-bottom-panel-resizing {
   cursor: default;
 }
 
+/* 右侧面板折叠后，分隔条贴在工作区最右边缘：
+   拖拽热区（伪元素默认向右扩 4px）与折叠按钮（默认居中，右半侧在容器外）
+   都会溢出容器产生横向滚动条，这里统一改为向内展开。 */
+.layout-sharp-pane-divider.is-right-collapsed .layout-sharp-pane-divider-line::before {
+  right: 0;
+  left: -8px;
+}
+
+.layout-sharp-pane-divider.is-right-collapsed .layout-sharp-pane-toggle {
+  left: auto;
+  right: 0;
+  transform: translateY(-50%);
+}
+
 /* 面板折叠/展开按钮：默认隐藏，仅在鼠标移到分隔条上时出现 */
 .layout-sharp-pane-toggle {
   position: absolute;
