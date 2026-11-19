@@ -403,6 +403,9 @@ export const getAgentTaskApi = (id: string) => {
 // 用途：刷新页面 / 切换会话后回填执行过程。增量事件（text / reasoning_delta）只走广播
 // 不落库，后端把完整块事件（reasoning / message / tool_call / tool_result）以及轮末错误
 // 即时写入 agent_messages，本接口按 task_id 返回该轮的可回放消息（按 seq 升序）。
+//
+// 访问控制与会话详情一致：会话按项目共享，项目内成员都能读取该会话下任务的时间线
+// （其他用户打开同一会话时也能回填实时流）；不属于任何会话的一次性任务仅归属者可读。
 export const getAgentTaskTimelineApi = (taskId: string) => {
   return http.get<AgentTaskTimelineItem[]>("/agent/task/timeline", {
     params: { task_id: taskId },
