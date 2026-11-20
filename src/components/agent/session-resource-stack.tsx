@@ -42,6 +42,7 @@ const SECTIONS: { resourceType: AgentSessionResourceType; zh: string; en: string
   { resourceType: 'workflow', zh: '工作流', en: 'Workflows' },
   { resourceType: 'analysis', zh: '分析工作流', en: 'Analysis Workflow' },
   { resourceType: 'analysis_node', zh: '分析节点', en: 'Analysis Nodes' },
+  { resourceType: 'project_report', zh: '报告', en: 'Reports' },
 ];
 
 export interface SessionResourceStackProps {

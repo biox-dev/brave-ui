@@ -5,7 +5,7 @@ import { openAgentWorkspaceTab } from '@/layout/agent-workspace-store';
  * 会话结果（右侧堆叠分区）→ 右侧工作区标签的**唯一映射**。
  *
  * 会话页右侧的每个堆叠分区对应一种 `AgentSessionResourceType`（脚本 / 工作流 /
- * 分析节点 / 分析运行）。点击分区里的某一项时，这里统一决定：
+ * 分析节点 / 分析运行 / 项目报告）。点击分区里的某一项时，这里统一决定：
  *   - 用哪个 ViewResolver 视图渲染（`view`）；
  *   - 视图需要什么参数（`params`，由资源项推导）；
  *   - 标签 key 前缀（`tabKeyPrefix`，同一资源重复点击复用同一个标签）。
