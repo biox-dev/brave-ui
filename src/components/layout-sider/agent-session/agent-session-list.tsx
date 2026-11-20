@@ -1,7 +1,8 @@
 import { FC, useCallback, useEffect, useRef, useState } from 'react';
-import { Button, Empty, Flex, Spin, Tooltip } from 'antd';
+import { Button, Empty, Flex, Popconfirm, Spin, Tooltip } from 'antd';
 import {
   CommentOutlined,
+  DeleteOutlined,
   PlusOutlined,
   ReloadOutlined,
   UserOutlined,
@@ -14,6 +15,7 @@ import {
   ensureAgentConversations,
   loadAgentConversations,
   loadMoreAgentConversations,
+  removeAgentConversation,
   setAgentConversationKeyword,
   useAgentConversationStore,
 } from '@/components/agent/agent-conversation-store';
@@ -81,6 +83,8 @@ const AgentSessionList: FC<AgentSessionListProps> = ({
   const total = useAgentConversationStore((state) => state.total);
   const storeKeyword = useAgentConversationStore((state) => state.keyword);
   const [keyword, setKeyword] = useState(storeKeyword);
+  // 正在删除的会话 ID：只让对应行的删除按钮转圈，避免整张列表重渲染。
+  const [deletingId, setDeletingId] = useState<string | undefined>(undefined);
 
   // 只在挂载时加载一次（已加载过则跳过）。
   // 不要监听 pathname：切换会话 / New Chat 都不改变列表数据，刷新由真正改变数据的
@@ -127,7 +131,32 @@ const AgentSessionList: FC<AgentSessionListProps> = ({
     noMore: locale === 'en_US' ? 'No more sessions' : '没有更多会话',
     total: locale === 'en_US' ? 'total' : '共',
     unknownUser: locale === 'en_US' ? 'Unknown user' : '未知用户',
+    delete: locale === 'en_US' ? 'Delete session' : '删除会话',
+    deleteConfirm:
+      locale === 'en_US'
+        ? 'Delete this session? Its messages, tasks and related data will be removed. Generated scripts/workflows are kept.'
+        : '确定删除该会话？消息、任务等关联数据将一并删除，已生成的脚本 / 工作流等资源会保留。',
+    deleteOk: locale === 'en_US' ? 'Delete' : '删除',
+    deleteCancel: locale === 'en_US' ? 'Cancel' : '取消',
   };
+
+  const handleDelete = useCallback(
+    async (item: AgentConversationItem) => {
+      setDeletingId(item.id);
+      try {
+        await removeAgentConversation(item.id);
+        // 删除的是当前打开的会话时，回到新建会话页，避免停留在已删除的会话上。
+        if (item.id === activeSessionId) {
+          navigate('/session', { replace: true });
+        }
+      } catch {
+        // 错误由全局拦截器提示（如会话仍有正在执行的一轮任务时返回 409）。
+      } finally {
+        setDeletingId(undefined);
+      }
+    },
+    [activeSessionId, navigate]
+  );
 
   const metaText = (item: AgentConversationItem): string => {
     const time = item.updated_at
@@ -193,28 +222,47 @@ const AgentSessionList: FC<AgentSessionListProps> = ({
             const meta = metaText(item);
             const username = item.username?.trim();
             return (
-              <button
-                key={item.id}
-                type="button"
-                className={`agent-session-item${isActive ? ' is-active' : ''}`}
-                title={`${conversationTitle(item)}${username ? ` · ${username}` : ''}`}
-                aria-current={isActive ? 'page' : undefined}
-                onClick={() => navigate(`/session/${encodeURIComponent(item.id)}`)}
-              >
-                <span className="agent-session-item-icon">
-                  <CommentOutlined />
-                </span>
-                <span className="agent-session-item-text">
-                  <span className="agent-session-item-title">{conversationTitle(item)}</span>
-                  <span className="agent-session-item-meta">
-                    <UserOutlined className="agent-session-item-meta-user" />
-                    {meta || labels.unknownUser}
+              <div key={item.id} className="agent-session-row">
+                <button
+                  type="button"
+                  className={`agent-session-item${isActive ? ' is-active' : ''}`}
+                  title={`${conversationTitle(item)}${username ? ` · ${username}` : ''}`}
+                  aria-current={isActive ? 'page' : undefined}
+                  onClick={() => navigate(`/session/${encodeURIComponent(item.id)}`)}
+                >
+                  <span className="agent-session-item-icon">
+                    <CommentOutlined />
                   </span>
-                </span>
-                {isValidTaskId(item.current_task_id) && (
-                  <span className="agent-session-item-dot" aria-hidden />
-                )}
-              </button>
+                  <span className="agent-session-item-text">
+                    <span className="agent-session-item-title">{conversationTitle(item)}</span>
+                    <span className="agent-session-item-meta">
+                      <UserOutlined className="agent-session-item-meta-user" />
+                      {meta || labels.unknownUser}
+                    </span>
+                  </span>
+                  {isValidTaskId(item.current_task_id) && (
+                    <span className="agent-session-item-dot" aria-hidden />
+                  )}
+                </button>
+                <Popconfirm
+                  title={labels.deleteConfirm}
+                  okText={labels.deleteOk}
+                  cancelText={labels.deleteCancel}
+                  okButtonProps={{ danger: true }}
+                  placement="right"
+                  onConfirm={() => handleDelete(item)}
+                >
+                  <Button
+                    className="agent-session-item-delete"
+                    type="text"
+                    size="small"
+                    danger
+                    icon={<DeleteOutlined />}
+                    aria-label={labels.delete}
+                    loading={deletingId === item.id}
+                  />
+                </Popconfirm>
+              </div>
             );
           })}
           <div ref={sentinelRef} className="agent-session-list-sentinel" aria-hidden />

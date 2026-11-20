@@ -1,5 +1,10 @@
 import { create } from "zustand";
-import { pageConversationApi, type AgentConversationItem, type AgentSessionUser } from "@/api/agent";
+import {
+  deleteConversationApi,
+  pageConversationApi,
+  type AgentConversationItem,
+  type AgentSessionUser,
+} from "@/api/agent";
 
 /**
  * Agent 会话列表的共享状态。
@@ -186,6 +191,31 @@ export const ensureAgentConversations = (): Promise<void> => {
     return Promise.resolve();
   }
   return inflightReset ?? loadAgentConversations();
+};
+
+/**
+ * 删除会话并同步本地列表。
+ *
+ * 后端会级联清理消息 / 文件历史 / 资源关联；这里只把该条目从列表、标题缓存与
+ * 参与者缓存中移除，并同步减少总数，避免为了刷新一条记录重新拉取整页。
+ * 错误照常抛出，由调用方决定是否提示（全局拦截器已负责错误提示）。
+ */
+export const removeAgentConversation = async (id: string): Promise<void> => {
+  await deleteConversationApi(id);
+  useAgentConversationStore.setState((state) => {
+    const conversations = state.conversations.filter((item) => item.id !== id);
+    const removed = conversations.length !== state.conversations.length;
+    const titles = { ...state.titles };
+    delete titles[id];
+    const participants = { ...state.participants };
+    delete participants[id];
+    return {
+      conversations,
+      total: removed ? Math.max(0, state.total - 1) : state.total,
+      titles,
+      participants,
+    };
+  });
 };
 
 /**

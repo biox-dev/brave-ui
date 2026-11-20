@@ -5,7 +5,7 @@ import { openAgentWorkspaceTab } from '@/layout/agent-workspace-store';
  * 会话结果（右侧堆叠分区）→ 右侧工作区标签的**唯一映射**。
  *
  * 会话页右侧的每个堆叠分区对应一种 `AgentSessionResourceType`（脚本 / 工作流 /
- * 分析节点 / 分析运行 / 应用会话）。点击分区里的某一项时，这里统一决定：
+ * 分析节点 / 分析运行）。点击分区里的某一项时，这里统一决定：
  *   - 用哪个 ViewResolver 视图渲染（`view`）；
  *   - 视图需要什么参数（`params`，由资源项推导）；
  *   - 标签 key 前缀（`tabKeyPrefix`，同一资源重复点击复用同一个标签）。
@@ -28,10 +28,7 @@ export interface SessionResourceWorkspaceTarget {
  * 注意：
  * - `analysis`（分析运行）没有独立路由页，打开该分析下的节点列表（analysisNodePage）；
  * - `analysis_node` 打开节点详情（analysisNodeDetails），它的 `analysis_node_id`
- *   语义上是分析节点 DB 主键，正好等于会话资源里的 `resource_id`；
- * - `app_session`（应用会话 = 终端会话）在右侧工作区打开 xterm 终端
- *   （`agentAppSessionTerminal`）；「移到下方」由终端组件自己的按钮完成
- *   （`AnalysisNodeTerminal` 的 `moveToBottom`），不经这里。
+ *   语义上是分析节点 DB 主键，正好等于会话资源里的 `resource_id`。
  */
 export const SESSION_RESOURCE_WORKSPACE_TARGETS: Partial<
   Record<AgentSessionResourceType, SessionResourceWorkspaceTarget>
@@ -45,12 +42,6 @@ export const SESSION_RESOURCE_WORKSPACE_TARGETS: Partial<
     view: 'analysisNodeDetails',
     tabKeyPrefix: 'session-analysis-node',
     params: (item) => ({ analysis_node_id: item.resource_id }),
-  },
-  app_session: {
-    view: 'agentAppSessionTerminal',
-    tabKeyPrefix: 'session-app-session',
-    // 终端 WS 只认会话 ID（分析节点终端 / 容器模板终端共用同一个地址规则）。
-    params: (item) => ({ session_id: item.resource_id, name: item.name || undefined }),
   },
 };
 

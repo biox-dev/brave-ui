@@ -44,8 +44,8 @@ const NO_TABS: AgentWorkspaceTab[] = [];
  * - 顶部：通栏 header，右侧只有一个展开 / 折叠按钮（总是显示）；
  * - main：当前会话的聊天（直接渲染 `<AgentChat />`），没有右侧面板时自动撑满；
  * - rightMiddle：聊天内容打开的标签页（有标签时才渲染，关闭全部后聊天自动撑开）；
- * - right：`SessionResourceStack`（纵向堆叠脚本 / 工作流 / 分析工作流 / 分析节点 /
- *   应用会话），「有数据就堆叠、没数据就空状态」的分支全部收在容器组件内部，
+ * - right：`SessionResourceStack`（纵向堆叠脚本 / 工作流 / 分析工作流 / 分析节点），
+ *   「有数据就堆叠、没数据就空状态」的分支全部收在容器组件内部，
  *   页面只负责传入 sessionId / active / cleared / onClose。
  *
  * 所有分区共用一次分组请求（`useAgentSessionResources`）：React Query 按同一个

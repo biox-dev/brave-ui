@@ -110,9 +110,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({ backgroundColor }) => {
                     <Typography.Text strong className="layout-sharp-brand-text">BRAVE</Typography.Text>
                 </div>
                 <div className="layout-sharp-header-right">
-                    <Button size="small" onClick={() => {
+                    {/* <Button size="small" onClick={() => {
                         window.open(`${getPathname()}/docs/${project.project_id}/`, "_blank")
-                    }}>docs</Button>
+                    }}>docs</Button> */}
                     {project?.project_name ? (
                         <Tag color="blue" className="layout-sharp-clickable" onClick={handleProjectSwitch}>
                             {project.project_name}

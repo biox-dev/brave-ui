@@ -342,6 +342,12 @@ export const forkConversationApi = (
 ) => {
   return http.post<AgentConversationItem>("/agent/conversation/fork", { id, ...(payload ?? {}) });
 };
+
+// 删除会话：级联删除消息、文件历史、任务、权限 / 提问与资源关联（不删除资源本身）。
+// 会话仍有正在执行的一轮任务时后端返回 409（需先取消本轮或等其结束）。
+export const deleteConversationApi = (id: string) => {
+  return http.post<{ ok: boolean; id: string }>("/agent/conversation/delete", { id });
+};
 // 订阅 / 退订会话实时事件（WS 推送 agent.event）。
 //
 // 订阅粒度是会话而不是任务：进入会话页时订阅一次，该会话后续每一轮的任务事件都会
@@ -360,16 +366,14 @@ export const unsubscribeAgentSessionApi = (sessionId: string) => {
   );
 };
 // 会话结果（会话 ↔ 资源的关联）类型。
-// analysis 对应 create_analysis_workflow / update_analysis_workflow 创建或修改的分析运行；
-// app_session 不落关联表，后端按 AppSession.AgentSessionID 实时查询。
+// analysis 对应 create_analysis_workflow / update_analysis_workflow 创建或修改的分析运行。
 export type AgentSessionResourceType =
   | "script"
   | "workflow"
   | "analysis_node"
-  | "analysis"
-  | "app_session";
+  | "analysis";
 
-// 会话结果项：会话创建 / 修改过的脚本、工作流、分析节点、分析运行或应用会话。
+// 会话结果项：会话创建 / 修改过的脚本、工作流、分析节点或分析运行。
 export interface AgentSessionResourceItem {
   resource_id: string;
   resource_type: AgentSessionResourceType;

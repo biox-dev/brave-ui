@@ -55,12 +55,18 @@
   color: var(--sharp-text-soft);
 }
 
+/* 每行是「主按钮 + 悬浮删除按钮」的组合，删除按钮绝对定位，不参与文本流。 */
+.agent-session-row {
+  position: relative;
+}
+
 .agent-session-item {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 6px 8px;
+  /* 右侧留出删除按钮的位置，避免标题 / 状态点被覆盖。 */
+  padding: 6px 30px 6px 8px;
   border: 0;
   border-radius: 4px;
   background: transparent;
@@ -122,6 +128,21 @@
   height: 6px;
   border-radius: 50%;
   background: #1677ff;
+}
+
+/* 删除按钮：默认隐藏，行 hover / 键盘聚焦时出现（避免列表过于嘈杂）。 */
+.agent-session-item-delete {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.agent-session-row:hover .agent-session-item-delete,
+.agent-session-item-delete:focus-visible {
+  opacity: 1;
 }
 
 /* 作为纵向堆叠面板使用时，标题栏可点击折叠；折叠后只保留标题栏。 */

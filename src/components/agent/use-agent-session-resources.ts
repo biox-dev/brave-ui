@@ -10,7 +10,6 @@ export const EMPTY_SESSION_RESOURCE_GROUPS: AgentSessionResourceGroups = {
   workflow: [],
   analysis: [],
   analysis_node: [],
-  app_session: [],
 };
 
 /**
