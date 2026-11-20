@@ -108,6 +108,12 @@
   background: color-mix(in srgb, var(--sharp-panel-muted) 65%, transparent);
 }
 
+/* 当前正在右侧工作区显示的资源：与左侧会话列表一致的选中态 */
+.session-resource-item.is-active {
+  background: var(--project-report-selected-bg, color-mix(in srgb, #1890ff 14%, transparent));
+  box-shadow: inset 2px 0 0 0 #1890ff;
+}
+
 .session-resource-item-name {
   display: block;
   min-width: 0;

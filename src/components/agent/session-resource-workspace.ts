@@ -57,6 +57,19 @@ export const isSessionResourceOpenable = (
 ): boolean => Boolean(getSessionResourceWorkspaceTarget(resourceType));
 
 /**
+ * 资源项在右侧工作区里的标签 key。
+ *
+ * 标签 key 由映射统一生成：列表用它判断「这一条是否正在右侧显示」，
+ * 打开标签时也用它保证同一条资源重复点击只聚焦、不重复开标签。
+ */
+export const getSessionResourceTabKey = (
+  item: Pick<AgentSessionResourceItem, 'resource_type' | 'resource_id'>,
+): string | undefined => {
+  const target = getSessionResourceWorkspaceTarget(item.resource_type);
+  return target ? `${target.tabKeyPrefix}:${item.resource_id}` : undefined;
+};
+
+/**
  * 把一条会话结果在右侧工作区（SplitWorkspace 的 rightMiddle 区域）打开或聚焦。
  *
  * 返回是否真的打开了：没有会话 ID 或该类型未登记映射时返回 false，调用方可据此
@@ -67,12 +80,13 @@ export const openSessionResourceTab = (
   item: AgentSessionResourceItem,
   title: string,
 ): boolean => {
+  const key = getSessionResourceTabKey(item);
   const target = getSessionResourceWorkspaceTarget(item.resource_type);
-  if (!sessionId || !target) {
+  if (!sessionId || !key || !target) {
     return false;
   }
   openAgentWorkspaceTab(sessionId, {
-    key: `${target.tabKeyPrefix}:${item.resource_id}`,
+    key,
     title,
     view: target.view,
     params: target.params(item),

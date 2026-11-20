@@ -3,10 +3,12 @@ import { Button } from 'antd';
 import type { AgentSessionResourceItem, AgentSessionResourceType } from '@/api/agent';
 import { useI18n } from '@/hooks/useI18n';
 import {
+  getSessionResourceTabKey,
   isSessionResourceOpenable,
   openSessionResourceTab,
 } from '@/components/agent/session-resource-workspace';
 import { useAgentSessionResources } from '@/components/agent/use-agent-session-resources';
+import { useAgentWorkspace } from '@/layout/agent-workspace-store';
 
 /** 分组数据未就绪时的共享空数组，保持引用稳定。 */
 const EMPTY_RESOURCE_ITEMS: AgentSessionResourceItem[] = [];
@@ -39,6 +41,8 @@ const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
 }) => {
   const { locale } = useI18n();
   const { data: groups } = useAgentSessionResources(sessionId, active);
+  // 右侧工作区当前显示的标签：与条目用同一套 key 映射比较，命中即选中。
+  const activeTabKey = useAgentWorkspace(sessionId).active;
 
   const items = groups?.[resourceType] ?? EMPTY_RESOURCE_ITEMS;
   const openable = isSessionResourceOpenable(resourceType) && Boolean(sessionId);
@@ -48,8 +52,14 @@ const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
     <div className="session-resource-list">
       {items.map((record) => {
         const displayName = record.name?.trim() || `${deletedLabel} #${record.resource_id}`;
+        const tabKey = getSessionResourceTabKey(record);
+        const isActive = Boolean(tabKey) && tabKey === activeTabKey;
         return (
-          <div key={record.resource_id} className="session-resource-item">
+          <div
+            key={record.resource_id}
+            className={`session-resource-item${isActive ? ' is-active' : ''}`}
+            aria-current={isActive ? 'true' : undefined}
+          >
             {openable ? (
               <Button
                 type="link"
