@@ -359,10 +359,13 @@ export const subscribeAgentSessionApi = (sessionId: string) => {
   );
 };
 
+// 退订是页面离开时的清理动作，失败没有可操作项（服务端还有连接断开兜底），
+// 因此跳过全局错误提示：删除会话后跳转、切换会话时不应弹出错误弹窗。
 export const unsubscribeAgentSessionApi = (sessionId: string) => {
   return http.post<{ ok: boolean; session_id: string; subscribed: boolean }>(
     "/agent/session/unsubscribe",
-    { session_id: sessionId }
+    { session_id: sessionId },
+    { skipGlobalError: true }
   );
 };
 // 会话结果（会话 ↔ 资源的关联）类型。
