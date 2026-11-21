@@ -44,6 +44,7 @@ const DEFAULT_PROVISION = {
 const withDefaults = (value: ContainerConfig): ContainerConfig => ({
 	...value,
 	network_mode: value.network_mode || "container_ip",
+	base_url: value.base_url ?? "",
 	docker: {
 		...value.docker,
 		provision: {
@@ -183,6 +184,32 @@ const ContainerConfigSection = ({ value, onSave }: ConfigSectionProps<ContainerC
 				showIcon
 				style={{ marginBottom: 16 }}
 				message="network_mode 与 docker.provision 仅在新进程启动时生效，保存后需重启 gobrave。"
+			/>
+
+			<Form.Item
+				name="base_url"
+				label="容器代理上游地址 (base_url)"
+				tooltip="容器反向代理服务（container proxy）的上游地址。k8s 场景由它承接应用流量，再由代理按 Pod IP 转发；docker 场景的 network_mode 在本地自行解析，不依赖该值。留空回退默认值 http://localhost:8089"
+			>
+				<Input style={{ width: 320 }} placeholder="http://localhost:8089" />
+			</Form.Item>
+
+			<Alert
+				type="info"
+				showIcon
+				style={{ marginBottom: 16 }}
+				message={
+					<>
+						<div>
+							<b>Docker：</b>network_mode（container_ip / host_port）由 gobrave
+							本地解析容器的实际地址，无需配置 base_url。
+						</div>
+						<div>
+							<b>Kubernetes：</b>gobrave 无法直接路由集群网络，应用流量统一经
+							base_url 指向的容器代理转发（再按 Pod IP 转发给具体应用）。
+						</div>
+					</>
+				}
 			/>
 
 			<Divider orientation="left" plain>

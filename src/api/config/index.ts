@@ -64,6 +64,15 @@ export interface ContainerConfig {
 	bash_container_template_id: string;
 	/** 应用容器端口的可达方式：container_ip（默认，直连容器 IP）或 host_port（随机发布到宿主机端口）。 */
 	network_mode?: string;
+	/**
+	 * 容器反向代理服务（container proxy）的上游地址，形如 http://localhost:8089。
+	 *
+	 * 用于 gobrave 自身无法直接路由 Daemon 内网（典型是 Kubernetes 集群）的场景：
+	 * k8s 通过该地址把应用流量交给容器代理，再由代理按 Pod IP 转发；
+	 * docker 场景的 network_mode（container_ip / host_port）在本地自行解析，不依赖该值。
+	 * 留空时后端回退 config.DefaultContainerBaseURL。
+	 */
+	base_url?: string;
 }
 
 /** 容器端口访问模式，与后端 config.ContainerNetworkMode* 常量对齐。 */
