@@ -36,7 +36,8 @@ interface PlanDetailPanelProps {
  * 两份数据路径：始终以计划 ID 为准，看到的就是数据库里的最新节点树。
  *
  * 节点树是只读的（计划由 agent 工具 create_plan / update_plan 维护），
- * 每行展示标题、来源资源 ID 与执行状态。
+ * 每行展示标题、来源资源 ID 与执行状态。执行状态由 agent 通过
+ * report_plan_progress 上报，后端推送 agent-plan-progress 事件后这里自动刷新。
  */
 const PlanDetailPanel: FC<PlanDetailPanelProps> = ({ planId, onClose }) => {
 	const { locale } = useI18n();

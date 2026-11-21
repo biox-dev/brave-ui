@@ -103,23 +103,32 @@ export interface ProjectReportFileResponse {
 export type PlanSource = "custom" | "analysis" | "analysis_node" | "script" | "workflow";
 
 // PlanItemStatus 是节点的执行状态（后端 agenttypes.PlanItemStatus）。
-// 状态不随计划结构存储，由 `report_plan_progress` 上报后合并进 PlanItem.status；
-// 缺省等价于 pending。
+// 状态是 agent 通过 `report_plan_progress` 上报的真实列，与结构列互不覆盖。
 export type PlanItemStatus = "pending" | "in_progress" | "completed" | "skipped";
 
 // PlanItem 是计划中的一个节点（可嵌套，用 parent_id / sort_order 组织）。
+// 后端每个节点是 agent_plan_items 的一行，因此 id 可以作为
+// 「执行结果 → 计划节点」关联的引用目标。
 export interface PlanItem {
+        /** 节点 ID：执行结果关联计划节点时作为外键引用。 */
         id: string;
+        plan_id?: string;
         parent_id: string;
         title: string;
         summary?: string;
         source: PlanSource;
         source_id: string;
         sort_order: number;
+        /** 执行状态（缺省等价于 pending）。 */
         status?: PlanItemStatus;
+        /** 推进该状态的会话 ID。 */
+        session_id?: string;
+        /** agent 上报状态时的简短说明。 */
+        note?: string;
 }
 
 // AgentPlan 是 agent 的计划详情：一组按树组织的步骤，节点可引用会话资源 ID。
+// 计划头只存标题 / 目标；`items` 由后端从 agent_plan_items 读出后填充（只读投影）。
 export interface AgentPlan {
         id: string;
         project_id: string;
