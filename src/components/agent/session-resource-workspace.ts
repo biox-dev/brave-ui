@@ -29,7 +29,9 @@ export interface SessionResourceWorkspaceTarget {
  * - `analysis`（分析运行）没有独立路由页，打开该分析下的节点列表（analysisNodePage）；
  * - `analysis_node` 打开节点详情（analysisNodeDetails），它的 `analysis_node_id`
  *   语义上是分析节点 DB 主键，正好等于会话资源里的 `resource_id`；
- * - `plan` 打开计划节点树（planDetail），只读渲染该计划的步骤树。
+ * - `plan` 打开计划节点树（planDetail），只读渲染该计划的步骤树；
+ * - `project_report` 打开报告正文文件（projectReportFile，即 output.md 的查看 / 编辑面板），
+ *   与会话结果里「报告」分区的资源 ID 语义一致（= 项目报告 ID）。
  */
 export const SESSION_RESOURCE_WORKSPACE_TARGETS: Partial<
   Record<AgentSessionResourceType, SessionResourceWorkspaceTarget>
@@ -48,6 +50,11 @@ export const SESSION_RESOURCE_WORKSPACE_TARGETS: Partial<
     view: 'planDetail',
     tabKeyPrefix: 'session-plan',
     params: (item) => ({ planId: item.resource_id }),
+  },
+  project_report: {
+    view: 'projectReportFile',
+    tabKeyPrefix: 'session-project-report',
+    params: (item) => ({ reportId: item.resource_id, defaultMode: 'view' }),
   },
 };
 
