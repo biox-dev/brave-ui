@@ -118,14 +118,25 @@ export interface PlanItem {
         status?: string;
 }
 
-// AgentPlan 是 agent 的计划：一组按树组织的步骤，节点可引用会话资源 ID。
+// AgentPlan 是 agent 的计划详情：一组按树组织的步骤，节点可引用会话资源 ID。
 export interface AgentPlan {
         id: string;
         project_id: string;
-        session_id?: string;
         title: string;
         goal: string;
         items: PlanItem[];
+        created_at: string;
+        updated_at: string;
+}
+
+// AgentPlanSummary 是计划列表项：只有表格需要的字段，不含节点树。
+// 节点树在展开某一行时用 `getPlanDetailApi(id)` 单独获取。
+export interface AgentPlanSummary {
+        id: string;
+        project_id: string;
+        title: string;
+        goal: string;
+        item_count: number;
         created_at: string;
         updated_at: string;
 }
@@ -287,7 +298,7 @@ export const getProjectReportFileHtmlApi = (reportId: string, inlineImages = tru
 
 // ---------- Agent plan (计划) ----------
 
-export const listPlanApi = () => http.get<AgentPlan[]>("/project/list-plan")
+export const listPlanApi = () => http.get<AgentPlanSummary[]>("/project/list-plan")
 export const getPlanDetailApi = (id: string) =>
         http.get<AgentPlan>(`/project/plan-detail?id=${encodeURIComponent(id)}`)
 export const savePlanApi = (payload: SavePlanRequest) =>

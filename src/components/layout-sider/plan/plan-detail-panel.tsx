@@ -1,65 +1,55 @@
-import {
-	getPlanDetailApi,
-	savePlanApi,
-	type AgentPlan,
-	type PlanItem,
-	type PlanSource,
-} from "@/api/project";
+import { getPlanDetailApi, type AgentPlan, type PlanItem } from "@/api/project";
 import {
 	BranchesOutlined,
 	CloseOutlined,
-	DeleteOutlined,
-	PlusOutlined,
 	ReloadOutlined,
 } from "@ant-design/icons";
-import { Button, Empty, Input, Popconfirm, Spin, Tree } from "antd";
-import type { TreeProps } from "antd";
+import { Button, Empty, Spin, Tag, Tooltip } from "antd";
 import { FC, useCallback, useEffect, useMemo, useState } from "react";
-import {
-	countPlanTreeNodes,
-	flattenPlanTree,
-	movePlanTreeNode,
-	toPlanTreeNodes,
-	type PlanTreeNode,
-} from "./plan-tree-utils";
+import { useI18n } from "@/hooks/useI18n";
+import { formatRelativeTime } from "@/utils/time";
 
 interface PlanDetailPanelProps {
-	/** 计划 ID（由 leftMiddle 的 params 注入）。 */
+	/** 计划 ID（表格展开行的记录或右侧工作区标签的 params 注入）。 */
 	planId?: string;
+	/** 关闭当前承载面板（工作区标签用）。 */
 	onClose?: () => void;
 }
 
-// newPlanItem 生成一个本地节点（ID 留空，保存时由后端补齐）。
-const newPlanItem = (source: PlanSource = "custom"): PlanItem => ({
-	id: "",
-	parent_id: "0",
-	title: source === "custom" ? "New section" : "",
-	summary: "",
-	source,
-	source_id: "",
-	sort_order: 0,
-});
-
-// PlanDetailPanel 展示单个计划的节点树：支持拖拽调整层级与顺序、新增 / 删除节点、编辑标题。
-// 节点只带 source + source_id（不加载资源详情），给 agent 查询详情用的就是这些 ID。
+/**
+ * PlanDetailPanel 是计划的**唯一**只读渲染器。
+ *
+ * 只接收 planId，自己请求 `/project/plan-detail`：
+ *   - 项目「计划」表格的展开行（`expandable.expandedRowRender`）；
+ *   - 会话页右侧 SessionResourceStack 的「计划」分区（点击后在右侧工作区打开标签）。
+ *
+ * 两处复用同一个组件、同一个请求来源，因此不存在「列表传 items、详情再查一次」的
+ * 两份数据路径：始终以计划 ID 为准，看到的就是数据库里的最新节点树。
+ *
+ * 节点树是只读的（计划由 agent 工具 create_plan / update_plan 维护），
+ * 每行展示标题、来源资源 ID 与执行状态。
+ */
 const PlanDetailPanel: FC<PlanDetailPanelProps> = ({ planId, onClose }) => {
+	const { locale } = useI18n();
 	const [plan, setPlan] = useState<AgentPlan>();
-	const [tree, setTree] = useState<PlanTreeNode[]>([]);
 	const [loading, setLoading] = useState(false);
-	const [saving, setSaving] = useState(false);
-	const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+	const [error, setError] = useState(false);
 
 	const load = useCallback(async () => {
 		if (!planId) {
 			setPlan(undefined);
-			setTree([]);
+			setError(false);
 			return;
 		}
 		setLoading(true);
+		setError(false);
 		try {
 			const resp = await getPlanDetailApi(planId);
 			setPlan(resp.data);
-			setTree(toPlanTreeNodes(resp.data?.items ?? []));
+		} catch {
+			// 错误提示由 http 拦截器统一展示，这里只标记「未取到计划」。
+			setPlan(undefined);
+			setError(true);
 		} finally {
 			setLoading(false);
 		}
@@ -69,168 +59,119 @@ const PlanDetailPanel: FC<PlanDetailPanelProps> = ({ planId, onClose }) => {
 		void load();
 	}, [load]);
 
-	const totalItems = useMemo(() => countPlanTreeNodes(tree), [tree]);
+	// 按 parent_id 组织成缩进树：根节点为 parent_id 缺失或指向不存在的节点。
+	const rows = useMemo(() => flattenPlanRows(plan?.items ?? []), [plan?.items]);
 
-	// persist 把当前树写回后端（整体覆盖：标题 / 目标 / 节点树）。
-	const persist = async (nextTree: PlanTreeNode[], title = plan?.title, goal = plan?.goal) => {
-		if (!plan) {
-			return;
-		}
-		setSaving(true);
-		try {
-			const resp = await savePlanApi({
-				id: plan.id,
-				title: title?.trim() || plan.title,
-				goal,
-				items: flattenPlanTree(nextTree),
-			});
-			setPlan(resp.data);
-			setTree(toPlanTreeNodes(resp.data?.items ?? []));
-		} finally {
-			setSaving(false);
-		}
-	};
-
-	const handleDrop: NonNullable<TreeProps<PlanTreeNode>["onDrop"]> = async (info) => {
-		const dropKey = String(info.node.key);
-		const dragKey = String(info.dragNode.key);
-		const dropPos = String(info.node.pos).split("-");
-		const dropPosition = info.dropPosition - Number(dropPos[dropPos.length - 1]);
-
-		const nextTree = movePlanTreeNode(tree, dragKey, dropKey, info.dropToGap, dropPosition);
-		if (!nextTree) {
-			return;
-		}
-		setTree(nextTree);
-		try {
-			await persist(nextTree);
-		} catch {
-			await load();
-		}
-	};
-
-	// addItem 在指定父节点下追加一个自定义节点。
-	const addItem = async (parentId = "0") => {
-		const node: PlanTreeNode = {
-			key: `tmp-${Date.now()}`,
-			title: "New section",
-			source: "custom",
-			item: { ...newPlanItem("custom"), parent_id: parentId },
-		};
-		const nextTree = parentId === "0" ? [...tree, node] : insertChild(tree, parentId, node);
-		setExpandedKeys((prev) => (parentId === "0" || prev.includes(parentId) ? prev : [...prev, parentId]));
-		setTree(nextTree);
-		await persist(nextTree);
-	};
-
-	// removeItem 删除节点及其子树。
-	const removeItem = async (key: string) => {
-		const nextTree = removeNode(tree, key);
-		setTree(nextTree);
-		await persist(nextTree);
-	};
-
-	const renameItem = async (key: string, title: string) => {
-		const nextTree = mapNode(tree, key, (node) => ({ ...node, title }));
-		setTree(nextTree);
-		await persist(nextTree);
-	};
-
-	const titleRender = (node: PlanTreeNode) => (
-		<span className="plan-tree-title">
-			<BranchesOutlined className="plan-tree-icon" />
-			<Input
-				size="small"
-				variant="borderless"
-				defaultValue={node.title}
-				className="plan-tree-title-input"
-				onBlur={(e) => {
-					const value = e.target.value.trim();
-					if (value && value !== node.title) {
-						void renameItem(node.key, value);
-					}
-				}}
-				onPressEnter={(e) => (e.target as HTMLInputElement).blur()}
+	if (!planId) {
+		return (
+			<Empty
+				image={Empty.PRESENTED_IMAGE_SIMPLE}
+				description={locale === "en_US" ? "No plan selected" : "未选择计划"}
 			/>
-			<span className="plan-tree-meta">{node.source}</span>
-			{node.sourceId ? <span className="plan-tree-meta">{node.sourceId}</span> : null}
-			<span className="plan-tree-actions" onClick={(e) => e.stopPropagation()}>
-				<Button type="text" size="small" icon={<PlusOutlined />} title="Add child" onClick={() => void addItem(node.key)} />
-				<Popconfirm title="Delete this item and its children?" onConfirm={() => void removeItem(node.key)}>
-					<Button type="text" size="small" danger icon={<DeleteOutlined />} />
-				</Popconfirm>
-			</span>
-		</span>
-	);
+		);
+	}
 
 	return (
 		<div className="plan-detail-panel">
 			<div className="plan-detail-header">
 				<span className="plan-detail-title">
-					{plan?.title ?? "Plan"}
-					{totalItems > 0 && <span className="plan-detail-count">{totalItems}</span>}
+					<BranchesOutlined />
+					{plan?.title || planId}
+					{rows.length > 0 && <span className="plan-detail-count">{rows.length}</span>}
 				</span>
 				<span className="plan-detail-actions">
-					<Button type="text" size="small" icon={<ReloadOutlined />} loading={saving} onClick={() => void load()} />
-					<Button type="text" size="small" icon={<PlusOutlined />} title="Add root item" onClick={() => void addItem("0")} />
+					{plan?.updated_at && (
+						<span className="plan-detail-time">{formatRelativeTime(plan.updated_at, locale)}</span>
+					)}
+					<Tooltip title={locale === "en_US" ? "Refresh" : "刷新"}>
+						<Button
+							type="text"
+							size="small"
+							icon={<ReloadOutlined />}
+							loading={loading}
+							onClick={() => void load()}
+						/>
+					</Tooltip>
 					{onClose ? (
-						<Button type="text" size="small" icon={<CloseOutlined />} title="Close" onClick={onClose} />
+						<Button
+							type="text"
+							size="small"
+							icon={<CloseOutlined />}
+							title={locale === "en_US" ? "Close" : "关闭"}
+							onClick={onClose}
+						/>
 					) : null}
 				</span>
 			</div>
+
 			{plan?.goal ? <div className="plan-detail-goal">{plan.goal}</div> : null}
-			{loading ? (
+
+			{loading && !plan ? (
 				<Spin size="small" />
-			) : tree.length === 0 ? (
-				<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No item" />
-			) : (
-				<Tree<PlanTreeNode>
-					draggable
-					blockNode
-					showLine
-					className="plan-tree"
-					treeData={tree}
-					expandedKeys={expandedKeys}
-					onExpand={(keys) => setExpandedKeys(keys.map(String))}
-					titleRender={titleRender}
-					onDrop={handleDrop}
+			) : rows.length === 0 ? (
+				<Empty
+					image={Empty.PRESENTED_IMAGE_SIMPLE}
+					description={
+						error
+							? locale === "en_US"
+								? "Failed to load plan"
+								: "计划加载失败"
+							: locale === "en_US"
+								? "No item"
+								: "暂无节点"
+					}
 				/>
+			) : (
+				<div className="plan-detail-tree">
+					{rows.map(({ item, depth }) => (
+						<div
+							key={item.id}
+							className="plan-detail-tree-row"
+							style={{ paddingInlineStart: 8 + depth * 18 }}
+						>
+							<span className="plan-detail-tree-title">{item.title}</span>
+							{item.source && item.source !== "custom" && item.source_id ? (
+								<Tag color="blue">{`${item.source}:${item.source_id}`}</Tag>
+							) : null}
+							{item.status ? <Tag>{item.status}</Tag> : null}
+						</div>
+					))}
+				</div>
 			)}
 		</div>
 	);
 };
 
-// insertChild 把 node 追加到 parentId 的子节点末尾。
-function insertChild(nodes: PlanTreeNode[], parentId: string, node: PlanTreeNode): PlanTreeNode[] {
-	return nodes.map((current) => {
-		if (current.key === parentId) {
-			return { ...current, isLeaf: false, children: [...(current.children ?? []), node] };
-		}
-		return current.children ? { ...current, children: insertChild(current.children, parentId, node) } : current;
+/** flattenPlanRows 把扁平节点列表按 parent_id 深度优先展开为「行 + 深度」。 */
+const flattenPlanRows = (items: PlanItem[]): { item: PlanItem; depth: number }[] => {
+	if (items.length === 0) {
+		return [];
+	}
+	const byParent = new Map<string, PlanItem[]>();
+	const ids = new Set(items.map((item) => item.id));
+	items.forEach((item) => {
+		// 指向不存在父节点的节点按根处理，避免数据错误导致节点丢失。
+		const parent = item.parent_id && ids.has(item.parent_id) ? item.parent_id : "0";
+		const bucket = byParent.get(parent) ?? [];
+		bucket.push(item);
+		byParent.set(parent, bucket);
 	});
-}
+	byParent.forEach((bucket) =>
+		bucket.sort((a, b) => a.sort_order - b.sort_order || a.id.localeCompare(b.id))
+	);
 
-// removeNode 摘除 key 节点及其子树。
-function removeNode(nodes: PlanTreeNode[], key: string): PlanTreeNode[] {
-	return nodes
-		.filter((node) => node.key !== key)
-		.map((node) =>
-			node.children ? { ...node, children: removeNode(node.children, key) } : node
-		);
-}
-
-// mapNode 对 key 对应节点做变换，返回新树。
-function mapNode(
-	nodes: PlanTreeNode[],
-	key: string,
-	transform: (node: PlanTreeNode) => PlanTreeNode
-): PlanTreeNode[] {
-	return nodes.map((node) => {
-		if (node.key === key) {
-			return transform(node);
-		}
-		return node.children ? { ...node, children: mapNode(node.children, key, transform) } : node;
-	});
-}
+	const rows: { item: PlanItem; depth: number }[] = [];
+	const push = (parentId: string, depth: number, visiting: Set<string>) => {
+		(byParent.get(parentId) ?? []).forEach((item) => {
+			if (visiting.has(item.id)) {
+				return; // 防御环引用
+			}
+			rows.push({ item, depth });
+			push(item.id, depth + 1, new Set(visiting).add(item.id));
+		});
+	};
+	push("0", 0, new Set());
+	return rows;
+};
 
 export default PlanDetailPanel;

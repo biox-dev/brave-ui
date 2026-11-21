@@ -3,8 +3,7 @@ import type { InferViewRegistryFromLoaders } from "@/core/component-registry/reg
 
 const viewLoaders = {
     projectReport: () => import("./project-report/project-report-list"),
-    // Agent 计划：左侧列表 + 选中后渲染到 leftMiddle 的节点树（可拖拽）。
-    planList: () => import("./plan/plan-list"),
+    // 计划只读渲染器：项目「计划」表格的展开行与会话页右侧「计划」分区共用。
     planDetail: () => import("./plan/plan-detail-panel"),
     projectLiterature: () => import("./literature/project-literature-list"),
     aiSummaryProject: () => import("./ai-summary/ai-summary-project-list"),

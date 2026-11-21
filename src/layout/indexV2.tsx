@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AppstoreOutlined, BranchesOutlined, DeploymentUnitOutlined, FileTextOutlined, SettingOutlined, CodeOutlined, CommentOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, DeploymentUnitOutlined, FileTextOutlined, SettingOutlined, CodeOutlined, CommentOutlined } from '@ant-design/icons';
 import { Dropdown, Layout, theme } from 'antd';
 import { Outlet, useNavigate } from 'react-router';
 import { useDispatch, useSelector } from 'react-redux';
@@ -28,10 +28,10 @@ const LeftMiddlePaneView = ViewResolver as unknown as React.FC<{
   [key: string]: unknown;
 }>;
 
-type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'analysisScriptStack' | 'analysisWorkflowStack' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'projectReportLiteratureStack' | 'planList' | 'assayProjectPage' | 'agentSessionStack' | 'containerTemplateList' | 'containerTemplateStack';
+type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analysisNodeList' | 'analysisScriptStack' | 'analysisWorkflowStack' | 'sysFileBrowser' | 'projectReport' | 'projectLiterature' | 'projectReportLiteratureStack' | 'assayProjectPage' | 'agentSessionStack' | 'containerTemplateList' | 'containerTemplateStack';
 
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
-  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'analysisScriptStack' || key === 'analysisWorkflowStack' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'projectReportLiteratureStack' || key === 'planList' || key === 'assayProjectPage' || key === 'agentSessionStack' || key === 'containerTemplateList' || key === 'containerTemplateStack';
+  key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'analysisScriptStack' || key === 'analysisWorkflowStack' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'projectReportLiteratureStack' || key === 'assayProjectPage' || key === 'agentSessionStack' || key === 'containerTemplateList' || key === 'containerTemplateStack';
 
 // 旧版活动栏 key 与合并后视图的映射：datasetFilePage / analysisNodeFilePage 已合并为 projectFilePage，
 // analysisNodeList / scriptPage 已合并为上下堆叠的 analysisScriptStack，
@@ -115,12 +115,6 @@ const App: React.FC = () => {
         key: 'projectReportLiteratureStack',
         label: locale === 'en_US' ? 'Reports & Literature' : '报告与文献',
         icon: <FileTextOutlined />,
-      },
-      // Agent 计划：项目下的计划列表，选中后节点树渲染到 leftMiddle。
-      {
-        key: 'planList',
-        label: locale === 'en_US' ? 'Plans' : '计划',
-        icon: <BranchesOutlined />,
       },
       // {
       //   key: 'sysFileBrowser',

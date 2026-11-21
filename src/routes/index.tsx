@@ -98,6 +98,8 @@ const AgentSessionPage = lazy(() => import("@/pages/agent/agent-session-page"))
 const AgentPermissionPage = lazy(() => import("@/pages/agent/agent-permission-page"))
 const AgentSkillPage = lazy(() => import("@/pages/agent/agent-skill-page"))
 const AgentToolPage = lazy(() => import("@/pages/agent/agent-tool-page"))
+// 项目「计划」只读表格：展开一行渲染计划节点树（PlanDetailPanel）。
+const PlanTablePage = lazy(() => import("@/pages/agent/plan-table-page"))
 const AgentProfilePage = lazy(() => import("@/pages/agent/agent-profile-page"))
 const AgentMemoryPage = lazy(() => import("@/pages/agent/agent-memory-page"))
 const ConfigPage = lazy(() => import("@/pages/config"))
