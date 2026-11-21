@@ -58,7 +58,8 @@ const Components = lazy(() => import('@/pages/components-relation/components'));
 const PipelineComponentsCard = lazy(() => import('@/components/pipeline-components-card'));
 const SoftwareAnalysisEditor = lazy(() => import('@/pages/software-analysis-editor'));
 const AnalysisReport = lazy(() => import('@/pages/page-route/analsyis-report'));
-const ReportWriting = lazy(() => import('@/pages/page-route/report-writing'));
+const ReportWriting = lazy(() => import('@/pages/page-route/report-writing'))
+const PlanPage = lazy(() => import('@/pages/page-route/plan'))
 const ReportFile = lazy(() => import('@/pages/page-route/report-file'));
 const LiteratureWriting = lazy(() => import('@/pages/page-route/literature-writing'));
 const AnalysisNodeReport = lazy(() => import('@/pages/page-route/analysis-node-report'));
@@ -210,17 +211,13 @@ if (appType == "index") {
         },{
             path: "/report/:project-report-id",
             element: <ReportWriting />        },{
-            // 报告条目详情（二级路由）：路径里带上所属报告 id，
-            // 刷新 / 分享时左侧栏能据此恢复「报告 + 条目」两栏布局。
-            path: "/report/:project-report-id/item/:item-id",
-            element: <ReportWriting />
-        },{
+            // 报告正文文件编辑页（output.md）。
             path: "/report-file/:report-id",
             element: <ReportFile />
         },{
-            // 兼容旧链接（无报告 id）：从报告条目面板新打开的链接使用上面的二级路由。
-            path: "/report-item/:item-id",
-            element: <ReportWriting />
+            // Agent 计划：左侧「计划」面板选中后的深链，刷新后左侧栏据此恢复计划详情。
+            path: "/plan/:plan-id",
+            element: <PlanPage />
         },{
             path: "/literature-writing/:literature-id",
             element: <LiteratureWriting />        },

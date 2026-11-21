@@ -1,24 +1,18 @@
 import { FC, useEffect, useState } from "react";
-import { Button, Dropdown, Flex, Segmented, Skeleton, Spin, Tag, Tooltip } from "antd";
+import { Button, Flex, Segmented, Skeleton, Spin, Tag, Tooltip } from "antd";
 import {
-  ArrowLeftOutlined,
-  DownloadOutlined,
-  ExportOutlined,
   FilePdfOutlined,
-  FileTextOutlined,
-  FolderOpenOutlined,
   ReloadOutlined,
   RobotOutlined,
   SaveOutlined,
 } from "@ant-design/icons";
-import { useNavigate, useParams } from "react-router";
+import { useParams } from "react-router";
 import { useSelector } from "react-redux";
 import ComponentsDetailsRender from "@/core/ui-renderer/ViewResolver";
 import {
   getProjectReportDetailApi,
   getProjectReportFileApi,
   getProjectReportFileHtmlApi,
-  packageProjectReportItemApi,
   updateProjectReportFileApi,
   type ProjectReportDetail,
 } from "@/api/project";
@@ -26,7 +20,6 @@ import ProjectReportGitActions from "@/components/project-report-git/project-rep
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useInsertAgentRef } from "@/hooks/useInsertAgentRef";
 import PanelLayout from "@/components/common/panel-layout";
-import { LLMEnvType, setLLMEnv } from "@/utils/llm-env";
 import { printHtmlDocument } from "@/utils/print-html";
 
 type ReportFileView = "view" | "update";
@@ -36,7 +29,6 @@ type ReportFileView = "view" | "update";
 // 报告目录同时纳入 git 版本管理（首次保存自动 init，见后端 UpdateProjectReportFile），
 // 右上角复用 ProjectReportGitActions 提供「查看变化 / 提交 / 撤回修改」。
 const ReportFile: FC<any> = () => {
-  const navigate = useNavigate();
   const message = useGlobalMessage();
   // 把本报告的 @report:<id> 引用 chip 插进 Agent 输入框（面板未打开时会自动切过去）。
   const insertAgentRef = useInsertAgentRef();
@@ -50,8 +42,6 @@ const ReportFile: FC<any> = () => {
   const [saving, setSaving] = useState(false);
   // 导出 PDF：复用 HTML 导出能力（内嵌图片）后送入浏览器打印流程。
   const [pdfExporting, setPdfExporting] = useState(false);
-  // 导出菜单里的「Package Project」正在打包报告条目。
-  const [packaging, setPackaging] = useState(false);
   const [report, setReport] = useState<ProjectReportDetail>();
   // content 是已保存的内容（用于查看视图），draft 是编辑器中的草稿。
   const [content, setContent] = useState("");
@@ -126,42 +116,12 @@ const ReportFile: FC<any> = () => {
     }
   };
 
-  // handleExportAction 处理导出菜单：Package Project 调用后端打包接口。
-  // Generate Html / Download 的功能稍后实现。
-  const handleExportAction = async (key: string) => {
-    if (key !== "package-project") {
-      message.info(`${key === "generate-html" ? "Generate Html" : "Download"} is not implemented yet`);
-      return;
-    }
-
-    if (!reportId) {
-      message.warning("No report loaded");
-      return;
-    }
-
-    setPackaging(true);
-    try {
-      const resp = await packageProjectReportItemApi(reportId);
-      const resultsDir = resp.data?.results_dir?.trim();
-      if (!resultsDir) {
-        message.warning("Package directory is empty");
-        return;
-      }
-      message.success(`Packaged to ${resultsDir}`);
-    } catch {
-      // Error is surfaced globally by the http client interceptor.
-    } finally {
-      setPackaging(false);
-    }
-  };
-
   return (
     <PanelLayout
       className="report-file-page page-flat"
       bodyStyle={{ padding: 12 }}
       title={
         <Flex align="center" gap="small">
-          {/* <Button size="small" type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} /> */}
           <Tooltip title={report?.id}>
              <span>{report?.title || "Report File"}</span>
           </Tooltip>
@@ -211,23 +171,6 @@ const ReportFile: FC<any> = () => {
               { label: "更新", value: "update" },
             ]}
           />
-          {/* 导出：鼠标悬停显示 Package Project / Generate Html / Download；后两项功能稍后实现。 */}
-          <Dropdown
-            trigger={["hover"]}
-            placement="bottomRight"
-            menu={{
-              items: [
-                { key: "package-project", label: "Package Project", icon: <FolderOpenOutlined /> },
-                { key: "generate-html", label: "Generate Html", icon: <FileTextOutlined /> },
-                { key: "download", label: "Download", icon: <DownloadOutlined /> },
-              ],
-              onClick: ({ key }) => void handleExportAction(key),
-            }}
-          >
-            <Button size="small" icon={<ExportOutlined />} loading={packaging} disabled={!reportId}>
-              Export
-            </Button>
-          </Dropdown>
           {/* 导出报告文件（output.md）为 PDF：后端渲染自包含 HTML 后走浏览器打印。 */}
           <Button
             size="small"

@@ -65,10 +65,12 @@ export interface ActivateProjectResponse {
 	message: string;
 }
 
-// ProjectReport 是报告容器，只承载标题等元信息；正文由其下的 ProjectReportItem 拼接而成。
+// ProjectReport 是报告容器：元信息 + 正文文件 output.md；plan_id 指向撰写依据的计划。
 export interface ProjectReport {
 	id: string;
 	project_id: string;
+	/** 报告撰写依据的 agent 计划 ID（空表示未绑定计划）。 */
+	plan_id?: string;
 	title: string;
 	created_at: string;
 	updated_at: string;
@@ -77,87 +79,20 @@ export interface ProjectReport {
 // ProjectReportDetail 目前与 ProjectReport 字段一致，保留别名方便后续扩展。
 export type ProjectReportDetail = ProjectReport;
 
-// ProjectReportItemOwnerType 标识条目内容来源类型。custom 为自定义内容/章节占位条目。
-export type ProjectReportItemOwnerType = "analysis" | "analysis_node" | "ai_summary" | "custom";
-
-// ProjectReportItem 是报告下的一个内容条目。
-export interface ProjectReportItem {
-	id: string;
-	project_report_id: string;
-	parent_id: string;
-	owner_type: ProjectReportItemOwnerType;
-	owner_id: string;
-	sort_order: number;
-	title: string;
-	content: string;
-	created_at: string;
-	updated_at: string;
-}
-
-// ProjectReportItemNode 是列表接口返回的树节点，携带同层子节点。
-export interface ProjectReportItemNode extends ProjectReportItem {
-	children?: ProjectReportItemNode[];
-}
-
 export interface AddProjectReportRequest {
 	title: string;
+	/** 可选：按该计划撰写报告。 */
+	plan_id?: string;
 }
 
 export interface UpdateProjectReportRequest {
 	id: string;
 	title: string;
+	plan_id?: string;
 }
 
 export interface DeleteProjectReportRequest {
 	id: string;
-}
-
-export interface AddProjectReportItemRequest {
-	project_report_id: string;
-	parent_id?: string;
-	owner_type: ProjectReportItemOwnerType;
-	owner_id?: string;
-	sort_order?: number;
-	title?: string;
-	content?: string;
-}
-
-export interface UpdateProjectReportItemRequest {
-	id: string;
-	parent_id?: string;
-	owner_type?: ProjectReportItemOwnerType;
-	owner_id?: string;
-	sort_order?: number;
-	title?: string;
-	content?: string;
-}
-
-// ReorderProjectReportItemEntry 描述拖拽后单个条目的目标位置。
-export interface ReorderProjectReportItemEntry {
-	id: string;
-	parent_id: string;
-	sort_order: number;
-}
-
-export interface ReorderProjectReportItemRequest {
-	report_id: string;
-	items: ReorderProjectReportItemEntry[];
-}
-
-export interface DeleteProjectReportItemRequest {
-	id: string;
-}
-
-export interface ProjectReportContentResponse {
-	title: string;
-	content: string;
-}
-
-export interface ProjectReportItemContentResponse {
-	title: string;
-	prefix: string;
-	content: string;
-	owner_type?: ProjectReportItemOwnerType;
 }
 
 // ProjectReportFileResponse 是报告自身文件（工作目录下的 output.md）的内容。
@@ -165,6 +100,45 @@ export interface ProjectReportFileResponse {
 	report_id: string;
 	filename: string;
 	content: string;
+}
+
+// PlanSource 标识计划节点的内容来源类型（与后端 agenttypes.PlanSource 一致）。
+// 计划节点只保存 source + source_id，不保存资源详情；详情由 agent 按 ID 查询。
+export type PlanSource = "custom" | "analysis" | "analysis_node" | "script" | "workflow";
+
+// PlanItem 是计划中的一个节点（可嵌套，用 parent_id / sort_order 组织）。
+export interface PlanItem {
+        id: string;
+        parent_id: string;
+        title: string;
+        summary?: string;
+        source: PlanSource;
+        source_id: string;
+        sort_order: number;
+        status?: string;
+}
+
+// AgentPlan 是 agent 的计划：一组按树组织的步骤，节点可引用会话资源 ID。
+export interface AgentPlan {
+        id: string;
+        project_id: string;
+        session_id?: string;
+        title: string;
+        goal: string;
+        items: PlanItem[];
+        created_at: string;
+        updated_at: string;
+}
+
+export interface SavePlanRequest {
+        id?: string;
+        title: string;
+        goal?: string;
+        items: PlanItem[];
+}
+
+export interface DeletePlanRequest {
+        id: string;
 }
 
 // ProjectReportGitState 是报告工作目录的本地 git 状态（与后端 utils.ReportWorktreeGitState 一一对应）。
@@ -258,8 +232,6 @@ export const deleteProjectReportApi = (payload: DeleteProjectReportRequest) => h
 export const listProjectReportApi = () => http.get<ProjectReport[]>(`/project/list-project-report`)
 export const pageProjectReportApi = (payload: ProjectReportPageRequest) => http.post<PageResponse<ProjectReport>>("/project/list-project-report-page", payload)
 export const getProjectReportDetailApi = (id: string) => http.get<ProjectReportDetail>(`/project/project-report-detail?id=${encodeURIComponent(id)}`)
-export const getProjectReportContentApi = (reportId: string) =>
-	http.get<ProjectReportContentResponse>(`/project/project-report-content?report_id=${encodeURIComponent(reportId)}`)
 
 // getProjectReportFileApi 读取报告工作目录下的自身 markdown 文件（output.md）。
 export const getProjectReportFileApi = (reportId: string) =>
@@ -313,27 +285,16 @@ export const getProjectReportFileHtmlApi = (reportId: string, inlineImages = tru
 		responseType: "text",
 	})
 
-export const listProjectReportItemApi = (reportId: string) =>
-	http.get<ProjectReportItemNode[]>(`/project/list-project-report-item?report_id=${encodeURIComponent(reportId)}`)
-export const addProjectReportItemApi = (payload: AddProjectReportItemRequest) => http.post<ProjectReportItem>("/project/add-project-report-item", payload)
-export const updateProjectReportItemApi = (payload: UpdateProjectReportItemRequest) => http.post<{ message: string }>("/project/update-project-report-item", payload)
-export const reorderProjectReportItemApi = (payload: ReorderProjectReportItemRequest) => http.post<{ message: string }>("/project/reorder-project-report-item", payload)
-export const deleteProjectReportItemApi = (payload: DeleteProjectReportItemRequest) => http.post<{ message: string }>("/project/delete-project-report-item", payload)
-export const getProjectReportItemDetailApi = (id: string) =>
-	http.get<ProjectReportItem>(`/project/project-report-item-detail?id=${encodeURIComponent(id)}`)
-export const getProjectReportItemContentApi = (id: string) =>
-	http.get<ProjectReportItemContentResponse>(`/project/project-report-item-content?id=${encodeURIComponent(id)}`)
+// ---------- Agent plan (计划) ----------
 
-// ProjectReportPackageResponse 是 `GET /project/package-project-report-item` 的响应。
-export interface ProjectReportPackageResponse {
-	message: string
-	/** 打包结果目录（绝对路径）。 */
-	results_dir: string
-}
+export const listPlanApi = () => http.get<AgentPlan[]>("/project/list-plan")
+export const getPlanDetailApi = (id: string) =>
+        http.get<AgentPlan>(`/project/plan-detail?id=${encodeURIComponent(id)}`)
+export const savePlanApi = (payload: SavePlanRequest) =>
+        http.post<AgentPlan>("/project/save-plan", payload)
+export const deletePlanApi = (payload: DeletePlanRequest) =>
+        http.post<{ message: string; id: string }>("/project/delete-plan", payload)
 
-// packageProjectReportItemApi 按报告条目树把内容打包到报告目录的 results 子目录。
-export const packageProjectReportItemApi = (reportId: string) =>
-	http.get<ProjectReportPackageResponse>(`/project/package-project-report-item?report_id=${encodeURIComponent(reportId)}`)
 export const uploadProjectReportImageApi = (file: File) => {
 	const formData = new FormData()
 	formData.append("file", file, file.name || "clipboard-image.png")
@@ -344,11 +305,7 @@ export const uploadProjectReportImageApi = (file: File) => {
 	})
 }
 
-// publishProjectReportItemToDocApi 按 ProjectReportItem 的 OwnerID 将内容发布到报告文档目录。
-export const publishProjectReportItemToDocApi = (itemId: string) =>
-	http.post<{ message: string }>(`/project-report-item/${encodeURIComponent(itemId)}/publish-to-doc`)
-
-// publishProjectReportToDocApi 遍历报告下所有条目，逐个发布到报告文档目录。
+// publishProjectReportToDocApi 把报告正文（output.md）发布到报告文档目录。
 export const publishProjectReportToDocApi = (reportId: string) =>
 	http.post<{ message: string }>(`/project-report/${encodeURIComponent(reportId)}/publish-to-doc`)
 
