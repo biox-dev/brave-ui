@@ -37,6 +37,23 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
+/**
+ * 把「对象或 JSON 字符串」统一转成对象。
+ *
+ * 工具调用的 arguments 可能是已解析的对象，也可能是后端直接透传的 JSON 字符串
+ * （native 路径的 Arguments 就是模型的原始参数串）。
+ */
+function asJsonRecord(value: unknown): Record<string, unknown> | null {
+  if (typeof value === "string") {
+    try {
+      return asRecord(JSON.parse(value));
+    } catch {
+      return null;
+    }
+  }
+  return asRecord(value);
+}
+
 function pretty(value: unknown): string {
   if (value === undefined || value === null) return "";
   if (typeof value === "string") return value;
@@ -133,6 +150,7 @@ const PANEL_BODY_STYLE: CSSProperties = {
 function CollapsibleBubble({
   label,
   name,
+  hint,
   content,
   tone,
   isError = false,
@@ -140,6 +158,8 @@ function CollapsibleBubble({
 }: {
   label: string;
   name: string;
+  /** 标题右侧的补充说明（如工具调用目的），缺省不记。 */
+  hint?: string;
   content: string;
   tone: Tone;
   isError?: boolean;
@@ -170,6 +190,11 @@ function CollapsibleBubble({
         <Text style={{ flex: 1, minWidth: 0, fontSize: 13 }} ellipsis>
           {name}
         </Text>
+        {hint && (
+          <Text type="secondary" style={{ flex: 1, minWidth: 0, fontSize: 12 }} ellipsis>
+            {hint}
+          </Text>
+        )}
         {collapsible && (
           <Text type="secondary" style={{ fontSize: 11 }}>
             {open ? "收起" : "展开"}
@@ -220,10 +245,14 @@ export function renderAssistantMessage(message: AgentRenderableMessage): ReactNo
 
   if (kind === "tool_call" || kind === "skill_call") {
     const data = asRecord(message.data);
+    // purpose 由模型按 schema 约定附在工具入参中（见后端 withPurposeProperty），
+    // 仅用于展示：这里直接从 arguments 取，缺失时不渲染。
+    const args = asJsonRecord(data?.arguments);
     return (
       <CollapsibleBubble
         label={kind === "tool_call" ? "Tool Call" : "Skill Call"}
         name={typeof data?.name === "string" ? data.name : kind}
+        hint={typeof args?.purpose === "string" ? args.purpose : undefined}
         content={pretty(data?.arguments)}
         tone="call"
       />
