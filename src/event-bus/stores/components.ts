@@ -24,6 +24,9 @@ const MULTI_INSTANCE_CATEGORIES = new Set<string>([
     // 会话资源面板：右侧多个分区（脚本/工作流/分析节点…）各自注册，
     // 后端新增关联时一次推送要让所有分区一起刷新。
     "agent-session-resource",
+    // 计划进度：同一个计划可能同时在表格展开行 / 右侧工作区标签里展示，
+    // 后端上报状态后所有实例都要刷新。
+    "agent-plan-progress",
 ]);
 
 const isMultiCategory = (category: string) => MULTI_INSTANCE_CATEGORIES.has(category);
@@ -41,6 +44,7 @@ export type ComponentStore = {
     "container-queue": Record<string, Set<any> | any>;
     "runtime-status": Record<string, Set<any> | any>;
     "agent-session-resource": Record<string, Set<any> | any>;
+    "agent-plan-progress": Record<string, Set<any> | any>;
     "analysis-node": Record<string, any>;
     "ai-summary": Record<string, any>;
     graph: Record<string, any>; 
@@ -65,6 +69,7 @@ export const useComponentStore = create<ComponentStore>((set, get) => ({
     "container-queue": {},
     "runtime-status": {},
     "agent-session-resource": {},
+    "agent-plan-progress": {},
     "analysis-node": {},
     "ai-summary": {},
     graph: {},
