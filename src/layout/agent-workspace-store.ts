@@ -81,8 +81,28 @@ export const openAgentWorkspaceTab = (
   });
 };
 
-/** 关闭标签：关闭当前标签时切到右侧邻居，否则切到左侧，全部关闭则为空。 */
-export const closeAgentWorkspaceTab = (
+/**
+ * 原地更新一个已打开标签的内容，但不改变激活状态。
+ *
+ * 用于「标签已在后台打开、内容随后到达」的场景（如工具调用详情：先打开时还在执行，
+ * 结果到达后需要刷新内容）。标签不存在时不做任何事 —— 需要打开请用 openAgentWorkspaceTab。
+ */
+export const updateAgentWorkspaceTab = (
+  sessionId: string | undefined,
+  tab: AgentWorkspaceTab,
+) => {
+  updateSession(sessionId, (current) => {
+    if (!current.tabs.some((item) => item.key === tab.key)) {
+      return current;
+    }
+    return {
+      ...current,
+      tabs: current.tabs.map((item) => (item.key === tab.key ? { ...item, ...tab } : item)),
+    };
+  });
+};
+
+/** 关闭标签：关闭当前标签时切到右侧邻居，否则切到左侧，全部关闭则为空。 */export const closeAgentWorkspaceTab = (
   sessionId: string | undefined,
   tabKey: string,
 ) => {

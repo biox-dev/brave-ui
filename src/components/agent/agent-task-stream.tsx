@@ -23,7 +23,7 @@ import {
 } from "@/api/agent";
 import { getGlobalMessage } from "@/hooks/useGlobalMessage";
 import { sseClient } from "@/sse";
-import { renderAssistantMessage } from "./agent-message-render";
+import { renderAssistantMessages } from "./agent-message-render";
 
 const { Text } = Typography;
 
@@ -100,6 +100,13 @@ interface AgentTaskStreamProps {
   coveredIds?: ReadonlySet<string>;
   /** 时间线回填完成（或失败）后回调，父组件据此驱动滚动 / 状态。 */
   onLoaded?: () => void;
+  /**
+   * 所属会话 ID。
+   *
+   * 点击时间线里的 Tool Call 行会在该会话的右侧工作区（MainTabs）打开详情标签；
+   * 缺省时回填期间从任务记录（`session_id`）补全，独立使用时也能工作。
+   */
+  sessionId?: string;
 }
 
 const renderOperation = (op?: AgentOperation | null) => {
@@ -143,11 +150,15 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({
   seenRef: externalSeenRef,
   coveredIds,
   onLoaded,
+  sessionId,
 }) => {
   const embedded = !!scrollContainerRef;
   const [messages, setMessages] = useState<StreamMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<string>("created");
+  // 标签页归属的会话：优先用外部传入，缺省时由任务记录回填（见 backfill 里的 getAgentTaskApi）。
+  const [resolvedSessionId, setResolvedSessionId] = useState<string | undefined>(sessionId);
+  const effectiveSessionId = sessionId ?? resolvedSessionId;
 
   // const [pendingPermissions, setPendingPermissions] = useState<AgentPermissionItem[]>([]);
   const [resolvingId, setResolvingId] = useState<string>();
@@ -411,6 +422,10 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({
         // 若请求期间已经收到更高优先级的实时状态事件（如终态），不要用旧快照回退。
         const task = await getAgentTaskApi(taskId);
         if (cancelled) return;
+        // 没传 sessionId 时用它补全：点击时间线里的 Tool Call 需要会话 ID 才能开标签。
+        if (!sessionId && task.data?.session_id) {
+          setResolvedSessionId(task.data.session_id);
+        }
         const fromTask = statusFromTask(task.data?.status);
         setStatus((prev) => (STATUS_RANK[prev] > STATUS_RANK[fromTask] ? prev : fromTask));
       } catch {
@@ -556,16 +571,13 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({
             )
           ) : (
             <Flex vertical gap={8}>
-              {messages.map((m) => (
-                <Flex key={m.key} align="flex-start" gap={8}>
+              {renderAssistantMessages(messages, {
+                conversationId: effectiveSessionId,
+                keys: messages.map((m) => m.key),
+              }).map((node, index) => (
+                <Flex key={messages[index].key} align="flex-start" gap={8}>
                   <RobotOutlined style={{ color: "#1677ff", marginTop: 4 }} />
-                  {renderAssistantMessage({
-                    kind: m.kind,
-                    content: m.content,
-                    data: m.data,
-                    error: m.error,
-                    streaming: m.streaming,
-                  })}
+                  {node}
                 </Flex>
               ))}
             </Flex>

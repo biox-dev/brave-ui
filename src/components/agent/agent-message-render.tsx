@@ -1,8 +1,13 @@
-import { CSSProperties, ReactNode, useState } from "react";
+import { CSSProperties, Fragment, ReactNode, useEffect } from "react";
 import { Tag, Typography } from "antd";
-import { CaretRightOutlined } from "@ant-design/icons";
+import { LoadingOutlined, RightOutlined } from "@ant-design/icons";
 import XMarkdown from "@ant-design/x-markdown";
-import UnifiedDiff from "@/components/common/unified-diff";
+import {
+  openAgentWorkspaceTab,
+  sessionWorkspaceKey,
+  updateAgentWorkspaceTab,
+  useAgentWorkspaceStore,
+} from "@/layout/agent-workspace-store";
 
 const { Text } = Typography;
 
@@ -25,14 +30,7 @@ const TONES = {
 
 type Tone = keyof typeof TONES;
 
-const PRE_STYLE: CSSProperties = {
-  marginTop: 6,
-  fontSize: 12,
-  whiteSpace: "pre-wrap",
-  wordBreak: "break-all",
-};
-
-function asRecord(value: unknown): Record<string, unknown> | null {
+export function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object") return null;
   return value as Record<string, unknown>;
 }
@@ -54,48 +52,8 @@ function asJsonRecord(value: unknown): Record<string, unknown> | null {
   return asRecord(value);
 }
 
-function pretty(value: unknown): string {
-  if (value === undefined || value === null) return "";
-  if (typeof value === "string") return value;
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-}
-
 /**
  * opencode 的 edit / write 工具会把 diff 放进工具结果的 metadata 里
- * （`EditResponseMetadata` / `WriteResponseMetadata` 序列化后的 JSON 字符串）。
- * 后端 custom provider 已原样透传，前端只需解析展示。
- */
-interface ToolDiffMetadata {
-  diff: string;
-  additions?: number;
-  removals?: number;
-}
-
-function parseToolDiff(metadata: unknown): ToolDiffMetadata | null {
-  if (typeof metadata !== "string" || metadata.trim() === "") return null;
-  try {
-    const parsed = JSON.parse(metadata) as Record<string, unknown>;
-    if (typeof parsed.diff !== "string" || parsed.diff === "") return null;
-    return {
-      diff: parsed.diff,
-      additions: typeof parsed.additions === "number" ? parsed.additions : undefined,
-      removals: typeof parsed.removals === "number" ? parsed.removals : undefined,
-    };
-  } catch {
-    // metadata 不是 JSON（如原生工具），退化为纯文本展示。
-    return null;
-  }
-}
-
-function formatDiffStat(meta: ToolDiffMetadata): string {
-  if (meta.additions === undefined && meta.removals === undefined) return "";
-  return `+${meta.additions ?? 0} -${meta.removals ?? 0}`;
-}
-
 /** 统一的气泡容器，避免各分支重复内联样式。 */
 function Bubble({
   tone = "default",
@@ -123,7 +81,7 @@ function Bubble({
   );
 }
 
-/** 折叠面板的头部/正文样式，供工具调用与工具结果复用。 */
+/** 折叠面板的头部样式（工具调用行复用）。 */
 const PANEL_HEADER_STYLE: CSSProperties = {
   display: "flex",
   alignItems: "center",
@@ -135,94 +93,197 @@ const PANEL_HEADER_STYLE: CSSProperties = {
   textAlign: "left",
 };
 
-const PANEL_BODY_STYLE: CSSProperties = {
-  ...PRE_STYLE,
-  padding: "6px 8px",
-  maxHeight: 320,
-  overflow: "auto",
-  background: "#ffffff",
-  border: "1px solid #f0f0f0",
-  borderRadius: 6,
-  fontFamily: "monospace",
+/**
+ * 工具调用行渲染时需要的上下文（由聊天组件透传）。
+ *
+ * 聊天里只显示「Tool Call + 工具名 + 目的」，详情（入参 / 输出）放进右侧工作区标签页，
+ * 因此这里需要 `conversationId` 作为该标签所属的会话（标签按会话隔离）。
+ */
+export interface AgentToolRenderContext {
+  /** 当前会话 ID；缺失时点击只展开内联详情，不打开标签页（如 New Chat）。 */
+  conversationId?: string;
+  /**
+   * 已经配对的工具结果（历史里 tool_result 与 tool_call 是两条消息，由调用方合并）。
+   * 提供时 Tool Call 行据此显示「已完成 + 输出」，否则视为仍在执行。
+   */
+  result?: {
+    content?: string;
+    is_error?: boolean;
+    metadata?: unknown;
+  };
+}
+
+type CallView = {
+  /** 工具名。 */
+  name: string;
+  /** 调用 id（后端 toolCallId）：多个调用同名时用它区分标签页。 */
+  callId?: string;
+  /** 模型给的入参（对象或 JSON 字符串，原样透传）。 */
+  arguments: unknown;
+  /** 入参里的 purpose（后端按 schema 约定注入），仅用于展示。 */
+  purpose?: string;
+  /** 工具输出正文（`tool_result` 的 content）。 */
+  output?: string;
+  /** 结果是否错误。 */
+  isError?: boolean;
+  /** 结果 metadata（edit / write 的 diff 在这里）。 */
+  metadata?: unknown;
+  /** 是否有结果（已经执行完）；false 表示仍在执行。 */
+  hasResult: boolean;
 };
 
-/** 工具/技能调用与结果：默认折叠为单行摘要，点击标题展开全文。 */
-function CollapsibleBubble({
+/** 每个调用一个标签页：key 用 tool_call_id（缺省退化为工具名）。 */
+const toolCallTabKey = (view: CallView) => `tool-call:${view.callId || view.name}`;
+
+/**
+ * 标签显示名：优先用 purpose，没有时回退到工具名。
+ *
+ * purpose 是模型按 schema 约定的「这次调用要做什么」，比工具名更有区分度；
+ * 同一工具多次调用时，多行标签靠 key（call id）区分而不是标题。
+ */
+const toolCallTabTitle = (view: CallView) => view.purpose?.trim() || view.name;
+
+/** 打开 / 更新详情标签：同一调用始终复用同一个标签 key。 */
+const openToolCallTab = (conversationId: string | undefined, view: CallView) => {
+  if (!conversationId) return;
+  const key = toolCallTabKey(view);
+  const title = toolCallTabTitle(view);
+  const params = {
+    name: view.name,
+    input: view.arguments,
+    output: view.output,
+    isError: view.isError,
+    metadata: view.metadata,
+    executing: !view.hasResult,
+    purpose: view.purpose,
+  };
+
+  // 已打开且内容没变时不做任何写入（幂等）。
+  //
+  // 最关键的是 executing / output / isError：调用行在每次消息列表渲染时都会同步，
+  // 若内容相同仍然写 store，就会「写 store → 重渲染 → 再同步」无限循环
+  // （Maximum update depth exceeded）。input 按引用比较（message.data 引用稳定）。
+  const session = useAgentWorkspaceStore.getState().bySession[sessionWorkspaceKey(conversationId)];
+  const existing = session?.tabs.find((tab) => tab.key === key);
+  if (existing) {
+    const prev = existing.params ?? {};
+    if (
+      existing.title === title &&
+      prev.input === params.input &&
+      prev.output === params.output &&
+      prev.isError === params.isError &&
+      prev.executing === params.executing &&
+      prev.metadata === params.metadata &&
+      prev.purpose === params.purpose
+    ) {
+      return;
+    }
+    // 内容有变化：原地更新标签内容，但不抢焦点（用户可能正在看别的标签）。
+    updateAgentWorkspaceTab(conversationId, { key, title, view: "agentToolCallDetail", params });
+    return;
+  }
+
+  openAgentWorkspaceTab(conversationId, {
+    key,
+    title,
+    view: "agentToolCallDetail",
+    params,
+  });
+};
+
+/**
+ * Tool Call 行：只显示「工具名 + 目的」，不显示结果正文。
+ *
+ * - 点击：在右侧工作区（MainTabs）打开该调用的详情（上 Input / 下 Output）；
+ * - 执行中：名称右侧显示 Executing...，结果到达后只会更新标签内容；
+ * - 历史里没有结果（例如权限被拒绝 / 任务失败）时，详情里 Output 显示 No output。
+ */
+function ToolCallRow({
+  view,
+  conversationId,
   label,
-  name,
-  hint,
-  content,
-  tone,
-  isError = false,
-  body,
 }: {
+  view: CallView;
+  conversationId?: string;
   label: string;
-  name: string;
-  /** 标题右侧的补充说明（如工具调用目的），缺省不记。 */
-  hint?: string;
-  content: string;
-  tone: Tone;
-  isError?: boolean;
-  /** 展开时渲染的自定义正文；缺省时回退为 content 纯文本。 */
-  body?: ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
-  const collapsible = content.length > 0 || !!body;
-  const accent = isError ? "#ff4d4f" : "#8c8c8c";
+  const { name, callId, purpose, hasResult, isError } = view;
+  const accent = !hasResult ? "#1677ff" : isError ? "#ff4d4f" : "#8c8c8c";
+  const canOpen = !!conversationId;
+
+  // 「先点击、后出结果」：标签打开时还是 Executing...，结果到达后调用行会重渲染，
+  // 这里把最新结果回填到已打开的标签，避免用户停留在过期的 Executing... 状态。
+  //
+  // 只有标签已经打开时才同步（避免用户没点也弹标签）；openToolCallTab 本身幂等，
+  // 内容没变不会写 store，因此不会出现「setState → 重渲染 → effect」的无限循环。
+  // 依赖只用原始值：view 每次渲染都是新对象，放进依赖会反复触发。
+  useEffect(() => {
+    if (!conversationId) return;
+    const isOpen = useAgentWorkspaceStore
+      .getState()
+      .bySession[sessionWorkspaceKey(conversationId)]
+      ?.tabs.some((tab) => tab.key === toolCallTabKey(view));
+    if (!isOpen) return;
+    openToolCallTab(conversationId, view);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId, callId, name, hasResult, view.output, view.isError, view.metadata, purpose]);
 
   return (
     <Bubble
-      tone={tone}
-      // 固定宽度：折叠/展开保持一致；minWidth 0 防止 nowrap 预览把 flex 项撑大。
+      tone={hasResult && isError ? "error" : "call"}
       style={{ width: "78%", minWidth: 0, boxSizing: "border-box" }}
     >
       <button
         type="button"
-        onClick={() => collapsible && setOpen((v) => !v)}
-        style={{ ...PANEL_HEADER_STYLE, cursor: collapsible ? "pointer" : "default" }}
+        title={canOpen ? "Open tool call details" : undefined}
+        // 没有会话 ID（如 New Chat）时无法为该会话开标签，行不可点击。
+        onClick={() => canOpen && openToolCallTab(conversationId, view)}
+        style={{
+          ...PANEL_HEADER_STYLE,
+          cursor: canOpen ? "pointer" : "default",
+          padding: "2px 0",
+        }}
       >
-        {collapsible && (
-          <CaretRightOutlined rotate={open ? 90 : 0} style={{ fontSize: 10, color: accent }} />
-        )}
         <Text strong style={{ fontSize: 12, color: isError ? "#ff4d4f" : "inherit" }}>
           {label}
         </Text>
-        <Text style={{ flex: 1, minWidth: 0, fontSize: 13 }} ellipsis>
+        <Tag color="geekblue" style={{ marginInlineEnd: 0, lineHeight: "18px" }}>
           {name}
-        </Text>
-        {hint && (
+        </Tag>
+        {purpose && (
           <Text type="secondary" style={{ flex: 1, minWidth: 0, fontSize: 12 }} ellipsis>
-            {hint}
+            {purpose}
           </Text>
         )}
-        {collapsible && (
-          <Text type="secondary" style={{ fontSize: 11 }}>
-            {open ? "收起" : "展开"}
+        {!hasResult ? (
+          <Text type="secondary" style={{ fontSize: 11, color: accent }}>
+            <LoadingOutlined style={{ marginRight: 4 }} />
+            Executing...
           </Text>
+        ) : (
+          canOpen && <RightOutlined style={{ fontSize: 10, color: accent }} />
         )}
       </button>
-
-      {collapsible &&
-        (open ? (
-          <div
-            style={
-              body
-                ? { ...PANEL_BODY_STYLE, padding: 0 }
-                : { ...PANEL_BODY_STYLE, color: isError ? "#ff4d4f" : "#595959" }
-            }
-          >
-            {body ?? content}
-          </div>
-        ) : (
-          <Text type="secondary" ellipsis style={{ display: "block", marginTop: 4, fontSize: 12 }}>
-            {content}
-          </Text>
-        ))}
     </Bubble>
   );
 }
 
-export function renderAssistantMessage(message: AgentRenderableMessage): ReactNode {
+/** 被折叠的 Tool Result：内容已经在对应 Tool Call 的详情标签里展示。 */
+function ToolResultRow({ name }: { name: string }) {
+  return (
+    <Bubble tone="result" style={{ width: "78%", minWidth: 0, boxSizing: "border-box" }}>
+      <Text type="secondary" style={{ fontSize: 12 }}>
+        Tool Result
+      </Text>
+      <Tag style={{ marginInlineStart: 6, marginInlineEnd: 0, lineHeight: "18px" }}>{name}</Tag>
+    </Bubble>
+  );
+}
+
+export function renderAssistantMessage(
+  message: AgentRenderableMessage,
+  context?: AgentToolRenderContext,
+): ReactNode {
   const kind = message.kind ?? "assistant";
 
   if (kind === "reasoning") {
@@ -248,46 +309,31 @@ export function renderAssistantMessage(message: AgentRenderableMessage): ReactNo
     // purpose 由模型按 schema 约定附在工具入参中（见后端 withPurposeProperty），
     // 仅用于展示：这里直接从 arguments 取，缺失时不渲染。
     const args = asJsonRecord(data?.arguments);
+    const result = context?.result;
     return (
-      <CollapsibleBubble
+      <ToolCallRow
         label={kind === "tool_call" ? "Tool Call" : "Skill Call"}
-        name={typeof data?.name === "string" ? data.name : kind}
-        hint={typeof args?.purpose === "string" ? args.purpose : undefined}
-        content={pretty(data?.arguments)}
-        tone="call"
+        conversationId={context?.conversationId}
+        view={{
+          name: typeof data?.name === "string" ? data.name : kind,
+          callId: typeof data?.id === "string" ? data.id : undefined,
+          arguments: data?.arguments,
+          purpose: typeof args?.purpose === "string" ? args.purpose : undefined,
+          output: result?.content,
+          isError: !!result?.is_error,
+          metadata: result?.metadata,
+          hasResult: !!result,
+        }}
       />
     );
   }
 
   if (kind === "tool_result" || kind === "skill_result") {
+    // 结果正文只在对应的 Tool Call 详情标签里展示，这里保留一行摘要（含 diff 统计），
+    // 不再把 output 正文铺到对话流里。
     const data = asRecord(message.data);
-    const isError = !!data?.is_error;
-    const diffMeta = isError ? null : parseToolDiff(data?.metadata);
-    const rawContent = typeof data?.content === "string" ? data.content : message.content;
-
-    // 带 diff 的工具结果（edit / write）：展开后用 diff 样式渲染。
-    if (diffMeta) {
-      const stat = formatDiffStat(diffMeta);
-      return (
-        <CollapsibleBubble
-          label={kind === "tool_result" ? "Tool Result" : "Skill Result"}
-          name={typeof data?.name === "string" ? data.name : kind}
-          content={stat ? `${stat}  ${rawContent}`.trim() : rawContent}
-          body={<UnifiedDiff diff={diffMeta.diff} bordered={false} />}
-          tone="result"
-        />
-      );
-    }
-
-    return (
-      <CollapsibleBubble
-        label={kind === "tool_result" ? "Tool Result" : "Skill Result"}
-        name={typeof data?.name === "string" ? data.name : kind}
-        content={rawContent}
-        tone={isError ? "error" : "result"}
-        isError={isError}
-      />
-    );
+    const name = typeof data?.name === "string" ? data.name : kind;
+    return <ToolResultRow name={name} />;
   }
 
   return (
@@ -308,4 +354,119 @@ export function renderAssistantMessage(message: AgentRenderableMessage): ReactNo
       </div>
     </Bubble>
   );
+}
+
+export interface RenderAssistantMessagesOptions {
+  /** 该列表所属的会话 ID：Tool Call 行点击后在右侧工作区为它打开详情标签。 */
+  conversationId?: string;
+  /** 列表中每条消息的稳定 key（长度与 messages 一致）；缺省用下标。 */
+  keys?: readonly string[];
+}
+
+const isToolCallKind = (kind?: string) => kind === "tool_call" || kind === "skill_call";
+const isToolResultKind = (kind?: string) => kind === "tool_result" || kind === "skill_result";
+
+const toolResultCallId = (message: AgentRenderableMessage): string => {
+  const id = asRecord(message.data)?.call_id;
+  return typeof id === "string" ? id : "";
+};
+
+const toolCallId = (message: AgentRenderableMessage): string => {
+  const id = asRecord(message.data)?.id;
+  return typeof id === "string" ? id : "";
+};
+
+/**
+ * 渲染一条消息列表，并把 tool_call 与它的 tool_result 配对。
+ *
+ * 为什么需要配对：聊天里只显示「Tool Call + 工具名 + 目的」，结果正文只在点击打开的
+ * 详情标签里出现。调用行需要知道结果的到达情况（Executing... / 已完成），才能在点击
+ * 时把输出一起带进标签页，因此先在列表范围内完成配对，再交给单条渲染。
+ *
+ * 配对规则（同一次工具调用共用同一个 call id）：
+ *  - 优先用结果的 `data.call_id` 精确匹配调用的 `data.id`；
+ *  - 历史里部分 provider 不回填 call id：退化为「同名、按出现顺序」对应。
+ *
+ * 已被配对的结果不再单独成行（它的正文只在详情标签里）；孤立的结果仍保留一行摘要。
+ */
+export function renderAssistantMessages(
+  messages: AgentRenderableMessage[],
+  options: RenderAssistantMessagesOptions = {},
+): ReactNode[] {
+  const context: AgentToolRenderContext = { conversationId: options.conversationId };
+
+  const resultsByCallId = new Map<string, AgentRenderableMessage>();
+  const resultsByName = new Map<string, AgentRenderableMessage[]>();
+  const consumedResults = new Set<AgentRenderableMessage>();
+
+  messages.forEach((message) => {
+    if (!isToolResultKind(message.kind)) return;
+    const callId = toolResultCallId(message);
+    if (callId) {
+      if (!resultsByCallId.has(callId)) resultsByCallId.set(callId, message);
+      return;
+    }
+    const data = asRecord(message.data);
+    const name = typeof data?.name === "string" ? data.name : "";
+    const queue = resultsByName.get(name) ?? [];
+    queue.push(message);
+    resultsByName.set(name, queue);
+  });
+
+  const takeResult = (call: AgentRenderableMessage): AgentRenderableMessage | undefined => {
+    const callId = toolCallId(call);
+    const exact = callId ? resultsByCallId.get(callId) : undefined;
+    if (exact && !consumedResults.has(exact)) {
+      consumedResults.add(exact);
+      return exact;
+    }
+    const name = asRecord(call.data)?.name;
+    const queue = typeof name === "string" ? resultsByName.get(name) : undefined;
+    const next = queue?.find((candidate) => !consumedResults.has(candidate));
+    if (next) {
+      consumedResults.add(next);
+      return next;
+    }
+    return undefined;
+  };
+
+  return messages.map((message, index) => {
+    const key = options.keys?.[index] ?? String(index);
+
+    if (isToolResultKind(message.kind)) {
+      const data = asRecord(message.data);
+      const name = typeof data?.name === "string" ? data.name : "tool_result";
+      return <ToolResultRow key={key} name={name} />;
+    }
+
+    if (!isToolCallKind(message.kind)) {
+      return <Fragment key={key}>{renderAssistantMessage(message, context)}</Fragment>;
+    }
+
+    const callData = asRecord(message.data);
+    const args = asJsonRecord(callData?.arguments);
+    const result = takeResult(message);
+    const resultData = asRecord(result?.data);
+    return (
+      <ToolCallRow
+        key={key}
+        label={message.kind === "skill_call" ? "Skill Call" : "Tool Call"}
+        conversationId={options.conversationId}
+        view={{
+          name: typeof callData?.name === "string" ? callData.name : message.kind ?? "tool_call",
+          callId: typeof callData?.id === "string" ? callData.id : undefined,
+          arguments: callData?.arguments,
+          purpose: typeof args?.purpose === "string" ? args.purpose : undefined,
+          output: result
+            ? typeof resultData?.content === "string"
+              ? resultData.content
+              : result.content
+            : undefined,
+          isError: !!result?.error || !!resultData?.is_error,
+          metadata: resultData?.metadata,
+          hasResult: !!result,
+        }}
+      />
+    );
+  });
 }

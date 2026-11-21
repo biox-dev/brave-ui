@@ -23,6 +23,8 @@ const viewLoaders = {
     agentProfileSelect: () => import("@/pages/agent/agent-profile-page"),
     // 应用会话（= 终端会话）在右侧工作区内嵌的 xterm 终端（AnalysisNodeTerminal 薄包装）。
     agentAppSessionTerminal: () => import("./agent-app-session-terminal"),
+    // 工具调用详情（入参 / 输出）：点击聊天里的 Tool Call 行后在右侧标签页里打开。
+    agentToolCallDetail: () => import("./agent-tool-call-detail"),
 };
 
 declare module "@/core/component-registry/registry-types" {

@@ -58,7 +58,7 @@ import { invoke } from "@/core/ui-system/invokeV2";
 import AgentTaskStream from "./agent-task-stream";
 import AgentAskUserCard from "./agent-ask-user";
 import AgentSender from "./agent-sender";
-import { renderAssistantMessage } from "./agent-message-render";
+import { asRecord, renderAssistantMessage } from "./agent-message-render";
 import { loadAgentConversations, ensureAgentConversations, upsertConversation } from "./agent-conversation-store";
 import { openAgentWorkspaceTab } from "@/layout/agent-workspace-store";
 import UnifiedDiff from "@/components/common/unified-diff";
@@ -382,13 +382,69 @@ const AgentChat: FC<AgentChatProps> = ({
     useRouterStore.getState().go("/config?tab=agent");
   }, [onCancel]);
 
-  const renderAssistantHistory = (m: ChatMessage) => {
-    return renderAssistantMessage({
-      kind: m.kind,
-      content: m.content,
-      data: m.data,
-      error: m.error,
+  // 历史的「行计划」：tool_call 行与它的 tool_result 合并成一行。
+  //
+  // 聊天里只显示「Tool Call + 工具名 + 目的」，输出正文放在点击打开的右侧标签里，
+  // 所以 tool_result 不再单独成行，而是把结果挂到对应调用上：
+  //  - 调用行据此显示 Executing...（无结果）或已完成（有结果、不再显示正文）；
+  //  - 点击时把入参与输出一起带给标签页的详情视图。
+  //
+  // 配对规则：优先按 call_id 精确对应；缺 call id 时按「其后、同名、按顺序」退化对应。
+  const historyRows = useMemo(() => {
+    const isResult = (kind?: string) => kind === "tool_result" || kind === "skill_result";
+    const isCall = (kind?: string) => kind === "tool_call" || kind === "skill_call";
+
+    const resultByCallId = new Map<string, ChatMessage>();
+    const resultByName = new Map<string, ChatMessage[]>();
+    messages.forEach((m) => {
+      if (!isResult(m.kind)) return;
+      const data = asRecord(m.data);
+      const callId = typeof data?.call_id === "string" ? data.call_id : "";
+      if (callId) {
+        if (!resultByCallId.has(callId)) resultByCallId.set(callId, m);
+        return;
+      }
+      const name = typeof data?.name === "string" ? data.name : "";
+      const queue = resultByName.get(name) ?? [];
+      queue.push(m);
+      resultByName.set(name, queue);
     });
+
+    const consumed = new Set<ChatMessage>();
+    const takeResult = (call: ChatMessage): ChatMessage | undefined => {
+      const id = asRecord(call.data)?.id;
+      const exact = typeof id === "string" ? resultByCallId.get(id) : undefined;
+      if (exact && !consumed.has(exact)) {
+        consumed.add(exact);
+        return exact;
+      }
+      const name = asRecord(call.data)?.name;
+      const queue = typeof name === "string" ? resultByName.get(name) : undefined;
+      const next = queue?.find((candidate) => !consumed.has(candidate));
+      if (next) {
+        consumed.add(next);
+        return next;
+      }
+      return undefined;
+    };
+
+    const rows: { message: ChatMessage; result?: ChatMessage }[] = [];
+    for (const m of messages) {
+      if (isResult(m.kind)) continue;
+      rows.push({ message: m, result: isCall(m.kind) ? takeResult(m) : undefined });
+    }
+    return rows;
+  }, [messages]);
+
+  // 把配对到的 ChatMessage 结果转成渲染层需要的形状（content / is_error / metadata）。
+  const toRenderableResult = (result?: ChatMessage) => {
+    if (!result) return undefined;
+    const data = asRecord(result.data);
+    return {
+      content: typeof data?.content === "string" ? data.content : result.content,
+      is_error: !!data?.is_error || !!result.error,
+      metadata: data?.metadata,
+    };
   };
 
   // 该任务是否已由历史消息投影出内容（token / reasoning / tool），
@@ -1309,7 +1365,7 @@ const AgentChat: FC<AgentChatProps> = ({
                 </Flex>
               )
             )}
-            {messages.map((m) => (
+            {historyRows.map(({ message: m, result }) => (
               <Flex
                 key={m.id}
                 className="agent-chat-msg"
@@ -1358,7 +1414,10 @@ const AgentChat: FC<AgentChatProps> = ({
                       // 错误消息附上「配置 Agent」跳转，便于用户直接去修正模型配置后重试。
                       m.error ? (
                         <Flex vertical gap={6} align="flex-start">
-                          {renderAssistantHistory(m)}
+                          {renderAssistantMessage(
+                            { kind: m.kind, content: m.content, data: m.data, error: m.error },
+                            { conversationId, result: toRenderableResult(result) },
+                          )}
                           <Button
                             size="small"
                             icon={<SettingOutlined />}
@@ -1368,7 +1427,10 @@ const AgentChat: FC<AgentChatProps> = ({
                           </Button>
                         </Flex>
                       ) : (
-                        renderAssistantHistory(m)
+                        renderAssistantMessage(
+                          { kind: m.kind, content: m.content, data: m.data, error: m.error },
+                          { conversationId, result: toRenderableResult(result) },
+                        )
                       )
                     ) : (
                       m.content
