@@ -11,6 +11,7 @@ export const EMPTY_SESSION_RESOURCE_GROUPS: AgentSessionResourceGroups = {
   analysis: [],
   analysis_node: [],
   project_report: [],
+  plan: [],
 };
 
 /**

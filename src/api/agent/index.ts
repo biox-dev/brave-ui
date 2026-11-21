@@ -370,15 +370,17 @@ export const unsubscribeAgentSessionApi = (sessionId: string) => {
 };
 // 会话结果（会话 ↔ 资源的关联）类型。
 // analysis 对应 create_analysis_workflow / update_analysis_workflow 创建或修改的分析运行；
-// project_report 对应 create_report / update_report 创建或修改的项目报告。
+// project_report 对应 create_report / update_report 创建或修改的项目报告；
+// plan 对应 create_plan / update_plan 创建或修改的 agent 计划（项目级，可被多个会话共享）。
 export type AgentSessionResourceType =
   | "script"
   | "workflow"
   | "analysis_node"
   | "analysis"
-  | "project_report";
+  | "project_report"
+  | "plan";
 
-// 会话结果项：会话创建 / 修改过的脚本、工作流、分析节点、分析运行或项目报告。
+// 会话结果项：会话创建 / 修改过的脚本、工作流、分析节点、分析运行、项目报告或计划。
 export interface AgentSessionResourceItem {
   resource_id: string;
   resource_type: AgentSessionResourceType;

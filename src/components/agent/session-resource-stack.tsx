@@ -38,6 +38,7 @@ const STACK_COLLAPSED_STORAGE_KEY = 'agentSessionRightStack';
 
 /** 分组展示顺序与标题。 */
 const SECTIONS: { resourceType: AgentSessionResourceType; zh: string; en: string }[] = [
+  { resourceType: 'plan', zh: '计划', en: 'Plans' },
   { resourceType: 'script', zh: '脚本', en: 'Scripts' },
   { resourceType: 'workflow', zh: '工作流', en: 'Workflows' },
   { resourceType: 'analysis', zh: '分析工作流', en: 'Analysis Workflow' },
