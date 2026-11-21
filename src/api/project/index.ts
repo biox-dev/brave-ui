@@ -65,12 +65,11 @@ export interface ActivateProjectResponse {
 	message: string;
 }
 
-// ProjectReport 是报告容器：元信息 + 正文文件 output.md；plan_id 指向撰写依据的计划。
+// ProjectReport 是报告容器：元信息 + 正文文件 output.md。
+// 报告不绑定计划：一份报告可能综合多份 agent 计划，依据哪些计划由用户在消息中指定。
 export interface ProjectReport {
 	id: string;
 	project_id: string;
-	/** 报告撰写依据的 agent 计划 ID（空表示未绑定计划）。 */
-	plan_id?: string;
 	title: string;
 	created_at: string;
 	updated_at: string;
@@ -81,14 +80,11 @@ export type ProjectReportDetail = ProjectReport;
 
 export interface AddProjectReportRequest {
 	title: string;
-	/** 可选：按该计划撰写报告。 */
-	plan_id?: string;
 }
 
 export interface UpdateProjectReportRequest {
 	id: string;
 	title: string;
-	plan_id?: string;
 }
 
 export interface DeleteProjectReportRequest {

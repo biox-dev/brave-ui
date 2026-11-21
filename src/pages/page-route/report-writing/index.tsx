@@ -1,5 +1,5 @@
 import { FC, useEffect, useState } from "react";
-import { Button, Card, Descriptions, Empty, Flex, Modal, Segmented, Skeleton, Spin, Tag } from "antd";
+import { Button, Card, Flex, Modal, Segmented, Skeleton, Spin, Tag } from "antd";
 import {
 	BookOutlined,
 	DownloadOutlined,
@@ -16,12 +16,10 @@ import ComponentsDetailsRender from "@/core/ui-renderer/ViewResolver";
 import { renderViewButton } from "@/utils/render-view-btn";
 import { invoke } from "@/core/ui-system/invokeV2";
 import {
-	getPlanDetailApi,
 	getProjectReportDetailApi,
 	getProjectReportFileApi,
 	getProjectReportHtmlApi,
 	publishProjectReportToDocApi,
-	type AgentPlan,
 	type ProjectReport,
 } from "@/api/project";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
@@ -35,8 +33,8 @@ const sanitizeFileName = (name: string, fallback: string) => {
 	return cleaned || fallback;
 };
 
-// ReportWriting 是报告主区域页面：展示报告正文（output.md），并提供其依据计划（plan）的只读视图。
-// 报告只有一份正文，结构（章节）由 agent 计划描述，因此这里不再有「条目」概念。
+// ReportWriting 是报告主区域页面：展示报告正文（output.md）。
+// 报告不绑定计划：一份报告可综合多份 agent 计划，具体依据由用户在会话消息中与 agent 约定。
 const ReportWriting: FC = () => {
 	const message = useGlobalMessage();
 	const { project, baseURL } = useSelector((state: any) => state.user);
@@ -48,8 +46,6 @@ const ReportWriting: FC = () => {
 	const [loading, setLoading] = useState(false);
 	const [report, setReport] = useState<ProjectReport>();
 	const [content, setContent] = useState("");
-	// 报告绑定的计划（只读展示）：节点只带 source + source_id，供人或 agent 追溯素材来源。
-	const [plan, setPlan] = useState<AgentPlan>();
 	const [publishingReport, setPublishingReport] = useState(false);
 	const [htmlPreview, setHtmlPreview] = useState<{
 		open: boolean;
@@ -64,7 +60,6 @@ const ReportWriting: FC = () => {
 		if (!reportId) {
 			setReport(undefined);
 			setContent("");
-			setPlan(undefined);
 			return;
 		}
 		setLoading(true);
@@ -75,17 +70,6 @@ const ReportWriting: FC = () => {
 			]);
 			setReport(detailResp.data);
 			setContent(fileResp.data?.content ?? "");
-			// 计划只有绑定时才拉取；拉取失败不影响正文展示。
-			const planId = detailResp.data?.plan_id;
-			if (planId) {
-				try {
-					setPlan((await getPlanDetailApi(planId)).data);
-				} catch {
-					setPlan(undefined);
-				}
-			} else {
-				setPlan(undefined);
-			}
 		} finally {
 			setLoading(false);
 		}
@@ -232,28 +216,6 @@ const ReportWriting: FC = () => {
 					<Tag color="orange">Report not found</Tag>
 				) : (
 					<Flex vertical gap="middle">
-						{plan ? (
-							<Descriptions size="small" column={1} bordered title="Source Plan">
-								<Descriptions.Item label="Plan">{plan.title || plan.id}</Descriptions.Item>
-								<Descriptions.Item label="Goal">{plan.goal || "-"}</Descriptions.Item>
-								<Descriptions.Item label="Items">
-									<Flex vertical gap={4}>
-										{(plan.items ?? []).map((item) => (
-											<span key={item.id}>
-												<Tag>{item.source}</Tag>
-												{item.title}
-												{item.source_id ? <span style={{ opacity: 0.65 }}> · {item.source_id}</span> : null}
-											</span>
-										))}
-										{(plan.items ?? []).length === 0 ? (
-											<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No item" />
-										) : null}
-									</Flex>
-								</Descriptions.Item>
-							</Descriptions>
-						) : (
-							<Tag color="default">Report is not bound to a plan</Tag>
-						)}
 						<ComponentsDetailsRender
 							view={view}
 							project_id={projectId}
