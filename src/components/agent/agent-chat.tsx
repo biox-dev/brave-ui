@@ -399,7 +399,8 @@ const AgentChat: FC<AgentChatProps> = ({
     messages.forEach((m) => {
       if (!isResult(m.kind)) return;
       const data = asRecord(m.data);
-      const callId = typeof data?.call_id === "string" ? data.call_id : "";
+      // 后端统一用 tool_call_id 关联对应的 tool_call（data.id）。
+      const callId = typeof data?.tool_call_id === "string" ? data.tool_call_id : "";
       if (callId) {
         if (!resultByCallId.has(callId)) resultByCallId.set(callId, m);
         return;
@@ -430,7 +431,8 @@ const AgentChat: FC<AgentChatProps> = ({
 
     const rows: { message: ChatMessage; result?: ChatMessage }[] = [];
     for (const m of messages) {
-      if (isResult(m.kind)) continue;
+      // 已经配对到某个 tool_call 的结果不再单独成行（它只在调用详情标签里展示）。
+      if (isResult(m.kind) && consumed.has(m)) continue;
       rows.push({ message: m, result: isCall(m.kind) ? takeResult(m) : undefined });
     }
     return rows;

@@ -222,6 +222,45 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({
     setMessages([...msgsRef.current]);
   };
 
+  /**
+   * 把工具结果并入对应的 Tool Call 行，而不是单独 push 一条 Tool Result。
+   *
+   * 实时流里 `tool_call` 与 `tool_result` 是两条独立事件：如果直接各 push 一行，
+   * 列表级配对一旦失败（provider 未回填 call_id 等），结果就会退化成孤立的
+   * 「Tool Result」气泡。因此在写入时就按 call_id / 同名未完成调用完成合并，
+   * 让调用行从 Executing... 切到已完成（结果正文仍只在详情标签里展示）。
+   *
+   * 返回 true 表示已并入某个调用行；false 表示是孤立结果，调用方按摘要行处理。
+   */
+  const attachToolResult = (kind: string, content: string, data: unknown): boolean => {
+    const resultKind = kind === "skill_result" ? "skill_call" : "tool_call";
+    const resultData = (data ?? {}) as Record<string, unknown>;
+    const callId = typeof resultData.tool_call_id === "string" ? resultData.tool_call_id : "";
+
+    // 从后往前找：同一个工具可能被多次调用，最新的未完成调用才是本次结果的归属。
+    for (let i = msgsRef.current.length - 1; i >= 0; i--) {
+      const m = msgsRef.current[i];
+      if (m.kind !== resultKind) continue;
+      const callData = (m.data ?? {}) as Record<string, unknown>;
+      if (callData.result !== undefined) continue; // 已经有结果，跳过
+      const matchesId = callId && callData.id === callId;
+      const matchesName =
+        !callId && callData.name === resultData.name; // 无 call id 时按同名退化匹配
+      if (!matchesId && !matchesName) continue;
+
+      m.data = {
+        ...callData,
+        result: {
+          content,
+          is_error: !!resultData.is_error,
+          metadata: resultData.metadata,
+        },
+      };
+      return true;
+    }
+    return false;
+  };
+
   // const loadPermissions = async () => {
   //   if (!taskId) return;
   //   try {
@@ -332,6 +371,17 @@ const AgentTaskStream: FC<AgentTaskStreamProps> = ({
       case "skill_result": {
         const data = (payload.data ?? {}) as Record<string, unknown>;
         const content = typeof data.content === "string" ? data.content : "";
+
+        // 结果事件优先并入对应的 Tool Call 行（避免出现孤立的 Tool Result 气泡）；
+        // 只有找不到可配对的调用时才退化为一条摘要行。
+        if (
+          (pType === "tool_result" || pType === "skill_result") &&
+          attachToolResult(pType, content, payload.data)
+        ) {
+          flush();
+          return;
+        }
+
         pushMessage({ kind: pType, content, data: payload.data, streaming: false, error: !!data.is_error });
         flush();
         return;

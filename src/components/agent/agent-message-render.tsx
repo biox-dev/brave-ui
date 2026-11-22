@@ -366,8 +366,15 @@ export interface RenderAssistantMessagesOptions {
 const isToolCallKind = (kind?: string) => kind === "tool_call" || kind === "skill_call";
 const isToolResultKind = (kind?: string) => kind === "tool_result" || kind === "skill_result";
 
+/**
+ * 工具结果携带的调用 id（与 tool_call.data.id 对应）。
+ *
+ * 后端两条执行路径（runtime 的 ToolResultEvent 与 native Agent 的 emitToolResult）
+ * 都统一使用 `tool_call_id`，因此这里只认这一个字段。
+ */
 const toolResultCallId = (message: AgentRenderableMessage): string => {
-  const id = asRecord(message.data)?.call_id;
+  const data = asRecord(message.data);
+  const id = data?.tool_call_id;
   return typeof id === "string" ? id : "";
 };
 
@@ -445,7 +452,10 @@ export function renderAssistantMessages(
 
     const callData = asRecord(message.data);
     const args = asJsonRecord(callData?.arguments);
-    const result = takeResult(message);
+    // 实时流可能已经就地把结果并入调用（tool_call.data.result），
+    // 此时列表里没有独立的 tool_result 行，直接用它作为该调用的结果。
+    const inlineResult = asRecord(callData?.result) ? callData?.result : undefined;
+    const result = takeResult(message) ?? (inlineResult ? { kind: "tool_result", content: "", data: inlineResult } : undefined);
     const resultData = asRecord(result?.data);
     return (
       <ToolCallRow
