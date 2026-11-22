@@ -132,6 +132,13 @@ export const setActiveAgentWorkspaceTab = (
   );
 };
 
+/** 关闭某个会话的全部右侧标签（标签栏的「关闭全部」）。 */
+export const closeAllAgentWorkspaceTabs = (sessionId: string | undefined) => {
+  updateSession(sessionId, (current) =>
+    current.tabs.length === 0 ? current : { tabs: [], active: '' },
+  );
+};
+
 /** 清空某个会话的右侧工作区（如切回 New Chat 时）。 */
 export const resetAgentWorkspace = (sessionId?: string) => {
   const key = sessionWorkspaceKey(sessionId);

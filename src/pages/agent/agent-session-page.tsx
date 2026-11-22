@@ -16,6 +16,7 @@ import {
 } from '@/components/agent/agent-conversation-store';
 import {
   closeAgentWorkspaceTab,
+  closeAllAgentWorkspaceTabs,
   resetAgentWorkspace,
   setActiveAgentWorkspaceTab,
   useAgentWorkspace,
@@ -114,6 +115,11 @@ const AgentSessionPage: FC = () => {
     [tabs],
   );
 
+  // 关闭全部标签：清空后右侧面板自动收起，聊天区撑满。
+  const handleCloseAllTabs = useCallback(() => {
+    closeAllAgentWorkspaceTabs(sessionId);
+  }, [sessionId]);
+
   const handleConversationChange = useCallback(
     (id?: string) => {
       if (id) {
@@ -183,6 +189,7 @@ const AgentSessionPage: FC = () => {
                   activeKey={activeTab?.key}
                   onSelect={(key) => setActiveAgentWorkspaceTab(sessionId, key)}
                   onClose={(key) => closeAgentWorkspaceTab(sessionId, key)}
+                  onCloseAll={handleCloseAllTabs}
                 />
               }
             >
