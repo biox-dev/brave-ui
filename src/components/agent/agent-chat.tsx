@@ -55,14 +55,7 @@ import { setUserItem } from "@/store/userSlice";
 import { useComponentStore } from "@/event-bus/stores/components";
 import { useRouterStore } from "@/event-bus/stores/router";
 import { invoke } from "@/core/ui-system/invokeV2";
-import {
-  beginSessionStream,
-  finishTaskStream,
-  ingestAgentEvent,
-  syncSessionStreamStatus,
-  useSessionStream,
-} from "./agent-session-stream";
-import { buildTaskCoverage, isBlockCoveredByHistory } from "./agent-stream-dedupe";
+import { useLiveStream } from "./agent-live-stream";
 import AgentAskUserCard from "./agent-ask-user";
 import AgentSender from "./agent-sender";
 import { asRecord, renderAssistantMessage } from "./agent-message-render";
@@ -109,107 +102,6 @@ interface ChatMessage {
   username?: string;
   /** Agent 侧消息执行 Profile 展示名（后端回填），展示在助手头像下方。 */
   profileName?: string;
-}
-
-/**
- * 把实时块对应的行追加到历史行之后，并复用历史同一套 tool_result 配对规则。
- *
- * 关键点：实时块的 tool_result 可能是**独立块**（attachToolResult 没匹配上，
- * 例如 call_id 缺失或后端分批推送），如果不在这里配对，就会渲染成
- * 孤立的「Tool Result」气泡 —— 这正是「实时流与历史表现不一致」的主要来源。
- *
- * 配对顺序（缺一不可）：
- *   1) 先与**实时区自己**的 tool_call 配对（call_id → 同名退化）；
- *   2) 再与**历史里**的 tool_call 配对（刷新后历史已有该调用，实时只剩结果）；
- *   3) 仍然配不上的结果直接丢弃 —— 孤立的「Tool Result」气泡没有任何信息量
- *      （正文只在调用详情标签里展示），显示出来只会让用户困惑。
- */
-function mergeRealtimeRows(
-  historyRows: { message: ChatMessage; result?: ChatMessage }[],
-  realtimeRows: ChatMessage[],
-): { message: ChatMessage; result?: ChatMessage }[] {
-  if (realtimeRows.length === 0) return historyRows;
-
-  const isResult = (kind?: string) => kind === "tool_result" || kind === "skill_result";
-  const isCall = (kind?: string) => kind === "tool_call" || kind === "skill_call";
-  const callIdOf = (m: ChatMessage) => {
-    const id = asRecord(m.data)?.id;
-    return typeof id === "string" ? id : "";
-  };
-  const resultCallIdOf = (m: ChatMessage) => {
-    const id = asRecord(m.data)?.tool_call_id;
-    return typeof id === "string" ? id : "";
-  };
-
-  // 索引：实时区的 tool_result。
-  const resultByCallId = new Map<string, ChatMessage>();
-  const resultByName = new Map<string, ChatMessage[]>();
-  realtimeRows.forEach((m) => {
-    if (!isResult(m.kind)) return;
-    const callId = resultCallIdOf(m);
-    if (callId) {
-      if (!resultByCallId.has(callId)) resultByCallId.set(callId, m);
-      return;
-    }
-    const name = typeof asRecord(m.data)?.name === "string" ? (asRecord(m.data)!.name as string) : "";
-    const queue = resultByName.get(name) ?? [];
-    queue.push(m);
-    resultByName.set(name, queue);
-  });
-
-  const consumed = new Set<ChatMessage>();
-  const takeResult = (call: ChatMessage): ChatMessage | undefined => {
-    const callId = callIdOf(call);
-    const exact = callId ? resultByCallId.get(callId) : undefined;
-    if (exact && !consumed.has(exact)) {
-      consumed.add(exact);
-      return exact;
-    }
-    const name = asRecord(call.data)?.name;
-    const queue = typeof name === "string" ? resultByName.get(name) : undefined;
-    const next = queue?.find((candidate) => !consumed.has(candidate));
-    if (next) {
-      consumed.add(next);
-      return next;
-    }
-    return undefined;
-  };
-
-  const rows: { message: ChatMessage; result?: ChatMessage }[] = [...historyRows];
-
-  // 先把「实时里的结果」配给「历史里的调用」：这些是同一轮的续跑内容，
-  // 历史已有调用行、实时只剩结果事件的情况（刷新后批准权限最典型）。
-  // 已配上的历史行直接补上 result，不再 push 新行。
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    if (!isCall(row.message.kind) || row.result) continue;
-    const matched = takeResult(row.message);
-    if (matched) rows[i] = { ...row, result: matched };
-  }
-
-  for (const m of realtimeRows) {
-    // 已并入某个调用行的结果不再单独成行。
-    if (isResult(m.kind) && consumed.has(m)) continue;
-    // 仍然配不上的孤立结果直接丢弃（不渲染「Tool Result」气泡）。
-    if (isResult(m.kind)) continue;
-
-    let paired = isCall(m.kind) ? takeResult(m) : undefined;
-    // 调用行若已内联结果（data.result），无需再找配对。
-    if (!paired && isCall(m.kind)) {
-      const inline = asRecord(asRecord(m.data)?.result);
-      if (inline) {
-        paired = {
-          id: `${m.id}-result`,
-          role: "assistant",
-          kind: "tool_result",
-          content: "",
-          data: inline,
-        };
-      }
-    }
-    rows.push({ message: m, result: paired });
-  }
-  return rows;
 }
 
 // 后端用字符串 "0" 表示“无当前任务”，需一并视为空。
@@ -282,7 +174,7 @@ const MessageRow = memo(function MessageRow({
   isTurnEnd: boolean;
   forking: boolean;
   forkDisabled: boolean;
-  onFork: () => void;
+  onFork: (message: ChatMessage) => void;
   onGoConfig: () => void;
 }) {
   // 结果形状与历史和实时两侧一致（content / is_error / metadata）。
@@ -387,7 +279,7 @@ const MessageRow = memo(function MessageRow({
                 fontSize: 12,
                 color: m.role === "user" ? "rgba(255,255,255,0.85)" : "#8c8c8c",
               }}
-              onClick={onFork}
+              onClick={() => onFork(m)}
             >
               Fork
             </Button>
@@ -418,19 +310,18 @@ const MessageRow = memo(function MessageRow({
  *   - 进行中的轮次把「内存增量」直接追加到同一份消息列表渲染；
  *   - 任务终态后刷新会话，展示后端投影后的 assistant / reasoning / tool_* 历史。
  *
- * 数据分层（长任务 / 频繁切换页面的关键设计）：
+ * 数据分层（保持简单）：
  *   1) 数据库历史：getConversationApi，分页加载，渲染为 messages；
- *   2) 内存增量：WS 事件写入模块级仓库 agent-session-stream，不落库、不发请求、
- *      不因组件卸载而丢失。切换页面再回来能续上；浏览器刷新才清空。
+ *   2) 实时增量：WS `stream` 事件折叠成块，存在本组件的 useState 里，只对本轮有效。
+ *
+ * 实时块不跨页面保留：离开会话页时服务端会退订，本来就收不到期间的增量；
+ * 未落库的部分由后端补齐后经历史接口恢复，前端不做模块级缓存与跨来源去重。
+ * 历史重新加载（切会话 / 手动刷新 / 轮次结束）后即清空实时块，避免与历史重复。
  *
  * 渲染统一（与历史完全一致）：
  *   实时块会被转换成与历史消息相同的形状，走同一个 `MessageRow`，
  *   因此对齐方式、气泡样式、Tool Call / Tool Result 合并规则完全一致；
  *   只有「正在流式追加的那一条」会被单独重渲染（memo + StreamedText）。
- *
- * 刻意不再使用 /agent/task/timeline 回填：它本质上是一次 HTTP 全量快照，
- * 长任务里既慢又容易与实时流互相覆盖。刷新后的已知取舍是：内存里那段未入库的
- * 增量文本会丢失，实时区从下一段新内容开始写入（数据库已有的部分照常展示）。
  */
 const AgentChat: FC<AgentChatProps> = ({
   conversationId: initialConversationId,
@@ -498,6 +389,16 @@ const AgentChat: FC<AgentChatProps> = ({
   const loadedConvIdRef = useRef<string | undefined>(undefined);
   // 活跃轮次表：taskID → 该轮次中间态，仅用于本次页面会话的运行状态跟踪。
   const activeTurnsRef = useRef<Map<string, ActiveTurn>>(new Map());
+  // 是否正处于「新建会话发送中」：此时还没有会话 ID，但要先接收该轮的首批事件。
+  const pendingChatRef = useRef(false);
+
+  // 本轮实时块：只存在当前组件里，页面卸载即丢弃（离开期间的增量由后端补齐）。
+  const {
+    blocks: liveBlocks,
+    enqueue: enqueueLiveEvent,
+    reset: resetLiveStream,
+    finishTask: finishLiveTask,
+  } = useLiveStream();
 
   // 消息变化时的滚动策略：
   //   - 向上加载更早消息（prepend）后恢复原视口位置，避免页面跳动；
@@ -569,14 +470,14 @@ const AgentChat: FC<AgentChatProps> = ({
   }, [loadEnvInfo, registerComponent, unregisterComponent]);
 
   // 加载会话首屏 / 最新一页：切换会话、手动刷新、轮次结束时使用（重置分页状态）。
-  const applySessionPage = (conv: AgentConversationItem) => {
+  const applySessionPage = useCallback((conv: AgentConversationItem) => {
     loadedConvIdRef.current = conv.id;
     setMessages(mapMessages(conv));
     setHasMoreMessages(!!conv.has_more);
     oldestSeqRef.current = conv.next_cursor ?? 0;
     scrollRestoreRef.current = null;
     lastScrollTopRef.current = 0;
-  };
+  }, []);
 
   // 向上加载更早的一页历史消息（滚动到顶部时触发）。
   //
@@ -836,6 +737,7 @@ const AgentChat: FC<AgentChatProps> = ({
         });
       }
       setMessages((prev) => prev.filter((m) => m.taskId !== taskId));
+      resetLiveStream();
       setCurrentTaskId(taskId);
       setSending(true);
       setWaiting(false);
@@ -888,6 +790,9 @@ const AgentChat: FC<AgentChatProps> = ({
       selectedConvIdRef.current = conv.id;
       setConversationId(conv.id);
       applySessionPage(conv);
+      // 历史是权威：切会话后上一轮的实时块一律丢弃。
+      resetLiveStream();
+      pendingChatRef.current = false;
       // 切换会话时先重置续跑提示，后续按目标任务状态重新判定。
       setResumableTaskId(undefined);
 
@@ -909,9 +814,6 @@ const AgentChat: FC<AgentChatProps> = ({
         try {
           const t = await getAgentTaskApi(taskId);
           const st = t.data.status;
-          // 刷新后 WS 的 task.started / task.waiting 已经错过，仓库里仍是默认的
-          // created；这里用任务真实状态补齐，否则实时区会一直显示 Starting。
-          syncSessionStreamStatus(conv.id, st);
           if (
             st === AgentTaskStatus.Completed ||
             st === AgentTaskStatus.Failed ||
@@ -932,13 +834,8 @@ const AgentChat: FC<AgentChatProps> = ({
           turn.waiting = st === AgentTaskStatus.WaitingPermission;
         } catch {
           // 查询任务失败时按 running 处理，避免丢失实时流。
-          syncSessionStreamStatus(conv.id, "running");
         }
       }
-
-      // 内存仓库的状态可能仍是 created（切走页面期间漏掉了 task.started 等事件），
-      // 用本地已知的 turn 状态兜底同步，保证回来时头部与实时区状态正确。
-      syncSessionStreamStatus(conv.id, turn.waiting ? "waiting_permission" : "running");
 
       setCurrentTaskId(taskId);
       setSending(turn.sending);
@@ -958,6 +855,8 @@ const AgentChat: FC<AgentChatProps> = ({
   const handleClear = () => {
     selectedConvIdRef.current = undefined;
     loadedConvIdRef.current = undefined;
+    pendingChatRef.current = false;
+    resetLiveStream();
     setConversationId(undefined);
     setCurrentTaskId(undefined);
     setMessages([]);
@@ -1013,7 +912,10 @@ const AgentChat: FC<AgentChatProps> = ({
   //
   // 用 selectedConvIdRef 而不是 conversationId state：本函数会被 WS 回调（首次渲染
   // 时注册的闭包）间接调用，state 可能已经过期（例如从 /session 新建会话后跳转）。
-  const handleReloadConversation = async () => {
+  //
+  // resetStream=false 仅用于「别人发起一轮」时补拉用户消息：此时实时块刚收到第一条，
+  // 不应因为这次补拉而丢掉。
+  const handleReloadConversation = async (resetStream = true) => {
     const id = selectedConvIdRef.current;
     if (!id) return;
     setReloadingConversation(true);
@@ -1024,18 +926,18 @@ const AgentChat: FC<AgentChatProps> = ({
       if (conv.id !== selectedConvIdRef.current) return;
       upsertConversation(conv);
       applySessionPage(conv);
+      // 历史重新加载后清空实时块，避免与历史重复；未落库的尾部由后端补齐。
+      if (resetStream) resetLiveStream();
       // 同步刷新待确认权限 / 待作答提问，保证按钮与卡片与后端一致。
       if (isValidTaskId(conv.current_task_id)) {
         const taskId = conv.current_task_id;
         void loadPermissions(taskId);
         void loadQuestions(taskId);
         void refreshResumableTask(taskId);
-        // 同步任务真实状态到内存流：WS 的中间态事件不落库，
-        // 刷新 / 重连后只能靠任务记录补回 Running / Waiting permission。
+        // WS 的中间态事件不落库；刷新 / 重连后用任务记录补回 waiting 状态。
         void getAgentTaskApi(taskId)
           .then((t) => {
             if (conv.id !== selectedConvIdRef.current) return;
-            syncSessionStreamStatus(conv.id, t.data?.status);
             if (t.data?.status === AgentTaskStatus.WaitingPermission) {
               setWaiting(true);
             } else if (t.data?.status === AgentTaskStatus.Running) {
@@ -1080,6 +982,7 @@ const AgentChat: FC<AgentChatProps> = ({
   const finalizeTurn = async (turn: ActiveTurn, type: string) => {
     const selected = turn.convId === selectedConvIdRef.current;
     if (selected) {
+      let historyApplied = false;
       try {
         const res = await getConversationApi(turn.convId);
         const conv = res.data;
@@ -1094,6 +997,7 @@ const AgentChat: FC<AgentChatProps> = ({
           setResumableTaskId(undefined);
         }
         setMessages(nextMessages);
+        historyApplied = true;
         // 轮次结束后回到最新一页（与后续向上滚动加载的游标保持一致）。
         setHasMoreMessages(!!conv.has_more);
         oldestSeqRef.current = conv.next_cursor ?? 0;
@@ -1106,10 +1010,9 @@ const AgentChat: FC<AgentChatProps> = ({
       setWaiting(false);
       setPendingPermissions([]);
       setPendingQuestions([]);
-      // 终态到达时数据库不一定写完投影：这里**不清空内存块**（否则可能闪出空白），
-      // 只标记该任务已结束。块与历史由 realtimeBlocks 逐块比对去重，
-      // 下一轮开始（beginSessionStream）或切会话时才真正丢弃。
-      finishTaskStream(turn.convId, turn.taskId);
+      // 历史已回填则清空本轮实时块，避免与历史重复；
+      // 拉取失败时保留实时块，避免正在展示的输出凭空消失。
+      if (historyApplied) finishLiveTask(turn.taskId);
     }
     activeTurnsRef.current.delete(turn.taskId);
     // 本轮结束后刷新会话列表（标题 / 顺序 / 消息数可能变化）。
@@ -1149,25 +1052,26 @@ const AgentChat: FC<AgentChatProps> = ({
     setWaiting(turn.waiting);
     setResumableTaskId(undefined);
     // 事件里不带用户输入，拉一次会话补上对方刚发出的那条 user 消息。
-    void handleReloadConversation();
+    // 不重置实时块：第一条增量刚到，这次补拉不应把它抹掉。
+    void handleReloadConversation(false);
     return turn;
   };
 
-  // 处理一个任务事件（只做「生命周期」层面的收尾，增量文本交给内存流仓库）。
+  // 处理一个任务事件（生命周期收尾；stream 增量交给本组件的实时块状态）。
   //
   // 事件流是广播语义：同一会话的所有在线客户端都会收到，因此不再按「谁发起」过滤。
   // 分两路：
-  //   1) stream / task.started / task.waiting → 先落到 agent-session-stream（模块级仓库，
-  //      与组件生命周期解耦），再由 useSessionStream 渲染；这里只同步顶层的
-  //      sending / waiting / currentTaskId 这些「本轮是否还在跑」的标志。
-  //   2) 权限 / 提问 / 终态 → 本组件处理（卡片与轮次收尾）。
+  //   1) stream → 追加到 `liveBlocks`，只渲染当前会话这一轮；
+  //   2) task.started / task.waiting / 权限 / 提问 / 终态 → 同步发送状态与卡片。
   const applyEvent = (ev: AgentEventItem) => {
-    // 先投递给内存流仓库：它对所有会话都写入（按 session_id 分桶），
-    // 因此「新建会话的首个 token 早于 HTTP 响应到达」时也不会丢失。
-    // 这一步必须在会话过滤之前，否则那批早期事件会被直接丢弃。
-    ingestAgentEvent(ev);
+    if (!ev?.type) return;
 
-    if (!isSelectedConversationEvent(ev)) return;
+    // 新建会话的首批事件可能早于 /agent/chat 响应到达：此时还没有会话 ID，
+    // 但已经处于「发送中」，先按当前轮接收（响应回来后不会再重置实时块）。
+    const awaitingNewChat = !selectedConvIdRef.current && pendingChatRef.current;
+    if (!isSelectedConversationEvent(ev) && !awaitingNewChat) return;
+
+    if (ev.type === "stream") enqueueLiveEvent(ev);
 
     let turn = activeTurnsRef.current.get(ev.task_id);
     if (!turn) {
@@ -1211,10 +1115,10 @@ const AgentChat: FC<AgentChatProps> = ({
     }
   };
 
-  // 全局订阅 WS：把 agent.event 投递给内存流仓库（跨组件生命周期保留），
-  // 并驱动当前会话的生命周期收尾。
+  // 全局订阅 WS：把 agent.event 转成当前会话页的实时块，并驱动生命周期收尾。
   //
-  // 这里与「本会话是否打开」解耦：只要收到事件就写入仓库，用户切回来时立刻可见。
+  // 订阅只在组件挂载期间生效（卸载即退订）：页面离开后本来就收不到该会话的事件，
+  // 未落库的增量由后端补齐后经历史接口恢复，这里不做跨页面缓存。
   useEffect(() => {
     const unsubscribe = sseClient.onMessage((raw: unknown) => {
       if (!raw || typeof raw !== "object") return;
@@ -1331,11 +1235,10 @@ const AgentChat: FC<AgentChatProps> = ({
     setWaiting(false);
     setResumableTaskId(undefined);
 
-    // 新一轮开始：在任何网络请求之前清空该会话内存里上一轮残留的块。
-    // 必须放在 await 之前 —— 放在拿到 conversation_id 之后会把这期间已经到达
-    // 的首批 token 一并抹掉（新建会话时尤其明显）。
-    const preSendConvId = selectedConvIdRef.current ?? conversationId;
-    if (preSendConvId) beginSessionStream(preSendConvId);
+    // 新一轮开始：先清空上一轮的实时块。必须在 await 之前，
+    // 否则会把响应返回前已经到达的首批 token 一并抹掉（新建会话时尤其明显）。
+    resetLiveStream();
+    pendingChatRef.current = true;
 
     try {
       const res = await chatAgentApi({
@@ -1343,6 +1246,7 @@ const AgentChat: FC<AgentChatProps> = ({
         message: text,
       });
       const { task_id, conversation_id } = res.data;
+      pendingChatRef.current = false;
 
       selectedConvIdRef.current = conversation_id;
       setConversationId(conversation_id);
@@ -1360,11 +1264,6 @@ const AgentChat: FC<AgentChatProps> = ({
         sending: true,
       };
       activeTurnsRef.current.set(task_id, turn);
-      // 新建会话（preSendConvId 为空）时，这一轮的事件可能已经先落进了
-      // conversation_id 对应的桶里；此时不能清空，否则会丢掉已到达的 token。
-      if (preSendConvId && preSendConvId !== conversation_id) {
-        beginSessionStream(conversation_id);
-      }
       setCurrentTaskId(task_id);
 
       // 本轮任务可能很快进入等待权限，提前拉取待确认权限。
@@ -1373,6 +1272,7 @@ const AgentChat: FC<AgentChatProps> = ({
       loadQuestions(task_id);
     } catch {
       // API 错误由全局拦截器提示。
+      pendingChatRef.current = false;
       setSending(false);
       setWaiting(false);
     }
@@ -1380,109 +1280,90 @@ const AgentChat: FC<AgentChatProps> = ({
 
   // 切换到 fork 出来的新会话：它是一个干净的顶层会话，
   // 没有活跃轮次、没有权限 / 提问、没有可续跑任务。
-  const switchToForkedConversation = async (conv: AgentConversationItem) => {
-    selectedConvIdRef.current = conv.id;
-    setConversationId(conv.id);
-    onConversationChange?.(conv.id);
-    upsertConversation(conv);
-    applySessionPage(conv);
-    setCurrentTaskId(undefined);
-    setSending(false);
-    setWaiting(false);
-    setPendingPermissions([]);
-    setPendingQuestions([]);
-    setResumableTaskId(undefined);
-    void loadAgentConversations();
-  };
+  const switchToForkedConversation = useCallback(
+    async (conv: AgentConversationItem) => {
+      selectedConvIdRef.current = conv.id;
+      setConversationId(conv.id);
+      onConversationChange?.(conv.id);
+      upsertConversation(conv);
+      applySessionPage(conv);
+      resetLiveStream();
+      setCurrentTaskId(undefined);
+      setSending(false);
+      setWaiting(false);
+      setPendingPermissions([]);
+      setPendingQuestions([]);
+      setResumableTaskId(undefined);
+      void loadAgentConversations();
+    },
+    [applySessionPage, onConversationChange, resetLiveStream],
+  );
 
   // 从某轮结束处分叉：只复制该消息（含）之前的历史到新会话。
   // 这样可以在不改动原会话的前提下，回到某个轮次结束后重新提问。
-  const handleForkFromMessage = async (message: ChatMessage) => {
-    const id = conversationId;
-    const seq = message.seq;
-    if (!id || seq === undefined) return;
-    setForkingFromSeq(seq);
-    try {
-      const res = await forkConversationApi(id, { up_to_seq: seq, copy_files: true });
-      await switchToForkedConversation(res.data);
-      getGlobalMessage()?.success("Forked after this turn");
-    } catch {
-      // 错误由全局拦截器提示。
-    } finally {
-      setForkingFromSeq(undefined);
-    }
-  };
+  // 回调保持引用稳定，避免每次 token 刷新都把历史行的 memo 冲掉。
+  const handleForkFromMessage = useCallback(
+    async (message: ChatMessage) => {
+      const id = selectedConvIdRef.current;
+      const seq = message.seq;
+      if (!id || seq === undefined) return;
+      setForkingFromSeq(seq);
+      try {
+        const res = await forkConversationApi(id, { up_to_seq: seq, copy_files: true });
+        await switchToForkedConversation(res.data);
+        getGlobalMessage()?.success("Forked after this turn");
+      } catch {
+        // 错误由全局拦截器提示。
+      } finally {
+        setForkingFromSeq(undefined);
+      }
+    },
+    [switchToForkedConversation],
+  );
 
   // 当前用户选中的 Profile 展示名（由 /auth/me 解析的 agent_profile DTO 提供）。
   const currentProfileId = userInfo?.agent_config?.profile_id;
-
-  // 本会话的内存实时流（模块级仓库）：只有 stream 增量 / 状态，不含数据库历史。
-  //
-  // 订阅它而不是把增量塞进 messages state：
-  //   1) token 级更新不会触发本组件（及整个历史列表）重渲染，只有末尾那块更新；
-  //   2) 组件卸载（切换到别的页面）后仓库仍在写，回来时直接看到离开期间的内容。
-  const liveStream = useSessionStream(conversationId);
-
-  // 实时区去重：数据库历史里可能已经包含同一轮的落库块（后端把完整块即时写入
-  // agent_messages），此时「历史在前 + 内存增量在后」会重复。
-  //
-  // 不能按下标逐块比较：历史把 tool_call / tool_result 拆成两条消息，而实时流会把
-  // 结果内联进调用块，两边长度与顺序天然不同（第一个工具结果后即错位）。
-  //
-  // 因此改为「按身份匹配」：每个实时块带 taskId，与同任务的历史内容逐项核对，
-  // 只裁掉连续且已被完整覆盖的前缀；遇到第一个未覆盖的块立即停止（宁可短暂重复，
-  // 也不能丢内容）。轮次结束后 currentTaskId 虽被清空，块自身的 taskId 仍能继续去重。
-  const realtimeBlocks = useMemo(() => {
-    const blocks = liveStream.blocks;
-    if (blocks.length === 0) return blocks;
-
-    const coverageByTask = buildTaskCoverage(messages);
-    if (coverageByTask.size === 0) return blocks;
-
-    const fallbackTaskId = isValidTaskId(currentTaskId) ? currentTaskId : undefined;
-
-    let skip = 0;
-    for (const block of blocks) {
-      // 仍在追加的块历史里必然没有完整内容，不能算已覆盖。
-      if (block.streaming) break;
-      const taskId = block.taskId ?? fallbackTaskId;
-      const coverage = taskId ? coverageByTask.get(taskId) : undefined;
-      if (!coverage || !isBlockCoveredByHistory(block, coverage)) break;
-      skip++;
-    }
-    return skip > 0 ? blocks.slice(skip) : blocks;
-  }, [liveStream, currentTaskId, messages]);
 
   // 把实时块转成与「历史消息」完全相同的形状，直接拼进同一个列表渲染。
   //
   // 为什么这样做（而不是单独一个面板）：
   //   - 用户看到的气泡样式、左对齐、Tool Call / Tool Result 合并规则，
   //     全部与刷新后的历史一致，不存在「刷新前一个样、刷新后一个样」；
-  //   - tool_result 通过 `data.tool_call_id` 与 tool_call 配对，
-  //     配对得上就并入调用行（不再出现孤立的 Tool Result 气泡）。
-  const realtimeRows = useMemo(() => {
-    return realtimeBlocks.map<ChatMessage>((block, index) => ({
-      // 稳定 key：同一块在多次渲染中保持一致，避免列表重挂。
-      id: `live-${block.key || index}`,
-      role: "assistant",
-      content: block.content,
-      kind: block.kind,
-      data: block.data,
-      error: !!block.error,
-      streaming: !!block.streaming,
-      taskId: block.taskId ?? currentTaskId,
-    }));
-  }, [realtimeBlocks, currentTaskId]);
-
-  // 合并后的完整行计划：历史在前、实时在后，共用同一套配对 / 渲染逻辑。
-  //
-  // 注意 tool_result 的配对：实时区里 tool_call 可能已经把结果内联在
-  // `data.result` 上（见 agent-session-stream 的 attachToolResult），
-  // 因此这里先把「已内联结果」的调用行标出来，避免结果重复成独立气泡。
-  const allRows = useMemo(
-    () => mergeRealtimeRows(historyRows, realtimeRows),
-    [historyRows, realtimeRows],
+  //   - tool_result 在写入时已经并入调用块（见 agent-live-stream 的 attachToolResult），
+  //     因此这里只需要把内联结果映射成 `result` 传给 MessageRow。
+  const liveRows = useMemo(
+    () =>
+      liveBlocks.map<{ message: ChatMessage; result?: ChatMessage }>((block) => {
+        const inlineResult = asRecord(asRecord(block.data)?.result);
+        return {
+          message: {
+            // 稳定 key：同一块在多次渲染中保持一致，避免列表重挂。
+            id: `live-${block.key}`,
+            role: "assistant",
+            content: block.content,
+            kind: block.kind,
+            data: block.data,
+            error: !!block.error,
+            streaming: !!block.streaming,
+            taskId: block.taskId,
+          },
+          result: inlineResult
+            ? {
+                id: `live-${block.key}-result`,
+                role: "assistant",
+                kind: "tool_result",
+                content: "",
+                data: inlineResult,
+              }
+            : undefined,
+        };
+      }),
+    [liveBlocks],
   );
+
+  // 历史在前、实时在后。两边形状相同，共用同一个 MessageRow。
+  // 历史重载后实时块会被清空（见 resetLiveStream 的调用点），因此不需要跨来源去重。
+  const allRows = useMemo(() => [...historyRows, ...liveRows], [historyRows, liveRows]);
 
   // 列表是否为空：历史与实时都没有内容时展示占位符。
   const hasAnyRow = allRows.length > 0;
@@ -1611,7 +1492,7 @@ const AgentChat: FC<AgentChatProps> = ({
             size="small"
             icon={<ReloadOutlined spin={reloadingConversation} />}
             title="Reload current conversation"
-            onClick={handleReloadConversation}
+            onClick={() => void handleReloadConversation()}
             disabled={!conversationId}
           >
             Reload
@@ -1646,9 +1527,8 @@ const AgentChat: FC<AgentChatProps> = ({
         </Flex>
       </Flex>
 
-      {/* 消息区域：历史消息气泡始终展示；存在进行中的任务（currentTaskId）时，
-          最后一条 assistant 回复位置替换为该任务的实时事件流（AgentTaskStream），
-          否则展示流式输出气泡。 */}
+      {/* 消息区域：历史消息与实时块共用同一个列表；实时块只在当前轮存在，
+          轮次结束 / 切换会话 / 重新加载历史后清空。 */}
       <div
         ref={listRef}
         onScroll={handleListScroll}
@@ -1692,7 +1572,7 @@ const AgentChat: FC<AgentChatProps> = ({
                 isTurnEnd={isTurnEndMessage(m)}
                 forking={forkingFromSeq === m.seq}
                 forkDisabled={forkingFromSeq !== undefined}
-                onFork={() => void handleForkFromMessage(m)}
+                onFork={handleForkFromMessage}
                 onGoConfig={goAgentConfig}
               />
             ))}

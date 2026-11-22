@@ -2,7 +2,7 @@ import { FC, memo, useMemo } from "react";
 import { Flex, Spin, Typography } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { ToolCallRow, asRecord, StreamedText, renderAssistantMessage } from "./agent-message-render";
-import type { StreamBlock } from "./agent-session-stream";
+import type { StreamBlock } from "./agent-live-stream";
 
 const { Text } = Typography;
 
