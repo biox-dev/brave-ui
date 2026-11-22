@@ -1,4 +1,4 @@
-import { CSSProperties, Fragment, ReactNode, useEffect } from "react";
+import { CSSProperties, FC, Fragment, ReactNode, useEffect } from "react";
 import { Tag, Typography } from "antd";
 import { LoadingOutlined, RightOutlined } from "@ant-design/icons";
 import XMarkdown from "@ant-design/x-markdown";
@@ -113,7 +113,7 @@ export interface AgentToolRenderContext {
   };
 }
 
-type CallView = {
+export type CallView = {
   /** 工具名。 */
   name: string;
   /** 调用 id（后端 toolCallId）：多个调用同名时用它区分标签页。 */
@@ -198,7 +198,7 @@ const openToolCallTab = (conversationId: string | undefined, view: CallView) => 
  * - 执行中：名称右侧显示 Executing...，结果到达后只会更新标签内容；
  * - 历史里没有结果（例如权限被拒绝 / 任务失败）时，详情里 Output 显示 No output。
  */
-function ToolCallRow({
+export function ToolCallRow({
   view,
   conversationId,
   label,
@@ -280,27 +280,72 @@ function ToolResultRow({ name }: { name: string }) {
   );
 }
 
+/**
+ * 流式文本（助手正文 / 推理）。
+ *
+ * 只负责「把一段不断增长的文本渲染成 Markdown」，不参与消息列表结构：
+ * 外层消息列表在追加 token 时不会重渲染（见 agent-chat.tsx 的 MessageRow memo）。
+ *
+ * 为什么要单独成组件：如果正文和整个消息列表放在一起，每来一个 token 都会重算
+ * 整列表的 Markdown / 配对逻辑，长任务下会持续掉帧。这里重渲染成本只有一段文本。
+ */
+export const StreamedText: FC<{
+  kind?: string;
+  content: string;
+  error?: boolean;
+  streaming?: boolean;
+}> = ({ kind, content, error, streaming }) => {
+  const reasoning = kind === "reasoning";
+
+  if (error) {
+    return (
+      <Bubble tone="error">
+        <div style={{ color: "#ff4d4f", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{content}</div>
+      </Bubble>
+    );
+  }
+
+  return (
+    <Bubble tone={reasoning ? "reasoning" : "default"} style={{ flex: 1, minWidth: 0, maxWidth: "78%" }}>
+      {reasoning && (
+        <div style={{ marginBottom: 4 }}>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Reasoning
+          </Text>
+          {streaming && (
+            <Tag color="processing" style={{ marginLeft: 6, lineHeight: "16px", fontSize: 11 }}>
+              streaming
+            </Tag>
+          )}
+        </div>
+      )}
+      <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+        {reasoning ? <Text style={{ fontSize: 13 }}>{content}</Text> : <XMarkdown>{content}</XMarkdown>}
+        {streaming && (
+          <Text type="secondary" style={{ fontSize: 11, marginLeft: 4 }}>
+            ...
+          </Text>
+        )}
+      </div>
+    </Bubble>
+  );
+};
+
 export function renderAssistantMessage(
   message: AgentRenderableMessage,
   context?: AgentToolRenderContext,
 ): ReactNode {
   const kind = message.kind ?? "assistant";
 
-  if (kind === "reasoning") {
+  // 正文 / 推理走 token 级增量组件：内容变化时只重渲染这一段文本，
+  // 不再重算整条消息（Markdown 解析 + 气泡），这是长任务流畅度的关键。
+  if ((kind === "assistant" || kind === "reasoning") && !message.error) {
     return (
-      <Bubble tone="reasoning">
-        <div style={{ marginBottom: 4 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Reasoning
-          </Text>
-          {message.streaming && (
-            <Tag color="processing" style={{ marginLeft: 6, lineHeight: "16px", fontSize: 11 }}>
-              streaming
-            </Tag>
-          )}
-        </div>
-        <Text style={{ fontSize: 13 }}>{message.content}</Text>
-      </Bubble>
+      <StreamedText
+        kind={kind}
+        content={message.content}
+        streaming={!!message.streaming}
+      />
     );
   }
 
@@ -337,22 +382,11 @@ export function renderAssistantMessage(
   }
 
   return (
-    <Bubble tone={message.error ? "error" : "default"}>
-      <div
-        style={{
-          color: message.error ? "#ff4d4f" : "inherit",
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
-        }}
-      >
-        {message.error ? message.content : <XMarkdown>{message.content}</XMarkdown>}
-        {message.streaming && (
-          <Text type="secondary" style={{ fontSize: 11, marginLeft: 4 }}>
-            ...
-          </Text>
-        )}
-      </div>
-    </Bubble>
+    <StreamedText
+      content={message.content}
+      error={!!message.error}
+      streaming={!!message.streaming}
+    />
   );
 }
 

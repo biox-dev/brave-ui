@@ -265,7 +265,16 @@ const AgentTaskPage = () => {
         scroll={{ x: 1600 }}
         locale={{ emptyText: error ? "Failed to load agent tasks" : "No agent tasks" }}
         expandable={{
-          expandedRowRender: (record) => <AgentTaskStream taskId={record.id} />,
+          // 任务调试页只读内存流：不再请求 /agent/task/timeline，
+          // 没有实时会话订阅时展开即空态（任务执行过程请在会话页查看）。
+          expandedRowRender: (record) => (
+            <AgentTaskStream
+              blocks={[]}
+              status={record.status}
+              sessionId={record.session_id}
+              embedded
+            />
+          ),
           rowExpandable: () => true,
         }}
         pagination={{

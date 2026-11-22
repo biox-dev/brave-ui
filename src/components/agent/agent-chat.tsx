@@ -1,4 +1,4 @@
-import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FC, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Empty, Flex, Popconfirm, Select, Space, Spin, Tag, Typography } from "antd";
 import {
   CheckOutlined,
@@ -55,7 +55,14 @@ import { setUserItem } from "@/store/userSlice";
 import { useComponentStore } from "@/event-bus/stores/components";
 import { useRouterStore } from "@/event-bus/stores/router";
 import { invoke } from "@/core/ui-system/invokeV2";
-import AgentTaskStream from "./agent-task-stream";
+import {
+  beginSessionStream,
+  finishTaskStream,
+  ingestAgentEvent,
+  syncSessionStreamStatus,
+  useSessionStream,
+} from "./agent-session-stream";
+import { buildTaskCoverage, isBlockCoveredByHistory } from "./agent-stream-dedupe";
 import AgentAskUserCard from "./agent-ask-user";
 import AgentSender from "./agent-sender";
 import { asRecord, renderAssistantMessage } from "./agent-message-render";
@@ -85,25 +92,6 @@ const TERMINAL_EVENT_TYPES = new Set(["task.completed", "task.failed", "task.can
 // 会话消息分页大小：首屏 / 每次向上滚动加载的条数（与后端默认值对齐）。
 const MESSAGE_PAGE_SIZE = 30;
 
-// 空集合常量：没有进行中任务时保持引用稳定，避免时间线组件重复回填。
-const EMPTY_MESSAGE_IDS: ReadonlySet<string> = new Set<string>();
-
-// AgentChat 负责处理的事件类型（与 AgentTaskStream 的所有权划分）。
-//
-// 两个组件订阅同一条 `agent.event` 并共享去重表，必须先声明所有权再写去重键：
-//   - 归 AgentChat：权限 / 提问（驱动卡片与按钮）与终态（驱动轮次收尾、刷新会话）；
-//   - 归 AgentTaskStream：stream 增量、task.started / task.waiting（驱动时间线与运行状态）。
-// 两边都不处理的事件类型也交给时间线组件分支处理（那里是 default: return）。
-const CHAT_OWNED_EVENT_TYPES = new Set([
-  "permission.created",
-  "permission.resolved",
-  "question.created",
-  "question.resolved",
-  "task.completed",
-  "task.failed",
-  "task.canceled",
-]);
-
 // 本地聊天消息（user / assistant 气泡）。
 interface ChatMessage {
   id: string;
@@ -115,10 +103,113 @@ interface ChatMessage {
   seq?: number;
   data?: unknown;
   error?: boolean;
+  /** 是否仍在追加（仅内存实时块使用；历史消息恒为 false）。 */
+  streaming?: boolean;
   /** 用户消息发起人显示名（后端回填），展示在用户头像下方。 */
   username?: string;
   /** Agent 侧消息执行 Profile 展示名（后端回填），展示在助手头像下方。 */
   profileName?: string;
+}
+
+/**
+ * 把实时块对应的行追加到历史行之后，并复用历史同一套 tool_result 配对规则。
+ *
+ * 关键点：实时块的 tool_result 可能是**独立块**（attachToolResult 没匹配上，
+ * 例如 call_id 缺失或后端分批推送），如果不在这里配对，就会渲染成
+ * 孤立的「Tool Result」气泡 —— 这正是「实时流与历史表现不一致」的主要来源。
+ *
+ * 配对顺序（缺一不可）：
+ *   1) 先与**实时区自己**的 tool_call 配对（call_id → 同名退化）；
+ *   2) 再与**历史里**的 tool_call 配对（刷新后历史已有该调用，实时只剩结果）；
+ *   3) 仍然配不上的结果直接丢弃 —— 孤立的「Tool Result」气泡没有任何信息量
+ *      （正文只在调用详情标签里展示），显示出来只会让用户困惑。
+ */
+function mergeRealtimeRows(
+  historyRows: { message: ChatMessage; result?: ChatMessage }[],
+  realtimeRows: ChatMessage[],
+): { message: ChatMessage; result?: ChatMessage }[] {
+  if (realtimeRows.length === 0) return historyRows;
+
+  const isResult = (kind?: string) => kind === "tool_result" || kind === "skill_result";
+  const isCall = (kind?: string) => kind === "tool_call" || kind === "skill_call";
+  const callIdOf = (m: ChatMessage) => {
+    const id = asRecord(m.data)?.id;
+    return typeof id === "string" ? id : "";
+  };
+  const resultCallIdOf = (m: ChatMessage) => {
+    const id = asRecord(m.data)?.tool_call_id;
+    return typeof id === "string" ? id : "";
+  };
+
+  // 索引：实时区的 tool_result。
+  const resultByCallId = new Map<string, ChatMessage>();
+  const resultByName = new Map<string, ChatMessage[]>();
+  realtimeRows.forEach((m) => {
+    if (!isResult(m.kind)) return;
+    const callId = resultCallIdOf(m);
+    if (callId) {
+      if (!resultByCallId.has(callId)) resultByCallId.set(callId, m);
+      return;
+    }
+    const name = typeof asRecord(m.data)?.name === "string" ? (asRecord(m.data)!.name as string) : "";
+    const queue = resultByName.get(name) ?? [];
+    queue.push(m);
+    resultByName.set(name, queue);
+  });
+
+  const consumed = new Set<ChatMessage>();
+  const takeResult = (call: ChatMessage): ChatMessage | undefined => {
+    const callId = callIdOf(call);
+    const exact = callId ? resultByCallId.get(callId) : undefined;
+    if (exact && !consumed.has(exact)) {
+      consumed.add(exact);
+      return exact;
+    }
+    const name = asRecord(call.data)?.name;
+    const queue = typeof name === "string" ? resultByName.get(name) : undefined;
+    const next = queue?.find((candidate) => !consumed.has(candidate));
+    if (next) {
+      consumed.add(next);
+      return next;
+    }
+    return undefined;
+  };
+
+  const rows: { message: ChatMessage; result?: ChatMessage }[] = [...historyRows];
+
+  // 先把「实时里的结果」配给「历史里的调用」：这些是同一轮的续跑内容，
+  // 历史已有调用行、实时只剩结果事件的情况（刷新后批准权限最典型）。
+  // 已配上的历史行直接补上 result，不再 push 新行。
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (!isCall(row.message.kind) || row.result) continue;
+    const matched = takeResult(row.message);
+    if (matched) rows[i] = { ...row, result: matched };
+  }
+
+  for (const m of realtimeRows) {
+    // 已并入某个调用行的结果不再单独成行。
+    if (isResult(m.kind) && consumed.has(m)) continue;
+    // 仍然配不上的孤立结果直接丢弃（不渲染「Tool Result」气泡）。
+    if (isResult(m.kind)) continue;
+
+    let paired = isCall(m.kind) ? takeResult(m) : undefined;
+    // 调用行若已内联结果（data.result），无需再找配对。
+    if (!paired && isCall(m.kind)) {
+      const inline = asRecord(asRecord(m.data)?.result);
+      if (inline) {
+        paired = {
+          id: `${m.id}-result`,
+          role: "assistant",
+          kind: "tool_result",
+          content: "",
+          data: inline,
+        };
+      }
+    }
+    rows.push({ message: m, result: paired });
+  }
+  return rows;
 }
 
 // 后端用字符串 "0" 表示“无当前任务”，需一并视为空。
@@ -167,18 +258,179 @@ interface AgentChatProps {
 }
 
 /**
+ * 单条消息行（历史与实时共用）。
+ *
+ * 为什么要抽成组件并与实时块共用：
+ *   - 实时流与历史必须**长得完全一样**（同样的左对齐、气泡、Tool Call 合并规则），
+ *     否则用户会看到「刷新前一个样、刷新后另一个样」；
+ *   - 用 memo 包住后，token 级追加只会重渲染「末尾那条正在流式的消息」，
+ *     其余历史行引用不变直接跳过，长任务下不会掉帧。
+ */
+const MessageRow = memo(function MessageRow({
+  message: m,
+  result,
+  conversationId,
+  isTurnEnd,
+  forking,
+  forkDisabled,
+  onFork,
+  onGoConfig,
+}: {
+  message: ChatMessage;
+  result?: ChatMessage;
+  conversationId?: string;
+  isTurnEnd: boolean;
+  forking: boolean;
+  forkDisabled: boolean;
+  onFork: () => void;
+  onGoConfig: () => void;
+}) {
+  // 结果形状与历史和实时两侧一致（content / is_error / metadata）。
+  const renderResult = result
+    ? (() => {
+        const data = asRecord(result.data);
+        return {
+          content: typeof data?.content === "string" ? data.content : result.content,
+          is_error: !!data?.is_error || !!result.error,
+          metadata: data?.metadata,
+        };
+      })()
+    : undefined;
+
+  return (
+    <Flex
+      className="agent-chat-msg"
+      justify={m.role === "user" ? "flex-end" : "flex-start"}
+      align="flex-start"
+      gap={8}
+    >
+      {m.role === "assistant" && (
+        <Flex vertical align="center" style={{ flexShrink: 0, width: 64, marginTop: 4 }}>
+          <RobotOutlined style={{ color: "#1677ff" }} />
+          {/* Profile 名称：后端按消息的 Profile ID 回填，展示在助手头像下方。 */}
+          {m.profileName && (
+            <Text
+              type="secondary"
+              style={{ fontSize: 11, lineHeight: 1.2, marginTop: 2, textAlign: "center" }}
+            >
+              {m.profileName}
+            </Text>
+          )}
+        </Flex>
+      )}
+      <div
+        style={
+          m.role === "user"
+            ? {
+                maxWidth: "78%",
+                padding: "8px 12px",
+                borderRadius: 8,
+                background: "#1677ff",
+                color: "#fff",
+                border: "none",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }
+            : // 助手气泡按百分比取宽，需要一个确定的可用宽度作参照，
+              // 否则折叠时的 nowrap 预览会把容器撑宽。
+              { flex: 1, minWidth: 0 }
+        }
+      >
+        <div>
+          {m.role === "assistant" ? (
+            m.error ? (
+              // 错误消息附上「配置 Agent」跳转，便于用户直接去修正模型配置后重试。
+              <Flex vertical gap={6} align="flex-start">
+                {renderAssistantMessage(
+                  { kind: m.kind, content: m.content, data: m.data, error: m.error },
+                  { conversationId, result: renderResult },
+                )}
+                <Button size="small" icon={<SettingOutlined />} onClick={onGoConfig}>
+                  配置 Agent
+                </Button>
+              </Flex>
+            ) : (
+              renderAssistantMessage(
+                {
+                  kind: m.kind,
+                  content: m.content,
+                  data: m.data,
+                  error: m.error,
+                  streaming: m.streaming,
+                },
+                { conversationId, result: renderResult },
+              )
+            )
+          ) : (
+            m.content
+          )}
+        </div>
+        {/* 分叉入口挂在消息内容下方：只在「每轮结束」的消息上出现，
+            行高常驻以保证布局稳定，鼠标悬停该条消息时才可见
+            （见文件末尾注入的 hover 样式）。 */}
+        {isTurnEnd && (
+          <Flex
+            className="agent-chat-msg-actions"
+            justify={m.role === "user" ? "flex-end" : "flex-start"}
+            style={{ height: 22, marginTop: 2 }}
+          >
+            <Button
+              type="text"
+              size="small"
+              icon={<ForkOutlined />}
+              title="Fork from here (after this turn)"
+              loading={forking}
+              disabled={forkDisabled}
+              style={{
+                height: 22,
+                padding: "0 4px",
+                fontSize: 12,
+                color: m.role === "user" ? "rgba(255,255,255,0.85)" : "#8c8c8c",
+              }}
+              onClick={onFork}
+            >
+              Fork
+            </Button>
+          </Flex>
+        )}
+      </div>
+      {m.role === "user" && (
+        <Flex vertical align="center" style={{ flexShrink: 0, width: 64, marginTop: 4 }}>
+          <UserOutlined style={{ color: "#1677ff" }} />
+          {/* 发起人用户名：后端按 user_id 回填，展示在用户头像下方。 */}
+          {m.username && (
+            <Text style={{ fontSize: 11, lineHeight: 1.2, marginTop: 2, textAlign: "center", color: "#595959" }}>
+              {m.username}
+            </Text>
+          )}
+        </Flex>
+      )}
+    </Flex>
+  );
+});
+
+/**
  * Agent 多轮对话 UI。
  *
  * 职责：
  *   - 发送消息：调用 POST /agent/chat，拿到 task_id + conversation_id；
- *   - 通过全局 WS（HybridRealtimeClient）跟踪任务状态变化（waiting/terminal）；
- *   - 进行中的任务用 AgentTaskStream 渲染完整过程（reasoning/tool/message 流式）；
- *   - 任务终态后刷新会话，展示后端投影后的 assistant_final/reasoning/tool_* 历史。
+ *   - 通过全局 WS（HybridRealtimeClient）接收 `agent.event`（增量 + 状态 + 权限 / 提问）；
+ *   - 进行中的轮次把「内存增量」直接追加到同一份消息列表渲染；
+ *   - 任务终态后刷新会话，展示后端投影后的 assistant / reasoning / tool_* 历史。
  *
- * 历史恢复：刷新 / 切换会话后，首屏只拉取最新一页会话消息；
- * 用户向上滚动时按 next_cursor 增量加载更早的消息（避免一次性渲染全部历史），
- * 进行中任务的执行过程由 GET /agent/task/timeline 回填（AgentTaskStream 内部完成），
- * 增量事件（text / reasoning_delta）只广播不落库，因此不参与恢复。
+ * 数据分层（长任务 / 频繁切换页面的关键设计）：
+ *   1) 数据库历史：getConversationApi，分页加载，渲染为 messages；
+ *   2) 内存增量：WS 事件写入模块级仓库 agent-session-stream，不落库、不发请求、
+ *      不因组件卸载而丢失。切换页面再回来能续上；浏览器刷新才清空。
+ *
+ * 渲染统一（与历史完全一致）：
+ *   实时块会被转换成与历史消息相同的形状，走同一个 `MessageRow`，
+ *   因此对齐方式、气泡样式、Tool Call / Tool Result 合并规则完全一致；
+ *   只有「正在流式追加的那一条」会被单独重渲染（memo + StreamedText）。
+ *
+ * 刻意不再使用 /agent/task/timeline 回填：它本质上是一次 HTTP 全量快照，
+ * 长任务里既慢又容易与实时流互相覆盖。刷新后的已知取舍是：内存里那段未入库的
+ * 增量文本会丢失，实时区从下一段新内容开始写入（数据库已有的部分照常展示）。
  */
 const AgentChat: FC<AgentChatProps> = ({
   conversationId: initialConversationId,
@@ -244,16 +496,16 @@ const AgentChat: FC<AgentChatProps> = ({
   // 直接以 /session/:sessionId 挂载时，state 初值等于 prop，仅靠「id === conversationId」
   // 会把首次加载误判成重复切换而跳过，因此需要单独记录「是否加载过」。
   const loadedConvIdRef = useRef<string | undefined>(undefined);
-  // 活跃轮次表：taskID → 该轮次中间态，跨会话切换与浏览器刷新保留。
+  // 活跃轮次表：taskID → 该轮次中间态，仅用于本次页面会话的运行状态跟踪。
   const activeTurnsRef = useRef<Map<string, ActiveTurn>>(new Map());
-  // 全局事件去重表：AgentTaskStream 通过 seenRef 共享同一张表，保证同一 event.id
-  // 只被处理一次（两侧都订阅 agent.event，各维护一份会造成状态与时间线不一致）。
-  const seenRef = useRef<Set<string>>(new Set());
 
   // 消息变化时的滚动策略：
   //   - 向上加载更早消息（prepend）后恢复原视口位置，避免页面跳动；
-  //   - 其余情况（新消息 / 实时输出）保持贴底；
+  //   - 其余情况（新消息）保持贴底；
   //   - 内容不足一屏且还有更早消息时继续加载，保证滚动条出现后仍可向上翻。
+  //
+  // 注意不依赖内存流：token 级追加非常频繁，强制贴底会打断用户回看之前的输出。
+  // 实时区自身不做滚动，用户停留位置由这里的历史变化决定。
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
@@ -438,47 +690,6 @@ const AgentChat: FC<AgentChatProps> = ({
     return rows;
   }, [messages]);
 
-  // 把配对到的 ChatMessage 结果转成渲染层需要的形状（content / is_error / metadata）。
-  const toRenderableResult = (result?: ChatMessage) => {
-    if (!result) return undefined;
-    const data = asRecord(result.data);
-    return {
-      content: typeof data?.content === "string" ? data.content : result.content,
-      is_error: !!data?.is_error || !!result.error,
-      metadata: data?.metadata,
-    };
-  };
-
-  // 该任务是否已由历史消息投影出内容（token / reasoning / tool），
-  // 是则不再额外渲染 AgentTaskStream，避免同一任务的时间线出现两份。
-  //
-  // 注意：只对「已结束展示」的轮次生效。只要 currentTaskId 仍在，就说明本轮还在
-  // 进行（running / waiting_permission），实时区必须渲染 —— 否则刷新页面后批准权限，
-  // 因为历史里已有 reasoning / tool_call 而整块实时流不出现，看起来就是「批准后没反应」。
-  const streamedByHistory = (taskId: string) =>
-    messages.some(
-      (m) => m.taskId === taskId && m.role === "assistant" && !!m.kind && m.kind !== "assistant_final" && m.kind !== "assistant"
-    );
-
-  // 实时区是否渲染：进行中的任务始终渲染；没有进行中任务时不渲染。
-  // 历史与实时区的重复由 AgentTaskStream 的回填跳过逻辑消除（coveredIds）。
-  const showLiveStream = (taskId?: string) => isValidTaskId(taskId);
-
-  // 本轮已由历史气泡渲染的消息 ID 集合（与 agent_messages ID 一致）。
-  //
-  // 历史是分页加载的：首屏 / 向上加载的页面可能只覆盖任务时间线的「最后一段」，
-  // 因此按 ID 精确跳过，不能用条数跳过前缀（任务跨度超过一页时会重复渲染）。
-  const coveredIds = useMemo(() => {
-    if (!isValidTaskId(currentTaskId)) return EMPTY_MESSAGE_IDS;
-    const ids = new Set<string>();
-    for (const m of messages) {
-      if (m.taskId === currentTaskId && m.role === "assistant" && m.kind !== "error") {
-        ids.add(m.id);
-      }
-    }
-    return ids;
-  }, [messages, currentTaskId]);
-
   // 「轮次结束」消息的 id 集合：每个 task 的最后一条消息。
   //
   // fork 入口只挂在这些位置（每个 task 一个按钮），语义是「从这一轮结束后分叉」。
@@ -605,8 +816,8 @@ const AgentChat: FC<AgentChatProps> = ({
   // 从持久化检查点继续执行一个被中断的任务。
   //
   // 后端会复用同一 taskID 重新启动执行循环；这里把本地活跃轮次重新登记，
-  // 让 WS 事件继续路由到本轮，并清掉该任务已投影的历史气泡，避免
-  // streamedByHistory 把新的实时流隐藏掉。
+  // 让 WS 事件继续路由到本轮，并清掉该任务的旧历史气泡与内存流，
+  // 避免续跑后的新输出被历史残影遮挡。
   const handleResumeTask = async () => {
     const taskId = resumableTaskId;
     if (!taskId || sending) return;
@@ -624,7 +835,6 @@ const AgentChat: FC<AgentChatProps> = ({
           sending: true,
         });
       }
-      seenRef.current.clear();
       setMessages((prev) => prev.filter((m) => m.taskId !== taskId));
       setCurrentTaskId(taskId);
       setSending(true);
@@ -699,6 +909,9 @@ const AgentChat: FC<AgentChatProps> = ({
         try {
           const t = await getAgentTaskApi(taskId);
           const st = t.data.status;
+          // 刷新后 WS 的 task.started / task.waiting 已经错过，仓库里仍是默认的
+          // created；这里用任务真实状态补齐，否则实时区会一直显示 Starting。
+          syncSessionStreamStatus(conv.id, st);
           if (
             st === AgentTaskStatus.Completed ||
             st === AgentTaskStatus.Failed ||
@@ -719,8 +932,13 @@ const AgentChat: FC<AgentChatProps> = ({
           turn.waiting = st === AgentTaskStatus.WaitingPermission;
         } catch {
           // 查询任务失败时按 running 处理，避免丢失实时流。
+          syncSessionStreamStatus(conv.id, "running");
         }
       }
+
+      // 内存仓库的状态可能仍是 created（切走页面期间漏掉了 task.started 等事件），
+      // 用本地已知的 turn 状态兜底同步，保证回来时头部与实时区状态正确。
+      syncSessionStreamStatus(conv.id, turn.waiting ? "waiting_permission" : "running");
 
       setCurrentTaskId(taskId);
       setSending(turn.sending);
@@ -740,7 +958,6 @@ const AgentChat: FC<AgentChatProps> = ({
   const handleClear = () => {
     selectedConvIdRef.current = undefined;
     loadedConvIdRef.current = undefined;
-    seenRef.current.clear();
     setConversationId(undefined);
     setCurrentTaskId(undefined);
     setMessages([]);
@@ -809,9 +1026,25 @@ const AgentChat: FC<AgentChatProps> = ({
       applySessionPage(conv);
       // 同步刷新待确认权限 / 待作答提问，保证按钮与卡片与后端一致。
       if (isValidTaskId(conv.current_task_id)) {
-        void loadPermissions(conv.current_task_id);
-        void loadQuestions(conv.current_task_id);
-        void refreshResumableTask(conv.current_task_id);
+        const taskId = conv.current_task_id;
+        void loadPermissions(taskId);
+        void loadQuestions(taskId);
+        void refreshResumableTask(taskId);
+        // 同步任务真实状态到内存流：WS 的中间态事件不落库，
+        // 刷新 / 重连后只能靠任务记录补回 Running / Waiting permission。
+        void getAgentTaskApi(taskId)
+          .then((t) => {
+            if (conv.id !== selectedConvIdRef.current) return;
+            syncSessionStreamStatus(conv.id, t.data?.status);
+            if (t.data?.status === AgentTaskStatus.WaitingPermission) {
+              setWaiting(true);
+            } else if (t.data?.status === AgentTaskStatus.Running) {
+              setWaiting(false);
+            }
+          })
+          .catch(() => {
+            // 查询失败时保持现有状态。
+          });
       } else {
         setResumableTaskId(undefined);
       }
@@ -873,6 +1106,10 @@ const AgentChat: FC<AgentChatProps> = ({
       setWaiting(false);
       setPendingPermissions([]);
       setPendingQuestions([]);
+      // 终态到达时数据库不一定写完投影：这里**不清空内存块**（否则可能闪出空白），
+      // 只标记该任务已结束。块与历史由 realtimeBlocks 逐块比对去重，
+      // 下一轮开始（beginSessionStream）或切会话时才真正丢弃。
+      finishTaskStream(turn.convId, turn.taskId);
     }
     activeTurnsRef.current.delete(turn.taskId);
     // 本轮结束后刷新会话列表（标题 / 顺序 / 消息数可能变化）。
@@ -888,10 +1125,9 @@ const AgentChat: FC<AgentChatProps> = ({
 
   // 收到「别人发起」的一轮任务时，在本地补登记活跃轮次。
   //
-  // A 发起一轮后，B 的页面只收到 WS 事件，本地没有对应的 turn 记录：
-  // applyEvent 会因为找不到 turn 而丢弃全部事件，表现为「WS 有数据但 UI 不更新」。
+  // A 发起一轮后，B 的页面只收到 WS 事件，本地没有对应的 turn 记录。
   // 这里用事件自带的 session_id 判断它属于当前会话，补一条 turn，后续
-  // AgentTaskStream / 权限卡片 / 终态收尾就能正常路由。
+  // 权限卡片 / 终态收尾就能正常路由。
   //
   // 终态事件不补登记：这一轮已经结束，只需要刷新会话拿到最终投影。
   const adoptForeignTurn = (ev: AgentEventItem): ActiveTurn | undefined => {
@@ -911,18 +1147,26 @@ const AgentChat: FC<AgentChatProps> = ({
     setCurrentTaskId(ev.task_id);
     setSending(true);
     setWaiting(turn.waiting);
+    setResumableTaskId(undefined);
     // 事件里不带用户输入，拉一次会话补上对方刚发出的那条 user 消息。
     void handleReloadConversation();
     return turn;
   };
 
-  // 统一处理一个任务事件（实时 WS 推送与历史恢复共用）。
+  // 处理一个任务事件（只做「生命周期」层面的收尾，增量文本交给内存流仓库）。
   //
-  // 去重表（seenRef）与 AgentTaskStream 共享，因此这里必须先按「是否归本组件处理」
-  // 过滤，再写入去重表：否则本组件会把「归时间线组件消费」的事件（stream 增量、
-  // task.started / task.waiting 等状态事件）提前登记为已见，导致时间线组件收不到、
-  // 实时流状态停更新（刷新后批准权限后不恢复 running 就是这个原因）。
+  // 事件流是广播语义：同一会话的所有在线客户端都会收到，因此不再按「谁发起」过滤。
+  // 分两路：
+  //   1) stream / task.started / task.waiting → 先落到 agent-session-stream（模块级仓库，
+  //      与组件生命周期解耦），再由 useSessionStream 渲染；这里只同步顶层的
+  //      sending / waiting / currentTaskId 这些「本轮是否还在跑」的标志。
+  //   2) 权限 / 提问 / 终态 → 本组件处理（卡片与轮次收尾）。
   const applyEvent = (ev: AgentEventItem) => {
+    // 先投递给内存流仓库：它对所有会话都写入（按 session_id 分桶），
+    // 因此「新建会话的首个 token 早于 HTTP 响应到达」时也不会丢失。
+    // 这一步必须在会话过滤之前，否则那批早期事件会被直接丢弃。
+    ingestAgentEvent(ev);
+
     if (!isSelectedConversationEvent(ev)) return;
 
     let turn = activeTurnsRef.current.get(ev.task_id);
@@ -937,8 +1181,6 @@ const AgentChat: FC<AgentChatProps> = ({
       }
     }
 
-    // task.started / task.waiting 归 AgentTaskStream 渲染状态，但顶层的 sending / waiting
-    // 也要跟着变化；这两个事件不写去重表，避免时间线组件收不到。
     if (ev.type === "task.started") {
       setWaiting(false);
       return;
@@ -947,15 +1189,6 @@ const AgentChat: FC<AgentChatProps> = ({
       setWaiting(true);
       return;
     }
-
-    // 所有权判定：AgentChat 只负责「业务状态」类事件（权限 / 提问 / 终态收尾）。
-    // stream 增量与 task.started / task.waiting 归 AgentTaskStream，本组件既不处理
-    // 也不占用去重键（终态仍需本组件收尾，因此留在 OWNED 里）。
-    if (!CHAT_OWNED_EVENT_TYPES.has(ev.type ?? "")) return;
-
-    const key = ev.id ?? "";
-    if (seenRef.current.has(key)) return;
-    seenRef.current.add(key);
 
     const selected = turn.convId === selectedConvIdRef.current;
 
@@ -978,8 +1211,10 @@ const AgentChat: FC<AgentChatProps> = ({
     }
   };
 
-  // 全局订阅 WS：把 agent.event 路由到对应活跃轮次；
-  // 其他用户发起的一轮在首次收到事件时补登记（见 adoptForeignTurn）。
+  // 全局订阅 WS：把 agent.event 投递给内存流仓库（跨组件生命周期保留），
+  // 并驱动当前会话的生命周期收尾。
+  //
+  // 这里与「本会话是否打开」解耦：只要收到事件就写入仓库，用户切回来时立刻可见。
   useEffect(() => {
     const unsubscribe = sseClient.onMessage((raw: unknown) => {
       if (!raw || typeof raw !== "object") return;
@@ -1096,6 +1331,12 @@ const AgentChat: FC<AgentChatProps> = ({
     setWaiting(false);
     setResumableTaskId(undefined);
 
+    // 新一轮开始：在任何网络请求之前清空该会话内存里上一轮残留的块。
+    // 必须放在 await 之前 —— 放在拿到 conversation_id 之后会把这期间已经到达
+    // 的首批 token 一并抹掉（新建会话时尤其明显）。
+    const preSendConvId = selectedConvIdRef.current ?? conversationId;
+    if (preSendConvId) beginSessionStream(preSendConvId);
+
     try {
       const res = await chatAgentApi({
         conversation_id: conversationId,
@@ -1111,7 +1352,7 @@ const AgentChat: FC<AgentChatProps> = ({
       onConversationChange?.(conversation_id);
       void loadAgentConversations();
 
-      // 登记本轮活跃状态，供切换 / 刷新后恢复。
+      // 登记本轮活跃状态，供切换后恢复运行标志。
       const turn: ActiveTurn = {
         taskId: task_id,
         convId: conversation_id,
@@ -1119,7 +1360,11 @@ const AgentChat: FC<AgentChatProps> = ({
         sending: true,
       };
       activeTurnsRef.current.set(task_id, turn);
-      seenRef.current.clear();
+      // 新建会话（preSendConvId 为空）时，这一轮的事件可能已经先落进了
+      // conversation_id 对应的桶里；此时不能清空，否则会丢掉已到达的 token。
+      if (preSendConvId && preSendConvId !== conversation_id) {
+        beginSessionStream(conversation_id);
+      }
       setCurrentTaskId(task_id);
 
       // 本轮任务可能很快进入等待权限，提前拉取待确认权限。
@@ -1170,6 +1415,77 @@ const AgentChat: FC<AgentChatProps> = ({
 
   // 当前用户选中的 Profile 展示名（由 /auth/me 解析的 agent_profile DTO 提供）。
   const currentProfileId = userInfo?.agent_config?.profile_id;
+
+  // 本会话的内存实时流（模块级仓库）：只有 stream 增量 / 状态，不含数据库历史。
+  //
+  // 订阅它而不是把增量塞进 messages state：
+  //   1) token 级更新不会触发本组件（及整个历史列表）重渲染，只有末尾那块更新；
+  //   2) 组件卸载（切换到别的页面）后仓库仍在写，回来时直接看到离开期间的内容。
+  const liveStream = useSessionStream(conversationId);
+
+  // 实时区去重：数据库历史里可能已经包含同一轮的落库块（后端把完整块即时写入
+  // agent_messages），此时「历史在前 + 内存增量在后」会重复。
+  //
+  // 不能按下标逐块比较：历史把 tool_call / tool_result 拆成两条消息，而实时流会把
+  // 结果内联进调用块，两边长度与顺序天然不同（第一个工具结果后即错位）。
+  //
+  // 因此改为「按身份匹配」：每个实时块带 taskId，与同任务的历史内容逐项核对，
+  // 只裁掉连续且已被完整覆盖的前缀；遇到第一个未覆盖的块立即停止（宁可短暂重复，
+  // 也不能丢内容）。轮次结束后 currentTaskId 虽被清空，块自身的 taskId 仍能继续去重。
+  const realtimeBlocks = useMemo(() => {
+    const blocks = liveStream.blocks;
+    if (blocks.length === 0) return blocks;
+
+    const coverageByTask = buildTaskCoverage(messages);
+    if (coverageByTask.size === 0) return blocks;
+
+    const fallbackTaskId = isValidTaskId(currentTaskId) ? currentTaskId : undefined;
+
+    let skip = 0;
+    for (const block of blocks) {
+      // 仍在追加的块历史里必然没有完整内容，不能算已覆盖。
+      if (block.streaming) break;
+      const taskId = block.taskId ?? fallbackTaskId;
+      const coverage = taskId ? coverageByTask.get(taskId) : undefined;
+      if (!coverage || !isBlockCoveredByHistory(block, coverage)) break;
+      skip++;
+    }
+    return skip > 0 ? blocks.slice(skip) : blocks;
+  }, [liveStream, currentTaskId, messages]);
+
+  // 把实时块转成与「历史消息」完全相同的形状，直接拼进同一个列表渲染。
+  //
+  // 为什么这样做（而不是单独一个面板）：
+  //   - 用户看到的气泡样式、左对齐、Tool Call / Tool Result 合并规则，
+  //     全部与刷新后的历史一致，不存在「刷新前一个样、刷新后一个样」；
+  //   - tool_result 通过 `data.tool_call_id` 与 tool_call 配对，
+  //     配对得上就并入调用行（不再出现孤立的 Tool Result 气泡）。
+  const realtimeRows = useMemo(() => {
+    return realtimeBlocks.map<ChatMessage>((block, index) => ({
+      // 稳定 key：同一块在多次渲染中保持一致，避免列表重挂。
+      id: `live-${block.key || index}`,
+      role: "assistant",
+      content: block.content,
+      kind: block.kind,
+      data: block.data,
+      error: !!block.error,
+      streaming: !!block.streaming,
+      taskId: block.taskId ?? currentTaskId,
+    }));
+  }, [realtimeBlocks, currentTaskId]);
+
+  // 合并后的完整行计划：历史在前、实时在后，共用同一套配对 / 渲染逻辑。
+  //
+  // 注意 tool_result 的配对：实时区里 tool_call 可能已经把结果内联在
+  // `data.result` 上（见 agent-session-stream 的 attachToolResult），
+  // 因此这里先把「已内联结果」的调用行标出来，避免结果重复成独立气泡。
+  const allRows = useMemo(
+    () => mergeRealtimeRows(historyRows, realtimeRows),
+    [historyRows, realtimeRows],
+  );
+
+  // 列表是否为空：历史与实时都没有内容时展示占位符。
+  const hasAnyRow = allRows.length > 0;
 
   return (
     <Flex vertical style={{ height: "100%", minHeight: 480 }}>
@@ -1345,7 +1661,7 @@ const AgentChat: FC<AgentChatProps> = ({
           background: "#fafafa",
         }}
       >
-        {messages.length === 0 && !currentTaskId ? (
+        {!hasAnyRow && !currentTaskId ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             description="Start a conversation with the agent"
@@ -1367,140 +1683,19 @@ const AgentChat: FC<AgentChatProps> = ({
                 </Flex>
               )
             )}
-            {historyRows.map(({ message: m, result }) => (
-              <Flex
+            {allRows.map(({ message: m, result }) => (
+              <MessageRow
                 key={m.id}
-                className="agent-chat-msg"
-                justify={m.role === "user" ? "flex-end" : "flex-start"}
-                align="flex-start"
-                gap={8}
-              >
-                {m.role === "assistant" && (
-                  <Flex
-                    vertical
-                    align="center"
-                    style={{ flexShrink: 0, width: 64, marginTop: 4 }}
-                  >
-                    <RobotOutlined style={{ color: "#1677ff" }} />
-                    {/* Profile 名称：后端按消息的 Profile ID 回填，展示在助手头像下方。 */}
-                    {m.profileName && (
-                      <Text
-                        type="secondary"
-                        style={{ fontSize: 11, lineHeight: 1.2, marginTop: 2, textAlign: "center" }}
-                      >
-                        {m.profileName}
-                      </Text>
-                    )}
-                  </Flex>
-                )}
-                <div
-                  style={
-                    m.role === "user"
-                      ? {
-                        maxWidth: "78%",
-                        padding: "8px 12px",
-                        borderRadius: 8,
-                        background: "#1677ff",
-                        color: "#fff",
-                        border: "none",
-                        whiteSpace: "pre-wrap",
-                        wordBreak: "break-word",
-                      }
-                      // 助手气泡按百分比取宽，需要一个确定的可用宽度作参照，否则折叠
-                      // 时的 nowrap 预览会把容器撑宽。
-                      : { flex: 1, minWidth: 0 }
-                  }
-                >
-                  <div>
-                    {m.role === "assistant" ? (
-                      // 错误消息附上「配置 Agent」跳转，便于用户直接去修正模型配置后重试。
-                      m.error ? (
-                        <Flex vertical gap={6} align="flex-start">
-                          {renderAssistantMessage(
-                            { kind: m.kind, content: m.content, data: m.data, error: m.error },
-                            { conversationId, result: toRenderableResult(result) },
-                          )}
-                          <Button
-                            size="small"
-                            icon={<SettingOutlined />}
-                            onClick={goAgentConfig}
-                          >
-                            配置 Agent
-                          </Button>
-                        </Flex>
-                      ) : (
-                        renderAssistantMessage(
-                          { kind: m.kind, content: m.content, data: m.data, error: m.error },
-                          { conversationId, result: toRenderableResult(result) },
-                        )
-                      )
-                    ) : (
-                      m.content
-                    )}
-                  </div>
-                  {/* 分叉入口挂在消息内容下方：只在「每轮结束」的消息上出现，
-                      行高常驻以保证布局稳定，鼠标悬停该条消息时才可见
-                      （见文件末尾注入的 hover 样式）。 */}
-                  {isTurnEndMessage(m) && (
-                    <Flex
-                      className="agent-chat-msg-actions"
-                      justify={m.role === "user" ? "flex-end" : "flex-start"}
-                      style={{ height: 22, marginTop: 2 }}
-                    >
-                      <Button
-                        type="text"
-                        size="small"
-                        icon={<ForkOutlined />}
-                        title="Fork from here (after this turn)"
-                        loading={forkingFromSeq === m.seq}
-                        disabled={forkingFromSeq !== undefined}
-                        style={{
-                          height: 22,
-                          padding: "0 4px",
-                          fontSize: 12,
-                          color: m.role === "user" ? "rgba(255,255,255,0.85)" : "#8c8c8c",
-                        }}
-                        onClick={() => void handleForkFromMessage(m)}
-                      >
-                        Fork
-                      </Button>
-                    </Flex>
-                  )}
-                </div>
-                {m.role === "user" && (
-                  <Flex
-                    vertical
-                    align="center"
-                    style={{ flexShrink: 0, width: 64, marginTop: 4 }}
-                  >
-                    <UserOutlined style={{ color: "#1677ff" }} />
-                    {/* 发起人用户名：后端按 user_id 回填，展示在用户头像下方。 */}
-                    {m.username && (
-                      <Text
-                        style={{ fontSize: 11, lineHeight: 1.2, marginTop: 2, textAlign: "center", color: "#595959" }}
-                      >
-                        {m.username}
-                      </Text>
-                    )}
-                  </Flex>
-                )}
-              </Flex>
-            ))}
-            {/* 进行中的任务展示完整实时事件流（reasoning/tool/message）。
-                只要 currentTaskId 存在就渲染：刷新后批准权限需要靠这里继续展示过程。
-                coveredIds 传入外层历史已覆盖的消息 ID（本轮已投影到 AgentChat 的历史消息），
-                由时间线组件按 ID 跳过，避免同一任务出现两份内容。
-                嵌入模式下由 AgentTaskStream 委托父容器滚动，避免嵌套滚动条。
-                seenRef 共享同一张去重表，保证两侧不会各自消费同一个事件。 */}
-
-            {showLiveStream(currentTaskId) && (
-              <AgentTaskStream
-                taskId={currentTaskId}
-                scrollContainerRef={listRef}
-                seenRef={seenRef}
-                coveredIds={coveredIds}
+                message={m}
+                result={result}
+                conversationId={conversationId}
+                isTurnEnd={isTurnEndMessage(m)}
+                forking={forkingFromSeq === m.seq}
+                forkDisabled={forkingFromSeq !== undefined}
+                onFork={() => void handleForkFromMessage(m)}
+                onGoConfig={goAgentConfig}
               />
-            )}
+            ))}
             {/* {
               sending && (
                 <Flex align="flex-start" gap={8}>
@@ -1710,7 +1905,6 @@ const AgentChat: FC<AgentChatProps> = ({
 };
 
 // 消息内的操作（Fork）：默认隐藏，鼠标悬停该条消息时才显示。
-// 用 CSS 而不是 React state，避免每条消息都维护一份 hover 状态。
 const AGENT_CHAT_MSG_STYLE = `
 .agent-chat-msg .agent-chat-msg-actions { visibility: hidden; }
 .agent-chat-msg:hover .agent-chat-msg-actions { visibility: visible; }

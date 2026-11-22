@@ -306,16 +306,6 @@ export interface AgentConversationGetQuery {
   limit?: number;
 }
 
-// 已落库的时间线消息（对应后端 agenttypes.Message，GET /agent/task/timeline）。
-//
-// 与会话消息相比多了 id / seq：id 用于与实时 WS 事件对齐去重，seq 保证回填顺序
-// 与事件产生顺序一致（两者都是雪花 ID，不能按大小比较先后）。
-export interface AgentTaskTimelineItem extends AgentConversationMessageItem {
-  id: string;
-  seq?: number;
-  created_at?: string;
-}
-
 export interface AgentConversationPageQuery {
   // 暂无额外过滤字段
 }
@@ -407,20 +397,6 @@ export const listAllAgentSessionResourcesApi = (sessionId: string) => {
 // 获取单个 Agent 任务。
 export const getAgentTaskApi = (id: string) => {
   return http.get<AgentTaskItem>("/agent/task/get", { params: { id } });
-};
-
-// 获取任务的执行时间线（已落库的事实流）。
-//
-// 用途：刷新页面 / 切换会话后回填执行过程。增量事件（text / reasoning_delta）只走广播
-// 不落库，后端把完整块事件（reasoning / message / tool_call / tool_result）以及轮末错误
-// 即时写入 agent_messages，本接口按 task_id 返回该轮的可回放消息（按 seq 升序）。
-//
-// 访问控制与会话详情一致：会话按项目共享，项目内成员都能读取该会话下任务的时间线
-// （其他用户打开同一会话时也能回填实时流）；不属于任何会话的一次性任务仅归属者可读。
-export const getAgentTaskTimelineApi = (taskId: string) => {
-  return http.get<AgentTaskTimelineItem[]>("/agent/task/timeline", {
-    params: { task_id: taskId },
-  });
 };
 
 // 任务实际发送给 LLM 的请求内容（对应后端应用 Profile 后的 agent.Request）。
