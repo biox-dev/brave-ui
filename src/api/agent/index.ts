@@ -340,6 +340,24 @@ export const forkConversationApi = (
 export const deleteConversationApi = (id: string) => {
   return http.post<{ ok: boolean; id: string }>("/agent/conversation/delete", { id });
 };
+
+// 按任务删除某一轮的消息（含该轮的 user 消息与时间线），不删除任务记录本身。
+// 任务仍在执行时后端返回 409。
+export const deleteAgentTurnApi = (taskId: string) => {
+  return http.post<{ ok: boolean; id: string }>("/agent/task/delete", { id: taskId });
+};
+
+// 重试某一轮：删除该任务关联的消息（含 user 消息），用该轮原用户输入重新发起一轮。
+// 返回新任务与新会话 ID。
+export const retryAgentTurnApi = (taskId: string) => {
+  return http.post<AgentTurnResponse>("/agent/task/retry", { id: taskId });
+};
+
+/** 重试某一轮的响应。 */
+export interface AgentTurnResponse {
+  task_id: string;
+  conversation_id: string;
+}
 // 会话「实时尾巴」快照：只包含尚未写入数据库的流式内容（正在追加的 assistant /
 // reasoning 段）。客户端把它拼在历史消息之后，即可从中间无缝续播。
 export interface AgentSessionLiveBlock {

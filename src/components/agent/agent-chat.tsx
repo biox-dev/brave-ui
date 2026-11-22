@@ -4,6 +4,7 @@ import {
   CheckOutlined,
   ClearOutlined,
   CloseOutlined,
+  DeleteOutlined,
   EditOutlined,
   ExperimentOutlined,
   FileTextOutlined,
@@ -12,6 +13,7 @@ import {
   PlayCircleOutlined,
   QuestionCircleOutlined,
   ReloadOutlined,
+  RedoOutlined,
   RobotOutlined,
   SettingOutlined,
   UserOutlined,
@@ -34,6 +36,8 @@ import {
   getAgentTaskApi,
   getConversationApi,
   forkConversationApi,
+  deleteAgentTurnApi,
+  retryAgentTurnApi,
   type AgentAskUserAnswer,
   type AgentConversationItem,
   type AgentEnvInfo,
@@ -171,7 +175,10 @@ const MessageRow = memo(function MessageRow({
   isTurnEnd,
   forking,
   forkDisabled,
+  turnBusy,
   onFork,
+  onDeleteTurn,
+  onRetryTurn,
   onGoConfig,
 }: {
   message: ChatMessage;
@@ -179,8 +186,12 @@ const MessageRow = memo(function MessageRow({
   conversationId?: string;
   isTurnEnd: boolean;
   forking: boolean;
+  /** 该轮正在删除 / 重试：只锁住被点击的那条按钮。 */
+  turnBusy: boolean;
   forkDisabled: boolean;
   onFork: (message: ChatMessage) => void;
+  onDeleteTurn: (message: ChatMessage) => void;
+  onRetryTurn: (message: ChatMessage) => void;
   onGoConfig: () => void;
 }) {
   // 结果形状与历史和实时两侧一致（content / is_error / metadata）。
@@ -289,6 +300,44 @@ const MessageRow = memo(function MessageRow({
             >
               Fork
             </Button>
+            {/* 按任务删除 / 重试这一轮：删除会连同该轮的 user 消息一起移除，重试则用原输入重新生成。 */}
+            <Popconfirm
+              title="Delete this turn?"
+              description="Removes this turn's user message and the agent output."
+              okText="Delete"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => onDeleteTurn(m)}
+            >
+              <Button
+                type="text"
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                title="Delete this turn (with the user message)"
+                loading={turnBusy}
+                disabled={forkDisabled}
+                style={{ height: 22, padding: "0 4px", fontSize: 12 }}
+              >
+                Delete
+              </Button>
+            </Popconfirm>
+            <Button
+              type="text"
+              size="small"
+              icon={<RedoOutlined />}
+              title="Retry this turn (regenerate with the same user message)"
+              loading={turnBusy}
+              disabled={forkDisabled}
+              style={{
+                height: 22,
+                padding: "0 4px",
+                fontSize: 12,
+                color: m.role === "user" ? "rgba(255,255,255,0.85)" : "#8c8c8c",
+              }}
+              onClick={() => onRetryTurn(m)}
+            >
+              Retry
+            </Button>
           </Flex>
         )}
       </div>
@@ -358,6 +407,8 @@ const AgentChat: FC<AgentChatProps> = ({
   const [reloadingConversation, setReloadingConversation] = useState(false);
   // 正在从哪条消息 fork（seq），用于只锁住被点击的那条按钮。
   const [forkingFromSeq, setForkingFromSeq] = useState<number>();
+  // 正在删除 / 重试哪一轮（task ID），同样只锁住被点击的那条按钮。
+  const [busyTaskId, setBusyTaskId] = useState<string>();
 
   // 当前选中会话活跃任务的待确认权限（可同时存在多个）。
   const [pendingPermissions, setPendingPermissions] = useState<AgentPermissionItem[]>([]);
@@ -1363,6 +1414,70 @@ const AgentChat: FC<AgentChatProps> = ({
     [applySessionPage, onConversationChange, resetLiveStream, subscribeSession],
   );
 
+  // 按任务删除这一轮：连同该轮的 user 消息与时间线一起删除（任务记录保留）。
+  const handleDeleteTurn = async (message: ChatMessage) => {
+    const id = selectedConvIdRef.current;
+    const taskId = message.taskId;
+    if (!id || !isValidTaskId(taskId)) return;
+    setBusyTaskId(taskId);
+    try {
+      await deleteAgentTurnApi(taskId);
+      getGlobalMessage()?.success("Turn deleted");
+      void handleReloadConversation(false);
+      void loadAgentConversations();
+    } catch {
+      // 错误由全局拦截器提示。
+    } finally {
+      setBusyTaskId(undefined);
+    }
+  };
+
+  // 重试这一轮：后端删除该轮消息并用原用户输入重新发起一轮，这里接上新的实时流。
+  const handleRetryTurn = async (message: ChatMessage) => {
+    const taskId = message.taskId;
+    if (!isValidTaskId(taskId) || sending) return;
+    setBusyTaskId(taskId);
+    // 新一轮开始：先清掉上一轮的实时块（后端已删除该轮消息），
+    // 同时把本地列表里这一轮的旧消息去掉；新任务的增量会直接追加到末尾。
+    resetLiveStream();
+    setMessages((prev) => prev.filter((item) => item.taskId !== taskId));
+    pendingChatRef.current = true;
+    const convId = selectedConvIdRef.current;
+    if (convId) void subscribeSession(convId, true);
+    try {
+      const res = await retryAgentTurnApi(taskId);
+      const { task_id, conversation_id } = res.data;
+      pendingChatRef.current = false;
+      selectedConvIdRef.current = conversation_id;
+      setConversationId(conversation_id);
+      loadedConvIdRef.current = conversation_id;
+      onConversationChange?.(conversation_id);
+      void loadAgentConversations();
+      void subscribeSession(conversation_id);
+
+      activeTurnsRef.current.set(task_id, {
+        taskId: task_id,
+        convId: conversation_id,
+        waiting: false,
+        sending: true,
+      });
+      setCurrentTaskId(task_id);
+      setSending(true);
+      setWaiting(false);
+      setResumableTaskId(undefined);
+      void loadPermissions(task_id);
+      void loadQuestions(task_id);
+    } catch {
+      // 错误由全局拦截器提示；恢复列表为服务端的真实状态（可能已删除旧消息）。
+      pendingChatRef.current = false;
+      setSending(false);
+      setWaiting(false);
+      void handleReloadConversation(false);
+    } finally {
+      setBusyTaskId(undefined);
+    }
+  };
+
   // 从某轮结束处分叉：只复制该消息（含）之前的历史到新会话。
   // 这样可以在不改动原会话的前提下，回到某个轮次结束后重新提问。
   // 回调保持引用稳定，避免每次 token 刷新都把历史行的 memo 冲掉。
@@ -1670,8 +1785,11 @@ const AgentChat: FC<AgentChatProps> = ({
                 conversationId={conversationId}
                 isTurnEnd={isTurnEndMessage(m)}
                 forking={forkingFromSeq === m.seq}
-                forkDisabled={forkingFromSeq !== undefined}
+                turnBusy={busyTaskId === m.taskId}
+                forkDisabled={forkingFromSeq !== undefined || busyTaskId !== undefined}
                 onFork={handleForkFromMessage}
+                onDeleteTurn={handleDeleteTurn}
+                onRetryTurn={handleRetryTurn}
                 onGoConfig={goAgentConfig}
               />
             ))}
