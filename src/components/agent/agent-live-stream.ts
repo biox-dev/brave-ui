@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AgentEventItem } from "@/api/agent";
+import type { AgentEventItem, AgentSessionLive } from "@/api/agent";
 
 /**
  * 当前会话页的实时流（纯组件级状态，不跨页面保留）。
  *
- * 职责只有两件事：
+ * 职责只有三件事：
  *   1) 把 WS 的 `stream` 事件折叠成块列表；
- *   2) 把块列表交给聊天组件与历史消息拼在同一个列表里渲染。
+ *   2) 进入会话时用后端下发的「未落库尾巴」快照补齐（刷新 / 中途进入不丢内容）；
+ *   3) 把块列表交给聊天组件与历史消息拼在同一个列表里渲染。
  *
- * 页面卸载即丢弃。离开页面期间未落库的增量本来也收不到（服务端会按会话退订），
- * 这部分由后端补齐后经历史接口恢复，UI 不做跨页面缓存与去重。
+ * 页面卸载即丢弃：已落库的内容由历史接口恢复，未落库的部分由后端快照补上。
  */
 
 /** 一条流式块（reasoning / assistant / tool_call / ...），形状与历史消息一致。 */
 export interface StreamBlock {
-  /** 稳定 key：WS 事件 id，或由事件 id + 序号拼出。 */
+  /** 稳定 key：WS 事件 id，或后端快照给的段 ID。 */
   key: string;
   kind: string;
   content: string;
@@ -23,6 +23,12 @@ export interface StreamBlock {
   /** 是否仍在追加（渲染层据此展示光标 / streaming 标记）。 */
   streaming?: boolean;
   error?: boolean;
+}
+
+/** 快照水位线：同一任务下，seq ≤ 该值的推送都已被快照包含。 */
+interface Watermark {
+  taskId?: string;
+  seq: number;
 }
 
 /** token 级事件合并到 ~60ms 一批，避免每个 token 都触发一次 Markdown 重渲染。 */
@@ -170,7 +176,14 @@ export const applyStreamEvent = (blocks: StreamBlock[], ev: AgentEventItem): Str
       const resultData = (payload.data ?? {}) as Record<string, unknown>;
       const resultContent =
         typeof resultData.content === "string" ? resultData.content : content;
-      return attachToolResult(blocks, pType, resultContent, payload.data) ?? blocks;
+      // 能配对本轮调用就并入调用行；配不上时保留为独立块——
+      // 中途进入的客户端手里没有调用行，结果需要靠它回填历史里的那一行。
+      return (
+        attachToolResult(blocks, pType, resultContent, payload.data) ?? [
+          ...blocks,
+          { key, kind: pType, content: resultContent, data: payload.data, streaming: false, taskId },
+        ]
+      );
     }
     case "error": {
       const data = (payload.data ?? {}) as Record<string, unknown>;
@@ -187,7 +200,8 @@ export const applyStreamEvent = (blocks: StreamBlock[], ev: AgentEventItem): Str
 /**
  * 当前会话页的实时块状态。
  *
- * - `enqueue`：接收 WS 事件，按事件 id 去重后进入 60ms 批量队列；
+ * - `enqueue`：接收 WS 事件，按事件 id / 快照水位线去重后进入 60ms 批量队列；
+ * - `applySnapshot`：应用后端下发的「未落库尾巴」，并从此刻起丢弃已被它包含的推送；
  * - `reset`：新一轮 / 切换会话 / 新建会话时清空；
  * - `finishTask`：本轮结束且历史已回填后清空，并忽略该任务的迟到事件。
  */
@@ -199,15 +213,23 @@ export const useLiveStream = () => {
   const seenRef = useRef<Set<string>>(new Set());
   // 已结束的任务：终态之后补发的增量一律忽略。
   const finishedTaskRef = useRef<string | undefined>(undefined);
+  // 快照水位线：seq ≤ 水位线的推送已被快照包含，直接丢弃。
+  const markRef = useRef<Watermark>({ seq: 0 });
+  // 是否已经拿到过快照：没有快照前只排队、不渲染，避免"先画半段再被快照覆盖"。
+  const readyRef = useRef(false);
 
   const flush = useCallback(() => {
     if (timerRef.current !== null) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    if (pendingRef.current.length === 0) return;
-    const events = pendingRef.current;
+    if (!readyRef.current || pendingRef.current.length === 0) return;
+    const mark = markRef.current;
+    const events = pendingRef.current.filter(
+      (ev) => !(mark.taskId === ev.task_id && (ev.seq ?? 0) <= mark.seq),
+    );
     pendingRef.current = [];
+    if (events.length === 0) return;
     setBlocks((prev) => events.reduce(applyStreamEvent, prev));
   }, []);
 
@@ -226,6 +248,41 @@ export const useLiveStream = () => {
     [flush],
   );
 
+  /**
+   * 应用后端快照：用「未落库的尾巴」替换当前仍在追加的块。
+   *
+   * 保留已经关闭的块（已落库、但历史可能还没拉回来的内容）；打开中的段整体以快照为准
+   * （快照必然包含它们到此为止的全部内容）。拿到快照后，队列里 seq 不大于快照的增量
+   * 会被丢弃，其余的继续追加——因此即使增量先于快照到达也不会重复或丢字。
+   */
+  const applySnapshot = useCallback(
+    (live?: AgentSessionLive) => {
+      const incoming = live?.blocks ?? [];
+      if (live) markRef.current = { taskId: live.task_id, seq: live.seq ?? 0 };
+      readyRef.current = true;
+      const opened = incoming.map<StreamBlock>((block) => ({
+        key: block.id,
+        kind: block.kind,
+        content: block.content,
+        taskId: block.task_id,
+        streaming: !!block.streaming,
+      }));
+      setBlocks((prev) => {
+        const closed = prev.filter((block) => !block.streaming);
+        if (closed.length === 0 && opened.length === 0) return prev;
+        return [...closed, ...opened];
+      });
+      flush();
+    },
+    [flush],
+  );
+
+  /** 拿不到快照时（订阅失败）也要放行队列，否则实时流会一直不显示。 */
+  const start = useCallback(() => {
+    readyRef.current = true;
+    flush();
+  }, [flush]);
+
   const reset = useCallback(() => {
     if (timerRef.current !== null) {
       clearTimeout(timerRef.current);
@@ -234,6 +291,8 @@ export const useLiveStream = () => {
     pendingRef.current = [];
     seenRef.current.clear();
     finishedTaskRef.current = undefined;
+    markRef.current = { seq: 0 };
+    readyRef.current = false;
     setBlocks((prev) => (prev.length === 0 ? prev : []));
   }, []);
 
@@ -254,5 +313,5 @@ export const useLiveStream = () => {
     [],
   );
 
-  return { blocks, enqueue, reset, finishTask };
+  return { blocks, enqueue, applySnapshot, start, reset, finishTask };
 };

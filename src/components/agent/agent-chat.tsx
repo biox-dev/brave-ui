@@ -41,6 +41,8 @@ import {
   type AgentPermissionItem,
   type AgentQuestionItem,
   resumeAgentTaskApi,
+  subscribeAgentSessionApi,
+  unsubscribeAgentSessionApi,
 } from "@/api/agent";
 import { getGlobalMessage } from "@/hooks/useGlobalMessage";
 import { sseClient } from "@/sse";
@@ -103,6 +105,10 @@ interface ChatMessage {
   /** Agent 侧消息执行 Profile 展示名（后端回填），展示在助手头像下方。 */
   profileName?: string;
 }
+
+// 工具调用 / 结果的消息类型（历史与实时两侧同名）。
+const isCallKind = (kind?: string) => kind === "tool_call" || kind === "skill_call";
+const isToolResultKind = (kind?: string) => kind === "tool_result" || kind === "skill_result";
 
 // 后端用字符串 "0" 表示“无当前任务”，需一并视为空。
 function isValidTaskId(id?: string): id is string {
@@ -392,13 +398,53 @@ const AgentChat: FC<AgentChatProps> = ({
   // 是否正处于「新建会话发送中」：此时还没有会话 ID，但要先接收该轮的首批事件。
   const pendingChatRef = useRef(false);
 
-  // 本轮实时块：只存在当前组件里，页面卸载即丢弃（离开期间的增量由后端补齐）。
+  // 本轮实时块：只存在当前组件里，页面卸载即丢弃（已落库的由历史恢复，
+  // 未落库的由订阅时下发的快照补齐）。
   const {
     blocks: liveBlocks,
     enqueue: enqueueLiveEvent,
+    applySnapshot: applyLiveSnapshot,
+    start: startLiveStream,
     reset: resetLiveStream,
     finishTask: finishLiveTask,
   } = useLiveStream();
+
+  // 实时订阅：会话页进入 / 切换时登记，离开时撤销。
+  const subscribedConvIdRef = useRef<string | undefined>(undefined);
+
+  // 登记会话订阅并把「未落库的尾巴」补进实时块。
+  //
+  // force=true 用于手动刷新：重复订阅是幂等的，响应里带的是最新快照。
+  const subscribeSession = useCallback(
+    async (id: string, force = false) => {
+      if (subscribedConvIdRef.current === id && !force) return;
+      const prev = subscribedConvIdRef.current;
+      subscribedConvIdRef.current = id;
+      if (prev && prev !== id) {
+        void unsubscribeAgentSessionApi(prev).catch(() => {});
+      }
+      try {
+        const res = await subscribeAgentSessionApi(id);
+        // 请求期间又切换了会话：丢弃这次结果。
+        if (subscribedConvIdRef.current !== id) return;
+        applyLiveSnapshot(res.data?.live);
+      } catch {
+        // 订阅失败不阻塞页面：历史仍可正常展示，放行实时流队列即可。
+        if (subscribedConvIdRef.current === id) startLiveStream();
+      }
+    },
+    [applyLiveSnapshot, startLiveStream],
+  );
+
+  // 卸载时退订（服务端还有连接断开兜底，失败无需提示）。
+  useEffect(
+    () => () => {
+      const id = subscribedConvIdRef.current;
+      subscribedConvIdRef.current = undefined;
+      if (id) void unsubscribeAgentSessionApi(id).catch(() => {});
+    },
+    [],
+  );
 
   // 消息变化时的滚动策略：
   //   - 向上加载更早消息（prepend）后恢复原视口位置，避免页面跳动；
@@ -738,6 +784,8 @@ const AgentChat: FC<AgentChatProps> = ({
       }
       setMessages((prev) => prev.filter((m) => m.taskId !== taskId));
       resetLiveStream();
+      // 续跑同样是新一轮输出：重新取一次快照，让实时块恢复"等待快照"后的追加状态。
+      if (convId) void subscribeSession(convId, true);
       setCurrentTaskId(taskId);
       setSending(true);
       setWaiting(false);
@@ -793,6 +841,8 @@ const AgentChat: FC<AgentChatProps> = ({
       // 历史是权威：切会话后上一轮的实时块一律丢弃。
       resetLiveStream();
       pendingChatRef.current = false;
+      // 登记实时订阅：响应里的「未落库尾巴」会补进实时块（刷新 / 中途进入不丢内容）。
+      void subscribeSession(conv.id);
       // 切换会话时先重置续跑提示，后续按目标任务状态重新判定。
       setResumableTaskId(undefined);
 
@@ -853,6 +903,10 @@ const AgentChat: FC<AgentChatProps> = ({
 
   // 清空为「新会话」状态：New Chat（/session）以及宿主要求重置时使用。
   const handleClear = () => {
+    // 新建会话：撤销上一个会话的实时订阅（订阅按会话生效）。
+    const prevConvId = subscribedConvIdRef.current;
+    subscribedConvIdRef.current = undefined;
+    if (prevConvId) void unsubscribeAgentSessionApi(prevConvId).catch(() => {});
     selectedConvIdRef.current = undefined;
     loadedConvIdRef.current = undefined;
     pendingChatRef.current = false;
@@ -926,8 +980,12 @@ const AgentChat: FC<AgentChatProps> = ({
       if (conv.id !== selectedConvIdRef.current) return;
       upsertConversation(conv);
       applySessionPage(conv);
-      // 历史重新加载后清空实时块，避免与历史重复；未落库的尾部由后端补齐。
-      if (resetStream) resetLiveStream();
+      // 历史重新加载后清空实时块，避免与历史重复；随后重新订阅拿最新快照，
+      // 把仍未被落库的尾部补回来。
+      if (resetStream) {
+        resetLiveStream();
+        void subscribeSession(conv.id, true);
+      }
       // 同步刷新待确认权限 / 待作答提问，保证按钮与卡片与后端一致。
       if (isValidTaskId(conv.current_task_id)) {
         const taskId = conv.current_task_id;
@@ -1239,6 +1297,9 @@ const AgentChat: FC<AgentChatProps> = ({
     // 否则会把响应返回前已经到达的首批 token 一并抹掉（新建会话时尤其明显）。
     resetLiveStream();
     pendingChatRef.current = true;
+    // 已有会话：刷新一次订阅快照，实时块进入「等快照」状态后再生效，
+    // 避免新轮增量与未清理的旧块拼接出现空档。
+    if (conversationId) void subscribeSession(conversationId, true);
 
     try {
       const res = await chatAgentApi({
@@ -1255,6 +1316,8 @@ const AgentChat: FC<AgentChatProps> = ({
       // 新建会话后同步地址（/session/:sessionId）并刷新左侧会话列表。
       onConversationChange?.(conversation_id);
       void loadAgentConversations();
+      // 登记订阅：新会话的首批增量可能已经到达，快照会把它们补齐。
+      void subscribeSession(conversation_id);
 
       // 登记本轮活跃状态，供切换后恢复运行标志。
       const turn: ActiveTurn = {
@@ -1288,6 +1351,7 @@ const AgentChat: FC<AgentChatProps> = ({
       upsertConversation(conv);
       applySessionPage(conv);
       resetLiveStream();
+      void subscribeSession(conv.id);
       setCurrentTaskId(undefined);
       setSending(false);
       setWaiting(false);
@@ -1296,7 +1360,7 @@ const AgentChat: FC<AgentChatProps> = ({
       setResumableTaskId(undefined);
       void loadAgentConversations();
     },
-    [applySessionPage, onConversationChange, resetLiveStream],
+    [applySessionPage, onConversationChange, resetLiveStream, subscribeSession],
   );
 
   // 从某轮结束处分叉：只复制该消息（含）之前的历史到新会话。
@@ -1330,40 +1394,75 @@ const AgentChat: FC<AgentChatProps> = ({
   //   - 用户看到的气泡样式、左对齐、Tool Call / Tool Result 合并规则，
   //     全部与刷新后的历史一致，不存在「刷新前一个样、刷新后一个样」；
   //   - tool_result 在写入时已经并入调用块（见 agent-live-stream 的 attachToolResult），
-  //     因此这里只需要把内联结果映射成 `result` 传给 MessageRow。
+  //     配不上的结果（中途进入时手里没有调用行）留给历史行回填，不单独成行。
   const liveRows = useMemo(
     () =>
-      liveBlocks.map<{ message: ChatMessage; result?: ChatMessage }>((block) => {
-        const inlineResult = asRecord(asRecord(block.data)?.result);
-        return {
-          message: {
-            // 稳定 key：同一块在多次渲染中保持一致，避免列表重挂。
-            id: `live-${block.key}`,
-            role: "assistant",
-            content: block.content,
-            kind: block.kind,
-            data: block.data,
-            error: !!block.error,
-            streaming: !!block.streaming,
-            taskId: block.taskId,
-          },
-          result: inlineResult
-            ? {
-                id: `live-${block.key}-result`,
-                role: "assistant",
-                kind: "tool_result",
-                content: "",
-                data: inlineResult,
-              }
-            : undefined,
-        };
-      }),
+      liveBlocks
+        .filter((block) => !isToolResultKind(block.kind))
+        .map<{ message: ChatMessage; result?: ChatMessage }>((block) => {
+          const inlineResult = asRecord(asRecord(block.data)?.result);
+          return {
+            message: {
+              // 稳定 key：同一块在多次渲染中保持一致，避免列表重挂。
+              id: `live-${block.key}`,
+              role: "assistant",
+              content: block.content,
+              kind: block.kind,
+              data: block.data,
+              error: !!block.error,
+              streaming: !!block.streaming,
+              taskId: block.taskId,
+            },
+            result: inlineResult
+              ? {
+                  id: `live-${block.key}-result`,
+                  role: "assistant",
+                  kind: "tool_result",
+                  content: "",
+                  data: inlineResult,
+                }
+              : undefined,
+          };
+        }),
     [liveBlocks],
   );
 
+  // 实时 tool_result 索引（call_id → data）：中途进入时调用行来自历史，
+  // 结果只存在于实时流里，用它把历史行从「执行中」切换到「已完成」。
+  const liveResults = useMemo(() => {
+    const map = new Map<string, unknown>();
+    liveBlocks.forEach((block) => {
+      if (!isToolResultKind(block.kind)) return;
+      const callId = asRecord(block.data)?.tool_call_id;
+      if (typeof callId === "string" && callId && !map.has(callId)) {
+        map.set(callId, block.data);
+      }
+    });
+    return map;
+  }, [liveBlocks]);
+
   // 历史在前、实时在后。两边形状相同，共用同一个 MessageRow。
   // 历史重载后实时块会被清空（见 resetLiveStream 的调用点），因此不需要跨来源去重。
-  const allRows = useMemo(() => [...historyRows, ...liveRows], [historyRows, liveRows]);
+  const allRows = useMemo(() => {
+    if (liveResults.size === 0) return [...historyRows, ...liveRows];
+    const enriched = historyRows.map((row) => {
+      if (row.result || !isCallKind(row.message.kind)) return row;
+      const callId = asRecord(row.message.data)?.id;
+      const data = typeof callId === "string" ? liveResults.get(callId) : undefined;
+      if (data === undefined) return row;
+      return {
+        ...row,
+        result: {
+          id: `live-${callId}-result`,
+          role: "assistant" as const,
+          kind: "tool_result",
+          content: "",
+          data,
+        },
+      };
+    });
+    return [...enriched, ...liveRows];
+  }, [historyRows, liveRows, liveResults]);
 
   // 列表是否为空：历史与实时都没有内容时展示占位符。
   const hasAnyRow = allRows.length > 0;

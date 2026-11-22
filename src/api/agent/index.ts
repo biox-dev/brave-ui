@@ -135,6 +135,8 @@ export interface AgentEventItem {
   type: string;
   payload?: unknown;
   created_at: string;
+  /** 会话内单调递增的流序号：用于和订阅快照的 seq 对齐（见 AgentSessionLive）。 */
+  seq?: number;
 }
 
 // 技能（对应后端 skill.Skill，即一份 SKILL.md）。
@@ -338,15 +340,40 @@ export const forkConversationApi = (
 export const deleteConversationApi = (id: string) => {
   return http.post<{ ok: boolean; id: string }>("/agent/conversation/delete", { id });
 };
+// 会话「实时尾巴」快照：只包含尚未写入数据库的流式内容（正在追加的 assistant /
+// reasoning 段）。客户端把它拼在历史消息之后，即可从中间无缝续播。
+export interface AgentSessionLiveBlock {
+  /** 段的稳定标识（快照与后续增量共用），用作列表 key。 */
+  id: string;
+  kind: string;
+  content: string;
+  task_id: string;
+  streaming: boolean;
+}
+
+export interface AgentSessionLive {
+  session_id: string;
+  /** 这些内容所属的任务：客户端只对同一任务应用 seq 水位线。 */
+  task_id: string;
+  /** 会话内单调递增序号：已包含到此为止的所有增量。 */
+  seq: number;
+  blocks: AgentSessionLiveBlock[];
+}
+
 // 订阅 / 退订会话实时事件（WS 推送 agent.event）。
 //
 // 订阅粒度是会话而不是任务：进入会话页时订阅一次，该会话后续每一轮的任务事件都会
 // 推给订阅者；离开页面时退订。会话按项目共享，项目内成员都可以订阅。
+//
+// 响应里的 live 是「未落库的实时尾巴」：刷新 / 中途进入时用它补齐实时块。
+// 重复调用是幂等的，可用于刷新快照（如手动 Reload）。
 export const subscribeAgentSessionApi = (sessionId: string) => {
-  return http.post<{ ok: boolean; session_id: string; subscribed: boolean }>(
-    "/agent/session/subscribe",
-    { session_id: sessionId }
-  );
+  return http.post<{
+    ok: boolean;
+    session_id: string;
+    subscribed: boolean;
+    live?: AgentSessionLive;
+  }>("/agent/session/subscribe", { session_id: sessionId });
 };
 
 // 退订是页面离开时的清理动作，失败没有可操作项（服务端还有连接断开兜底），

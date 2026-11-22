@@ -5,10 +5,6 @@ import { useNavigate, useParams } from 'react-router';
 import AgentChat from '@/components/agent/agent-chat';
 import SessionResourceStack from '@/components/agent/session-resource-stack';
 
-import {
-  subscribeAgentSessionApi,
-  unsubscribeAgentSessionApi,
-} from '@/api/agent';
 import { useSiderStackCollapsed } from '@/components/layout-sider/use-sider-stack-collapsed';
 import SplitWorkspace from '@/layout/components/SplitWorkspace';
 import MainTabs from '@/layout/components/MainTabs';
@@ -64,23 +60,8 @@ const AgentSessionPage: FC = () => {
   const isNewChat = !sessionId;
   const tabs = isNewChat ? NO_TABS : workspace.tabs;
 
-  // 会话实时流按会话订阅：进入页面时登记，离开 / 切换会话时撤销。
-  //
-  // 订阅在服务端按 SessionID 维护，因此同一项目内打开该会话的所有用户会收到同一份
-  // WS 事件流。新建会话时页面还没有会话 ID，发起人由 /agent/chat 自动登记。
-  // 订阅不会因某一轮任务结束而被清理：只要页面还在，后续每一轮都能收到；
-  // 用户离线（最后一条 WS 连接断开超过宽限期）时由服务端兜底清理。
-  useEffect(() => {
-    if (!sessionId) return;
-    void subscribeAgentSessionApi(sessionId).catch(() => {
-      // 订阅失败不阻塞页面：历史消息仍可通过会话详情接口正常加载。
-    });
-    return () => {
-      void unsubscribeAgentSessionApi(sessionId).catch(() => {
-        // 退订失败无需提示：服务端会在本轮结束 / 连接断开时自动清理。
-      });
-    };
-  }, [sessionId]);
+  // 会话实时订阅（登记 + 未落库尾巴快照）由 AgentChat 负责：它持有 conversationId，
+  // 切换会话 / 新建会话 / 手动刷新时都能在同一个地方完成订阅与快照应用。
 
   // 顶部标题显示当前会话名称：优先用聊天页（AgentChat）从 `/agent/conversation/get`
   // 回填的标题缓存；左侧列表已加载时作为兜底；两者都没有（详情未返回）时回退到 sessionId。
