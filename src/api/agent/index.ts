@@ -417,6 +417,8 @@ export type AgentSessionResourceType =
 
 // 会话结果项：会话创建 / 修改过的脚本、工作流、分析节点、分析运行、项目报告或计划。
 export interface AgentSessionResourceItem {
+  /** 会话资源关联行 ID（取消关联时使用，不是资源自身 ID）。 */
+  id: string;
   resource_id: string;
   resource_type: AgentSessionResourceType;
   /** 资源展示名（资源已删除时为空）。 */
@@ -437,6 +439,12 @@ export const listAllAgentSessionResourcesApi = (sessionId: string) => {
   return http.get<{ data: AgentSessionResourceGroups }>("/agent/session/resources/all", {
     params: { session_id: sessionId },
   });
+};
+
+// 取消一条会话资源关联：只删除「会话 ↔ 资源」关联，不删除资源本身。
+// id 是关联行 ID（列表项里的 id），不是 resource_id。
+export const unlinkAgentSessionResourceApi = (id: string) => {
+  return http.post<{ ok: boolean; id: string }>("/agent/session/resources/unlink", { id });
 };
 
 // 导出成功的资源：分析节点为目录，项目报告为 .md 文件（path 为导出的绝对路径）。

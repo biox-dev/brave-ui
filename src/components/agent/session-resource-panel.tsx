@@ -1,6 +1,12 @@
-import { FC } from 'react';
-import { Button } from 'antd';
-import type { AgentSessionResourceItem, AgentSessionResourceType } from '@/api/agent';
+import { FC, useState } from 'react';
+import { Button, Popconfirm } from 'antd';
+import { DisconnectOutlined } from '@ant-design/icons';
+import {
+  unlinkAgentSessionResourceApi,
+  type AgentSessionResourceItem,
+  type AgentSessionResourceType,
+} from '@/api/agent';
+import { getGlobalMessage } from '@/hooks/useGlobalMessage';
 import { useI18n } from '@/hooks/useI18n';
 import {
   getSessionResourceTabKey,
@@ -8,7 +14,7 @@ import {
   openSessionResourceTab,
 } from '@/components/agent/session-resource-workspace';
 import { useAgentSessionResources } from '@/components/agent/use-agent-session-resources';
-import { useAgentWorkspace } from '@/layout/agent-workspace-store';
+import { closeAgentWorkspaceTab, useAgentWorkspace } from '@/layout/agent-workspace-store';
 
 /** 分组数据未就绪时的共享空数组，保持引用稳定。 */
 const EMPTY_RESOURCE_ITEMS: AgentSessionResourceItem[] = [];
@@ -40,13 +46,39 @@ const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
   active,
 }) => {
   const { locale } = useI18n();
-  const { data: groups } = useAgentSessionResources(sessionId, active);
+  const { data: groups, refetch } = useAgentSessionResources(sessionId, active);
   // 右侧工作区当前显示的标签：与条目用同一套 key 映射比较，命中即选中。
   const activeTabKey = useAgentWorkspace(sessionId).active;
+  // 正在取消关联的关联行 ID：只禁用该条的按钮，避免重复提交。
+  const [unlinkingId, setUnlinkingId] = useState<string>();
 
   const items = groups?.[resourceType] ?? EMPTY_RESOURCE_ITEMS;
   const openable = isSessionResourceOpenable(resourceType) && Boolean(sessionId);
   const deletedLabel = locale === 'en_US' ? 'Deleted' : '已删除';
+  const unlinkLabel = locale === 'en_US' ? 'Unlink' : '取消关联';
+  const unlinkedText = locale === 'en_US' ? 'Removed from session results' : '已取消关联';
+
+  // 取消关联：只删除「会话 ↔ 资源」关联行，资源本身保留；随后刷新共享列表。
+  const handleUnlink = async (record: AgentSessionResourceItem) => {
+    if (!record.id) {
+      return;
+    }
+    setUnlinkingId(record.id);
+    try {
+      await unlinkAgentSessionResourceApi(record.id);
+      // 已经在右侧工作区打开的标签一并关闭，避免继续展示已移除的资源。
+      const tabKey = getSessionResourceTabKey(record);
+      if (tabKey) {
+        closeAgentWorkspaceTab(sessionId, tabKey);
+      }
+      getGlobalMessage()?.success(unlinkedText);
+      await refetch();
+    } catch {
+      // 错误由全局拦截器提示。
+    } finally {
+      setUnlinkingId(undefined);
+    }
+  };
 
   return (
     <div className="session-resource-list">
@@ -54,25 +86,53 @@ const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
         const displayName = record.name?.trim() || `${deletedLabel} #${record.resource_id}`;
         const tabKey = getSessionResourceTabKey(record);
         const isActive = Boolean(tabKey) && tabKey === activeTabKey;
+        const unlinking = Boolean(record.id) && unlinkingId === record.id;
         return (
           <div
-            key={record.resource_id}
+            key={record.id || record.resource_id}
             className={`session-resource-item${isActive ? ' is-active' : ''}`}
             aria-current={isActive ? 'true' : undefined}
           >
-            {openable ? (
-              <Button
-                type="link"
-                size="small"
-                title={locale === 'en_US' ? 'Open in workspace' : '在右侧工作区打开'}
-                className="session-resource-item-name"
-                onClick={() => openSessionResourceTab(sessionId, record, displayName)}
+            <div className="session-resource-item-main">
+              {openable ? (
+                <Button
+                  type="link"
+                  size="small"
+                  title={locale === 'en_US' ? 'Open in workspace' : '在右侧工作区打开'}
+                  className="session-resource-item-name"
+                  onClick={() => openSessionResourceTab(sessionId, record, displayName)}
+                >
+                  {displayName}
+                </Button>
+              ) : (
+                <span className="session-resource-item-name">{displayName}</span>
+              )}
+              <Popconfirm
+                title={unlinkLabel}
+                description={
+                  locale === 'en_US'
+                    ? 'Removes this item from the session results. The resource itself is kept.'
+                    : '仅从当前会话结果中移除，资源本身会保留。'
+                }
+                okText={unlinkLabel}
+                cancelText={locale === 'en_US' ? 'Cancel' : '取消'}
+                okButtonProps={{ danger: true }}
+                disabled={!record.id || Boolean(unlinkingId)}
+                onConfirm={() => void handleUnlink(record)}
               >
-                {displayName}
-              </Button>
-            ) : (
-              <span className="session-resource-item-name">{displayName}</span>
-            )}
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  className="session-resource-item-unlink"
+                  icon={<DisconnectOutlined />}
+                  title={unlinkLabel}
+                  aria-label={unlinkLabel}
+                  loading={unlinking}
+                  disabled={!record.id || (Boolean(unlinkingId) && !unlinking)}
+                />
+              </Popconfirm>
+            </div>
             <span className="session-resource-item-id">{record.resource_id}</span>
           </div>
         );
