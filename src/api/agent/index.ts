@@ -439,6 +439,48 @@ export const listAllAgentSessionResourcesApi = (sessionId: string) => {
   });
 };
 
+// 导出成功的资源：分析节点为目录，项目报告为 .md 文件（path 为导出的绝对路径）。
+export interface AgentSessionResourceExportItem {
+  resource_id: string;
+  resource_type: AgentSessionResourceType;
+  name: string;
+  path: string;
+}
+
+// 未导出的资源及原因（资源已删除、输出目录 / 正文文件不存在等）。
+export interface AgentSessionResourceExportFailure {
+  resource_id: string;
+  resource_type: AgentSessionResourceType;
+  reason: string;
+}
+
+// 导出会话结果到 <会话工作目录>/report 的返回。
+export interface AgentSessionResourceExportResult {
+  report_dir: string;
+  exported: AgentSessionResourceExportItem[];
+  failed: AgentSessionResourceExportFailure[];
+}
+
+// 把会话关联的分析节点输出与项目报告拷贝到会话工作目录的 report 目录。
+//
+// 分析节点按 NodeName 建子目录并拷贝输出目录内容；项目报告拷贝为 <标题>.md。
+export const exportAgentSessionResourcesApi = (sessionId: string) => {
+  return http.post<{ data: AgentSessionResourceExportResult }>(
+    "/agent/session/resources/export",
+    undefined,
+    { params: { session_id: sessionId } }
+  );
+};
+
+// 下载会话结果压缩包：后端先把分析节点输出与报告汇总到 report 目录，再打包成 zip 返回。
+// 压缩包名称由后端按会话标题写入 Content-Disposition，调用方也可用会话标题作为文件名。
+export const downloadAgentSessionResourcesApi = (sessionId: string) => {
+  return http.get<Blob>("/agent/session/resources/export/download", {
+    params: { session_id: sessionId },
+    responseType: "blob",
+  });
+};
+
 // 获取单个 Agent 任务。
 export const getAgentTaskApi = (id: string) => {
   return http.get<AgentTaskItem>("/agent/task/get", { params: { id } });

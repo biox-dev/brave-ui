@@ -1,9 +1,14 @@
-import { FC, useCallback, useEffect, useMemo } from 'react';
+import { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Empty } from 'antd';
-import { LeftOutlined, UserOutlined } from '@ant-design/icons';
+import { ExportOutlined, DownloadOutlined, LeftOutlined, UserOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router';
 import AgentChat from '@/components/agent/agent-chat';
 import SessionResourceStack from '@/components/agent/session-resource-stack';
+import {
+  downloadAgentSessionResourcesApi,
+  exportAgentSessionResourcesApi,
+} from '@/api/agent';
+import { useGlobalMessage } from '@/hooks/useGlobalMessage';
 
 import { useSiderStackCollapsed } from '@/components/layout-sider/use-sider-stack-collapsed';
 import SplitWorkspace from '@/layout/components/SplitWorkspace';
@@ -34,6 +39,12 @@ const WorkspaceViewResolver = ViewResolver as unknown as FC<WorkspaceViewProps>;
 /** New Chat 时使用的共享空标签数组，保持引用稳定（不渲染右侧标签页）。 */
 const NO_TABS: AgentWorkspaceTab[] = [];
 
+/** 下载文件名清洗：移除路径 / 非法字符，空标题时回退。 */
+const sanitizeDownloadName = (name: string, fallback: string) => {
+  const cleaned = (name || '').replace(/[\\/:*?"<>|]/g, '_').trim();
+  return cleaned || fallback;
+};
+
 /**
  * Agent 会话页（`/session/:sessionId?`，无 sessionId 表示 New Chat）。
  *
@@ -56,6 +67,9 @@ const AgentSessionPage: FC = () => {
   const { sessionId } = useParams<{ sessionId?: string }>();
   const navigate = useNavigate();
   const { locale } = useI18n();
+  const message = useGlobalMessage();
+  const [exporting, setExporting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const workspace = useAgentWorkspace(sessionId);
   // New Chat（无会话）时右侧清空：标签页与工作区内容都用这份空状态，不读取上一个会话的残留。
   const isNewChat = !sessionId;
@@ -131,6 +145,55 @@ const AgentSessionPage: FC = () => {
     [navigate],
   );
 
+  // 导出会话结果：把分析节点输出与报告汇总到会话工作目录的 report 目录。
+  // 单个资源失败由后端返回 failed 列表，这里只做提示，不阻断其它资源。
+  const handleExportResources = useCallback(async () => {
+    if (!sessionId || exporting) {
+      return;
+    }
+    setExporting(true);
+    try {
+      const response = await exportAgentSessionResourcesApi(sessionId);
+      const data = response.data.data;
+      const failedCount = data.failed?.length ?? 0;
+      if (failedCount > 0) {
+        message.warning(
+          locale === 'en_US'
+            ? `Exported to ${data.report_dir} (${failedCount} resource(s) skipped)`
+            : `已导出到 ${data.report_dir}（${failedCount} 个资源未导出）`,
+        );
+        return;
+      }
+      message.success(
+        locale === 'en_US' ? `Exported to ${data.report_dir}` : `已导出到 ${data.report_dir}`,
+      );
+    } finally {
+      setExporting(false);
+    }
+  }, [exporting, locale, message, sessionId]);
+
+  // 下载会话结果：后端打包成 zip，文件名使用会话标题。
+  const handleDownloadResources = useCallback(async () => {
+    if (!sessionId || downloading) {
+      return;
+    }
+    setDownloading(true);
+    try {
+      const response = await downloadAgentSessionResourcesApi(sessionId);
+      const blob = response.data instanceof Blob ? response.data : new Blob([response.data]);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${sanitizeDownloadName(sessionTitle, sessionId)}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } finally {
+      setDownloading(false);
+    }
+  }, [downloading, sessionId, sessionTitle]);
+
   return (
     <div className="agent-session-page">
       <SplitWorkspace
@@ -153,6 +216,30 @@ const AgentSessionPage: FC = () => {
               )}
             </div>
             <div className="agent-session-header-actions">
+              {/* 导出会话结果：在当前会话工作目录的 report 下汇总分析节点输出与报告。 */}
+              {sessionId && (
+                <Button
+                  size="small"
+                  type="default"
+                  icon={<ExportOutlined />}
+                  loading={exporting}
+                  aria-label={locale === 'en_US' ? 'Export session results' : '导出会话结果'}
+                  title={locale === 'en_US' ? 'Export session results' : '导出会话结果'}
+                  onClick={handleExportResources}
+                />
+              )}
+              {/* 下载会话结果：后端把 report 目录打包成 zip，文件名使用会话标题。 */}
+              {sessionId && (
+                <Button
+                  size="small"
+                  type="default"
+                  icon={<DownloadOutlined />}
+                  loading={downloading}
+                  aria-label={locale === 'en_US' ? 'Download session results' : '下载会话结果'}
+                  title={locale === 'en_US' ? 'Download session results' : '下载会话结果'}
+                  onClick={handleDownloadResources}
+                />
+              )}
               {/*
                * 只在面板折叠时显示「打开」按钮；关闭入口放在右侧面板自己的标题栏里
                * （见 SessionResourcePanel 的 onClose）。
