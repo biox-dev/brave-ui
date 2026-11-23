@@ -70,6 +70,8 @@ const AgentSessionPage: FC = () => {
   const message = useGlobalMessage();
   const [exporting, setExporting] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  // 下载进度百分比；null 表示总大小未知（服务端未返回 Content-Length）。
+  const [downloadPercent, setDownloadPercent] = useState<number | null>(null);
   const workspace = useAgentWorkspace(sessionId);
   // New Chat（无会话）时右侧清空：标签页与工作区内容都用这份空状态，不读取上一个会话的残留。
   const isNewChat = !sessionId;
@@ -173,13 +175,19 @@ const AgentSessionPage: FC = () => {
   }, [exporting, locale, message, sessionId]);
 
   // 下载会话结果：后端打包成 zip，文件名使用会话标题。
+  // onDownloadProgress 把传输进度写进按钮文案，总大小未知时只显示加载态。
   const handleDownloadResources = useCallback(async () => {
     if (!sessionId || downloading) {
       return;
     }
     setDownloading(true);
+    setDownloadPercent(null);
     try {
-      const response = await downloadAgentSessionResourcesApi(sessionId);
+      const response = await downloadAgentSessionResourcesApi(sessionId, (loaded, total) => {
+        if (total > 0) {
+          setDownloadPercent(Math.min(100, Math.round((loaded / total) * 100)));
+        }
+      });
       const blob = response.data instanceof Blob ? response.data : new Blob([response.data]);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -191,6 +199,7 @@ const AgentSessionPage: FC = () => {
       URL.revokeObjectURL(url);
     } finally {
       setDownloading(false);
+      setDownloadPercent(null);
     }
   }, [downloading, sessionId, sessionTitle]);
 
@@ -228,17 +237,28 @@ const AgentSessionPage: FC = () => {
                   onClick={handleExportResources}
                 />
               )}
-              {/* 下载会话结果：后端把 report 目录打包成 zip，文件名使用会话标题。 */}
+              {/* 下载会话结果：后端把 report 目录打包成 zip，文件名使用会话标题。
+                  下载中在按钮上显示传输进度百分比（总大小未知时只显示加载态）。 */}
               {sessionId && (
                 <Button
                   size="small"
                   type="default"
                   icon={<DownloadOutlined />}
                   loading={downloading}
-                  aria-label={locale === 'en_US' ? 'Download session results' : '下载会话结果'}
+                  aria-label={
+                    locale === 'en_US'
+                      ? downloadPercent !== null
+                        ? `Downloading ${downloadPercent}%`
+                        : 'Downloading session results'
+                      : downloadPercent !== null
+                        ? `正在下载 ${downloadPercent}%`
+                        : '正在下载会话结果'
+                  }
                   title={locale === 'en_US' ? 'Download session results' : '下载会话结果'}
                   onClick={handleDownloadResources}
-                />
+                >
+                  {downloading && downloadPercent !== null ? `${downloadPercent}%` : null}
+                </Button>
               )}
               {/*
                * 只在面板折叠时显示「打开」按钮；关闭入口放在右侧面板自己的标题栏里

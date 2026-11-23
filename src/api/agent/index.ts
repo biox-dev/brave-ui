@@ -474,10 +474,17 @@ export const exportAgentSessionResourcesApi = (sessionId: string) => {
 
 // 下载会话结果压缩包：后端先把分析节点输出与报告汇总到 report 目录，再打包成 zip 返回。
 // 压缩包名称由后端按会话标题写入 Content-Disposition，调用方也可用会话标题作为文件名。
-export const downloadAgentSessionResourcesApi = (sessionId: string) => {
+// onProgress 会随传输回调 (已下载字节, 总字节)；总字节未知时为 0。
+export const downloadAgentSessionResourcesApi = (
+  sessionId: string,
+  onProgress?: (loaded: number, total: number) => void
+) => {
   return http.get<Blob>("/agent/session/resources/export/download", {
     params: { session_id: sessionId },
     responseType: "blob",
+    onDownloadProgress: (event) => {
+      onProgress?.(event.loaded, event.total ?? 0);
+    },
   });
 };
 
