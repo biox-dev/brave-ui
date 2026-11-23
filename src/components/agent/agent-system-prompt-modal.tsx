@@ -45,10 +45,9 @@ const AgentSystemPromptModal: FC<AgentSystemPromptModalProps> = ({ envInfo, onCa
 
   return (
     <Flex vertical gap={12}>
-      {/* 上下文元信息：类型 / Profile / 标签。 */}
-      {(envInfo?.type || envInfo?.profile_name || envInfo?.label) && (
+      {/* 上下文元信息：Profile / 标签。 */}
+      {(envInfo?.profile_name || envInfo?.label) && (
         <Flex align="center" gap={8} wrap>
-          {envInfo?.type && <Tag color="processing">Type: {envInfo.type}</Tag>}
           {envInfo?.profile_name && <Tag color="blue">Profile: {envInfo.profile_name}</Tag>}
           {envInfo?.label && <Tag>{envInfo.label}</Tag>}
         </Flex>

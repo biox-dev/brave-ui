@@ -79,8 +79,7 @@ export const RenderProvider: FC<any> = ({ children }) => {
 
     }, [analysisNodeId]);
 
-    // 业务上下文（llmEnv）不再在这里自动同步：它已改为用户级状态，
-    // 由业务页面顶部的按钮显式调用 setLLMEnv 写入当前用户记录（见 llm-env.ts）。
+    // 业务上下文（llmEnv）已移除：工作目录固定为当前激活项目的默认目录。
 
     const clear = () => {
         // setComponentParentIdsMap({})

@@ -1406,8 +1406,7 @@ const App = forwardRef<any, any>(({ biz_id, biz_type }, ref) => {
                                 biz_type: biz_type,
                                 project_id: active.project_id || currentProjectId,
                                 session_id: active.id,
-                                is_save_prompt: true,
-                                env: llmEnv
+                                is_save_prompt: true
                                 // ...(script ? {
                                 //     env: {
                                 //         script_id: script?.id,

@@ -15,8 +15,6 @@ import AnalysisToolsComp from "../components-relation/tools/anlaysis-component"
 import { ParamsEdit, ParamsPanelDock, ParamsPanelLayout } from "@/components/edit-params/params-panel"
 import { useStoreRender } from "@/context/render/RenderProvider"
 import { useI18n } from "@/hooks/useI18n"
-import { useGlobalMessage } from "@/hooks/useGlobalMessage"
-import { LLMEnvType, setLLMEnv } from "@/utils/llm-env"
 
 const ResultParse = lazy(() => import("@/components/result-parse"))
 // import AnalysisResultPanel from '@/components/analysis-result-view/panel'
@@ -60,7 +58,6 @@ const AnalysisReport: FC<any> = () => {
     // const projectParam = queryParams.get("project");
     // const dispatch = useDispatch()
     const { modal, openModal, closeModal } = useModal();
-    const message = useGlobalMessage();
     // 参数面板开关：页面显式声明编辑目标（当前分析），面板在右侧停靠。
     // 不再依赖全局 rightPanelCollapsed / sideView。
     const [paramsOpen, setParamsOpen] = useState(false);
@@ -184,20 +181,6 @@ const AnalysisReport: FC<any> = () => {
                         onClick={() => setParamsOpen((prev) => !prev)}
                     >
                         Parameters
-                    </Button>
-                </Tooltip>
-                <Tooltip title="Bind this analysis as the current Agent context">
-                    <Button
-                        size="small"
-                        color="geekblue"
-                        variant="solid"
-                        disabled={!analysisId}
-                        onClick={async () => {
-                            await setLLMEnv(analysisId, LLMEnvType.Analysis);
-                            message.success("Agent context bound to analysis");
-                        }}
-                    >
-                        Use as Agent Context
                     </Button>
                 </Tooltip>
             </>

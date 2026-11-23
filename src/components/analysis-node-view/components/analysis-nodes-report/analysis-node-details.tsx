@@ -21,7 +21,6 @@ import { useComponentStore } from "@/event-bus/stores/components";
 import { FilesRender } from "../result-render/components/files-render";
 import { AnalysisNodeFilesRender } from "../result-render/components/analysis-node-files-render";
 import { NodeParamsRender } from "../result-render/components/node-params-render";
-import { LLMEnvType, setLLMEnv } from "@/utils/llm-env";
 import { createContainerTerminalSessionApi } from "@/api/container-template-terminal";
 import { openBottomTerminal } from "@/layout/bottom-panel-store";
 
@@ -280,21 +279,6 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, v
             bodyStyle={{ padding: 12 }}
             extra={
                 <Space>
-                    {/* <Tooltip title="Bind this analysis node as the current Agent context">
-                        <Button
-                            size="small"
-                            color="geekblue"
-                            variant="solid"
-                            disabled={!analysisNodeId}
-                            onClick={async () => {
-                                await setLLMEnv(analysisNodeId, LLMEnvType.AnalysisNode);
-                                message.success("Agent context bound to analysis node");
-                            }}
-                        >
-                            Agent
-                        </Button>
-                    </Tooltip> */}
-
                     {/* 把当前分析节点作为 @analysis_node:<id> 引用插进 Agent 输入框，
                         模型收到引用后会用 get_analysis_node 读取节点名称 / 类型 / 工作目录与参数。 */}
                     <Tooltip

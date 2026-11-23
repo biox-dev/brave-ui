@@ -488,13 +488,12 @@ export const chatAgentApi = (payload: AgentChatRequest) => {
   return http.post<AgentChatResponse>("/agent/chat", payload);
 };
 
-// 业务上下文描述（对应后端 RuntimeContextInfo）。
+// 上下文描述（对应后端 RuntimeContextInfo）。
 export interface AgentEnvInfo {
-  type?: string;
   label?: string;
   working_dir?: string;
   system_prompt?: string;
-  /** 渲染系统提示词模板所用的变量（业务上下文事实）。 */
+  /** 渲染系统提示词模板所用的变量（当前为工作目录相关变量）。 */
   vars?: Record<string, unknown> | null;
   /** 用于渲染系统提示词的 Profile 名称。 */
   profile_name?: string;
@@ -504,8 +503,7 @@ export interface AgentEnvInfo {
   skills?: string[] | null;
 }
 
-// 解析当前对话的业务上下文，返回人类可读的名称与工作目录。
-// 业务上下文（llmEnv）由业务页面通过 setLLMEnv 写入当前用户记录，后端直接读取，无需传参。
+// 解析当前对话的上下文，返回工作目录与按 Profile 渲染后的系统提示词。
 export const describeAgentEnvApi = () => {
   return http.post<AgentEnvInfo>("/agent/env/describe", {});
 };
