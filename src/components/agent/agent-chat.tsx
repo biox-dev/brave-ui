@@ -1567,7 +1567,7 @@ const AgentChat: FC<AgentChatProps> = ({
         {/* 第一行：左侧业务上下文与运行状态，右侧当前 Profile */}
         <Flex align="center" justify="space-between" gap={12}>
           <Flex align="center" gap={8} style={{ minWidth: 0, flex: 1 }}>
-            {envInfo?.label ? (
+            {envInfo?.profile_name ? (
               <Space.Compact style={{ minWidth: 0 }}>
                 <Button
                   size="small"
@@ -1586,7 +1586,7 @@ const AgentChat: FC<AgentChatProps> = ({
                       verticalAlign: "bottom",
                     }}
                   >
-                    {envInfo.label}
+                    {envInfo.profile_name}
                   </span>
                 </Button>
                 <Button
