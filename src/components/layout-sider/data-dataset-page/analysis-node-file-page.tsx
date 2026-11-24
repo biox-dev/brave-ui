@@ -56,6 +56,10 @@ export interface AnalysisNodeFilePageProps {
   onOk?: (file: DatasetFileItem | DatasetFileItem[]) => void;
   onCancel?: () => void;
   close?: () => void;
+  /** 纵向堆叠布局注入的折叠态：折叠时仅保留标题栏。 */
+  collapsed?: boolean;
+  /** 点击标题栏时切换折叠态（未传入则标题栏不可点击）。 */
+  onToggleCollapse?: () => void;
 }
 
 const normalizePageSize = (value: number | string | undefined, fallback: number) => {
@@ -126,9 +130,23 @@ const toPickedFile = (item: AnalysisNodeFileItem): DatasetFileItem => ({
   role: item.file_key,
 });
 
-/** 节点 / 文件行：图标 + 名称 + 一行摘要，样式沿用侧栏的 project-report-item。 */
-const ItemRow = ({ icon, title, meta }: { icon: ReactNode; title: string; meta?: string }) => (
-  <div className="project-report-item">
+/** 节点 / 文件行：图标 + 名称 + 一行摘要，样式沿用侧栏的 project-report-item。
+ *
+ * `actions` 放在行尾并始终占据布局宽度（悬浮行时淡入），文字在按钮前截断，
+ * 不会出现按钮盖住文字的情况，也不单独占用一整列（与数据集面板一致）。
+ */
+const ItemRow = ({
+  icon,
+  title,
+  meta,
+  actions,
+}: {
+  icon: ReactNode;
+  title: string;
+  meta?: string;
+  actions?: ReactNode;
+}) => (
+  <div className="project-report-item dataset-project-item">
     {icon}
     <div className="project-report-item-text">
       <span className="project-report-item-title" title={title}>
@@ -140,6 +158,14 @@ const ItemRow = ({ icon, title, meta }: { icon: ReactNode; title: string; meta?:
         </span>
       ) : null}
     </div>
+    {actions ? (
+      <span
+        className="project-report-item-actions dataset-project-item-actions"
+        onClick={(event) => event.stopPropagation()}
+      >
+        {actions}
+      </span>
+    ) : null}
   </div>
 );
 
@@ -150,9 +176,24 @@ const ItemRow = ({ icon, title, meta }: { icon: ReactNode; title: string; meta?:
 interface AnalysisNodeListPanelProps {
   pageSize: number;
   onOpen: (node: AnalysisNodeItem) => void;
+  /** 面板标题（默认 Analysis Nodes）。 */
+  title?: string;
+  /** 选择器模式下由页面注入的底部操作区。 */
+  footer?: ReactNode;
+  /** 纵向堆叠折叠时停止列表请求。 */
+  collapsed?: boolean;
+  /** 点击标题栏时切换折叠态。 */
+  onToggleCollapse?: () => void;
 }
 
-const AnalysisNodeListPanel = ({ pageSize, onOpen }: AnalysisNodeListPanelProps) => {
+const AnalysisNodeListPanel = ({
+  pageSize,
+  onOpen,
+  title,
+  footer,
+  collapsed = false,
+  onToggleCollapse,
+}: AnalysisNodeListPanelProps) => {
   const message = useGlobalMessage();
   const { locale } = useI18n();
   // 后端按当前用户激活的项目过滤，这里只用它作为 scopeKey：切项目时重置分页。
@@ -173,6 +214,7 @@ const AnalysisNodeListPanel = ({ pageSize, onOpen }: AnalysisNodeListPanelProps)
     fetcher: (payload) => pageAnalysisNodeByProjectApi(payload).then((response) => response.data),
     pageSize,
     scopeKey: projectId,
+    enabled: !collapsed,
   });
 
   const isFetching = loading || loadingMore;
@@ -198,7 +240,6 @@ const AnalysisNodeListPanel = ({ pageSize, onOpen }: AnalysisNodeListPanelProps)
     {
       title: "Analysis Node",
       dataIndex: "node_name",
-      ellipsis: { showTitle: false },
       render: (_: string, record) => (
         <ItemRow
           icon={<ExperimentOutlined className="project-report-item-icon" />}
@@ -212,36 +253,55 @@ const AnalysisNodeListPanel = ({ pageSize, onOpen }: AnalysisNodeListPanelProps)
               .filter(Boolean)
               .join(" · ") || undefined
           }
+          actions={
+            <>
+              <Tooltip title="Report">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<EyeOutlined />}
+                  onClick={() => handleOpenReport(record)}
+                />
+              </Tooltip>
+              <Popconfirm title="Delete this analysis node?" onConfirm={() => handleDelete(record)}>
+                <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+              </Popconfirm>
+            </>
+          }
         />
-      ),
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      width: 88,
-      align: "right",
-      render: (_: unknown, record) => (
-        <span className="project-report-item-actions" onClick={(event) => event.stopPropagation()}>
-          <Tooltip title="Report">
-            <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => handleOpenReport(record)} />
-          </Tooltip>
-          <Popconfirm title="Delete this analysis node?" onConfirm={() => handleDelete(record)}>
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </span>
       ),
     },
   ];
 
   return (
-    <div className="dataset-project-panel-body">
-      <div className="dataset-project-toolbar">
-        <LazyListSearch value={keyword} onChange={setKeyword} placeholder="Search analysis nodes" />
-        <Tooltip title="Refresh">
-          <Button type="text" size="small" icon={<ReloadOutlined />} loading={isFetching} onClick={() => reload()} />
-        </Tooltip>
-      </div>
-
+    <SiderPanelLayout
+      className="dataset-project-panel"
+      bodyClassName="dataset-project-panel-body"
+      title={title || "Analysis Nodes"}
+      titleExtra={total > 0 ? <span className="sider-panel-count">{total}</span> : undefined}
+      collapsed={collapsed}
+      onToggleCollapse={onToggleCollapse}
+      footer={footer}
+      actions={
+        <>
+          <LazyListSearch
+            value={keyword}
+            onChange={setKeyword}
+            placeholder="Search analysis nodes"
+            className="project-report-panel-search"
+          />
+          <Tooltip title="Refresh">
+            <Button
+              type="text"
+              size="small"
+              icon={<ReloadOutlined />}
+              loading={isFetching}
+              onClick={() => reload()}
+            />
+          </Tooltip>
+        </>
+      }
+    >
       {nodes.length === 0 && !isFetching ? (
         <div className="dataset-project-empty">
           <Empty
@@ -254,11 +314,11 @@ const AnalysisNodeListPanel = ({ pageSize, onOpen }: AnalysisNodeListPanelProps)
           rowKey="id"
           size="small"
           showHeader={false}
+          tableLayout="fixed"
           columns={columns}
           dataSource={nodes}
           loading={isFetching}
           pagination={false}
-          scroll={{ x: 480 }}
           onRow={(record) => ({
             // 点击节点即「进入文件夹」，查看该节点产出的文件。
             onClick: () => onOpen(record),
@@ -274,7 +334,7 @@ const AnalysisNodeListPanel = ({ pageSize, onOpen }: AnalysisNodeListPanelProps)
         total={total}
         labels={{ loading: "Loading more…", noMore: "No more analysis nodes", totalPrefix: "total " }}
       />
-    </div>
+    </SiderPanelLayout>
   );
 };
 
@@ -330,6 +390,14 @@ interface AnalysisNodeFilesPanelProps {
   selectedIds: string[];
   onSelectRows: (ids: string[], rows: AnalysisNodeFileItem[]) => void;
   onToggle: (file: AnalysisNodeFileItem) => void;
+  /** 返回分析节点列表。 */
+  onBack: () => void;
+  /** 选择器模式下由页面注入的底部操作区。 */
+  footer?: ReactNode;
+  /** 纵向堆叠折叠时停止列表请求。 */
+  collapsed?: boolean;
+  /** 点击标题栏时切换折叠态。 */
+  onToggleCollapse?: () => void;
 }
 
 const AnalysisNodeFilesPanel = ({
@@ -340,6 +408,10 @@ const AnalysisNodeFilesPanel = ({
   selectedIds,
   onSelectRows,
   onToggle,
+  onBack,
+  footer,
+  collapsed = false,
+  onToggleCollapse,
 }: AnalysisNodeFilesPanelProps) => {
   const message = useGlobalMessage();
   // 非分页接口的本地缓存（进入节点只请求一次），刷新时清空。
@@ -363,6 +435,7 @@ const AnalysisNodeFilesPanel = ({
     pageSize,
     scopeKey: node.id,
     reloadKey: version,
+    enabled: !collapsed,
   });
 
   const refresh = () => {
@@ -408,7 +481,6 @@ const AnalysisNodeFilesPanel = ({
     {
       title: "File",
       dataIndex: "file_name",
-      ellipsis: { showTitle: false },
       render: (_: string, record) => (
         <ItemRow
           icon={<FileOutlined className="project-report-item-icon" />}
@@ -417,43 +489,80 @@ const AnalysisNodeFilesPanel = ({
             [record.format, record.file_key, formatBytes(record.size)].filter(Boolean).join(" · ") ||
             undefined
           }
+          actions={
+            <>
+              <Tooltip title="Open Sheet">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<TableOutlined />}
+                  onClick={() => handleOpenSheet(record)}
+                />
+              </Tooltip>
+              <Tooltip title="Edit">
+                <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+              </Tooltip>
+              <Popconfirm
+                title="Delete this file?"
+                description="This will remove the file and its analysis node relation."
+                onConfirm={() => handleDelete(record)}
+              >
+                <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+              </Popconfirm>
+            </>
+          }
         />
-      ),
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      width: 110,
-      align: "right",
-      render: (_: unknown, record) => (
-        <span className="project-report-item-actions" onClick={(event) => event.stopPropagation()}>
-          <Tooltip title="Open Sheet">
-            <Button type="text" size="small" icon={<TableOutlined />} onClick={() => handleOpenSheet(record)} />
-          </Tooltip>
-          <Tooltip title="Edit">
-            <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
-          </Tooltip>
-          <Popconfirm
-            title="Delete this file?"
-            description="This will remove the file and its analysis node relation."
-            onConfirm={() => handleDelete(record)}
-          >
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </span>
       ),
     },
   ];
 
   return (
-    <div className="dataset-project-panel-body">
-      <div className="dataset-project-toolbar">
-        <LazyListSearch value={keyword} onChange={setKeyword} placeholder="Search files" />
-        <Tooltip title="Refresh">
-          <Button type="text" size="small" icon={<ReloadOutlined />} loading={isFetching} onClick={refresh} />
-        </Tooltip>
-      </div>
-
+    <SiderPanelLayout
+      className="dataset-project-panel"
+      bodyClassName="dataset-project-panel-body"
+      title={nodeLabel(node)}
+      titleExtra={total > 0 ? <span className="sider-panel-count">{total}</span> : undefined}
+      collapsed={collapsed}
+      onToggleCollapse={onToggleCollapse}
+      footer={footer}
+      subHeader={
+        <Breadcrumb
+          className="dataset-project-breadcrumb"
+          items={[
+            { title: <Typography.Link onClick={onBack}>Analysis Nodes</Typography.Link> },
+            { title: nodeLabel(node) },
+          ]}
+        />
+      }
+      actions={
+        <>
+          <Tooltip title="Back to analysis nodes">
+            <Button
+              type="text"
+              size="small"
+              icon={<ArrowLeftOutlined />}
+              aria-label="Back to analysis nodes"
+              onClick={onBack}
+            />
+          </Tooltip>
+          <LazyListSearch
+            value={keyword}
+            onChange={setKeyword}
+            placeholder="Search files"
+            className="project-report-panel-search"
+          />
+          <Tooltip title="Refresh">
+            <Button
+              type="text"
+              size="small"
+              icon={<ReloadOutlined />}
+              loading={isFetching}
+              onClick={refresh}
+            />
+          </Tooltip>
+        </>
+      }
+    >
       {files.length === 0 && !isFetching ? (
         <div className="dataset-project-empty">
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={error ? "Failed to load files" : "No files"} />
@@ -463,11 +572,11 @@ const AnalysisNodeFilesPanel = ({
           rowKey="id"
           size="small"
           showHeader={false}
+          tableLayout="fixed"
           columns={columns}
           dataSource={files}
           loading={isFetching}
           pagination={false}
-          scroll={{ x: 520 }}
           rowClassName={(record) => (selectedIds.includes(record.id) ? "project-report-row-selected" : "")}
           rowSelection={
             selectable
@@ -506,7 +615,7 @@ const AnalysisNodeFilesPanel = ({
         total={total}
         labels={{ loading: "Loading more…", noMore: "No more files", totalPrefix: "total " }}
       />
-    </div>
+    </SiderPanelLayout>
   );
 };
 
@@ -517,10 +626,11 @@ const AnalysisNodeFilesPanel = ({
 /**
  * 分析节点产出文件面板（文件夹式两级浏览，不再使用单级的项目文件列表）。
  *
- * 结构类似文件夹：
+ * 结构与 `dataset-project-page` 完全一致：每个层级各自渲染 `SiderPanelLayout`，
+ * 搜索框与动作按钮落在统一标题栏里；
  * - 第一级懒加载展示当前项目下的分析节点；
- * - 点击节点进入第二级，按 `analysis_node_id` 懒加载该节点产出的文件；
- * - 顶部面包屑 + 返回按钮回到节点列表。
+ * - 点击节点进入第二级，按 `analysis_node_id` 懒加载该节点产出的文件，
+ *   顶部面包屑（subHeader）+ 返回按钮回到节点列表。
  *
  * 选择模式下 Confirm 回传选中的文件（单选为单个 `DatasetFileItem`，
  * `multiple` 为数组），视图键 `analysisNodeFilePage` 保持不变。
@@ -532,6 +642,8 @@ const AnalysisNodeFilePage = ({
   onOk,
   onCancel,
   close,
+  collapsed = false,
+  onToggleCollapse,
 }: AnalysisNodeFilePageProps) => {
   const selectable = Boolean(onOk || onCancel);
   const [activeNode, setActiveNode] = useState<AnalysisNodeItem>();
@@ -583,69 +695,47 @@ const AnalysisNodeFilePage = ({
     close?.();
   };
 
-  return (
-    <SiderPanelLayout
-      className="dataset-project-panel"
-      title={activeNode ? nodeLabel(activeNode) : title || "Analysis Nodes"}
-      actions={
-        activeNode ? (
-          <Tooltip title="Back to analysis nodes">
-            <Button
-              type="text"
-              size="small"
-              icon={<ArrowLeftOutlined />}
-              aria-label="Back to analysis nodes"
-              onClick={() => setActiveNode(undefined)}
-            />
-          </Tooltip>
-        ) : undefined
-      }
-      footer={
-        selectable ? (
-          <Flex align="center" justify="space-between" gap="small" style={{ width: "100%" }}>
-            <span className="dataset-project-picked">
-              {multiple ? `${fileIds.length} file(s)` : ""}
-            </span>
-            <Flex gap="small">
-              <Button size="small" onClick={handleCancel}>
-                Cancel
-              </Button>
-              <Button size="small" type="primary" disabled={fileIds.length === 0} onClick={handleConfirm}>
-                {multiple && fileIds.length > 0 ? `Confirm (${fileIds.length})` : "Confirm"}
-              </Button>
-            </Flex>
-          </Flex>
-        ) : undefined
-      }
-    >
-      {activeNode ? (
-        <>
-          <Breadcrumb
-            className="dataset-project-breadcrumb"
-            items={[
-              {
-                title: (
-                  <Typography.Link onClick={() => setActiveNode(undefined)}>Analysis Nodes</Typography.Link>
-                ),
-              },
-              { title: nodeLabel(activeNode) },
-            ]}
-          />
-          <AnalysisNodeFilesPanel
-            key={activeNode.id}
-            node={activeNode}
-            pageSize={normalizePageSize(page_size, 20)}
-            selectable={selectable}
-            multiple={multiple}
-            selectedIds={fileIds}
-            onSelectRows={selectFiles}
-            onToggle={toggleFile}
-          />
-        </>
-      ) : (
-        <AnalysisNodeListPanel pageSize={normalizePageSize(page_size, 10)} onOpen={setActiveNode} />
-      )}
-    </SiderPanelLayout>
+  // 选择器模式下的底部操作区：两个层级共用，由面板透传给 SiderPanelLayout。
+  const footer = selectable ? (
+    <Flex align="center" justify="space-between" gap="small" style={{ width: "100%" }}>
+      <span className="dataset-project-picked">{multiple ? `${fileIds.length} file(s)` : ""}</span>
+      <Flex gap="small">
+        <Button size="small" onClick={handleCancel}>
+          Cancel
+        </Button>
+        <Button size="small" type="primary" disabled={fileIds.length === 0} onClick={handleConfirm}>
+          {multiple && fileIds.length > 0 ? `Confirm (${fileIds.length})` : "Confirm"}
+        </Button>
+      </Flex>
+    </Flex>
+  ) : undefined;
+
+  // 每个层级各自渲染 SiderPanelLayout：搜索框与动作按钮落在统一标题栏里，
+  // 与数据集 / 脚本 / 流程等侧栏面板保持一致。
+  return activeNode ? (
+    <AnalysisNodeFilesPanel
+      key={activeNode.id}
+      node={activeNode}
+      pageSize={normalizePageSize(page_size, 20)}
+      selectable={selectable}
+      multiple={multiple}
+      selectedIds={fileIds}
+      onSelectRows={selectFiles}
+      onToggle={toggleFile}
+      onBack={() => setActiveNode(undefined)}
+      footer={footer}
+      collapsed={collapsed}
+      onToggleCollapse={onToggleCollapse}
+    />
+  ) : (
+    <AnalysisNodeListPanel
+      pageSize={normalizePageSize(page_size, 10)}
+      onOpen={setActiveNode}
+      title={title || "Analysis Nodes"}
+      footer={footer}
+      collapsed={collapsed}
+      onToggleCollapse={onToggleCollapse}
+    />
   );
 };
 
