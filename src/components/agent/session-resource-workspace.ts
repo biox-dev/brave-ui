@@ -1,6 +1,12 @@
 import type { AgentSessionResourceItem, AgentSessionResourceType } from '@/api/agent';
 import { openAgentWorkspaceTab } from '@/layout/agent-workspace-store';
-import { ANALYSIS_NODE_TAB_KEY_PREFIX, ANALYSIS_TAB_KEY_PREFIX, PROJECT_REPORT_TAB_KEY_PREFIX } from '@/layout/workspace-navigation';
+import {
+  ANALYSIS_NODE_TAB_KEY_PREFIX,
+  ANALYSIS_TAB_KEY_PREFIX,
+  PROJECT_REPORT_TAB_KEY_PREFIX,
+  SCRIPT_TAB_KEY_PREFIX,
+  WORKFLOW_TAB_KEY_PREFIX,
+} from '@/layout/workspace-navigation';
 
 /**
  * 会话结果（右侧堆叠分区）→ 右侧工作区标签的**唯一映射**。
@@ -12,7 +18,7 @@ import { ANALYSIS_NODE_TAB_KEY_PREFIX, ANALYSIS_TAB_KEY_PREFIX, PROJECT_REPORT_T
  *   - 标签 key 前缀（`tabKeyPrefix`，同一资源重复点击复用同一个标签）。
  *
  * 新增一种可点击的资源时只改这里，`SessionResourcePanel` 与后续其它入口都自动生效；
- * 没有登记的类型（目前是 script / workflow）表现为「不可点击」。
+ * 每个登记过的资源类型都可在右侧工作区打开。
  */
 export interface SessionResourceWorkspaceTarget {
   /** ViewResolver 的视图名（必须是 component-registry 里注册过的 key）。 */
@@ -28,15 +34,24 @@ export interface SessionResourceWorkspaceTarget {
  *
  * 注意：
  * - `analysis`（分析运行）没有独立路由页，打开该分析下的节点列表（analysisNodePage）；
- * - `analysis_node` 打开节点详情（analysisNodeDetails），它的 `analysis_node_id`
- *   语义上是分析节点 DB 主键，正好等于会话资源里的 `resource_id`；
- * - `plan` 打开计划节点树（planDetail），只读渲染该计划的步骤树；
- * - `project_report` 打开报告正文文件（projectReportFile，即 output.md 的查看 / 编辑面板），
- *   与会话结果里「报告」分区的资源 ID 语义一致（= 项目报告 ID）。
+ * - `analysis_node` 打开节点详情（analysisNodeDetails）；
+ * - `plan` 打开计划节点树（planDetail）；
+ * - `project_report` 打开报告正文文件（projectReportFile）；
+ * - `script` / `workflow` 分别打开统一登记在详情视图中的详情页。
  */
 export const SESSION_RESOURCE_WORKSPACE_TARGETS: Partial<
   Record<AgentSessionResourceType, SessionResourceWorkspaceTarget>
 > = {
+  script: {
+    view: 'scriptPanelDetail',
+    tabKeyPrefix: SCRIPT_TAB_KEY_PREFIX,
+    params: (item) => ({ component_type: 'script', script_id: item.resource_id }),
+  },
+  workflow: {
+    view: 'workflowPanelDetail',
+    tabKeyPrefix: WORKFLOW_TAB_KEY_PREFIX,
+    params: (item) => ({ workflow_id: item.resource_id }),
+  },
   analysis: {
     view: 'analysisNodePage',
     tabKeyPrefix: ANALYSIS_TAB_KEY_PREFIX,
@@ -44,7 +59,6 @@ export const SESSION_RESOURCE_WORKSPACE_TARGETS: Partial<
   },
   analysis_node: {
     view: 'analysisNodeDetails',
-    // 与左侧分析节点列表共用前缀：两边点同一个节点只聚焦一个标签。
     tabKeyPrefix: ANALYSIS_NODE_TAB_KEY_PREFIX,
     params: (item) => ({ analysis_node_id: item.resource_id }),
   },
@@ -86,9 +100,6 @@ export const getSessionResourceTabKey = (
 
 /**
  * 把一条会话结果在右侧工作区（SplitWorkspace 的 rightMiddle 区域）打开或聚焦。
- *
- * 返回是否真的打开了：没有会话 ID 或该类型未登记映射时返回 false，调用方可据此
- * 决定是否渲染成普通文本而不是按钮。
  */
 export const openSessionResourceTab = (
   sessionId: string | undefined,
