@@ -63,6 +63,7 @@ const PlanPage = lazy(() => import('@/pages/page-route/plan'))
 const ReportFile = lazy(() => import('@/pages/page-route/report-file'));
 const LiteratureWriting = lazy(() => import('@/pages/page-route/literature-writing'));
 const AnalysisNodeReport = lazy(() => import('@/pages/page-route/analysis-node-report'));
+const FileViewPage = lazy(() => import('@/pages/page-route/file-view'));
 
 const PsycMicroGraphHome = lazy(() => import("@/pages/psycmicrograph"))
 const Test = lazy(() => import("@/pages/test"))
@@ -80,7 +81,6 @@ const AISummaryDetail = lazy(() => import("../pages/page-route/ai-summary-detail
 const Login = lazy(() => import("@/pages/users/login"));
 const Register = lazy(() => import("@/pages/users/register"));
 const DatasetProjectPage = lazy(() => import("@/components/layout-sider/data-dataset-page/dataset-project-page"))
-const UniverView = lazy(() => import("@/components/univer/univer-view"))
 const AssayProjectPage = lazy(() => import("@/components/layout-sider/data-dataset-page/assay-project-page"))
 const ContainerTemplatePage = lazy(() => import("@/components/layout-sider/container-template/container-template-list"))
 const ContainerTemplateTerminalPage = lazy(() => import("@/pages/page-route/container-template-terminal"))
@@ -122,7 +122,7 @@ if (appType == "index") {
             element: <DatasetProjectPage />
         }, {
             path: "/dataset-file/:id",
-            element: <UniverView />
+            element: <FileViewPage />
         }, {
             path: "app-session",
             element: <AppSessionPage />

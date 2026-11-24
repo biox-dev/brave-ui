@@ -109,9 +109,9 @@ export const AnalysisNodeFilesRender: FC<{
                                                             message.error("Invalid file id");
                                                             return;
                                                         }
-                                                        invoke.univerView.open(
+                                                        invoke.filePreview.open(
                                                             { file_id: sheetFileId },
-                                                            { width: "90%", title: `Sheet: ${fileName}`, footer: null }
+                                                            { width: "90%", title: `File: ${fileName}`, footer: null }
                                                         );
                                                     }}
                                                 >

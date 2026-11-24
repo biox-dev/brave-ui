@@ -8,7 +8,7 @@ import type { InferViewRegistryFromLoaders } from "@/core/component-registry/reg
  * 「详情路由页」、没有独立的 Panel 组件，这里把路由页注册成视图，让列表在会话页里
  * 也能在标签中打开同一个详情页（不在会话页时仍然是普通路由跳转）。
  *
- * 这些页面都接受可选 id prop（`script_id` / `workflow_id` / `literatureId`），
+ * 这些页面都接受可选 id prop（`script_id` / `workflow_id` / `literatureId` / `file_id`），
  * 路由页从 `useParams()` 取，标签视图从 props 取；两种方式指向同一个资源（DB 主键）。
  *
  * 新增资源时在这里补一个 loader，然后在 `layout/workspace-navigation.ts` 里
@@ -21,6 +21,10 @@ const viewLoaders = {
     workflowPanelDetail: () => import("@/pages/page-route/workflow-panel"),
     // 文献详情（/literature-writing/:literature-id）：props { literatureId }
     literatureWritingDetail: () => import("@/pages/page-route/literature-writing"),
+    // 文件详情（/dataset-file/:file_id）：props { file_id }
+    // Agent 会话页右侧标签与 `invoke.filePreview` 弹窗共用同一个页面
+    // （统一 PanelLayout 标题栏、默认收起文件详情）。
+    filePreview: () => import("@/pages/page-route/file-view"),
 };
 
 declare module "@/core/component-registry/registry-types" {

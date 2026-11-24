@@ -1,7 +1,7 @@
 import { http } from "@/api/client/http";
 
-/** go_file 的核心字段，随按文件读取工作簿的响应一起返回。 */
-export interface WorkbookFileInfo {
+/** go_file 的核心字段，随文件预览响应一起返回。 */
+export interface PreviewFileInfo {
 	id: string;
 	file_name: string;
 	path: string;
@@ -16,32 +16,28 @@ export interface WorkbookFileInfo {
 	updated_at: string;
 }
 
-export interface ReadWorkbookByFileIDParams {
-	id: string;
-}
+/**
+ * 预览类型：
+ * - table：返回分隔文本，由前端解析成表格（csv/tsv，xlsx 由后端转 TSV）；
+ * - text：返回原始文本（fasta/gff/md/json/...）；
+ * - binary：无法在线预览（gz/rds/bam/...）。
+ */
+export type FilePreviewKind = "table" | "text" | "binary";
 
-export interface ReadWorkbookResponse {
+export interface FilePreviewResponse {
 	file_path: string;
 	format: string;
-	workbook_data: Record<string, unknown>;
-	// file 仅在按 id 读取时返回。
-	file?: WorkbookFileInfo;
+	kind: FilePreviewKind;
+	/** table 类型的分隔符，例如 "," 或 "\t"。 */
+	delimiter?: string;
+	content?: string;
+	truncated: boolean;
+	/** 预览提示（如二进制格式不可预览、只显示第一个工作表等）。 */
+	message?: string;
+	file?: PreviewFileInfo;
 }
 
-export interface WriteWorkbookByFileIDRequest {
-	id: string;
-	workbook_data: Record<string, unknown>;
-}
-
-export interface WriteWorkbookResponse {
-	file_path: string;
-	format: string;
-}
-
-export const readSheetWorkbookByFileIDApi = (params: ReadWorkbookByFileIDParams) => {
-	return http.get<ReadWorkbookResponse>("/sheet/workbook/by-file-id", { params });
+export const previewFileByFileIDApi = (params: { id: string }) => {
+	return http.get<FilePreviewResponse>("/file/preview", { params });
 };
 
-export const writeSheetWorkbookByFileIDApi = (payload: WriteWorkbookByFileIDRequest) => {
-	return http.post<WriteWorkbookResponse>("/sheet/workbook/save/by-file-id", payload);
-};

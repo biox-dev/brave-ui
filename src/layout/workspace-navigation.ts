@@ -36,6 +36,8 @@ export const WORKFLOW_TAB_KEY_PREFIX = "session-workflow";
 export const LITERATURE_TAB_KEY_PREFIX = "session-literature";
 /** 项目报告正文（output.md）的标签 key 前缀，与 `session-resource-workspace` 一致。 */
 export const PROJECT_REPORT_TAB_KEY_PREFIX = "session-project-report";
+/** 数据集文件（文件查看详情）的标签 key 前缀。 */
+export const DATASET_FILE_TAB_KEY_PREFIX = "session-dataset-file";
 
 /**
  * 解析 pathname 是否命中 Agent 会话页，命中时取出会话 ID。

@@ -7,15 +7,16 @@ import {
   ArrowLeftOutlined,
   DeleteOutlined,
   EditOutlined,
+  EyeOutlined,
   FileOutlined,
   FolderAddOutlined,
   FolderOpenOutlined,
   ImportOutlined,
   PlusOutlined,
   ReloadOutlined,
-  TableOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
+import { useLocation, useNavigate } from "react-router";
 import { LazyListFooter, LazyListSearch, LazyListSentinel, useLazyList } from "@/components/common/lazy-list";
 import {
   deleteDatasetApi,
@@ -36,6 +37,12 @@ import type {
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useUI } from "@/core/ui-system/useUI";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
+import {
+  DATASET_FILE_TAB_KEY_PREFIX,
+  useActiveWorkspaceResourceId,
+  useWorkspaceOpener,
+  type WorkspaceOpenTarget,
+} from "@/layout/workspace-navigation";
 import SiderPanelLayout from "../common/sider-panel-layout";
 import "./dataset-project-page.css";
 
@@ -105,15 +112,22 @@ const formatBytes = (size?: number) => {
   return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 };
 
-const isSpreadsheetFile = (item: DatasetFileItem) => {
-  const format = String(item.format ?? "").toLowerCase();
-  if (["xlsx", "xlsm", "xls", "csv", "tsv"].includes(format)) {
-    return true;
-  }
-  return [".xlsx", ".xlsm", ".xls", ".csv", ".tsv"].some((ext) =>
-    String(item.path ?? "").toLowerCase().endsWith(ext)
-  );
-};
+/**
+ * 数据集文件的「打开方式」统一描述：
+ * - Agent 会话页：在右侧 MainTabs 用 fileView 视图打开标签；
+ * - 其它页面：路由跳转到 /dataset-file/:id（文件查看详情页）。
+ *
+ * 不做格式判断，任何文件都能打开：表格 / 文本直接预览，二进制格式显示不可预览提示。
+ * `file_id` 是 go_file 主键（`id` 是 go_dataset_file 关联行），预览接口与路由 :id 都用它。
+ */
+const buildDatasetFileTarget = (file: DatasetFileItem): WorkspaceOpenTarget => ({
+  view: "filePreview",
+  title: fileLabel(file),
+  tabKeyPrefix: DATASET_FILE_TAB_KEY_PREFIX,
+  resourceId: String(file.file_id),
+  params: { file_id: String(file.file_id) },
+  routePath: `/dataset-file/${encodeURIComponent(String(file.file_id))}`,
+});
 
 /** 文件夹 / 文件行：图标 + 名称 + 一行摘要，样式沿用侧栏的 project-report-item。
  *
@@ -430,6 +444,16 @@ const DatasetFilesPanel = ({
 }: DatasetFilesPanelProps) => {
   const message = useGlobalMessage();
   const { close: closeUI } = useUI();
+  const navigate = useNavigate();
+  const location = useLocation();
+  // 当前是否在 Agent 会话页：是则点文件在右侧 MainTabs 打开标签，否则路由跳转。
+  const openTarget = useWorkspaceOpener();
+  // 会话页右侧正在显示的文件 / 路由 /dataset-file/:id 都算选中（行高亮与详情保持一致）。
+  const workspaceSelectedFileId = useActiveWorkspaceResourceId(DATASET_FILE_TAB_KEY_PREFIX);
+  const routeSelectedFileId = useMemo(() => {
+    const match = location.pathname.match(/\/dataset-file\/([^/]+)/);
+    return match ? decodeURIComponent(match[1]) : undefined;
+  }, [location.pathname]);
   // 非分页接口的本地缓存（进入数据集只请求一次），刷新时清空。
   const cacheRef = useRef<Promise<DatasetFileItem[]> | null>(null);
   // 版本号：上传 / 编辑 / 删除后自增，触发列表重新拉取。
@@ -463,14 +487,13 @@ const DatasetFilesPanel = ({
   const isFetching = loading || loadingMore;
 
   const handleOpenSheet = (file: DatasetFileItem) => {
-    if (!isSpreadsheetFile(file)) {
-      message.warning("This file format is not supported for opening");
-      return;
-    }
-    invoke.univerView.open(
-      { file_id: file.file_id },
-      { width: "90%", title: `Sheet: ${fileLabel(file)}`, footer: null }
-    );
+    // 会话页开右侧标签，其它页面路由跳转（统一入口）；不限制文件格式。
+    openTarget(buildDatasetFileTarget(file));
+  };
+
+  /** Actions 里的「眼睛」始终路由跳转（与行点击的区别：不依赖当前页面）。 */
+  const handleOpenSheetRoute = (file: DatasetFileItem) => {
+    navigate(buildDatasetFileTarget(file).routePath);
   };
 
   const handleEdit = async (file: DatasetFileItem) => {
@@ -572,8 +595,14 @@ const DatasetFilesPanel = ({
           meta={[record.format, record.role, formatBytes(record.size)].filter(Boolean).join(" · ") || undefined}
           actions={
             <>
+              {/* 详情内容（表格查看）由行点击在右侧标签/路由页打开，列表保留查看 + 编辑 + 删除。 */}
               <Tooltip title="Open Sheet">
-                <Button type="text" size="small" icon={<TableOutlined />} onClick={() => handleOpenSheet(record)} />
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<EyeOutlined />}
+                  onClick={() => handleOpenSheetRoute(record)}
+                />
               </Tooltip>
               <Tooltip title="Edit">
                 <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
@@ -683,7 +712,13 @@ const DatasetFilesPanel = ({
           dataSource={files}
           loading={isFetching}
           pagination={false}
-          rowClassName={(record) => (selectedIds.includes(record.id) ? "project-report-row-selected" : "")}
+          rowClassName={(record) =>
+            selectedIds.includes(record.id) ||
+            String(record.file_id) === String(workspaceSelectedFileId) ||
+            String(record.file_id) === String(routeSelectedFileId)
+              ? "project-report-row-selected"
+              : ""
+          }
           rowSelection={
             selectable && multiple
               ? {
@@ -698,7 +733,7 @@ const DatasetFilesPanel = ({
               if ((event.target as HTMLElement | null)?.closest?.(".ant-table-selection-column")) {
                 return;
               }
-              // 选择器里点文件即勾选；浏览态点文件直接打开表格。
+              // 选择器里点文件即勾选；浏览态点文件在右侧标签（会话页）/ 路由页打开。
               if (selectable && multiple) {
                 onToggle(record);
                 return;

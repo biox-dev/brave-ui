@@ -199,17 +199,17 @@ export const FileSelect: FC<any> = ({
     }
   }, [columns, groupFormValues, form, basePath]);
 
-  // 使用选中的 `[name, "file"]` 打开 Univer 表格预览弹窗。select 的值是文件主键 id，
-  // Univer 需要业务 file_id，因此先回查 data 取 file_id（缺失时退回主键）。
+  // 使用选中的 `[name, "file"]` 打开文件预览弹窗。select 的值是文件主键 id，
+  // 预览接口需要业务 file_id，因此先回查 data 取 file_id（缺失时退回主键）。
   const handleOpenSheet = () => {
     const fileId = String(selectedFile?.file_id ?? selectCollectFile ?? "").trim();
     if (!fileId) {
       message.error("Invalid file id");
       return;
     }
-    invoke.univerView.open(
+    invoke.filePreview.open(
       { file_id: fileId },
-      { width: "90%", title: `Sheet: ${selectedFile?.file_name ?? fileId}`, footer: null }
+      { width: "90%", title: `File: ${selectedFile?.file_name ?? fileId}`, footer: null }
     );
   };
 

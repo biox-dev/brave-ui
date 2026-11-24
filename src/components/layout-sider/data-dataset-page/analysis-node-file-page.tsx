@@ -484,7 +484,7 @@ const AnalysisNodeFilesPanel = ({
       message.warning("This file format is not supported for opening");
       return;
     }
-    invoke.univerView.open(
+    invoke.filePreview.open(
       { file_id: file.file_id },
       { width: "90%", title: `Sheet: ${fileLabel(file)}`, footer: null }
     );

@@ -119,7 +119,7 @@ const CollectedFileList = ({
       return;
     }
 
-    invoke.univerView.open(
+    invoke.filePreview.open(
       { file_id: item.file_id },
       { width: "90%", title: `Sheet: ${item.file_name || item.file_id}`, footer: null }
     );

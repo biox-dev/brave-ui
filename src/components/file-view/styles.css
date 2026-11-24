@@ -1,0 +1,56 @@
+.file-preview-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.file-preview-panel-toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
+  /* 与 MainTabs / PanelLayout 头部共用 --sharp-head-height（36px）：
+     之前 8px padding + 24px 按钮 + 1px 线 = 41px，比标签栏高出 5px。
+     提示文本已移出到内容区，这里恒为单行，可以固定高度。 */
+  height: var(--sharp-head-height, 36px);
+  min-height: var(--sharp-head-height, 36px);
+  padding: 0 12px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--sharp-divider, #eceff4);
+}
+
+/* 提示条跟在内容区顶部（不再占标题栏高度）。 */
+.file-preview-note {
+  margin: 0 0 8px;
+}
+
+/* 无内置标题栏时（页面用 PanelLayout 提供头部）撑满容器，只让内容区滚动。 */
+.file-preview-panel.is-headerless {
+  height: 100%;
+}
+
+.file-preview-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+}
+
+.file-preview-text {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.file-preview-table .ant-table-cell {
+  white-space: nowrap;
+}
+
+.file-preview-empty {
+  padding: 32px 0;
+}
