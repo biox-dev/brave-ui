@@ -17,7 +17,7 @@ export type AgentWorkspaceTab = {
   key: string;
   /** 标签显示名。 */
   title: string;
-  /** ViewResolver 的视图名，例如 projectFilePage / scriptPage。 */
+  /** ViewResolver 的视图名，例如 datasetProjectPage / scriptPage。 */
   view: string;
   /** 传给视图组件的参数。 */
   params?: Record<string, unknown>;

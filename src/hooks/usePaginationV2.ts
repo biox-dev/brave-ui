@@ -4,13 +4,9 @@ import { http } from "@/api/client/http";
 import type { AxiosError } from "axios";
 import {
 	pageDatasetByProjectApi,
-	pageFileByProjectApi,
-	pageFileByProjectViaAnalysisNodeApi,
 	pageAssayByProjectApi,
 } from "@/api/data";
 import type {
-	DatasetFileItem,
-	DatasetFilePageQuery,
 	DatasetItem,
 	DatasetPageQuery,
 	AssayItem,
@@ -277,64 +273,6 @@ export const useDatasetProjectPageQuery = (
 		query,
 		queryFn: async (payload) => {
 			const response = await pageDatasetByProjectApi(payload);
-			return response.data;
-		},
-		initialPageSize: 10,
-		...options,
-	});
-};
-
-export const useDatasetFilePageQuery = (
-	query: DatasetFilePageQuery,
-	options?: Omit<UsePageQueryOptions<DatasetFileItem, DatasetFilePageQuery>, "queryKey" | "query" | "endpoint" | "queryFn">
-) => {
-	return usePageQuery<DatasetFileItem, DatasetFilePageQuery>({
-		queryKey: ["dataset-file-page"],
-		query,
-		queryFn: async (payload) => {
-			const response = await pageFileByProjectApi(payload);
-			return response.data;
-		},
-		initialPageSize: 10,
-		...options,
-	});
-};
-
-export const useAnalysisNodeFilePageQuery = (
-	query: DatasetFilePageQuery,
-	options?: Omit<UsePageQueryOptions<DatasetFileItem, DatasetFilePageQuery>, "queryKey" | "query" | "endpoint" | "queryFn">
-) => {
-	return usePageQuery<DatasetFileItem, DatasetFilePageQuery>({
-		queryKey: ["analysis-node-file-page"],
-		query,
-		queryFn: async (payload) => {
-			const response = await pageFileByProjectViaAnalysisNodeApi(payload);
-			return response.data;
-		},
-		initialPageSize: 10,
-		...options,
-	});
-};
-
-/**
- * 项目文件列表（合并视图）的分页查询。
- *
- * `source` 只决定调用哪个接口：`dataset` = 数据集文件（用户上传），
- * `analysisNode` = 分析节点产出文件；两个接口的入参/出参结构一致，UI 完全复用。
- */
-export const useProjectFilePageQuery = (
-	source: "dataset" | "analysisNode",
-	query: DatasetFilePageQuery,
-	options?: Omit<UsePageQueryOptions<DatasetFileItem, DatasetFilePageQuery>, "queryKey" | "query" | "endpoint" | "queryFn">
-) => {
-	return usePageQuery<DatasetFileItem, DatasetFilePageQuery>({
-		queryKey: ["project-file-page", source],
-		query,
-		queryFn: async (payload) => {
-			const response =
-				source === "analysisNode"
-					? await pageFileByProjectViaAnalysisNodeApi(payload)
-					: await pageFileByProjectApi(payload);
 			return response.data;
 		},
 		initialPageSize: 10,

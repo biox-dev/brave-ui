@@ -5,7 +5,7 @@ import SiderStackLayout, { type SiderStackSection } from '../sider-stack-layout'
 import { useSiderStackCollapsed } from '../use-sider-stack-collapsed';
 
 /**
- * 左侧栏纵向堆叠视图：上方「智能体会话」，下方「项目文件」。
+ * 左侧栏纵向堆叠视图：上方「智能体会话」，下方「数据集」。
  *
  * 布局行为与其他堆叠视图（analysisScriptStack / containerTemplateStack）一致：
  * 两个面板各自保留标题栏与动作按钮，标题栏点击即可折叠（VS Code 风格），
@@ -30,11 +30,11 @@ const AgentSessionStack = () => {
         ),
       },
       {
-        // 项目文件（components/layout-sider/data-dataset-page/project-file-page.tsx）。
-        key: 'projectFilePage',
+        // 数据集浏览器（components/layout-sider/data-dataset-page/dataset-project-page.tsx）。
+        key: 'datasetProjectPage',
         render: ({ collapsed, toggle }) => (
           <ViewResolver
-            view="projectFilePage"
+            view="datasetProjectPage"
             collapsed={collapsed}
             onToggleCollapse={toggle}
           />

@@ -61,6 +61,10 @@ export interface DatasetProjectPageProps {
   onOk?: (picked: DatasetItem | DatasetPickResult) => void;
   onCancel?: () => void;
   close?: () => void;
+  /** 纵向堆叠布局注入的折叠态：折叠时仅保留标题栏。 */
+  collapsed?: boolean;
+  /** 点击标题栏时切换折叠态（未传入则标题栏不可点击）。 */
+  onToggleCollapse?: () => void;
 }
 
 const normalizeText = (value?: string) => {
@@ -141,6 +145,8 @@ interface DatasetListPanelProps {
   selectedIds: string[];
   onSelectRows: (ids: string[], rows: DatasetItem[]) => void;
   onOpen: (dataset: DatasetItem) => void;
+  /** 纵向堆叠折叠时停止列表请求。 */
+  collapsed?: boolean;
 }
 
 const DatasetListPanel = ({
@@ -152,6 +158,7 @@ const DatasetListPanel = ({
   selectedIds,
   onSelectRows,
   onOpen,
+  collapsed = false,
 }: DatasetListPanelProps) => {
   const message = useGlobalMessage();
   // 正在导入目录文件的数据集：只有该行按钮显示 loading。
@@ -173,6 +180,7 @@ const DatasetListPanel = ({
     query: { project_id: projectId, ...filters },
     pageSize,
     scopeKey: JSON.stringify([projectId, filters]),
+    enabled: !collapsed,
   });
 
   const isFetching = loading || loadingMore;
@@ -403,6 +411,8 @@ interface DatasetFilesPanelProps {
   selectedIds: string[];
   onSelectRows: (ids: string[], rows: DatasetFileItem[]) => void;
   onToggle: (file: DatasetFileItem) => void;
+  /** 纵向堆叠折叠时停止列表请求。 */
+  collapsed?: boolean;
 }
 
 const DatasetFilesPanel = ({
@@ -413,6 +423,7 @@ const DatasetFilesPanel = ({
   selectedIds,
   onSelectRows,
   onToggle,
+  collapsed = false,
 }: DatasetFilesPanelProps) => {
   const message = useGlobalMessage();
   const { close: closeUI } = useUI();
@@ -437,6 +448,7 @@ const DatasetFilesPanel = ({
     pageSize,
     scopeKey: dataset.id,
     reloadKey: version,
+    enabled: !collapsed,
   });
 
   const refresh = () => {
@@ -642,6 +654,8 @@ const DatasetProjectPage = ({
   onOk,
   onCancel,
   close,
+  collapsed = false,
+  onToggleCollapse,
 }: DatasetProjectPageProps) => {
   // 后端按「当前用户激活的项目」查询，这里的 project_id 只沿用旧的查询形状。
   const { projectId } = useSelector((state: { user: { projectId?: string } }) => state.user);
@@ -730,6 +744,8 @@ const DatasetProjectPage = ({
     <SiderPanelLayout
       className="dataset-project-panel"
       title={activeDataset ? datasetLabel(activeDataset) : title || "Datasets"}
+      collapsed={collapsed}
+      onToggleCollapse={onToggleCollapse}
       actions={
         activeDataset ? (
           <Tooltip title="Back to datasets">
@@ -779,6 +795,7 @@ const DatasetProjectPage = ({
             selectedIds={fileIds}
             onSelectRows={selectFiles}
             onToggle={toggleFile}
+            collapsed={collapsed}
           />
         </>
       ) : (
@@ -791,6 +808,7 @@ const DatasetProjectPage = ({
           selectedIds={datasetIds}
           onSelectRows={selectDatasets}
           onOpen={setActiveDataset}
+          collapsed={collapsed}
         />
       )}
     </SiderPanelLayout>

@@ -20,7 +20,6 @@ const viewLoaders = {
         import("./project-report-literature-stack/project-report-literature-stack"),
     sysFileBrowser: () => import("./sys-file/sys-file"),
     datasetProjectPage: () => import("./data-dataset-page/dataset-project-page"),
-    projectFilePage: () => import("./data-dataset-page/project-file-page"),
     analysisNodeFilePage: () => import("./data-dataset-page/analysis-node-file-page"),
     assayProjectPage: () => import("./data-dataset-page/assay-project-page"),
     editAssayPage: () => import("./data-dataset-page/edit-assay-page"),

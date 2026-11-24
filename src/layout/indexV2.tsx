@@ -33,13 +33,14 @@ type LeftPanelViewKey = 'scriptPage' | 'workflowPage' | 'analysisList' | 'analys
 const isLeftPanelViewKey = (key: string): key is LeftPanelViewKey =>
   key === 'scriptPage' || key === 'workflowPage' || key === 'analysisList' || key === 'analysisNodeList' || key === 'analysisScriptStack' || key === 'analysisWorkflowStack' || key === 'sysFileBrowser' || key === 'projectReport' || key === 'projectLiterature' || key === 'projectReportLiteratureStack' || key === 'assayProjectPage' || key === 'agentSessionStack' || key === 'containerTemplateList' || key === 'containerTemplateStack';
 
-// 旧版活动栏 key 与合并后视图的映射：datasetFilePage / analysisNodeFilePage 已合并为 projectFilePage，
+// 旧版活动栏 key 与合并后视图的映射：datasetFilePage / analysisNodeFilePage 已并入
+// agentSessionStack 下半栏的数据集视图，
 // analysisNodeList / scriptPage 已合并为上下堆叠的 analysisScriptStack，
 // analysisList / workflowPage 已合并为上下堆叠的 analysisWorkflowStack，
 // projectReport / projectLiterature 已合并为上下堆叠的 projectReportLiteratureStack，
-// agentSessionList / projectFilePage 已合并为上下堆叠的 agentSessionStack。
+// agentSessionList / datasetProjectPage 已合并为上下堆叠的 agentSessionStack。
 const LEGACY_VIEW_KEY_MAP: Record<string, LeftPanelViewKey> = {
-  // 数据集文件 / 分析节点文件合并为项目文件，现位于 agentSessionStack 的下半栏。
+  // 数据集文件 / 分析节点文件已统一到 agentSessionStack 下半栏的数据集视图。
   datasetFilePage: 'agentSessionStack',
   analysisNodeFilePage: 'agentSessionStack',
   analysisNodeList: 'analysisScriptStack',
@@ -49,8 +50,9 @@ const LEGACY_VIEW_KEY_MAP: Record<string, LeftPanelViewKey> = {
   // 项目报告与参考文献已合并为上下堆叠的 projectReportLiteratureStack。
   projectReport: 'projectReportLiteratureStack',
   projectLiterature: 'projectReportLiteratureStack',
-  // 智能体会话与项目文件已合并为上下堆叠的 agentSessionStack。
+  // 智能体会话与数据集已合并为上下堆叠的 agentSessionStack。
   agentSessionList: 'agentSessionStack',
+  // 旧版「项目文件」入口已移除，持久化的旧 key 仍指向 agentSessionStack。
   projectFilePage: 'agentSessionStack',
   // 容器模板列表已合并为上下堆叠的 containerTemplateStack（应用会话 + 终端会话）。
   containerTemplateList: 'containerTemplateStack',
@@ -87,13 +89,6 @@ const App: React.FC = () => {
         label: locale === 'en_US' ? 'Agent Sessions' : '智能体会话',
         icon: <CommentOutlined />,
       },
-      // 项目文件已并入 agentSessionStack 的下半栏，不再作为独立活动栏入口。
-      // {
-      //   key: 'projectFilePage',
-      //   label: locale === 'en_US' ? 'Project Files' : '项目文件',
-      //   icon: <FolderOpenOutlined />,
-      // },
-     
       // {
       //   key: 'assayProjectPage',
       //   label: locale === 'en_US' ? 'Assays' : '实验/建库',

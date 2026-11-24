@@ -333,20 +333,6 @@ export const importAssayTSVApi = (payload: ImportAssayTSVRequest) => {
 	return http.post<ImportAssayTSVResult>("/data/import/assay-tsv", payload);
 };
 
-export const pageFileByProjectApi = (payload: PageRequest<DatasetFilePageQuery>) => {
-	return http.post<PageResponse<DatasetFileItem>>("/data/file/list-by-project-page", payload);
-};
-
-// Files produced by the active project's analysis nodes (bound via
-// go_file.analysis_node_id). The active project is resolved from the current
-// user on the backend, so no project_id has to be sent.
-export const pageFileByProjectViaAnalysisNodeApi = (payload: PageRequest<DatasetFilePageQuery>) => {
-	return http.post<PageResponse<DatasetFileItem>>(
-		"/data/file/list-by-project-analysis-node-page",
-		payload
-	);
-};
-
 // Files produced by one analysis node (go_file.analysis_node_id ->
 // analysis_nodes.id). `analysisNodeId` is the analysis node's numeric PK
 // (analysis_nodes.id). Returns every file owned by the node, unpaged.
