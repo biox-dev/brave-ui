@@ -4,11 +4,17 @@ import { invoke } from "@/core/ui-system/invokeV2";
 import { useComponentStore } from "@/event-bus/stores/components";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
+import {
+  ANALYSIS_NODE_TAB_KEY_PREFIX,
+  useActiveWorkspaceResourceId,
+  useWorkspaceOpener,
+  type WorkspaceOpenTarget,
+} from "@/layout/workspace-navigation";
 import { formatRelativeTime } from "@/utils/time";
 import { DeleteOutlined, ExperimentOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Descriptions, Empty, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { FC, useEffect, useMemo, useRef, useState } from "react";
+import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 import SiderPanelLayout from "../common/sider-panel-layout";
@@ -36,6 +42,24 @@ const statusColor = (status: string) => {
 /** 节点的人类可读名称：优先 node_name，其次 analysis_node_id，最后回退到 id。 */
 const nodeDisplayName = (node: AnalysisNodeItem) =>
   node.node_name || node.analysis_node_id || `Node-${node.id}`;
+
+/**
+ * 分析节点报告页的「打开方式」统一描述：
+ * - Agent 会话页：在右侧 MainTabs 用 analysisNodeDetails 视图打开标签；
+ * - 其它页面：路由跳转到 /analsyis-node-report/:analysisNodeId。
+ *
+ * 标签 key 前缀与 `session-resource-workspace` 的 analysis_node 一致，
+ * 左侧列表与会话结果分区点同一个节点时聚焦的是同一个标签。
+ */
+const buildAnalysisNodeTarget = (node: AnalysisNodeItem): WorkspaceOpenTarget => ({
+  view: "analysisNodeDetails",
+  title: nodeDisplayName(node),
+  tabKeyPrefix: ANALYSIS_NODE_TAB_KEY_PREFIX,
+  resourceId: String(node.id),
+  // 与路由 /analsyis-node-report/:analysisNodeId 保持一致：都用 record.id。
+  params: { analysis_node_id: String(node.id) },
+  routePath: `/analsyis-node-report/${node.id}`,
+});
 
 const AnalysisNodeDetailCard = ({ item, locale }: { item: AnalysisNodeItem; locale: string }) => (
   <div style={{ width: 380 }}>
@@ -121,13 +145,19 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
   // 分页 hook：只进 query key（切项目时自动重新请求并回到第 1 页），不发给后端。
   const { projectId } = useSelector((state: any) => state.user);
 
+  // 当前是否在 Agent 会话页：是则行点击在右侧 MainTabs 打开标签，否则路由跳转。
+  const openTarget = useWorkspaceOpener();
+  // 会话页右侧正在显示的分析节点也算选中（行高亮与右侧标签保持一致）。
+  const workspaceSelectedId = useActiveWorkspaceResourceId(ANALYSIS_NODE_TAB_KEY_PREFIX);
+
   // 作为选择器（通过 invoke 打开）时使用本地选中态，普通模式沿用路由选中态。
   const selectable = Boolean(onOk || onCancel);
   // 本地选中结果用 Map 按点击顺序保存：既能跨分页保留选择，又能保持添加顺序。
   const [picked, setPicked] = useState<Map<string, AnalysisNodeItem>>(new Map());
   const pickedItems = useMemo(() => Array.from(picked.values()), [picked]);
   const isPicked = (id: string) => picked.has(String(id));
-  const selectedId = selectable ? pickedItems[0]?.id : routeSelectedId;
+  // 选择器模式用本地选中态；普通模式优先看路由（报告页），会话页回退到右侧激活标签。
+  const selectedId = selectable ? pickedItems[0]?.id : routeSelectedId ?? workspaceSelectedId;
 
   // handleSelect 在多选模式下切换选中状态，单选模式下直接替换选中项。
   const handleSelect = (record: AnalysisNodeItem) => {
@@ -201,25 +231,25 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
     refetch();
   };
 
-  /** 跳转到节点报告页（普通路由跳转）。 */
-  const openNodeReport = (node: AnalysisNodeItem) => {
-    navigate(`/analsyis-node-report/${node.id}`);
-  };
-
   /**
-   * invoke 弹窗打开节点报告（与路由 /analsyis-node-report/:analysisNodeId 同一组件：
-   * 路由传的是 record.id，这里保持一致）。
+   * 打开节点报告：
+   * - Agent 会话页 → 右侧 MainTabs 打开 / 聚焦标签（不跳路由，聊天不丢）；
+   * - 其它页面 → 路由跳转到 /analsyis-node-report/:analysisNodeId。
    */
-  const handleOpenReport = (node: AnalysisNodeItem) => {
-    invoke.analysisNodeDetails.open(
-      { analysis_node_id: String(node.id) },
-      {
-        width: 960,
-        title: node.node_name || node.analysis_node_id || `Node-${node.id}`,
-        footer: null,
-      }
-    );
-  };
+  const openNodeReport = useCallback(
+    (node: AnalysisNodeItem) => {
+      openTarget(buildAnalysisNodeTarget(node));
+    },
+    [openTarget]
+  );
+
+  /** Actions 里的「眼睛」始终路由跳转（与行点击的区别：不依赖当前页面）。 */
+  const openNodeReportRoute = useCallback(
+    (node: AnalysisNodeItem) => {
+      navigate(buildAnalysisNodeTarget(node).routePath);
+    },
+    [navigate]
+  );
 
   /**
    * 手动创建命令型分析节点（无脚本，等价于 create_analysis_node_agent 的建节点部分）。
@@ -328,7 +358,7 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
                 type="text"
                 size="small"
                 icon={<EyeOutlined />}
-                onClick={() => handleOpenReport(record)}
+                onClick={() => openNodeReportRoute(record)}
               />
             </Tooltip>
             <Popconfirm
@@ -341,7 +371,7 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
         ),
       },
     ],
-    [locale]
+    [locale, openNodeReportRoute]
   );
 
   const selectColumn: ColumnsType<AnalysisNodeItem>[number] = {

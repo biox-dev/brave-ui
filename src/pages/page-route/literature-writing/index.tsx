@@ -1,23 +1,34 @@
 import { FC, useEffect, useState } from "react";
-import { Button, Flex, Skeleton, Spin, Tag } from "antd";
-import { EditOutlined, ReloadOutlined } from "@ant-design/icons";
+import { Button, Flex, Popconfirm, Skeleton, Spin, Tag } from "antd";
+import { EditOutlined, LinkOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useParams } from "react-router";
 import { useSelector } from "react-redux";
 import ComponentsDetailsRender from "@/core/ui-renderer/ViewResolver";
 import { renderViewButton } from "@/utils/render-view-btn";
 import { invoke } from "@/core/ui-system/invokeV2";
-import { getLiteratureDetailApi, type ProjectLiteratureDetailItem } from "@/api/project";
+import {
+  getLiteratureDetailApi,
+  unbindLiteratureApi,
+  type ProjectLiteratureDetailItem,
+} from "@/api/project";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import PanelLayout from "@/components/common/panel-layout";
 
-const LiteratureWriting: FC<any> = () => {
+/**
+ * 文献详情页（/literature-writing/:literature-id），也是右侧工作区的标签视图
+ * （`literatureWritingDetail`）：作为标签渲染时没有路由参数，id 由 `literatureId` prop 传入。
+ */
+type LiteratureWritingProps = { literatureId?: string }
+
+const LiteratureWriting: FC<LiteratureWritingProps> = ({ literatureId: literatureIdProp }) => {
   const message = useGlobalMessage();
   const { project } = useSelector((state: any) => state.user);
   const projectId = typeof project === "string" ? project : project?.project_id;
 
-  const { "literature-id": literatureId } = useParams<{
+  const { "literature-id": literatureIdParam } = useParams<{
     "literature-id": string;
   }>();
+  const literatureId = literatureIdProp ?? literatureIdParam;
 
   const [view, setView] = useState<any>("analysisDocView");
   const [loading, setLoading] = useState(false);
@@ -63,6 +74,16 @@ const LiteratureWriting: FC<any> = () => {
     }
   };
 
+  // 从当前项目移除绑定（文献本身不删除）。原先在左侧列表的动作列，
+  // 按「列表只保留查看 / 删除」的约定搬到详情页。
+  const handleUnbind = async () => {
+    if (!activeLiterature) {
+      return;
+    }
+    await unbindLiteratureApi({ literature_id: activeLiterature.id });
+    message.success("Removed from project successfully");
+  };
+
   return (
     <PanelLayout
       className="literature-writing-page page-flat"
@@ -86,6 +107,16 @@ const LiteratureWriting: FC<any> = () => {
             >
               Edit Item
             </Button>
+          )}
+          {activeLiterature && (
+            <Popconfirm
+              title="Remove this literature from the active project?"
+              onConfirm={handleUnbind}
+            >
+              <Button size="small" icon={<LinkOutlined />}>
+                Unbind
+              </Button>
+            </Popconfirm>
           )}
           <Button
             icon={<ReloadOutlined />}

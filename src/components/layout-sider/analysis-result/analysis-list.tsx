@@ -2,11 +2,17 @@ import { deleteAnalysisApi, pageAnalysisByProjectApi, type AnalysisItem, type An
 import { LazyListFooter, LazyListSearch, LazyListSentinel, useLazyList } from "@/components/common/lazy-list";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
+import {
+  ANALYSIS_TAB_KEY_PREFIX,
+  useActiveWorkspaceResourceId,
+  useWorkspaceOpener,
+  type WorkspaceOpenTarget,
+} from "@/layout/workspace-navigation";
 import { formatRelativeTime } from "@/utils/time";
-import { DeleteOutlined, FileSearchOutlined, ReloadOutlined } from "@ant-design/icons";
-import { Button, Descriptions, Empty, Popconfirm, Popover, Table, Tag } from "antd";
+import { DeleteOutlined, EyeOutlined, FileSearchOutlined, ReloadOutlined } from "@ant-design/icons";
+import { Button, Descriptions, Empty, Popconfirm, Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { FC, useMemo, useState } from "react";
+import { FC, useCallback, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 import SiderPanelLayout from "../common/sider-panel-layout";
@@ -31,6 +37,25 @@ const statusColor = (status: string) => {
       return "default";
   }
 };
+
+/** 分析运行的人类可读名称：优先 analysis_name，其次 analysis_id，最后回退到 id。 */
+const analysisDisplayName = (analysis: AnalysisItem) =>
+  analysis.analysis_name || analysis.analysis_id || `Analysis-${analysis.id}`;
+
+/**
+ * 分析运行的「打开方式」统一描述：
+ * - Agent 会话页：在右侧 MainTabs 用 analysisNodePage 视图打开标签（与会话结果分区的 analysis 映射一致）；
+ * - 其它页面：路由跳转到 /analysis-report/:analysisId。
+ */
+const buildAnalysisTarget = (analysis: AnalysisItem): WorkspaceOpenTarget => ({
+  view: "analysisNodePage",
+  title: analysisDisplayName(analysis),
+  tabKeyPrefix: ANALYSIS_TAB_KEY_PREFIX,
+  resourceId: String(analysis.id),
+  // 与路由 /analysis-report/:analysisId 及会话资源保持一致：都用 DB 主键。
+  params: { analysis_id: String(analysis.id) },
+  routePath: `/analysis-report/${analysis.id}`,
+});
 
 const AnalysisDetailCard = ({ item, locale }: { item: AnalysisItem; locale: string }) => (
   <div style={{ width: 380 }}>
@@ -90,13 +115,19 @@ const AnalysisList: FC<AnalysisListProps> = ({ title, onOk, onCancel, close, mul
   }, [location.pathname]);
   const { projectId } = useSelector((state: any) => state.user);
 
+  // 当前是否在 Agent 会话页：是则行点击在右侧 MainTabs 打开标签，否则路由跳转。
+  const openTarget = useWorkspaceOpener();
+  // 会话页右侧正在显示的分析运行也算选中（行高亮与右侧标签保持一致）。
+  const workspaceSelectedId = useActiveWorkspaceResourceId(ANALYSIS_TAB_KEY_PREFIX);
+
   // 作为选择器（通过 invoke 打开）时使用本地选中态，普通模式沿用路由选中态。
   const selectable = Boolean(onOk || onCancel);
   // 本地选中结果用 Map 按点击顺序保存：既能跨分页保留选择，又能保持添加顺序。
   const [picked, setPicked] = useState<Map<string, AnalysisItem>>(new Map());
   const pickedItems = useMemo(() => Array.from(picked.values()), [picked]);
   const isPicked = (id: string) => picked.has(String(id));
-  const selectedId = selectable ? pickedItems[0]?.id : routeSelectedId;
+  // 选择器模式用本地选中态；普通模式优先看路由（报告页），会话页回退到右侧激活标签。
+  const selectedId = selectable ? pickedItems[0]?.id : routeSelectedId ?? workspaceSelectedId;
 
   // handleSelect 在多选模式下切换选中状态，单选模式下直接替换选中项。
   const handleSelect = (record: AnalysisItem) => {
@@ -170,6 +201,26 @@ const AnalysisList: FC<AnalysisListProps> = ({ title, onOk, onCancel, close, mul
     refetch();
   };
 
+  /**
+   * 打开分析报告：
+   * - Agent 会话页 → 右侧 MainTabs 打开 / 聚焦标签（不跳路由，聊天不丢）；
+   * - 其它页面 → 路由跳转到 /analysis-report/:analysisId。
+   */
+  const handleOpen = useCallback(
+    (analysis: AnalysisItem) => {
+      openTarget(buildAnalysisTarget(analysis));
+    },
+    [openTarget]
+  );
+
+  /** Actions 里的「眼睛」始终路由跳转（与行点击的区别：不依赖当前页面）。 */
+  const openAnalysisRoute = useCallback(
+    (analysis: AnalysisItem) => {
+      navigate(buildAnalysisTarget(analysis).routePath);
+    },
+    [navigate]
+  );
+
   const handleConfirm = () => {
     if (!onOk || pickedItems.length === 0) {
       return;
@@ -195,7 +246,7 @@ const AnalysisList: FC<AnalysisListProps> = ({ title, onOk, onCancel, close, mul
         key: "analysis_name",
         ellipsis: { showTitle: false },
         render: (name: string, record) => {
-          const title = name || record.analysis_id || `Analysis-${record.id}`;
+          const title = analysisDisplayName(record);
           const meta = [
         
             record.updated_at
@@ -245,13 +296,21 @@ const AnalysisList: FC<AnalysisListProps> = ({ title, onOk, onCancel, close, mul
       {
         title: "Actions",
         key: "actions",
-        width: 56,
+        width: 96,
         align: "right",
       render: (_, record) => (
         <span
           className="project-report-item-actions"
           onClick={(e) => e.stopPropagation()}
         >
+          <Tooltip title="Report">
+            <Button
+              type="text"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => openAnalysisRoute(record)}
+            />
+          </Tooltip>
           <Popconfirm
             title="Delete selected analysis?"
             onConfirm={() => handleDelete(record)}
@@ -262,7 +321,7 @@ const AnalysisList: FC<AnalysisListProps> = ({ title, onOk, onCancel, close, mul
       ),
     },
   ],
-    [locale]
+    [locale, openAnalysisRoute]
   );
 
   return (
@@ -342,7 +401,7 @@ const AnalysisList: FC<AnalysisListProps> = ({ title, onOk, onCancel, close, mul
               if ((event.target as HTMLElement | null)?.closest?.(".ant-table-selection-column")) {
                 return;
               }
-              selectable ? handleSelect(record) : navigate(`/analysis-report/${record.id}`);
+              selectable ? handleSelect(record) : handleOpen(record);
             },
           })}
         />

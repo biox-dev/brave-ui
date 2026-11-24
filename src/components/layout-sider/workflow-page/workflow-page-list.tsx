@@ -5,11 +5,17 @@ import { http } from "@/api/client/http";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
+import {
+  WORKFLOW_TAB_KEY_PREFIX,
+  useActiveWorkspaceResourceId,
+  useWorkspaceOpener,
+  type WorkspaceOpenTarget,
+} from "@/layout/workspace-navigation";
 import { formatRelativeTime } from "@/utils/time";
-import { ApartmentOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import { ApartmentOutlined, DeleteOutlined, DownloadOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Descriptions, Empty, Popconfirm, Popover, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { FC, useMemo, useState } from "react";
+import { FC, useCallback, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 import SiderPanelLayout from "../common/sider-panel-layout";
@@ -23,6 +29,21 @@ import SiderPanelLayout from "../common/sider-panel-layout";
 /** 工作流的人类可读名称：优先 name，其次 workflow_id，最后回退到 id。 */
 const workflowDisplayName = (workflow: WorkflowItem) =>
   workflow.name || workflow.workflow_id || `Workflow-${workflow.id}`;
+
+/**
+ * 工作流的「打开方式」统一描述：
+ * - Agent 会话页：在右侧 MainTabs 用 workflowPanelDetail 视图打开标签；
+ * - 其它页面：路由跳转到 /c/tools/:workflow_id。
+ */
+const buildWorkflowTarget = (workflow: WorkflowItem): WorkspaceOpenTarget => ({
+  view: "workflowPanelDetail",
+  title: workflowDisplayName(workflow),
+  tabKeyPrefix: WORKFLOW_TAB_KEY_PREFIX,
+  resourceId: String(workflow.id),
+  // 工作流面板用 DB 主键取 /workflow/:id/get-workflow，与路由参数语义一致。
+  params: { workflow_id: String(workflow.id) },
+  routePath: `/c/tools/${encodeURIComponent(String(workflow.id))}`,
+});
 
 const WorkflowDetailCard = ({ item, locale }: { item: WorkflowItem; locale: string }) => {
   // const tags = splitTags(item.tags);
@@ -117,13 +138,18 @@ const WorkflowPageList: FC<WorkflowPageListProps> = ({
     return match ? decodeURIComponent(match[1]) : undefined;
   }, [location.pathname]);
 
+  // 当前是否在 Agent 会话页：是则行点击在右侧 MainTabs 打开标签，否则路由跳转。
+  const openTarget = useWorkspaceOpener();
+  // 会话页右侧正在显示的工作流也算选中（行高亮与右侧标签保持一致）。
+  const workspaceSelectedId = useActiveWorkspaceResourceId(WORKFLOW_TAB_KEY_PREFIX);
+
   // 作为选择器（通过 invoke 打开）时使用本地选中态，普通模式沿用路由选中态。
   const selectable = Boolean(onOk || onCancel);
   // 本地选中结果用 Map 按点击顺序保存：既能跨分页保留选择，又能保持添加顺序。
   const [picked, setPicked] = useState<Map<string, WorkflowItem>>(new Map());
   const pickedItems = useMemo(() => Array.from(picked.values()), [picked]);
   const isPicked = (id: string | number) => picked.has(String(id));
-  const selectedId = selectable ? pickedItems[0]?.id : routeSelectedId;
+  const selectedId = selectable ? pickedItems[0]?.id : routeSelectedId ?? workspaceSelectedId;
 
   // handleSelect 在多选模式下切换选中状态，单选模式下直接替换选中项。
   const handleSelect = (record: WorkflowItem) => {
@@ -209,13 +235,24 @@ const WorkflowPageList: FC<WorkflowPageListProps> = ({
     close?.();
   };
 
-  /** 跳转到工作流详情页（普通路由跳转）。 */
-  const handleOpen = (workflow: WorkflowItem) => {
-    if (!workflow?.workflow_id) {
-      return;
-    }
-    navigate(`/c/tools/${encodeURIComponent(String(workflow.id))}`);
-  };
+  /** 打开工作流详情：会话页开右侧标签，其它页面路由跳转。 */
+  const handleOpen = useCallback(
+    (workflow: WorkflowItem) => {
+      if (!workflow?.workflow_id) {
+        return;
+      }
+      openTarget(buildWorkflowTarget(workflow));
+    },
+    [openTarget]
+  );
+
+  /** Actions 里的「眼睛」始终路由跳转（与行点击的区别：不依赖当前页面）。 */
+  const openWorkflowRoute = useCallback(
+    (workflow: WorkflowItem) => {
+      navigate(buildWorkflowTarget(workflow).routePath);
+    },
+    [navigate]
+  );
 
   const columns = useMemo<ColumnsType<WorkflowItem>>(
     () => [
@@ -282,56 +319,21 @@ const WorkflowPageList: FC<WorkflowPageListProps> = ({
   const actionsColumn: ColumnsType<WorkflowItem>[number] = {
     title: "Actions",
     key: "actions",
-    width: 130,
+    width: 96,
     align: "right",
     render: (_: unknown, record) => {
-      const title = workflowDisplayName(record);
-      // Every action opens the same views the workflow-panel tabs use, but as a
-      // drawer via `invoke` — edit, workflow visualization/DAG, and README.md.
-      const drawerProps = { width: 960, title, footer: null };
-
       return (
         <span
           className="project-report-item-actions"
           onClick={(e) => e.stopPropagation()}
         >
-          <Tooltip title="Edit">
+          {/* 详情（编辑 / 可视化 / README）全部在详情页里，列表只保留查看与删除。 */}
+          <Tooltip title="Open workflow">
             <Button
               type="text"
               size="small"
-              icon={<EditOutlined />}
-              onClick={() => {
-                invoke.createOrUpdateWorkflow.drawer(
-                  { workflow_id: record.id, callback: () => refetch() },
-                  { ...drawerProps, title: `Edit Workflow: ${title}` }
-                );
-              }}
-            />
-          </Tooltip>
-          <Tooltip title="Workflow">
-            <Button
-              type="text"
-              size="small"
-              icon={<ApartmentOutlined />}
-              onClick={() => {
-                invoke.workflowVisCard.drawer(
-                  { workflow_id: record.id },
-                  { ...drawerProps, title: `Workflow: ${title}` }
-                );
-              }}
-            />
-          </Tooltip>
-          <Tooltip title="README">
-            <Button
-              type="text"
-              size="small"
-              icon={<FileTextOutlined />}
-              onClick={() => {
-                invoke.workflowReadme.drawer(
-                  { workflow_id: record.id },
-                  { ...drawerProps, title: `README: ${title}` }
-                );
-              }}
+              icon={<EyeOutlined />}
+              onClick={() => openWorkflowRoute(record)}
             />
           </Tooltip>
           <Popconfirm

@@ -27,10 +27,21 @@ type ScriptViewKey = ScriptPanelView
 /** Default view; the tab list is static so this is always a valid value. */
 const DEFAULT_VIEW: ScriptViewKey = "analysisNodePage"
 
-type ScriptPanelProps = { component_type?: string }
+/**
+ * 脚本面板：既是路由页（/c/scripts/:script_id/:view?），也是右侧工作区的标签视图
+ * （`scriptPanelDetail`，由 `workspace-navigation` 统一打开）。
+ * 作为标签渲染时没有 `:script_id` 路由参数，因此 id 由 prop 传入；两者取值一致（都用 DB 主键）。
+ */
+type ScriptPanelProps = { component_type?: string; script_id?: string | number }
 
-const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
-    const { script_id } = useParams()
+const ScriptPanel: FC<ScriptPanelProps> = ({ component_type, script_id: scriptIdProp }) => {
+    const params = useParams()
+    // 路由参数来自 URL（已编码），prop 是标签直接传的原始 id；两者都转成 string 统一处理。
+    const script_id = scriptIdProp === undefined || scriptIdProp === null || String(scriptIdProp).trim() === ""
+        ? params.script_id
+        : String(scriptIdProp)
+    // 标签视图不经过 /c/scripts 路由，component_type 由调用方传入；缺省时按「有 script_id 就是脚本」推断。
+    const panelType = component_type ?? (script_id ? "script" : undefined)
     const { locale } = useI18n()
     const zh = locale !== "en_US"
     const message = useGlobalMessage()
@@ -63,11 +74,11 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
     }, [script?.id, loadScript])
 
     useEffect(() => {
-        if (component_type !== "script" || !script_id) {
+        if (panelType !== "script" || !script_id) {
             return
         }
         loadScript(decodeURIComponent(script_id))
-    }, [component_type, script_id, loadScript])
+    }, [panelType, script_id, loadScript])
 
     // Reset the shared script store only when the panel unmounts.
     useEffect(() => {
@@ -241,7 +252,7 @@ const ScriptPanel: FC<ScriptPanelProps> = ({ component_type }) => {
                                     script_id={script.id}
                                     component={script}
                                     openModal={openModal}
-                                    structure={{ component_type }}
+                                    structure={{ component_type: panelType }}
                                 />
                             </div>
                         </>

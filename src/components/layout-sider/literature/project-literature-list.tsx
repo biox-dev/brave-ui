@@ -1,25 +1,29 @@
 import {
   deleteLiteratureApi,
-  getLiteratureDetailApi,
   pageLiteratureApi,
-  unbindLiteratureApi,
   type ProjectLiteratureItem,
 } from "@/api/project";
 import { LazyListFooter, LazyListSearch, LazyListSentinel, useLazyList } from "@/components/common/lazy-list";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
+import {
+  LITERATURE_TAB_KEY_PREFIX,
+  useActiveWorkspaceResourceId,
+  useWorkspaceOpener,
+  type WorkspaceOpenTarget,
+} from "@/layout/workspace-navigation";
 import { formatRelativeTime } from "@/utils/time";
 import {
   BookOutlined,
   DeleteOutlined,
-  EditOutlined,
+  EyeOutlined,
   LinkOutlined,
   PlusOutlined,
   ReloadOutlined,
 } from "@ant-design/icons";
-import { Button, Empty, Popconfirm, Table } from "antd";
+import { Button, Empty, Popconfirm, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { FC, useMemo, useState } from "react";
+import { FC, useCallback, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 import { invoke } from "@/core/ui-system/invokeV2";
@@ -39,6 +43,24 @@ export interface ProjectLiteratureListProps {
   /** 多选模式（仅在选择器模式下生效）。 */
   multiple?: boolean;
 }
+
+/** 文献的人类可读名称。 */
+const literatureDisplayName = (literature: ProjectLiteratureItem) =>
+  literature.title || `Untitled-${literature.id}`;
+
+/**
+ * 文献的「打开方式」统一描述：
+ * - Agent 会话页：在右侧 MainTabs 用 literatureWritingDetail 视图打开标签；
+ * - 其它页面：路由跳转到 /literature-writing/:literature-id。
+ */
+const buildLiteratureTarget = (literature: ProjectLiteratureItem): WorkspaceOpenTarget => ({
+  view: "literatureWritingDetail",
+  title: literatureDisplayName(literature),
+  tabKeyPrefix: LITERATURE_TAB_KEY_PREFIX,
+  resourceId: String(literature.id),
+  params: { literatureId: String(literature.id) },
+  routePath: `/literature-writing/${literature.id}`,
+});
 
 const ProjectLiteratureList: FC<ProjectLiteratureListProps> = ({
   collapsed = false,
@@ -60,13 +82,19 @@ const ProjectLiteratureList: FC<ProjectLiteratureListProps> = ({
     return match ? decodeURIComponent(match[1]) : undefined;
   }, [location.pathname]);
 
+  // 当前是否在 Agent 会话页：是则行点击在右侧 MainTabs 打开标签，否则路由跳转。
+  const openTarget = useWorkspaceOpener();
+  // 会话页右侧正在显示的文献也算选中（行高亮与右侧标签保持一致）。
+  const workspaceSelectedId = useActiveWorkspaceResourceId(LITERATURE_TAB_KEY_PREFIX);
+
   // 作为选择器（通过 invoke 打开）时使用本地选中态，普通模式沿用路由选中态。
   const selectable = Boolean(onOk || onCancel);
   // 本地选中结果用 Map 按点击顺序保存：既能跨分页保留选择，又能保持添加顺序。
   const [picked, setPicked] = useState<Map<string, ProjectLiteratureItem>>(new Map());
   const pickedItems = useMemo(() => Array.from(picked.values()), [picked]);
   const isPicked = (id: string) => picked.has(String(id));
-  const selectedId = selectable ? pickedItems[0]?.id : routeSelectedId;
+  // 选择器模式用本地选中态；普通模式优先看路由（详情页），会话页回退到右侧激活标签。
+  const selectedId = selectable ? pickedItems[0]?.id : routeSelectedId ?? workspaceSelectedId;
 
   // handleSelect 在多选模式下切换选中状态，单选模式下直接替换选中项。
   const handleSelect = (record: ProjectLiteratureItem) => {
@@ -169,23 +197,6 @@ const ProjectLiteratureList: FC<ProjectLiteratureListProps> = ({
     }
   };
 
-  const openUpdate = async (literature: ProjectLiteratureItem) => {
-    try {
-      const detailResp = await getLiteratureDetailApi(literature.id);
-      await invoke.projectLiteratureItemForm.openAsync(
-        { mode: "update", literature: detailResp.data },
-        {
-          title: "Update Literature",
-          footer: null,
-          width: 560,
-        }
-      );
-      await refetch();
-    } catch {
-      // User canceled the update modal.
-    }
-  };
-
   const openBind = async () => {
     try {
       await invoke.projectLiteratureBindForm.openAsync(
@@ -208,11 +219,25 @@ const ProjectLiteratureList: FC<ProjectLiteratureListProps> = ({
     await refetch();
   };
 
-  const handleUnbind = async (literature: ProjectLiteratureItem) => {
-    await unbindLiteratureApi({ literature_id: literature.id });
-    message.success("Removed from project successfully");
-    await refetch();
-  };
+  /**
+   * 打开文献详情：
+   * - Agent 会话页 → 右侧 MainTabs 打开 / 聚焦标签（不跳路由，聊天不丢）；
+   * - 其它页面 → 路由跳转到 /literature-writing/:literature-id。
+   */
+  const handleOpen = useCallback(
+    (literature: ProjectLiteratureItem) => {
+      openTarget(buildLiteratureTarget(literature));
+    },
+    [openTarget]
+  );
+
+  /** Actions 里的「眼睛」始终路由跳转（与行点击的区别：不依赖当前页面）。 */
+  const openLiteratureRoute = useCallback(
+    (literature: ProjectLiteratureItem) => {
+      navigate(buildLiteratureTarget(literature).routePath);
+    },
+    [navigate]
+  );
 
   const columns = useMemo<ColumnsType<ProjectLiteratureItem>>(
     () => [
@@ -239,25 +264,22 @@ const ProjectLiteratureList: FC<ProjectLiteratureListProps> = ({
       {
         title: "Actions",
         key: "actions",
-        width: 112,
+        width: 96,
         align: "right",
       render: (_, record) => (
         <span
           className="project-report-item-actions"
           onClick={(e) => e.stopPropagation()}
         >
-          <Button
-            type="text"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => openUpdate(record)}
-          />
-          <Popconfirm
-            title="Remove this literature from the active project?"
-            onConfirm={() => handleUnbind(record)}
-          >
-            <Button type="text" size="small" icon={<LinkOutlined />} />
-          </Popconfirm>
+          {/* 编辑 / 解除项目绑定已搬到详情页（/literature-writing/:id），列表只保留查看与删除。 */}
+          <Tooltip title="Open literature">
+            <Button
+              type="text"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => openLiteratureRoute(record)}
+            />
+          </Tooltip>
           <Popconfirm
             title="Delete this literature?"
             onConfirm={() => handleDelete(record)}
@@ -268,7 +290,7 @@ const ProjectLiteratureList: FC<ProjectLiteratureListProps> = ({
       ),
     },
   ],
-    [locale]
+    [locale, openLiteratureRoute]
   );
 
   return (
@@ -347,7 +369,7 @@ const ProjectLiteratureList: FC<ProjectLiteratureListProps> = ({
               }
               selectable
                 ? handleSelect(record)
-                : navigate(`/literature-writing/${record.id}`);
+                : handleOpen(record);
             },
           })}
         />

@@ -1,5 +1,6 @@
 import type { AgentSessionResourceItem, AgentSessionResourceType } from '@/api/agent';
 import { openAgentWorkspaceTab } from '@/layout/agent-workspace-store';
+import { ANALYSIS_NODE_TAB_KEY_PREFIX, ANALYSIS_TAB_KEY_PREFIX, PROJECT_REPORT_TAB_KEY_PREFIX } from '@/layout/workspace-navigation';
 
 /**
  * 会话结果（右侧堆叠分区）→ 右侧工作区标签的**唯一映射**。
@@ -38,12 +39,13 @@ export const SESSION_RESOURCE_WORKSPACE_TARGETS: Partial<
 > = {
   analysis: {
     view: 'analysisNodePage',
-    tabKeyPrefix: 'session-analysis',
+    tabKeyPrefix: ANALYSIS_TAB_KEY_PREFIX,
     params: (item) => ({ analysis_id: item.resource_id }),
   },
   analysis_node: {
     view: 'analysisNodeDetails',
-    tabKeyPrefix: 'session-analysis-node',
+    // 与左侧分析节点列表共用前缀：两边点同一个节点只聚焦一个标签。
+    tabKeyPrefix: ANALYSIS_NODE_TAB_KEY_PREFIX,
     params: (item) => ({ analysis_node_id: item.resource_id }),
   },
   plan: {
@@ -53,7 +55,7 @@ export const SESSION_RESOURCE_WORKSPACE_TARGETS: Partial<
   },
   project_report: {
     view: 'projectReportFile',
-    tabKeyPrefix: 'session-project-report',
+    tabKeyPrefix: PROJECT_REPORT_TAB_KEY_PREFIX,
     params: (item) => ({ reportId: item.resource_id, defaultMode: 'view' }),
   },
 };

@@ -1,22 +1,49 @@
 import {
   deleteProjectReportApi,
-  getProjectReportDetailApi,
   pageProjectReportApi,
-  publishProjectReportToDocApi,
   type ProjectReport,
 } from "@/api/project";
 import { LazyListFooter, LazyListSearch, LazyListSentinel, useLazyList } from "@/components/common/lazy-list";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
+import {
+  PROJECT_REPORT_TAB_KEY_PREFIX,
+  useActiveWorkspaceResourceId,
+  useWorkspaceOpener,
+  type WorkspaceOpenTarget,
+} from "@/layout/workspace-navigation";
 import { formatRelativeTime } from "@/utils/time";
-import { DeleteOutlined, EditOutlined, EyeOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined, SendOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EyeOutlined, FileTextOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Empty, Popconfirm, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { FC, useMemo, useState } from "react";
+import { FC, useCallback, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 import { invoke } from "@/core/ui-system/invokeV2";
 import SiderPanelLayout from "../common/sider-panel-layout";
+
+/** 报告的人类可读名称。 */
+const reportDisplayName = (report: ProjectReport) => report.title || `Untitled-${report.id}`;
+
+/** 报告正文页（output.md）的路由。 */
+const reportFileRoutePath = (report: ProjectReport) => `/report-file/${report.id}`;
+
+/** 报告总览页（发布 / 编辑入口所在页）的路由。 */
+const reportDocRoutePath = (report: ProjectReport) => `/report/${report.id}`;
+
+/**
+ * 报告的「打开方式」统一描述：
+ * - Agent 会话页：在右侧 MainTabs 用 projectReportFile 视图打开标签（与会话结果分区的 project_report 映射一致）；
+ * - 其它页面：路由跳转到报告正文页 /report-file/:id。
+ */
+const buildReportTarget = (report: ProjectReport): WorkspaceOpenTarget => ({
+  view: "projectReportFile",
+  title: reportDisplayName(report),
+  tabKeyPrefix: PROJECT_REPORT_TAB_KEY_PREFIX,
+  resourceId: String(report.id),
+  params: { reportId: String(report.id), defaultMode: "view" },
+  routePath: reportFileRoutePath(report),
+});
 
 export interface ProjectReportListProps {
   /** 纵向堆叠布局注入的折叠态：折叠时仅保留标题栏。 */
@@ -45,7 +72,11 @@ const ProjectReportList: FC<ProjectReportListProps> = ({
   const { locale } = useI18n();
   const { project } = useSelector((state: any) => state.user);
   const projectId = typeof project === "string" ? project : project?.project_id;
-  const [publishingReportId, setPublishingReportId] = useState<string>();
+
+  // 当前是否在 Agent 会话页：是则行点击在右侧 MainTabs 打开标签，否则路由跳转。
+  const openTarget = useWorkspaceOpener();
+  // 会话页右侧正在显示的报告也算选中（行高亮与右侧标签保持一致）。
+  const workspaceSelectedId = useActiveWorkspaceResourceId(PROJECT_REPORT_TAB_KEY_PREFIX);
 
   // Derive the selected report id from the current route so the selection
   // survives a full page refresh.
@@ -61,7 +92,8 @@ const ProjectReportList: FC<ProjectReportListProps> = ({
   const [picked, setPicked] = useState<Map<string, ProjectReport>>(new Map());
   const pickedItems = useMemo(() => Array.from(picked.values()), [picked]);
   const isPicked = (id: string) => picked.has(String(id));
-  const selectedId = selectable ? pickedItems[0]?.id : routeSelectedId;
+  // 选择器模式用本地选中态；普通模式优先看路由（详情页），会话页回退到右侧激活标签。
+  const selectedId = selectable ? pickedItems[0]?.id : routeSelectedId ?? workspaceSelectedId;
 
   // handleSelect 在多选模式下切换选中状态，单选模式下直接替换选中项。
   const handleSelect = (record: ProjectReport) => {
@@ -164,42 +196,31 @@ const ProjectReportList: FC<ProjectReportListProps> = ({
     }
   };
 
-  const openUpdate = async (report: ProjectReport) => {
-    try {
-      const detailResp = await getProjectReportDetailApi(report.id);
-      await invoke.projectReportItemForm.openAsync(
-        {
-          mode: "update",
-          report: detailResp.data,
-        },
-        {
-          title: "Update Project Report",
-          footer: null,
-          width: 560,
-        }
-      );
-      await refetch();
-    } catch {
-      // User canceled the update modal.
-    }
-  };
-
   const handleDelete = async (report: ProjectReport) => {
     await deleteProjectReportApi({ id: report.id });
     message.success("Deleted successfully");
     await refetch();
   };
 
-  // handlePublishReport 一次发布报告下所有条目。
-  const handlePublishReport = async (report: ProjectReport) => {
-    setPublishingReportId(report.id);
-    try {
-      await publishProjectReportToDocApi(report.id);
-      message.success("Report published to project doc");
-    } finally {
-      setPublishingReportId(undefined);
-    }
-  };
+  /**
+   * 打开报告正文：
+   * - Agent 会话页 → 右侧 MainTabs 打开 / 聚焦标签（不跳路由，聊天不丢）；
+   * - 其它页面 → 路由跳转到 /report-file/:id。
+   */
+  const handleOpen = useCallback(
+    (report: ProjectReport) => {
+      openTarget(buildReportTarget(report));
+    },
+    [openTarget]
+  );
+
+  /** Actions 里的「眼睛」始终路由跳转到报告总览页（发布 / 编辑都在那里）。 */
+  const openReportRoute = useCallback(
+    (report: ProjectReport) => {
+      navigate(reportDocRoutePath(report));
+    },
+    [navigate]
+  );
 
   const columns = useMemo<ColumnsType<ProjectReport>>(
     () => [
@@ -232,36 +253,22 @@ const ProjectReportList: FC<ProjectReportListProps> = ({
       {
         title: "Actions",
         key: "actions",
-        width: 148,
+        width: 96,
         align: "right",
       render: (_, record) => (
         <span
           className="project-report-item-actions"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* 原先由 onRow 点击触发的跳转，改为列表内显式按钮。 */}
+          {/* 发布 / 编辑已搬到报告详情页（/report/:id），列表只保留查看与删除。 */}
           <Tooltip title="Open report">
             <Button
               type="text"
               size="small"
               icon={<EyeOutlined />}
-              onClick={() => navigate(`/report/${record.id}`)}
+              onClick={() => openReportRoute(record)}
             />
           </Tooltip>
-          <Button
-            type="text"
-            size="small"
-            icon={<SendOutlined />}
-            title="Publish to doc"
-            loading={publishingReportId === record.id}
-            onClick={() => handlePublishReport(record)}
-          />
-          <Button
-            type="text"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => openUpdate(record)}
-          />
           <Popconfirm
             title="Delete selected report item?"
             onConfirm={() => handleDelete(record)}
@@ -272,7 +279,7 @@ const ProjectReportList: FC<ProjectReportListProps> = ({
       ),
     },
   ],
-    [locale, publishingReportId, navigate]
+    [locale, openReportRoute]
   );
 
   return (
@@ -351,7 +358,7 @@ const ProjectReportList: FC<ProjectReportListProps> = ({
               }
               selectable
                 ? handleSelect(record)
-                : navigate(`/report-file/${record.id}`);
+                : handleOpen(record);
             },
           })}
         />

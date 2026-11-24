@@ -32,7 +32,14 @@ import PanelLayout from "@/components/common/panel-layout"
 import { useI18n } from "@/hooks/useI18n"
 import "./workflow-panel.css"
 
-const Pipeline: FC<any> = ({ }) => {
+/**
+ * 工作流面板：既是路由页（/c/tools/:workflow_id），也是右侧工作区的标签视图
+ * （`workflowPanelDetail`，由 `workspace-navigation` 统一打开）。
+ * 作为标签渲染时没有 `:workflow_id` 路由参数，因此 id 由 prop 传入（同样是 DB 主键）。
+ */
+type WorkflowPanelProps = { workflow_id?: string }
+
+const Pipeline: FC<WorkflowPanelProps> = ({ workflow_id: workflowIdProp }) => {
 
     // const location = useLocation()
     // const queryParams = new URLSearchParams(location.search);
@@ -45,7 +52,9 @@ const Pipeline: FC<any> = ({ }) => {
 
 
     console.log("Pipeline")
-    const { workflow_id } = useParams()
+    const params = useParams()
+    // 标签视图没有路由参数，id 由 prop 传入；路由页仍然从 URL 取。
+    const workflow_id = workflowIdProp ?? params.workflow_id
     // const [relation_id, setRelationId] = useState<any>(relation_id_ ? relation_id_ : workflow?.relation_id)
     const relation_type = "tools"
     // const [leftPanel, setLeftPanel] = useState<any>("analysisTools")
