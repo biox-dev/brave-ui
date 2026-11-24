@@ -1,6 +1,6 @@
 import { FC, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { Sender, type SenderProps } from "@ant-design/x";
-import { Button, Flex, GetRef } from "antd";
+import { Button, Dropdown, Flex, GetRef } from "antd";
 import {
   CloudServerOutlined,
   CodeOutlined,
@@ -9,6 +9,7 @@ import {
   FileOutlined,
   NodeIndexOutlined,
   PartitionOutlined,
+  PlusOutlined,
   ReadOutlined,
   TableOutlined,
   UnorderedListOutlined,
@@ -62,7 +63,7 @@ export interface AgentSenderProps {
 /**
  * Agent 输入区（独立组件）。
  *
- * 提供四个功能按钮（通过 invoke 弹出对应页面的「选择模式」挑条目，
+ * footer 左下角的「+」向上弹出四个引用入口（通过 invoke 弹出对应页面的「选择模式」挑条目，
  * 选中后在光标处插入引用 chip，提交时该 chip 以 `@<kind>:<id>` 文本拼进消息文本）：
  *   - Data Files：`invoke.datasetFilePage`，数据集文件（go_dataset -> go_file），**多选**，`@file:<id>`；
  *   - Node Files：`invoke.analysisNodeFilePage`，分析节点产物文件，**多选**，`@file:<id>`；
@@ -301,42 +302,50 @@ const AgentSender: FC<AgentSenderProps> = ({
       // footer 成为唯一的操作按钮出口。
       suffix={false}
       footer={(actionNode) => (
-        <Flex justify="space-between" align="center">
-          <Flex align="center" gap="small">
-            {/* 四个引用入口：数据集文件 / 分析节点产物文件 / 数据集 / 容器模板。 */}
+        <Flex justify="space-between" align="center" gap="small">
+          {/* 引用入口收进左下角的「+」里，点击向上弹出列表：
+              数据集文件 / 分析节点产物文件 / 数据集 / 容器模板。 */}
+          <Dropdown
+            trigger={["click"]}
+            placement="topLeft"
+            disabled={locked}
+            menu={{
+              items: [
+                {
+                  key: "data-files",
+                  icon: <DatabaseOutlined />,
+                  label: "Data Files",
+                  onClick: () => void handleSelectDatasetFile(),
+                },
+                {
+                  key: "node-files",
+                  icon: <PartitionOutlined />,
+                  label: "Node Files",
+                  onClick: () => void handleSelectNodeFile(),
+                },
+                {
+                  key: "datasets",
+                  icon: <TableOutlined />,
+                  label: "Datasets",
+                  onClick: () => void handleSelectDataset(),
+                },
+                {
+                  key: "containers",
+                  icon: <CloudServerOutlined />,
+                  label: "Containers",
+                  onClick: () => void handleSelectContainer(),
+                },
+              ],
+            }}
+          >
             <Button
               size="small"
-              icon={<DatabaseOutlined />}
+              type="text"
+              icon={<PlusOutlined />}
               disabled={locked}
-              onClick={() => void handleSelectDatasetFile()}
-            >
-              Data Files
-            </Button>
-            <Button
-              size="small"
-              icon={<PartitionOutlined />}
-              disabled={locked}
-              onClick={() => void handleSelectNodeFile()}
-            >
-              Node Files
-            </Button>
-            <Button
-              size="small"
-              icon={<TableOutlined />}
-              disabled={locked}
-              onClick={() => void handleSelectDataset()}
-            >
-              Datasets
-            </Button>
-            <Button
-              size="small"
-              icon={<CloudServerOutlined />}
-              disabled={locked}
-              onClick={() => void handleSelectContainer()}
-            >
-              Containers
-            </Button>
-          </Flex>
+              aria-label="Insert reference"
+            />
+          </Dropdown>
           <Flex align="center">{actionNode}</Flex>
         </Flex>
       )}
