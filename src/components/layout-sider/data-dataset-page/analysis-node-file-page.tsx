@@ -44,16 +44,27 @@ import "./dataset-project-page.css";
  *   （`listFileByAnalysisNodeApi`，后端不分页，这里在本地做关键字过滤 + 分页切片）；
  * - 顶部面包屑 + 返回按钮回到节点列表。
  *
- * 选择模式（`invoke.analysisNodeFilePage.openDrawerAsync(...)`）下只勾选文件：
- * 默认单选，传 `multiple` 后为多选，Confirm 回传 `DatasetFileItem`（或数组），
- * 保持既有调用方（Agent 输入区插入 `@file:<id>`）的契约不变。
+ * 选择模式（`invoke.analysisNodeFilePage.openDrawerAsync(...)`）：
+ * - 默认单选：只勾选文件，Confirm 回传单个 `DatasetFileItem`（既有调用方契约不变）；
+ * - `multiple`：第一级可勾选分析节点，进入节点后还能勾选多个产出文件，
+ *   Confirm 回传 `AnalysisNodePickResult`（Agent 输入区据此插入
+ *   `@analysis_node:<id>` / `@file:<id>`）。
  */
+
+/** 多选模式（`multiple`）下 Confirm 回传的结果：分析节点与其产出文件。 */
+export interface AnalysisNodePickResult {
+  /** 勾选的分析节点（go_analysis_node）。 */
+  nodes: AnalysisNodeItem[];
+  /** 勾选的产出文件（go_file），字段与数据集文件列表一致。 */
+  files: DatasetFileItem[];
+}
+
 export interface AnalysisNodeFilePageProps {
   page_size?: number | string;
   title?: string;
-  /** 多选模式：列表支持勾选多个文件，Confirm 时以数组回传。 */
+  /** 多选模式：可勾选多个分析节点，也可进入节点勾选其产出文件。 */
   multiple?: boolean;
-  onOk?: (file: DatasetFileItem | DatasetFileItem[]) => void;
+  onOk?: (picked: DatasetFileItem | AnalysisNodePickResult) => void;
   onCancel?: () => void;
   close?: () => void;
   /** 纵向堆叠布局注入的折叠态：折叠时仅保留标题栏。 */
@@ -175,6 +186,11 @@ const ItemRow = ({
 
 interface AnalysisNodeListPanelProps {
   pageSize: number;
+  /** 是否显示选择列（多选时才允许勾选节点本身）。 */
+  selectable: boolean;
+  multiple: boolean;
+  selectedIds: string[];
+  onSelectRows: (ids: string[], rows: AnalysisNodeItem[]) => void;
   onOpen: (node: AnalysisNodeItem) => void;
   /** 面板标题（默认 Analysis Nodes）。 */
   title?: string;
@@ -188,6 +204,10 @@ interface AnalysisNodeListPanelProps {
 
 const AnalysisNodeListPanel = ({
   pageSize,
+  selectable,
+  multiple,
+  selectedIds,
+  onSelectRows,
   onOpen,
   title,
   footer,
@@ -319,9 +339,24 @@ const AnalysisNodeListPanel = ({
           dataSource={nodes}
           loading={isFetching}
           pagination={false}
+          rowClassName={(record) => (selectedIds.includes(record.id) ? "project-report-row-selected" : "")}
+          rowSelection={
+            selectable
+              ? {
+                  type: multiple ? "checkbox" : "radio",
+                  selectedRowKeys: selectedIds,
+                  onChange: (keys, rows) => onSelectRows(keys.map(String), rows),
+                }
+              : undefined
+          }
           onRow={(record) => ({
-            // 点击节点即「进入文件夹」，查看该节点产出的文件。
-            onClick: () => onOpen(record),
+            // 点击节点即「进入文件夹」查看该节点产出的文件；勾选由左侧选择列负责。
+            onClick: (event) => {
+              if ((event.target as HTMLElement | null)?.closest?.(".ant-table-selection-column")) {
+                return;
+              }
+              onOpen(record);
+            },
           })}
         />
       )}
@@ -632,8 +667,9 @@ const AnalysisNodeFilesPanel = ({
  * - 点击节点进入第二级，按 `analysis_node_id` 懒加载该节点产出的文件，
  *   顶部面包屑（subHeader）+ 返回按钮回到节点列表。
  *
- * 选择模式下 Confirm 回传选中的文件（单选为单个 `DatasetFileItem`，
- * `multiple` 为数组），视图键 `analysisNodeFilePage` 保持不变。
+ * 选择模式下 Confirm 回传：单选为单个 `DatasetFileItem`（选中的文件）；
+ * `multiple` 为 `AnalysisNodePickResult`（勾选的节点 + 勾选的文件），
+ * 视图键 `analysisNodeFilePage` 保持不变。
  */
 const AnalysisNodeFilePage = ({
   page_size,
@@ -647,9 +683,29 @@ const AnalysisNodeFilePage = ({
 }: AnalysisNodeFilePageProps) => {
   const selectable = Boolean(onOk || onCancel);
   const [activeNode, setActiveNode] = useState<AnalysisNodeItem>();
+  const [pickedNodes, setPickedNodes] = useState<Record<string, AnalysisNodeItem>>({});
   const [pickedFiles, setPickedFiles] = useState<Record<string, AnalysisNodeFileItem>>({});
 
+  const nodeIds = Object.keys(pickedNodes);
   const fileIds = Object.keys(pickedFiles);
+  // 多选时节点与文件共用同一个 Confirm 计数。
+  const totalPicked = nodeIds.length + fileIds.length;
+
+  // 保留不在当前页的已选项（跨页勾选），因此用 id 合并而不是直接覆盖。
+  const selectNodes = (ids: string[], rows: AnalysisNodeItem[]) => {
+    setPickedNodes((prev) => {
+      if (!multiple) {
+        const first = rows[0] ?? (ids[0] ? prev[ids[0]] : undefined);
+        return first ? { [first.id]: first } : {};
+      }
+      const next: Record<string, AnalysisNodeItem> = {};
+      ids.forEach((id) => {
+        const item = prev[id] ?? rows.find((row) => row.id === id);
+        if (item) next[id] = item;
+      });
+      return next;
+    });
+  };
 
   // 保留不在当前页的已选项（跨页勾选），因此用 id 合并而不是直接覆盖。
   const selectFiles = (ids: string[], rows: AnalysisNodeFileItem[]) => {
@@ -680,11 +736,22 @@ const AnalysisNodeFilePage = ({
   };
 
   const handleConfirm = () => {
-    if (!onOk || fileIds.length === 0) {
+    if (!onOk || totalPicked === 0) {
       return;
     }
-    const picked = Object.values(pickedFiles).map(toPickedFile);
-    onOk(multiple ? picked : picked[0]);
+    // 单选保持旧契约：只回传选中的文件。
+    if (!multiple) {
+      const first = Object.values(pickedFiles)[0];
+      if (!first) return;
+      onOk(toPickedFile(first));
+      return;
+    }
+    // 多选回传「节点 + 文件」，两类引用由调用方分别拼成
+    // `@analysis_node:<id>` 与 `@file:<id>`。
+    onOk({
+      nodes: Object.values(pickedNodes),
+      files: Object.values(pickedFiles).map(toPickedFile),
+    });
   };
 
   const handleCancel = () => {
@@ -698,13 +765,15 @@ const AnalysisNodeFilePage = ({
   // 选择器模式下的底部操作区：两个层级共用，由面板透传给 SiderPanelLayout。
   const footer = selectable ? (
     <Flex align="center" justify="space-between" gap="small" style={{ width: "100%" }}>
-      <span className="dataset-project-picked">{multiple ? `${fileIds.length} file(s)` : ""}</span>
+      <span className="dataset-project-picked">
+        {multiple ? `${nodeIds.length} node(s) · ${fileIds.length} file(s)` : ""}
+      </span>
       <Flex gap="small">
         <Button size="small" onClick={handleCancel}>
           Cancel
         </Button>
-        <Button size="small" type="primary" disabled={fileIds.length === 0} onClick={handleConfirm}>
-          {multiple && fileIds.length > 0 ? `Confirm (${fileIds.length})` : "Confirm"}
+        <Button size="small" type="primary" disabled={totalPicked === 0} onClick={handleConfirm}>
+          {multiple && totalPicked > 0 ? `Confirm (${totalPicked})` : "Confirm"}
         </Button>
       </Flex>
     </Flex>
@@ -730,6 +799,11 @@ const AnalysisNodeFilePage = ({
   ) : (
     <AnalysisNodeListPanel
       pageSize={normalizePageSize(page_size, 10)}
+      // 多选模式才能勾选节点本身；单选仍只选文件（保持既有契约）。
+      selectable={selectable && multiple}
+      multiple={multiple}
+      selectedIds={nodeIds}
+      onSelectRows={selectNodes}
       onOpen={setActiveNode}
       title={title || "Analysis Nodes"}
       footer={footer}

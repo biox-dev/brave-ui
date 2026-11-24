@@ -143,6 +143,27 @@ const AnalysisList: FC<AnalysisListProps> = ({ title, onOk, onCancel, close, mul
   const isLoading = loading;
   const isFetching = loading || loadingMore;
 
+  // 选择列（checkbox / radio）的回调：onChange 只包含当前页的选中项，
+  // 因此多选时要把本页被取消勾选的条目从 prev 里移除、再合入本页勾选项，
+  // 这样才能保留跨分页的选择。
+  const handleSelectRows = (ids: string[], rows: AnalysisItem[]) => {
+    setPicked((prev) => {
+      if (!multiple) {
+        const first = rows[0] ?? (ids[0] ? prev.get(String(ids[0])) : undefined);
+        return first ? new Map([[String(first.id), first]]) : new Map();
+      }
+      const next = new Map(prev);
+      data.forEach((item) => {
+        const id = String(item.id);
+        if (!ids.includes(id)) {
+          next.delete(id);
+        }
+      });
+      rows.forEach((row) => next.set(String(row.id), row));
+      return next;
+    });
+  };
+
   const handleDelete = async (analysis: AnalysisItem) => {
     await deleteAnalysisApi(analysis.id);
     message.success("Deleted successfully");
@@ -244,25 +265,6 @@ const AnalysisList: FC<AnalysisListProps> = ({ title, onOk, onCancel, close, mul
     [locale]
   );
 
-  const selectColumn: ColumnsType<AnalysisItem>[number] = {
-    title: "Select",
-    key: "select",
-    width: 96,
-    align: "right",
-    render: (_, record) => (
-      <Button
-        type={isPicked(record.id) ? "primary" : "default"}
-        size="small"
-        onClick={(e) => {
-          e.stopPropagation();
-          handleSelect(record);
-        }}
-      >
-        {isPicked(record.id) ? "Selected" : "Select"}
-      </Button>
-    ),
-  };
-
   return (
     <SiderPanelLayout
       title={title || "Analysis"}
@@ -311,7 +313,7 @@ const AnalysisList: FC<AnalysisListProps> = ({ title, onOk, onCancel, close, mul
         <Table<AnalysisItem>
           rowKey="id"
           size="small"
-          columns={selectable ? [...columns, selectColumn] : columns}
+          columns={columns}
           dataSource={data}
           loading={isLoading || isFetching}
           pagination={false}
@@ -321,11 +323,27 @@ const AnalysisList: FC<AnalysisListProps> = ({ title, onOk, onCancel, close, mul
               ? "project-report-row-selected"
               : ""
           }
+          rowSelection={
+            selectable
+              ? {
+                  type: multiple ? "checkbox" : "radio",
+                  selectedRowKeys: pickedItems.map((item) => item.id),
+                  onChange: (keys, rows) =>
+                    handleSelectRows(
+                      keys.map(String),
+                      rows as AnalysisItem[]
+                    ),
+                }
+              : undefined
+          }
           onRow={(record) => ({
-            onClick: () =>
-              selectable
-                ? handleSelect(record)
-                : navigate(`/analysis-report/${record.id}`),
+            onClick: (event) => {
+              // 勾选交给选择列，避免点 checkbox 时又触发一次行点击切换。
+              if ((event.target as HTMLElement | null)?.closest?.(".ant-table-selection-column")) {
+                return;
+              }
+              selectable ? handleSelect(record) : navigate(`/analysis-report/${record.id}`);
+            },
           })}
         />
       )}

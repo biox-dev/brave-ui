@@ -14,9 +14,10 @@ import {
   UnorderedListOutlined,
 } from "@ant-design/icons";
 import { invoke } from "@/core/ui-system/invokeV2";
-import type { DatasetFileItem } from "@/api/data";
+import type { AnalysisItem } from "@/api/analysis";
 import type { ContainerTemplateItem } from "@/api/container";
 import type { DatasetPickResult } from "@/components/layout-sider/data-dataset-page/dataset-project-page";
+import type { AnalysisNodePickResult } from "@/components/layout-sider/data-dataset-page/analysis-node-file-page";
 import { useAgentSenderStore, type AgentRefKind } from "./agent-sender.store";
 
 /** Sender slot 模式的 slotConfig 类型（可插入 tag 引用）。 */
@@ -63,11 +64,14 @@ export interface AgentSenderProps {
 /**
  * Agent 输入区（独立组件）。
  *
- * footer 左下角的「+」向上弹出三个引用入口（通过 invoke 弹出对应页面的「选择模式」挑条目，
+ * footer 左下角的「+」向上弹出四个引用入口（通过 invoke 弹出对应页面的「选择模式」挑条目，
  * 选中后在光标处插入引用 chip，提交时该 chip 以 `@<kind>:<id>` 文本拼进消息文本）：
- *   - Node Files：`invoke.analysisNodeFilePage`，分析节点产物文件，**多选**，`@file:<id>`；
  *   - Datasets：`invoke.datasetProjectPage`，数据集浏览器：可多选数据集（`@dataset:<id>`），
  *     也可点进某个数据集多选其文件（`@file:<id>`）；
+ *   - Analysis Node：`invoke.analysisNodeFilePage`，分析节点产物文件：第一级可多选
+ *     **分析节点本身**（`@analysis_node:<id>`），也可点进节点多选其产出文件（`@file:<id>`）；
+ *   - Analysis Workflow：`invoke.analysisList`，分析运行记录，**多选** + Confirm，`@analysis:<id>`
+ *     （Agent 侧用 get_analysis_workflow 解析状态 / 参数 / 节点分布）；
  *   - Containers：`invoke.containerTemplatePage`，容器模板（go_container_template_definition），**点击条目即插入**，`@container:<id>`。
  *
  * 另外支持「外部页面把引用插进来」：任意页面调用 hooks/useInsertAgentRef
@@ -150,24 +154,6 @@ const AgentSender: FC<AgentSenderProps> = ({
     [insertRefs]
   );
 
-  // 文件选择结果统一处理：Data Files / Node Files 支持多选，回传可能是数组。
-  // 用户取消（reject）或条目没有 id 时什么都不插入。
-  const insertPickedFiles = (picked?: DatasetFileItem | DatasetFileItem[]) => {
-    const files = Array.isArray(picked) ? picked : picked ? [picked] : [];
-    insertRefs(
-      files
-        .map((file) => {
-          const path = String(file?.id ?? "").trim();
-          return {
-            kind: "file" as const,
-            value: path,
-            label: file?.file_name || file?.file_id || path,
-          };
-        })
-        .filter((item) => item.value)
-    );
-  };
-
   // 选择抽屉收起后把焦点交还输入框。
   // ⚠️ 不能在 await resolve 之后立即 focus：rc-drawer 会在关闭动画结束时的
   // afterOpenChange(false) 里把焦点还给「打开前的元素」，也就是触发的那个按钮
@@ -198,15 +184,29 @@ const AgentSender: FC<AgentSenderProps> = ({
     senderRef.current?.focus({ cursor: "end" });
   }, [pendingRef, consumePendingRef, insertRef]);
 
-  // Node Files：invoke 弹出 analysis-node-file-page 的选择模式（多选 + Confirm），
-  // Confirm 时该页面用 onOk 回传选中的 DatasetFileItem[]，openDrawerAsync 据此 resolve。
-  const handleSelectNodeFile = async () => {
+  // Analysis Node：invoke 弹出 analysis-node-file-page 的多选模式（多选 + Confirm）：
+  // 第一级可勾选**分析节点本身**（插入 `@analysis_node:<id>`，Agent 侧用 get_analysis_node
+  // 查看名称 / 类型 / 工作目录 / 参数），也可点进节点继续勾选其产出文件
+  // （插入 `@file:<id>`，Agent 侧用 get_file 解析路径）。
+  const handleSelectAnalysisNode = async () => {
     try {
       const picked = (await invoke.analysisNodeFilePage.openDrawerAsync(
         { multiple: true },
-        { width: 1000, title: "Select Analysis Node Files" }
-      )) as DatasetFileItem | DatasetFileItem[] | undefined;
-      insertPickedFiles(picked);
+        { width: 1000, title: "Select Analysis Node / Files" }
+      )) as AnalysisNodePickResult | undefined;
+      if (!picked) return;
+      insertRefs([
+        ...picked.nodes.map((node) => ({
+          kind: "analysis_node" as const,
+          value: String(node.id),
+          label: node.node_name || node.analysis_node_id || `AnalysisNode-${node.id}`,
+        })),
+        ...picked.files.map((file) => ({
+          kind: "file" as const,
+          value: String(file.id),
+          label: file.file_name || file.file_id || String(file.id),
+        })),
+      ]);
     } catch {
       // 用户取消选择，无需处理。
     } finally {
@@ -237,6 +237,37 @@ const AgentSender: FC<AgentSenderProps> = ({
           label: file.file_name || file.file_id || String(file.id),
         })),
       ]);
+    } catch {
+      // 用户取消选择，无需处理。
+    } finally {
+      // 无论选中还是取消，都把焦点交还输入框。
+      focusInputAfterPicker();
+    }
+  };
+
+  // Analysis Workflow：invoke 弹出 analysis-list 的多选模式（Confirm 回传 AnalysisItem[] / AnalysisItem）。
+  // 提交时以 `@analysis:<id>` 参与消息文本，Agent 侧用 get_analysis_workflow 解析
+  // 运行状态 / 参数 / 节点分布。
+  const handleSelectAnalysisWorkflow = async () => {
+    try {
+      const picked = (await invoke.analysisList.openDrawerAsync(
+        { multiple: true },
+        { width: 1000, title: "Select Analysis Workflow" }
+      )) as AnalysisItem | AnalysisItem[] | undefined;
+      // 多选回传数组，单选（理论上不会发生）回传单个对象，统一成数组处理。
+      const analyses = Array.isArray(picked) ? picked : picked ? [picked] : [];
+      insertRefs(
+        analyses
+          .map((analysis) => {
+            const analysisId = String(analysis?.id ?? "").trim();
+            return {
+              kind: "analysis" as const,
+              value: analysisId,
+              label: analysis?.analysis_name || analysis?.analysis_id || `Analysis-${analysisId}`,
+            };
+          })
+          .filter((item) => item.value)
+      );
     } catch {
       // 用户取消选择，无需处理。
     } finally {
@@ -295,7 +326,7 @@ const AgentSender: FC<AgentSenderProps> = ({
       footer={(actionNode) => (
         <Flex justify="space-between" align="center" gap="small">
           {/* 引用入口收进左下角的「+」里，点击向上弹出列表：
-              分析节点产物文件 / 数据集（可进数据集挑文件）/ 容器模板。 */}
+              数据集（可进数据集挑文件）/ 分析节点（可进节点挑文件）/ 分析运行记录 / 容器模板。 */}
           <Dropdown
             trigger={["click"]}
             placement="topLeft"
@@ -303,16 +334,20 @@ const AgentSender: FC<AgentSenderProps> = ({
             menu={{
               items: [
                 {
-                  key: "node-files",
-                  icon: <PartitionOutlined />,
-                  label: "Node Files",
-                  onClick: () => void handleSelectNodeFile(),
-                },
-                {
                   key: "datasets",
                   icon: <TableOutlined />,
                   label: "Datasets",
                   onClick: () => void handleSelectDataset(),
+                }, {
+                  key: "analysis-node",
+                  icon: <PartitionOutlined />,
+                  label: "Analysis Node",
+                  onClick: () => void handleSelectAnalysisNode(),
+                }, {
+                  key: "analysis-workflow",
+                  icon: <ExperimentOutlined />,
+                  label: "Analysis Workflow",
+                  onClick: () => void handleSelectAnalysisWorkflow(),
                 },
                 {
                   key: "containers",
