@@ -24,6 +24,11 @@ export interface DatasetProjectPageProps {
   metadata?: string;
   page_size?: number | string;
   title?: string;
+  /**
+   * 点击即选：选中行后立即回传并关闭（不再显示 Confirm 按钮），
+   * 用于「点一下就直接引用」的场景。
+   */
+  selectOnClick?: boolean;
   onOk?: (dataset: DatasetItem) => void;
   onCancel?: () => void;
   close?: () => void;
@@ -190,12 +195,13 @@ const DatasetProjectPage = ({
   metadata,
   page_size,
   title,
+  selectOnClick = false,
   onOk,
   onCancel,
   close,
 }: DatasetProjectPageProps) => {
   const message = useGlobalMessage();
-  const { projectId } = useSelector((state: any) => state.user);
+  const { projectId } = useSelector((state: { user: { projectId?: string } }) => state.user);
   const [selectedId, setSelectedID] = useState<string>();
   // Tracks the dataset currently importing its directory so only that row's
   // button shows a spinner.
@@ -249,15 +255,20 @@ const DatasetProjectPage = ({
   };
 
   // Clicking a dataset row toggles its file list; when the page is used as a
-  // picker the same click selects the row instead.
+  // picker the same click selects (or, in click-to-pick mode, immediately
+  // returns) the row instead.
   const handleRowClick = (record: DatasetItem, event: { target: EventTarget | null }) => {
-    if (selectable) {
-      setSelectedID(record.id);
+    // The expand icon handles its own click, so ignore it here to avoid a
+    // double toggle / an accidental pick.
+    if ((event.target as HTMLElement | null)?.closest?.(".ant-table-row-expand-icon")) {
       return;
     }
-    // The expand icon handles its own click, so ignore it here to avoid a
-    // double toggle.
-    if ((event.target as HTMLElement | null)?.closest?.(".ant-table-row-expand-icon")) {
+    if (selectable) {
+      if (selectOnClick) {
+        onOk?.(record);
+        return;
+      }
+      setSelectedID(record.id);
       return;
     }
     toggleExpanded(record.id);
@@ -389,7 +400,14 @@ const DatasetProjectPage = ({
       <Button
         type={record.id === selectedId ? "primary" : "default"}
         size="small"
-        onClick={() => setSelectedID(record.id)}
+        onClick={(event) => {
+          event.stopPropagation();
+          if (selectOnClick) {
+            onOk?.(record);
+            return;
+          }
+          setSelectedID(record.id);
+        }}
       >
         {record.id === selectedId ? "Selected" : "Select"}
       </Button>
@@ -464,7 +482,15 @@ const DatasetProjectPage = ({
                 type: "radio",
                 selectedRowKeys: selectedId ? [selectedId] : [],
                 onChange: (selectedRowKeys) => {
-                  setSelectedID(String(selectedRowKeys[0] || ""));
+                  const id = String(selectedRowKeys[0] || "");
+                  if (selectOnClick) {
+                    const picked = data.find((item) => String(item.id) === id);
+                    if (picked) {
+                      onOk?.(picked);
+                    }
+                    return;
+                  }
+                  setSelectedID(id);
                 },
               }
             : undefined
@@ -483,7 +509,7 @@ const DatasetProjectPage = ({
         labels={{ loading: "Loading more…", noMore: "No more datasets", totalPrefix: "total " }}
       />
 
-      {selectable && (
+      {selectable && !selectOnClick && (
         <Flex justify="end" gap="small" style={{ marginTop: 12 }}>
           <Button onClick={handleCancel}>Cancel</Button>
           <Button type="primary" disabled={!selectedItem} onClick={handleConfirm}>

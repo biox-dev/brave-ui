@@ -62,12 +62,12 @@ export interface AgentSenderProps {
 /**
  * Agent 输入区（独立组件）。
  *
- * 提供四个功能按钮（通过 invoke 弹出对应页面的「选择模式」挑一个条目，
+ * 提供四个功能按钮（通过 invoke 弹出对应页面的「选择模式」挑条目，
  * 选中后在光标处插入引用 chip，提交时该 chip 以 `@<kind>:<id>` 文本拼进消息文本）：
- *   - Data Files：`invoke.datasetFilePage`，数据集文件（go_dataset -> go_file），`@file:<id>`；
- *   - Node Files：`invoke.analysisNodeFilePage`，分析节点产物文件（`@file:<id>`）；
- *   - Datasets：`invoke.datasetProjectPage`，数据集（go_dataset），`@dataset:<id>`；
- *   - Containers：`invoke.containerTemplatePage`，容器模板（go_container_template_definition），`@container:<id>`。
+ *   - Data Files：`invoke.datasetFilePage`，数据集文件（go_dataset -> go_file），**多选**，`@file:<id>`；
+ *   - Node Files：`invoke.analysisNodeFilePage`，分析节点产物文件，**多选**，`@file:<id>`；
+ *   - Datasets：`invoke.datasetProjectPage`，数据集（go_dataset），**点击条目即插入**，`@dataset:<id>`；
+ *   - Containers：`invoke.containerTemplatePage`，容器模板（go_container_template_definition），**点击条目即插入**，`@container:<id>`。
  *
  * 另外支持「外部页面把引用插进来」：任意页面调用 hooks/useInsertAgentRef
  * （如报告文件页插入 `@report:<id>`、分析节点详情页插入 `@analysis_node:<id>`、
@@ -98,9 +98,45 @@ const AgentSender: FC<AgentSenderProps> = ({
     if (!value) senderRef.current?.clear?.();
   }, [value]);
 
-  // 插入引用 chip：以 tag 形式插到光标处（定位不到光标时追加到末尾）。
+  // 批量插入引用 chip：一次 insert 插入多个 tag（多选时避免多次重排光标）。
   // kind 决定提交时拼进消息文本的前缀（file / dataset / container / report）。
   // 图标默认按 kind 取 REF_ICONS，调用方一般不用传。
+  const insertRefs = useCallback(
+    (
+      refs: Array<{
+        kind: AgentRefKind;
+        value: string;
+        label: string;
+        icon?: ReactNode;
+      }>
+    ) => {
+      if (refs.length === 0) return;
+      const stamp = Date.now();
+      senderRef.current?.insert?.(
+        refs.map((ref, index) => {
+          const icon = ref.icon ?? REF_ICONS[ref.kind];
+          return {
+            type: "tag" as const,
+            // 同一个时间戳内插入多个 tag 时 key 必须唯一，因此带上序号。
+            key: `${ref.kind}_ref_${stamp}_${index}`,
+            props: {
+              label: (
+                <Flex align="center" gap={4} style={{ display: "inline-flex" }}>
+                  {icon}
+                  {ref.label}
+                </Flex>
+              ),
+              value: ref.value,
+            },
+            formatResult: () => `@${ref.kind}:${ref.value} `,
+          };
+        })
+      );
+    },
+    []
+  );
+
+  // 单个引用插入（数据集 / 容器模板 / 外部页面发起的请求走这里）。
   const insertRef = useCallback(
     (
       kind: AgentRefKind,
@@ -108,31 +144,27 @@ const AgentSender: FC<AgentSenderProps> = ({
       label: string,
       icon: ReactNode = REF_ICONS[kind]
     ) => {
-      senderRef.current?.insert?.([
-        {
-          type: "tag",
-          key: `${kind}_ref_${Date.now()}`,
-          props: {
-            label: (
-              <Flex align="center" gap={4} style={{ display: "inline-flex" }}>
-                {icon}
-                {label}
-              </Flex>
-            ),
-            value,
-          },
-          formatResult: () => `@${kind}:${value} `,
-        },
-      ]);
+      insertRefs([{ kind, value, label, icon }]);
     },
-    []
+    [insertRefs]
   );
 
-  // 选择结果统一处理：用户取消（reject）或条目没有 id 时什么都不插入。
-  const insertPickedFile = (file?: DatasetFileItem) => {
-    const path = String(file?.id ?? "").trim();
-    if (!path) return;
-    insertRef("file", path, file?.file_name || file?.file_id || path);
+  // 文件选择结果统一处理：Data Files / Node Files 支持多选，回传可能是数组。
+  // 用户取消（reject）或条目没有 id 时什么都不插入。
+  const insertPickedFiles = (picked?: DatasetFileItem | DatasetFileItem[]) => {
+    const files = Array.isArray(picked) ? picked : picked ? [picked] : [];
+    insertRefs(
+      files
+        .map((file) => {
+          const path = String(file?.id ?? "").trim();
+          return {
+            kind: "file" as const,
+            value: path,
+            label: file?.file_name || file?.file_id || path,
+          };
+        })
+        .filter((item) => item.value)
+    );
   };
 
   // 选择抽屉收起后把焦点交还输入框。
@@ -165,15 +197,15 @@ const AgentSender: FC<AgentSenderProps> = ({
     senderRef.current?.focus({ cursor: "end" });
   }, [pendingRef, consumePendingRef, insertRef]);
 
-  // Data Files：invoke 弹出 dataset-file-page 的选择模式（单选 + Confirm），
-  // Confirm 时该页面用 onOk 回传选中的 DatasetFileItem，openDrawerAsync 据此 resolve。
+  // Data Files：invoke 弹出 dataset-file-page 的选择模式（多选 + Confirm），
+  // Confirm 时该页面用 onOk 回传选中的 DatasetFileItem[]，openDrawerAsync 据此 resolve。
   const handleSelectDatasetFile = async () => {
     try {
-      const file = (await invoke.datasetFilePage.openDrawerAsync(
-        {},
-        { width: 1000, title: "Select Data File" }
-      )) as DatasetFileItem | undefined;
-      insertPickedFile(file);
+      const picked = (await invoke.datasetFilePage.openDrawerAsync(
+        { multiple: true },
+        { width: 1000, title: "Select Data Files" }
+      )) as DatasetFileItem | DatasetFileItem[] | undefined;
+      insertPickedFiles(picked);
     } catch {
       // 用户取消选择，无需处理。
     } finally {
@@ -182,14 +214,14 @@ const AgentSender: FC<AgentSenderProps> = ({
     }
   };
 
-  // Node Files：invoke 弹出 analysis-node-file-page 的选择模式（同上）。
+  // Node Files：invoke 弹出 analysis-node-file-page 的选择模式（同上，支持多选）。
   const handleSelectNodeFile = async () => {
     try {
-      const file = (await invoke.analysisNodeFilePage.openDrawerAsync(
-        {},
-        { width: 1000, title: "Select Analysis Node File" }
-      )) as DatasetFileItem | undefined;
-      insertPickedFile(file);
+      const picked = (await invoke.analysisNodeFilePage.openDrawerAsync(
+        { multiple: true },
+        { width: 1000, title: "Select Analysis Node Files" }
+      )) as DatasetFileItem | DatasetFileItem[] | undefined;
+      insertPickedFiles(picked);
     } catch {
       // 用户取消选择，无需处理。
     } finally {
@@ -198,12 +230,12 @@ const AgentSender: FC<AgentSenderProps> = ({
     }
   };
 
-  // Datasets：invoke 弹出 dataset-project-page 的选择模式，Confirm 时回传 DatasetItem。
+  // Datasets：invoke 弹出 dataset-project-page 的选择模式（点击条目即回传，无 Confirm 按钮）。
   // 提交时以 `@dataset:<id>` 参与消息文本，Agent 侧用 get_dataset 解析出数据集路径。
   const handleSelectDataset = async () => {
     try {
       const dataset = (await invoke.datasetProjectPage.openDrawerAsync(
-        {},
+        { selectOnClick: true },
         { width: 1000, title: "Select Dataset" }
       )) as DatasetItem | undefined;
       const datasetId = String(dataset?.id ?? "").trim();
@@ -221,13 +253,13 @@ const AgentSender: FC<AgentSenderProps> = ({
     }
   };
 
-  // Containers：invoke 弹出 container-template-page 的选择模式，Confirm 时回传 ContainerTemplateItem。
+  // Containers：invoke 弹出 container-template-page 的选择模式（点击条目即回传，无 Confirm 按钮）。
   // 提交时以 `@container:<id>` 参与消息文本，Agent 侧用 get_container_template 解析展示名与描述。
   const handleSelectContainer = async () => {
     try {
       const template = (await invoke.containerTemplatePage.openDrawerAsync(
-        {},
-        { width: "80%", title: "Select Container Template" }
+        { selectOnClick: true },
+        { width: 1000, title: "Select Container Template" }
       )) as ContainerTemplateItem | undefined;
       const templateId = String(template?.id ?? "").trim();
       if (!templateId) return;

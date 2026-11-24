@@ -67,6 +67,11 @@ export interface ContainerTemplateListProps {
   command?: string;
   page_size?: number | string;
   title?: string;
+  /**
+   * 点击即选：选中行后立即回传并关闭（不再显示 Confirm 按钮），
+   * 用于「点一下就直接引用」的场景。
+   */
+  selectOnClick?: boolean;
   onOk?: (item: ContainerTemplateItem) => void;
   onCancel?: () => void;
   close?: () => void;
@@ -157,7 +162,8 @@ const ContainerTemplateDetailCard = ({ item }: { item: ContainerTemplateItem }) 
  * - 标题栏可折叠（由父级堆叠布局注入 collapsed / onToggleCollapse）。
  * - 点击行：在主区域底部面板打开临时终端标签（不跳路由，`hideMainPane` 会自动展开）。
  * - 右侧 Terminal 按钮：通过 invoke 打开临时终端弹窗。
- * - 作为选择器（invoke 打开且注入 onOk）时，点击行改为本地选中。
+ * - 作为选择器（invoke 打开且注入 onOk）时，点击行改为本地选中；
+ *   传 `selectOnClick` 则点击行直接回传并关闭（无 Confirm 按钮）。
  */
 const ContainerTemplateList = ({
   id,
@@ -168,6 +174,7 @@ const ContainerTemplateList = ({
   command,
   page_size,
   title,
+  selectOnClick = false,
   onOk,
   onCancel,
   close,
@@ -374,12 +381,16 @@ const ContainerTemplateList = ({
   const handleRowClick = useCallback(
     (record: ContainerTemplateItem) => {
       if (selectable) {
+        if (selectOnClick) {
+          onOk?.(record);
+          return;
+        }
         setSelectedId(record.id);
         return;
       }
       void openTerminalTab(record);
     },
-    [selectable, openTerminalTab]
+    [onOk, selectable, selectOnClick, openTerminalTab]
   );
 
   const columns = useMemo<ColumnsType<ContainerTemplateItem>>(
@@ -496,6 +507,10 @@ const ContainerTemplateList = ({
         size="small"
         onClick={(e) => {
           e.stopPropagation();
+          if (selectOnClick) {
+            onOk?.(record);
+            return;
+          }
           setSelectedId(record.id);
         }}
       >
@@ -573,7 +588,7 @@ const ContainerTemplateList = ({
           </>
         }
         footer={
-          selectable ? (
+          selectable && !selectOnClick ? (
             <>
               <Button onClick={handleCancel}>Cancel</Button>
               {okActions && okActions.length > 0 ? (

@@ -34,7 +34,8 @@ import "./file-list-page.css";
  *
  * 布局从上到下为：操作区（标题 / 计数 / 操作按钮）-> 可选视图切换（`subHeader`）-> 列表 -> 分页。
  * 合并视图 `project-file-page` 通过 `subHeader` 注入视图切换按钮。
- * 作为文件选择器使用时（invoke 注入 onOk/onCancel）进入选择模式。
+ * 作为文件选择器使用时（invoke 注入 onOk/onCancel）进入选择模式：默认单选，
+ * 传 `multiple` 后改为多选（checkbox 勾选后 Confirm 回传数组）。
  */
 export type FileListSource = "dataset" | "analysisNode";
 
@@ -59,7 +60,12 @@ export interface FileListPageProps {
   collapsed?: boolean;
   /** 点击标题栏时切换折叠态（未传入则标题栏不可点击）。 */
   onToggleCollapse?: () => void;
-  onOk?: (file: DatasetFileItem) => void;
+  /**
+   * 多选模式：列表支持勾选多个文件，Confirm 时以数组回传。
+   * 默认单选（radio），Confirm 时回传单个文件。
+   */
+  multiple?: boolean;
+  onOk?: (file: DatasetFileItem | DatasetFileItem[]) => void;
   onCancel?: () => void;
   close?: () => void;
 }
@@ -235,6 +241,7 @@ const FileListPage = ({
   subHeader,
   collapsed = false,
   onToggleCollapse,
+  multiple = false,
   onOk,
   onCancel,
   close,
@@ -243,7 +250,7 @@ const FileListPage = ({
   const { locale } = useI18n();
   const navigate = useNavigate();
   const { close: closeUI } = useUI();
-  const [selectedId, setSelectedId] = useState<string>();
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const isDatasetSource = source === "dataset";
   const selectable = Boolean(onOk || onCancel);
@@ -292,13 +299,30 @@ const FileListPage = ({
 
   // 切换数据来源后清空选中行，避免把另一种来源的记录带进选择结果。
   useEffect(() => {
-    setSelectedId(undefined);
+    setSelectedIds([]);
   }, [source]);
 
+  // 单选模式只看第一个选中项；多选模式按依次勾选的结果回传。
+  const selectedId = selectedIds[0];
   const selectedItem = useMemo(
     () => data.find((item) => String(item.id) === String(selectedId)),
     [data, selectedId]
   );
+  const selectedItems = useMemo(
+    () => data.filter((item) => selectedIds.includes(String(item.id))),
+    [data, selectedIds]
+  );
+
+  // 行点击：非选择器态是跳转详情；单选替换选中项；多选则在勾选/取消之间切换。
+  const selectRow = (record: DatasetFileItem) => {
+    const id = String(record.id);
+    setSelectedIds((prev) => {
+      if (!multiple) {
+        return [id];
+      }
+      return prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
+    });
+  };
 
   const handleOpenSheet = (item: DatasetFileItem) => {
     if (!isSpreadsheetFile(item)) {
@@ -351,8 +375,8 @@ const FileListPage = ({
   };
 
   const handleRowClick = (record: DatasetFileItem) => {
-    setSelectedId(record.id);
     if (selectable) {
+      selectRow(record);
       return;
     }
     navigate(`/dataset-file/${encodeURIComponent(record.id)}`);
@@ -418,15 +442,18 @@ const FileListPage = ({
     key: "action",
     width: 96,
     fixed: "right",
-    render: (_: unknown, record) => (
-      <Button
-        type={String(record.id) === String(selectedId) ? "primary" : "default"}
-        size="small"
-        onClick={() => setSelectedId(record.id)}
-      >
-        {String(record.id) === String(selectedId) ? "Selected" : "Select"}
-      </Button>
-    ),
+    render: (_: unknown, record) => {
+      const checked = selectedIds.includes(String(record.id));
+      return (
+        <Button
+          type={checked ? "primary" : "default"}
+          size="small"
+          onClick={() => selectRow(record)}
+        >
+          {checked ? "Selected" : "Select"}
+        </Button>
+      );
+    },
   };
 
   const listColumn = useMemo(
@@ -434,13 +461,26 @@ const FileListPage = ({
     [isDatasetSource, locale]
   );
 
-  // 选择器态与非选择器态统一使用同一种列表风格，只是多出选择列。
+  // 选择器态与非选择器态统一使用同一种列表风格；单选多一个 Select 按钮列，
+  // 多选则用 rowSelection 的 checkbox 列（表格自带）。
   const columns: ColumnsType<DatasetFileItem> = selectable
-    ? [listColumn, actionsColumn, selectColumn]
+    ? multiple
+      ? [listColumn, actionsColumn]
+      : [listColumn, actionsColumn, selectColumn]
     : [listColumn, actionsColumn];
 
   const handleConfirm = () => {
-    if (!selectedItem || !onOk) {
+    if (!onOk) {
+      return;
+    }
+    if (multiple) {
+      if (selectedItems.length === 0) {
+        return;
+      }
+      onOk(selectedItems);
+      return;
+    }
+    if (!selectedItem) {
       return;
     }
     onOk(selectedItem);
@@ -520,8 +560,15 @@ const FileListPage = ({
           {selectable && (
             <Flex gap="small">
               <Button size="small" onClick={handleCancel}>Cancel</Button>
-              <Button size="small" type="primary" disabled={!selectedItem} onClick={handleConfirm}>
-                Confirm
+              <Button
+                size="small"
+                type="primary"
+                disabled={multiple ? selectedItems.length === 0 : !selectedItem}
+                onClick={handleConfirm}
+              >
+                {multiple && selectedItems.length > 0
+                  ? `Confirm (${selectedItems.length})`
+                  : "Confirm"}
               </Button>
             </Flex>
           )}
@@ -546,15 +593,15 @@ const FileListPage = ({
           showHeader={false}
           scroll={selectable ? { x: 900 } : undefined}
           rowClassName={(record) =>
-            String(record.id) === String(selectedId) ? "project-report-row-selected" : ""
+            selectedIds.includes(String(record.id)) ? "project-report-row-selected" : ""
           }
           rowSelection={
             selectable
               ? {
-                type: "radio",
-                selectedRowKeys: selectedId ? [selectedId] : [],
+                type: multiple ? "checkbox" : "radio",
+                selectedRowKeys: selectedIds,
                 onChange: (selectedRowKeys) => {
-                  setSelectedId(String(selectedRowKeys[0] || ""));
+                  setSelectedIds(selectedRowKeys.map(String));
                 },
               }
               : undefined
