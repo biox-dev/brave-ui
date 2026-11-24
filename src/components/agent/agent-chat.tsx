@@ -1,11 +1,10 @@
 import { FC, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Empty, Flex, Popconfirm, Select, Space, Spin, Tag, Typography } from "antd";
+import { Button, Divider, Empty, Flex, Popconfirm, Select, Space, Spin, Tag, Typography } from "antd";
 import {
   CheckOutlined,
   CloseOutlined,
   DeleteOutlined,
   EditOutlined,
-  ExperimentOutlined,
   FileTextOutlined,
   ForkOutlined,
   LoadingOutlined,
@@ -64,15 +63,9 @@ import AgentAskUserCard from "./agent-ask-user";
 import AgentSender from "./agent-sender";
 import { asRecord, renderAssistantMessage } from "./agent-message-render";
 import { loadAgentConversations, ensureAgentConversations, upsertConversation } from "./agent-conversation-store";
-import { openAgentWorkspaceTab } from "@/layout/agent-workspace-store";
 import UnifiedDiff from "@/components/common/unified-diff";
 
 const { Text } = Typography;
-
-// 临时测试入口：模拟「点击聊天内容 → 在右侧工作区打开页面」。
-// 点击后在 /session/:sessionId 页面右侧的 MainTabs 里打开对应分析节点详情；
-// 多个 ID 用于验证多标签切换 / 关闭。
-const TEST_ANALYSIS_NODE_IDS = ["2122521681879633920", "2122265756107280384"];
 
 /**
  * 后端 WS 推送的 agent 事件信封（对应 handler.agentWSEvent）。
@@ -1551,9 +1544,8 @@ const AgentChat: FC<AgentChatProps> = ({
 
   return (
     <Flex vertical style={{ height: "100%", minHeight: 480 }}>
-      {/* 头部：拆成两行，避免单行信息过载。
-          第一行 = 身份 / 上下文（业务上下文 + 运行状态 + 当前 Profile）；
-          第二行 = 当前会话操作（重新拉取；会话切换 / New Chat 在左侧会话面板）。 */}
+      {/* 头部：单行解决「会话操作 + 上下文 + Profile」，窄屏时自动换行。
+          会话切换 / New Chat 在左侧「Agent 会话」面板，不占用这里。 */}
       <Flex
         vertical
         gap={10}
@@ -1564,8 +1556,8 @@ const AgentChat: FC<AgentChatProps> = ({
           borderBottom: "1px solid #f0f0f0",
         }}
       >
-        {/* 第一行：左侧业务上下文与运行状态，右侧当前 Profile */}
-        <Flex align="center" justify="space-between" gap={12}>
+        <Flex align="center" justify="space-between" gap={12} wrap>
+          {/* 左侧：业务上下文与运行状态 */}
           <Flex align="center" gap={8} style={{ minWidth: 0, flex: 1 }}>
             {envInfo?.profile_name ? (
               <Space.Compact style={{ minWidth: 0 }}>
@@ -1622,6 +1614,7 @@ const AgentChat: FC<AgentChatProps> = ({
               </Flex>
             )}
           </Flex>
+          {/* 右侧：Profile 选择与配置，Reload 固定在行尾（最右） */}
           <Flex align="center" gap={8} style={{ flexShrink: 0 }}>
             <Select
               size="small"
@@ -1646,47 +1639,24 @@ const AgentChat: FC<AgentChatProps> = ({
             >
               Permissions
             </Button>
-          </Flex>
-        </Flex>
-
-        {/* 第二行：当前会话操作。会话切换 / New Chat 已移到左侧「Agent 会话」面板。 */}
-        <Flex align="center" gap="small">
-          <Button
-            size="small"
-            icon={<ReloadOutlined spin={reloadingConversation} />}
-            title="Reload current conversation"
-            onClick={() => void handleReloadConversation()}
-            disabled={!conversationId}
-          >
-            Reload
-          </Button>
-          {/* TODO: 临时测试按钮，验证聊天内容 → 右侧工作区（MainTabs + ViewResolver）的链路；
-              多个 ID 用于验证多标签切换 / 关闭。 */}
-          {TEST_ANALYSIS_NODE_IDS.map((nodeId, index) => (
+            {/* 关闭仅在 Modal / Drawer 宿主中由 invoke 注入。 */}
+            {onCancel && (
+              <Button size="small" icon={<CloseOutlined />} onClick={onCancel}>
+                Close
+              </Button>
+            )}
+            <Divider type="vertical" style={{ margin: 0, height: 18 }} />
             <Button
-              key={nodeId}
               size="small"
-              icon={<ExperimentOutlined />}
-              title={`Open analysis node ${nodeId} in the workspace panel`}
-              onClick={() => {
-                openAgentWorkspaceTab(conversationId, {
-                  key: `analysisNode:${nodeId}`,
-                  title: `Node ${nodeId.slice(-6)}`,
-                  view: "analysisNodeDetails",
-                  params: {
-                    analysis_node_id: nodeId,
-                  },
-                });
-              }}
+              icon={<ReloadOutlined />}
+              loading={reloadingConversation}
+              title="Reload current conversation"
+              onClick={() => void handleReloadConversation()}
+              disabled={!conversationId}
             >
-              {`Test Node ${index + 1}`}
+              Reload
             </Button>
-          ))}
-          {onCancel && (
-            <Button size="small" onClick={onCancel}>
-              Close
-            </Button>
-          )}
+          </Flex>
         </Flex>
       </Flex>
 
