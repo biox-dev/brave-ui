@@ -1,8 +1,9 @@
 /* 数据集浏览器（dataset-project-page）
  *
  * 两级结构：数据集列表 -> 进入数据集后的文件列表（顶部面包屑返回）。
- * 行本身的样式沿用 layout/indexV2.css 的 .project-report-item*，这里只补充
- * 工具栏、面包屑与空态。
+ * 面板骨架、标题栏（搜索框 + 动作按钮）、底部操作区、行样式全部沿用
+ * SiderPanelLayout / layout/indexV2.css 的统一侧栏样式，这里只补充面包屑、
+ * 空态与已选计数。
  */
 
 .dataset-project-panel-body {
@@ -11,28 +12,50 @@
   min-height: 0;
 }
 
-/* 搜索框 + 操作按钮 */
-.dataset-project-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px 6px 14px;
+/* 行：名称 / 摘要占满剩余宽度，右侧为动作按钮预留固定位置，
+ * 文字在按钮前截断（与 agent-session-item 留出删除按钮位置的思路一致）。 */
+.dataset-project-item {
+  position: relative;
 }
 
-.dataset-project-toolbar .lazy-list-search {
+.dataset-project-item .project-report-item-text {
   flex: 1 1 auto;
-  width: auto;
-  min-width: 0;
+  max-width: 100%;
 }
 
-.dataset-project-toolbar .ant-btn {
+/* 行内动作按钮：参与行内布局而不是覆盖在文字上，始终占据宽度，
+ * 这样 hover 显示 / 隐藏时文字列宽不会跳动。 */
+.dataset-project-item-actions {
   flex: 0 0 auto;
+  flex-wrap: nowrap;
+  padding: 0;
 }
 
-/* 面包屑：从数据集内返回数据集列表 */
+/* 图标按钮之间留白收紧一点，尽量减少按钮占用的宽度。 */
+.dataset-project-item-actions .ant-btn {
+  padding-inline: 3px;
+}
+
+/* 面包屑：挂在 SiderPanelLayout 的 subHeader 里，外面已有内边距。
+ *
+ * Ant 的 Typography.Link 会渲染成 `display:inline-block` 并自带 14px 字号 /
+ * 22px 行高，把自身基线压低，导致「Datasets」比后面的纯文本项低约 3px。
+ * 这里统一继承面包屑的字号与行高并恢复行内基线对齐。 */
 .dataset-project-breadcrumb {
-  padding: 2px 14px 4px;
   font-size: 12px;
+}
+
+.dataset-project-breadcrumb .ant-breadcrumb-link {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.dataset-project-breadcrumb .ant-typography {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 .dataset-project-empty {

@@ -115,9 +115,23 @@ const isSpreadsheetFile = (item: DatasetFileItem) => {
   );
 };
 
-/** 文件夹 / 文件行：图标 + 名称 + 一行摘要，样式沿用侧栏的 project-report-item。 */
-const ItemRow = ({ icon, title, meta }: { icon: ReactNode; title: string; meta?: string }) => (
-  <div className="project-report-item">
+/** 文件夹 / 文件行：图标 + 名称 + 一行摘要，样式沿用侧栏的 project-report-item。
+ *
+ * `actions` 放在行尾并始终占据布局宽度（悬浮行时淡入），文字在按钮前截断，
+ * 不会出现按钮盖住文字的情况，也不单独占用一整列。
+ */
+const ItemRow = ({
+  icon,
+  title,
+  meta,
+  actions,
+}: {
+  icon: ReactNode;
+  title: string;
+  meta?: string;
+  actions?: ReactNode;
+}) => (
+  <div className="project-report-item dataset-project-item">
     {icon}
     <div className="project-report-item-text">
       <span className="project-report-item-title" title={title}>
@@ -129,6 +143,14 @@ const ItemRow = ({ icon, title, meta }: { icon: ReactNode; title: string; meta?:
         </span>
       ) : null}
     </div>
+    {actions ? (
+      <span
+        className="project-report-item-actions dataset-project-item-actions"
+        onClick={(event) => event.stopPropagation()}
+      >
+        {actions}
+      </span>
+    ) : null}
   </div>
 );
 
@@ -145,8 +167,14 @@ interface DatasetListPanelProps {
   selectedIds: string[];
   onSelectRows: (ids: string[], rows: DatasetItem[]) => void;
   onOpen: (dataset: DatasetItem) => void;
+  /** 面板标题（默认 Datasets）。 */
+  title?: string;
+  /** 选择器模式下由页面注入的底部操作区。 */
+  footer?: ReactNode;
   /** 纵向堆叠折叠时停止列表请求。 */
   collapsed?: boolean;
+  /** 点击标题栏时切换折叠态。 */
+  onToggleCollapse?: () => void;
 }
 
 const DatasetListPanel = ({
@@ -158,11 +186,12 @@ const DatasetListPanel = ({
   selectedIds,
   onSelectRows,
   onOpen,
+  title,
+  footer,
   collapsed = false,
+  onToggleCollapse,
 }: DatasetListPanelProps) => {
   const message = useGlobalMessage();
-  // 正在导入目录文件的数据集：只有该行按钮显示 loading。
-  const [importingId, setImportingId] = useState<string>();
 
   const {
     items: datasets,
@@ -216,101 +245,66 @@ const DatasetListPanel = ({
     }
   };
 
-  const handleEnsureDir = async (record: DatasetItem) => {
-    try {
-      const response = await ensureDatasetDirApi({ id: record.id });
-      const dirPath = response.data?.path;
-      message.success(dirPath ? `Dataset dir ready: ${dirPath}` : "Dataset dir ready");
-    } catch {
-      message.error("Failed to create dataset dir");
-    }
-  };
-
-  // 把数据集工作目录下尚未绑定的文件批量登记为 go_file / go_dataset_file，
-  // 后端按 path + dataset_id 判重，重复执行是幂等的。
-  const handleImportDirFiles = async (record: DatasetItem) => {
-    setImportingId(record.id);
-    try {
-      const response = await importDatasetDirFilesApi({ dataset_id: record.id });
-      const result = response.data;
-      const imported = result?.imported ?? 0;
-      const skipped = result?.skipped ?? 0;
-      const failed = result?.failed ?? 0;
-      const summary = `Imported ${imported}, skipped ${skipped}${failed > 0 ? `, failed ${failed}` : ""}`;
-
-      if (failed > 0) {
-        message.warning(summary);
-      } else {
-        message.success(summary);
-      }
-      await reload();
-    } catch {
-      message.error("Failed to import dataset dir files");
-    } finally {
-      setImportingId(undefined);
-    }
-  };
-
   const columns: ColumnsType<DatasetItem> = [
     {
       title: "Dataset",
       dataIndex: "dataset_name",
-      ellipsis: { showTitle: false },
       render: (_: string, record) => (
         <ItemRow
           icon={<FolderOpenOutlined className="project-report-item-icon" />}
           title={datasetLabel(record)}
           meta={[record.description, record.path].filter(Boolean).join(" · ") || undefined}
+          actions={
+            <>
+              <Tooltip title="Edit">
+                <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+              </Tooltip>
+              <Popconfirm
+                title="Delete this dataset?"
+                description="This will also remove its project, file and sample associations."
+                onConfirm={() => handleDelete(record)}
+              >
+                <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+              </Popconfirm>
+            </>
+          }
         />
-      ),
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      width: 130,
-      align: "right",
-      render: (_: unknown, record) => (
-        <span className="project-report-item-actions" onClick={(event) => event.stopPropagation()}>
-          <Tooltip title="Create Dir">
-            <Button type="text" size="small" icon={<FolderAddOutlined />} onClick={() => handleEnsureDir(record)} />
-          </Tooltip>
-          <Tooltip title="Import Dir Files">
-            <Button
-              type="text"
-              size="small"
-              icon={<ImportOutlined />}
-              loading={importingId === record.id}
-              disabled={Boolean(importingId) && importingId !== record.id}
-              onClick={() => handleImportDirFiles(record)}
-            />
-          </Tooltip>
-          <Tooltip title="Edit">
-            <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
-          </Tooltip>
-          <Popconfirm
-            title="Delete this dataset?"
-            description="This will also remove its project, file and sample associations."
-            onConfirm={() => handleDelete(record)}
-          >
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </span>
       ),
     },
   ];
 
   return (
-    <div className="dataset-project-panel-body">
-      <div className="dataset-project-toolbar">
-        <LazyListSearch value={keyword} onChange={setKeyword} placeholder="Search datasets" />
-        <Button type="primary" size="small" icon={<PlusOutlined />} onClick={handleCreate}>
-          New
-        </Button>
-        <Tooltip title="Refresh">
-          <Button type="text" size="small" icon={<ReloadOutlined />} loading={isFetching} onClick={() => reload()} />
-        </Tooltip>
-      </div>
-
+    <SiderPanelLayout
+      className="dataset-project-panel"
+      bodyClassName="dataset-project-panel-body"
+      title={title || "Datasets"}
+      titleExtra={total > 0 ? <span className="sider-panel-count">{total}</span> : undefined}
+      collapsed={collapsed}
+      onToggleCollapse={onToggleCollapse}
+      footer={footer}
+      actions={
+        <>
+          <LazyListSearch
+            value={keyword}
+            onChange={setKeyword}
+            placeholder="Search datasets"
+            className="project-report-panel-search"
+          />
+          <Tooltip title="New Dataset">
+            <Button type="text" size="small" icon={<PlusOutlined />} onClick={handleCreate} />
+          </Tooltip>
+          <Tooltip title="Refresh">
+            <Button
+              type="text"
+              size="small"
+              icon={<ReloadOutlined />}
+              loading={isFetching}
+              onClick={() => reload()}
+            />
+          </Tooltip>
+        </>
+      }
+    >
       {datasets.length === 0 && !isFetching ? (
         <div className="dataset-project-empty">
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={error ? "Failed to load datasets" : "No datasets"} />
@@ -320,11 +314,11 @@ const DatasetListPanel = ({
           rowKey="id"
           size="small"
           showHeader={false}
+          tableLayout="fixed"
           columns={columns}
           dataSource={datasets}
           loading={isFetching}
           pagination={false}
-          scroll={{ x: 540 }}
           rowClassName={(record) => (selectedIds.includes(record.id) ? "project-report-row-selected" : "")}
           rowSelection={
             selectable
@@ -355,7 +349,7 @@ const DatasetListPanel = ({
         total={total}
         labels={{ loading: "Loading more…", noMore: "No more datasets", totalPrefix: "total " }}
       />
-    </div>
+    </SiderPanelLayout>
   );
 };
 
@@ -411,8 +405,14 @@ interface DatasetFilesPanelProps {
   selectedIds: string[];
   onSelectRows: (ids: string[], rows: DatasetFileItem[]) => void;
   onToggle: (file: DatasetFileItem) => void;
+  /** 返回数据集列表。 */
+  onBack: () => void;
+  /** 选择器模式下由页面注入的底部操作区。 */
+  footer?: ReactNode;
   /** 纵向堆叠折叠时停止列表请求。 */
   collapsed?: boolean;
+  /** 点击标题栏时切换折叠态。 */
+  onToggleCollapse?: () => void;
 }
 
 const DatasetFilesPanel = ({
@@ -423,7 +423,10 @@ const DatasetFilesPanel = ({
   selectedIds,
   onSelectRows,
   onToggle,
+  onBack,
+  footer,
   collapsed = false,
+  onToggleCollapse,
 }: DatasetFilesPanelProps) => {
   const message = useGlobalMessage();
   const { close: closeUI } = useUI();
@@ -431,6 +434,8 @@ const DatasetFilesPanel = ({
   const cacheRef = useRef<Promise<DatasetFileItem[]> | null>(null);
   // 版本号：上传 / 编辑 / 删除后自增，触发列表重新拉取。
   const [version, setVersion] = useState(0);
+  // 正在导入目录文件：按钮显示 loading。
+  const [importing, setImporting] = useState(false);
 
   const fetcher = useMemo(() => createDatasetFilesFetcher(dataset.id, cacheRef), [dataset.id]);
   const {
@@ -503,6 +508,41 @@ const DatasetFilesPanel = ({
     refresh();
   };
 
+  const handleEnsureDir = async () => {
+    try {
+      const response = await ensureDatasetDirApi({ id: dataset.id });
+      const dirPath = response.data?.path;
+      message.success(dirPath ? `Dataset dir ready: ${dirPath}` : "Dataset dir ready");
+    } catch {
+      message.error("Failed to create dataset dir");
+    }
+  };
+
+  // 把数据集工作目录下尚未绑定的文件批量登记为 go_file / go_dataset_file，
+  // 后端按 path + dataset_id 判重，重复执行是幂等的。
+  const handleImportDirFiles = async () => {
+    setImporting(true);
+    try {
+      const response = await importDatasetDirFilesApi({ dataset_id: dataset.id });
+      const result = response.data;
+      const imported = result?.imported ?? 0;
+      const skipped = result?.skipped ?? 0;
+      const failed = result?.failed ?? 0;
+      const summary = `Imported ${imported}, skipped ${skipped}${failed > 0 ? `, failed ${failed}` : ""}`;
+
+      if (failed > 0) {
+        message.warning(summary);
+      } else {
+        message.success(summary);
+      }
+      refresh();
+    } catch {
+      message.error("Failed to import dataset dir files");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   // 打开系统文件浏览器；当前数据集的 id 会一并传入，里面点「Add To」
   // 直接把文件加到该数据集，不再弹数据集选择框。
   const handleOpenSysFileBrowser = () => {
@@ -525,55 +565,110 @@ const DatasetFilesPanel = ({
     {
       title: "File",
       dataIndex: "file_name",
-      ellipsis: { showTitle: false },
       render: (_: string, record) => (
         <ItemRow
           icon={<FileOutlined className="project-report-item-icon" />}
           title={fileLabel(record)}
           meta={[record.format, record.role, formatBytes(record.size)].filter(Boolean).join(" · ") || undefined}
+          actions={
+            <>
+              <Tooltip title="Open Sheet">
+                <Button type="text" size="small" icon={<TableOutlined />} onClick={() => handleOpenSheet(record)} />
+              </Tooltip>
+              <Tooltip title="Edit">
+                <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+              </Tooltip>
+              <Popconfirm
+                title="Delete this file?"
+                description="This will remove the file and its dataset associations."
+                onConfirm={() => handleDelete(record)}
+              >
+                <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+              </Popconfirm>
+            </>
+          }
         />
-      ),
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      width: 110,
-      align: "right",
-      render: (_: unknown, record) => (
-        <span className="project-report-item-actions" onClick={(event) => event.stopPropagation()}>
-          <Tooltip title="Open Sheet">
-            <Button type="text" size="small" icon={<TableOutlined />} onClick={() => handleOpenSheet(record)} />
-          </Tooltip>
-          <Tooltip title="Edit">
-            <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
-          </Tooltip>
-          <Popconfirm
-            title="Delete this file?"
-            description="This will remove the file and its dataset associations."
-            onConfirm={() => handleDelete(record)}
-          >
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </span>
       ),
     },
   ];
 
   return (
-    <div className="dataset-project-panel-body">
-      <div className="dataset-project-toolbar">
-        <LazyListSearch value={keyword} onChange={setKeyword} placeholder="Search files" />
-        <Tooltip title="Upload">
-          <Button type="text" size="small" icon={<UploadOutlined />} onClick={handleUpload} />
-        </Tooltip>
-        <Tooltip title="System Files">
-          <Button type="text" size="small" icon={<FolderOpenOutlined />} onClick={handleOpenSysFileBrowser} />
-        </Tooltip>
-        <Tooltip title="Refresh">
-          <Button type="text" size="small" icon={<ReloadOutlined />} loading={isFetching} onClick={refresh} />
-        </Tooltip>
-      </div>
-
+    <SiderPanelLayout
+      className="dataset-project-panel"
+      bodyClassName="dataset-project-panel-body"
+      title={datasetLabel(dataset)}
+      titleExtra={total > 0 ? <span className="sider-panel-count">{total}</span> : undefined}
+      collapsed={collapsed}
+      onToggleCollapse={onToggleCollapse}
+      footer={footer}
+      subHeader={
+        <Breadcrumb
+          className="dataset-project-breadcrumb"
+          items={[
+            { title: <Typography.Link onClick={onBack}>Datasets</Typography.Link> },
+            { title: datasetLabel(dataset) },
+          ]}
+        />
+      }
+      actions={
+        <>
+          <Tooltip title="Back to datasets">
+            <Button
+              type="text"
+              size="small"
+              icon={<ArrowLeftOutlined />}
+              aria-label="Back to datasets"
+              onClick={onBack}
+            />
+          </Tooltip>
+          <LazyListSearch
+            value={keyword}
+            onChange={setKeyword}
+            placeholder="Search files"
+            className="project-report-panel-search"
+          />
+          <Tooltip title="Create Dir">
+            <Button
+              type="text"
+              size="small"
+              icon={<FolderAddOutlined />}
+              aria-label="Create Dir"
+              onClick={handleEnsureDir}
+            />
+          </Tooltip>
+          <Tooltip title="Import Dir Files">
+            <Button
+              type="text"
+              size="small"
+              icon={<ImportOutlined />}
+              aria-label="Import Dir Files"
+              loading={importing}
+              onClick={handleImportDirFiles}
+            />
+          </Tooltip>
+          <Tooltip title="Upload">
+            <Button type="text" size="small" icon={<UploadOutlined />} onClick={handleUpload} />
+          </Tooltip>
+          <Tooltip title="System Files">
+            <Button
+              type="text"
+              size="small"
+              icon={<FolderOpenOutlined />}
+              onClick={handleOpenSysFileBrowser}
+            />
+          </Tooltip>
+          <Tooltip title="Refresh">
+            <Button
+              type="text"
+              size="small"
+              icon={<ReloadOutlined />}
+              loading={isFetching}
+              onClick={refresh}
+            />
+          </Tooltip>
+        </>
+      }
+    >
       {files.length === 0 && !isFetching ? (
         <div className="dataset-project-empty">
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={error ? "Failed to load files" : "No files"} />
@@ -583,11 +678,11 @@ const DatasetFilesPanel = ({
           rowKey="id"
           size="small"
           showHeader={false}
+          tableLayout="fixed"
           columns={columns}
           dataSource={files}
           loading={isFetching}
           pagination={false}
-          scroll={{ x: 520 }}
           rowClassName={(record) => (selectedIds.includes(record.id) ? "project-report-row-selected" : "")}
           rowSelection={
             selectable && multiple
@@ -622,7 +717,7 @@ const DatasetFilesPanel = ({
         total={total}
         labels={{ loading: "Loading more…", noMore: "No more files", totalPrefix: "total " }}
       />
-    </div>
+    </SiderPanelLayout>
   );
 };
 
@@ -740,78 +835,55 @@ const DatasetProjectPage = ({
     close?.();
   };
 
-  return (
-    <SiderPanelLayout
-      className="dataset-project-panel"
-      title={activeDataset ? datasetLabel(activeDataset) : title || "Datasets"}
+  // 选择器模式下的底部操作区：两个层级共用，由面板透传给 SiderPanelLayout。
+  const footer = selectable ? (
+    <Flex align="center" justify="space-between" gap="small" style={{ width: "100%" }}>
+      <span className="dataset-project-picked">
+        {multiple ? `${datasetIds.length} dataset(s) · ${fileIds.length} file(s)` : ""}
+      </span>
+      <Flex gap="small">
+        <Button size="small" onClick={handleCancel}>
+          Cancel
+        </Button>
+        <Button size="small" type="primary" disabled={totalPicked === 0} onClick={handleConfirm}>
+          {multiple && totalPicked > 0 ? `Confirm (${totalPicked})` : "Confirm"}
+        </Button>
+      </Flex>
+    </Flex>
+  ) : undefined;
+
+  // 每个层级各自渲染 SiderPanelLayout：搜索框与动作按钮落在统一标题栏里，
+  // 与脚本 / 流程 / 文献等侧栏面板保持一致。
+  return activeDataset ? (
+    <DatasetFilesPanel
+      key={activeDataset.id}
+      dataset={activeDataset}
+      pageSize={normalizePageSize(page_size, 20)}
+      selectable={selectable}
+      multiple={multiple}
+      selectedIds={fileIds}
+      onSelectRows={selectFiles}
+      onToggle={toggleFile}
+      onBack={() => setActiveDataset(undefined)}
+      footer={footer}
       collapsed={collapsed}
       onToggleCollapse={onToggleCollapse}
-      actions={
-        activeDataset ? (
-          <Tooltip title="Back to datasets">
-            <Button
-              type="text"
-              size="small"
-              icon={<ArrowLeftOutlined />}
-              aria-label="Back to datasets"
-              onClick={() => setActiveDataset(undefined)}
-            />
-          </Tooltip>
-        ) : undefined
-      }
-      footer={
-        selectable ? (
-          <Flex align="center" justify="space-between" gap="small" style={{ width: "100%" }}>
-            <span className="dataset-project-picked">
-              {multiple ? `${datasetIds.length} dataset(s) · ${fileIds.length} file(s)` : ""}
-            </span>
-            <Flex gap="small">
-              <Button size="small" onClick={handleCancel}>
-                Cancel
-              </Button>
-              <Button size="small" type="primary" disabled={totalPicked === 0} onClick={handleConfirm}>
-                {multiple && totalPicked > 0 ? `Confirm (${totalPicked})` : "Confirm"}
-              </Button>
-            </Flex>
-          </Flex>
-        ) : undefined
-      }
-    >
-      {activeDataset ? (
-        <>
-          <Breadcrumb
-            className="dataset-project-breadcrumb"
-            items={[
-              { title: <Typography.Link onClick={() => setActiveDataset(undefined)}>Datasets</Typography.Link> },
-              { title: datasetLabel(activeDataset) },
-            ]}
-          />
-          <DatasetFilesPanel
-            key={activeDataset.id}
-            dataset={activeDataset}
-            pageSize={normalizePageSize(page_size, 20)}
-            selectable={selectable}
-            multiple={multiple}
-            selectedIds={fileIds}
-            onSelectRows={selectFiles}
-            onToggle={toggleFile}
-            collapsed={collapsed}
-          />
-        </>
-      ) : (
-        <DatasetListPanel
-          projectId={resolvedProjectId}
-          filters={filters}
-          pageSize={normalizePageSize(page_size, 10)}
-          selectable={selectable}
-          multiple={multiple}
-          selectedIds={datasetIds}
-          onSelectRows={selectDatasets}
-          onOpen={setActiveDataset}
-          collapsed={collapsed}
-        />
-      )}
-    </SiderPanelLayout>
+    />
+  ) : (
+    <DatasetListPanel
+      projectId={resolvedProjectId}
+      filters={filters}
+      pageSize={normalizePageSize(page_size, 10)}
+      selectable={selectable}
+      multiple={multiple}
+      selectedIds={datasetIds}
+      onSelectRows={selectDatasets}
+      onOpen={setActiveDataset}
+      title={title || "Datasets"}
+      footer={footer}
+      collapsed={collapsed}
+      onToggleCollapse={onToggleCollapse}
+    />
   );
 };
 

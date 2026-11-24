@@ -19,7 +19,9 @@
 }
 
 .sider-panel-subheader {
-  padding: 0 10px 8px;
+  /* 左侧 14px 与 .project-report-panel-header 的内边距一致，
+   * 让副标题（如面包屑）与面板标题左沿对齐。 */
+  padding: 0 10px 8px 14px;
 }
 
 .sider-panel-footer {
