@@ -142,21 +142,25 @@
   flex: 1 1 auto;
 }
 
-/* 取消关联按钮默认隐藏，悬停 / 条目内有焦点时出现，避免列表过于拥挤 */
-.ant-btn.session-resource-item-unlink {
+/* 取消关联 / Ask Agent 按钮默认隐藏，悬停 / 条目内有焦点时出现，避免列表过于拥挤 */
+.ant-btn.session-resource-item-unlink,
+.ant-btn.session-resource-item-ask {
   flex: 0 0 auto;
   opacity: 0;
   transition: opacity 0.15s ease;
 }
 
 .session-resource-item:hover .ant-btn.session-resource-item-unlink,
-.session-resource-item:focus-within .ant-btn.session-resource-item-unlink {
+.session-resource-item:hover .ant-btn.session-resource-item-ask,
+.session-resource-item:focus-within .ant-btn.session-resource-item-unlink,
+.session-resource-item:focus-within .ant-btn.session-resource-item-ask {
   opacity: 1;
 }
 
-/* 触屏设备没有 hover：取消关联按钮常驻显示，保证可操作 */
+/* 触屏设备没有 hover：按钮常驻显示，保证可操作 */
 @media (hover: none) {
-  .ant-btn.session-resource-item-unlink {
+  .ant-btn.session-resource-item-unlink,
+  .ant-btn.session-resource-item-ask {
     opacity: 1;
   }
 }

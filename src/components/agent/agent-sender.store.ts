@@ -8,7 +8,10 @@ import { create } from "zustand";
  * - container：容器模板（Agent 侧用 get_container_template 解析展示名 / 描述）；
  * - report：项目报告（id 由 Agent 侧业务上下文 / 消息文本自行解析）；
  * - analysis_node：分析节点（Agent 侧用 get_analysis_node 查看节点名称 / 类型 / 工作目录 / 参数）；
- * - script：分析脚本（Agent 侧用 get_script 查看脚本名称 / 描述 / 容器模板 / 脚本文件与 io_schema 路径）。
+ * - script：分析脚本（Agent 侧用 get_script 查看脚本名称 / 描述 / 容器模板 / 脚本文件与 io_schema 路径）；
+ * - workflow：分析工作流（Agent 侧用 get_workflow 查看元数据 / DAG 定义 / io_schema）；
+ * - analysis：一次分析运行（Agent 侧用 get_analysis_workflow 查看状态 / 参数 / 节点分布）；
+ * - plan：Agent 计划（Agent 侧计划工具按 @plan:<id> 读取步骤树）。
  */
 export type AgentRefKind =
   | "file"
@@ -16,7 +19,10 @@ export type AgentRefKind =
   | "container"
   | "report"
   | "analysis_node"
-  | "script";
+  | "script"
+  | "workflow"
+  | "analysis"
+  | "plan";
 
 /** 一次「把引用 chip 插入 Agent 输入框」的请求。 */
 export interface AgentRefRequest {

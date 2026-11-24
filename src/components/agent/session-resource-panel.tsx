@@ -1,12 +1,14 @@
 import { FC, useState } from 'react';
 import { Button, Popconfirm } from 'antd';
-import { DisconnectOutlined } from '@ant-design/icons';
+import { DisconnectOutlined, RobotOutlined } from '@ant-design/icons';
 import {
   unlinkAgentSessionResourceApi,
   type AgentSessionResourceItem,
   type AgentSessionResourceType,
 } from '@/api/agent';
+import type { AgentRefKind } from '@/components/agent/agent-sender.store';
 import { getGlobalMessage } from '@/hooks/useGlobalMessage';
+import { useInsertAgentRef } from '@/hooks/useInsertAgentRef';
 import { useI18n } from '@/hooks/useI18n';
 import {
   getSessionResourceTabKey,
@@ -18,6 +20,26 @@ import { closeAgentWorkspaceTab, useAgentWorkspace } from '@/layout/agent-worksp
 
 /** 分组数据未就绪时的共享空数组，保持引用稳定。 */
 const EMPTY_RESOURCE_ITEMS: AgentSessionResourceItem[] = [];
+
+/**
+ * 会话资源类型 → Agent 引用前缀（提交时拼成 `@<kind>:<id>`）。
+ *
+ * 前缀与后端工具的容错解析保持一致：
+ *   - plan → 计划工具（@plan:<id>）；
+ *   - script → get_script；
+ *   - workflow → get_workflow；
+ *   - analysis → get_analysis_workflow；
+ *   - analysis_node → get_analysis_node；
+ *   - project_report → get_report（与报告文件页的 @report:<id> 同一个前缀）。
+ */
+const RESOURCE_REF_KINDS: Record<AgentSessionResourceType, AgentRefKind> = {
+  plan: 'plan',
+  script: 'script',
+  workflow: 'workflow',
+  analysis: 'analysis',
+  analysis_node: 'analysis_node',
+  project_report: 'report',
+};
 
 export interface SessionResourcePanelProps {
   /** 当前会话 ID；New Chat（无会话）时不发起请求。 */
@@ -39,6 +61,10 @@ export interface SessionResourcePanelProps {
  *
  * 点击名称在右侧工作区（SplitWorkspace 的 rightMiddle）打开对应页面：
  * 视图名 / 参数 / 标签 key 由 `session-resource-workspace.ts` 统一映射。
+ *
+ * 每条记录右侧还有一个「Ask Agent」（机器人图标）按钮：把该资源按类型对应的
+ * 前缀（如 `@plan:<id>` / `@workflow:<id>` / `@report:<id>`）作为引用 chip
+ * 插进 Agent 输入框，见 `RESOURCE_REF_KINDS`。
  */
 const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
   sessionId,
@@ -51,12 +77,17 @@ const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
   const activeTabKey = useAgentWorkspace(sessionId).active;
   // 正在取消关联的关联行 ID：只禁用该条的按钮，避免重复提交。
   const [unlinkingId, setUnlinkingId] = useState<string>();
+  // 把资源按类型对应的前缀插入 Agent 输入框（@plan / @script / @workflow ...）。
+  const insertAgentRef = useInsertAgentRef();
 
   const items = groups?.[resourceType] ?? EMPTY_RESOURCE_ITEMS;
   const openable = isSessionResourceOpenable(resourceType) && Boolean(sessionId);
   const deletedLabel = locale === 'en_US' ? 'Deleted' : '已删除';
   const unlinkLabel = locale === 'en_US' ? 'Unlink' : '取消关联';
   const unlinkedText = locale === 'en_US' ? 'Removed from session results' : '已取消关联';
+  const askAgentLabel = locale === 'en_US' ? 'Ask Agent' : '询问 Agent';
+  const askAgentText =
+    locale === 'en_US' ? 'Reference added to Agent input' : '已加入 Agent 输入框引用';
 
   // 取消关联：只删除「会话 ↔ 资源」关联行，资源本身保留；随后刷新共享列表。
   const handleUnlink = async (record: AgentSessionResourceItem) => {
@@ -107,6 +138,25 @@ const SessionResourcePanel: FC<SessionResourcePanelProps> = ({
               ) : (
                 <span className="session-resource-item-name">{displayName}</span>
               )}
+              {/* Ask Agent：按资源类型插入对应前缀的引用 chip（@plan / @workflow / ...）。 */}
+              <Button
+                type="text"
+                size="small"
+                className="session-resource-item-ask"
+                icon={<RobotOutlined />}
+                title={askAgentLabel}
+                aria-label={askAgentLabel}
+                onClick={() => {
+                  const ok = insertAgentRef(
+                    RESOURCE_REF_KINDS[resourceType],
+                    record.resource_id,
+                    { label: displayName },
+                  );
+                  if (ok) {
+                    getGlobalMessage()?.success(askAgentText);
+                  }
+                }}
+              />
               <Popconfirm
                 title={unlinkLabel}
                 description={
