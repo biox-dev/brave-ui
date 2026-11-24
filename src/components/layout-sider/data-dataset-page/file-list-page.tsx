@@ -7,17 +7,14 @@ import {
   DeleteOutlined,
   EditOutlined,
   FileOutlined,
-  FolderOpenOutlined,
   ReloadOutlined,
   TableOutlined,
-  UploadOutlined,
 } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { LazyListFooter, LazyListSearch, LazyListSentinel, useLazyList } from "@/components/common/lazy-list";
 import type { DatasetFileItem, DatasetFilePageQuery } from "@/api/data";
 import { deleteFileApi, pageFileByProjectApi, pageFileByProjectViaAnalysisNodeApi } from "@/api/data";
 import { invoke } from "@/core/ui-system/invokeV2";
-import { useUI } from "@/core/ui-system/useUI";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import { useI18n } from "@/hooks/useI18n";
 import { formatRelativeTime } from "@/utils/time";
@@ -249,7 +246,6 @@ const FileListPage = ({
   const message = useGlobalMessage();
   const { locale } = useI18n();
   const navigate = useNavigate();
-  const { close: closeUI } = useUI();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const isDatasetSource = source === "dataset";
@@ -338,40 +334,6 @@ const FileListPage = ({
         footer: null,
       }
     );
-  };
-
-  const handleOpenSysFileBrowser = () => {
-    const id = invoke.sysFileBrowser.drawer(
-      {
-        type: "data",
-        path: "/",
-        onClose: () => {
-          closeUI(id);
-          refetch();
-        },
-      },
-      { width: 640, title: "System Files" }
-    );
-  };
-
-  // Upload a local file into a dataset through the shared collected-upload
-  // dialog; it resolves once the upload finishes, so refresh the list after.
-  const handleUpload = async () => {
-    try {
-      await invoke.collectedFileUpload.openDrawerAsync(
-        {
-          title: `${title || "Files"} Upload`,
-          role: normalizeRoles(role),
-          defaultDatasetId: normalizeText(dataset_id),
-        },
-        { width: 520, title: `Upload to ${title || "Files"}` }
-      );
-    } catch {
-      // user cancelled
-      return;
-    }
-
-    refetch();
   };
 
   const handleRowClick = (record: DatasetFileItem) => {
@@ -513,26 +475,6 @@ const FileListPage = ({
             placeholder="Search files"
             className="project-report-panel-search"
           />
-          {isDatasetSource && (
-            <>
-              <Tooltip title="Upload">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<UploadOutlined />}
-                  onClick={handleUpload}
-                />
-              </Tooltip>
-              <Tooltip title="System Files">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<FolderOpenOutlined />}
-                  onClick={handleOpenSysFileBrowser}
-                />
-              </Tooltip>
-            </>
-          )}
           <Tooltip title="Refresh">
             <Button
               type="text"

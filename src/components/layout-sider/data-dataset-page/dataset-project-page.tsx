@@ -14,6 +14,7 @@ import {
   PlusOutlined,
   ReloadOutlined,
   TableOutlined,
+  UploadOutlined,
 } from "@ant-design/icons";
 import { LazyListFooter, LazyListSearch, LazyListSentinel, useLazyList } from "@/components/common/lazy-list";
 import {
@@ -33,6 +34,7 @@ import type {
   PageResponse,
 } from "@/api/data";
 import { invoke } from "@/core/ui-system/invokeV2";
+import { useUI } from "@/core/ui-system/useUI";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import SiderPanelLayout from "../common/sider-panel-layout";
 import "./dataset-project-page.css";
@@ -413,6 +415,7 @@ const DatasetFilesPanel = ({
   onToggle,
 }: DatasetFilesPanelProps) => {
   const message = useGlobalMessage();
+  const { close: closeUI } = useUI();
   // 非分页接口的本地缓存（进入数据集只请求一次），刷新时清空。
   const cacheRef = useRef<Promise<DatasetFileItem[]> | null>(null);
   // 版本号：上传 / 编辑 / 删除后自增，触发列表重新拉取。
@@ -488,6 +491,24 @@ const DatasetFilesPanel = ({
     refresh();
   };
 
+  // 打开系统文件浏览器；当前数据集的 id 会一并传入，里面点「Add To」
+  // 直接把文件加到该数据集，不再弹数据集选择框。
+  const handleOpenSysFileBrowser = () => {
+    const id = invoke.sysFileBrowser.drawer(
+      {
+        type: "data",
+        path: "/",
+        defaultDatasetId: dataset.id,
+        onFileAdded: refresh,
+        onClose: () => {
+          closeUI(id);
+          refresh();
+        },
+      },
+      { width: 640, title: `System Files: ${datasetLabel(dataset)}` }
+    );
+  };
+
   const columns: ColumnsType<DatasetFileItem> = [
     {
       title: "File",
@@ -531,7 +552,10 @@ const DatasetFilesPanel = ({
       <div className="dataset-project-toolbar">
         <LazyListSearch value={keyword} onChange={setKeyword} placeholder="Search files" />
         <Tooltip title="Upload">
-          <Button type="text" size="small" icon={<PlusOutlined />} onClick={handleUpload} />
+          <Button type="text" size="small" icon={<UploadOutlined />} onClick={handleUpload} />
+        </Tooltip>
+        <Tooltip title="System Files">
+          <Button type="text" size="small" icon={<FolderOpenOutlined />} onClick={handleOpenSysFileBrowser} />
         </Tooltip>
         <Tooltip title="Refresh">
           <Button type="text" size="small" icon={<ReloadOutlined />} loading={isFetching} onClick={refresh} />

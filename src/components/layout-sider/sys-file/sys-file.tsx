@@ -65,7 +65,7 @@ const joinPath = (basePath: string, name: string) => {
 
 // path="/" type="data"
 
-const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose }) => {
+const SysFileBrowser: FC<any> = ({ type="data", path="/", defaultDatasetId, onSelectFile, onFileAdded, onClose }) => {
     const navigate = useNavigate()
     const [files, setFiles] = useState<FileItem[]>([])
     const [currentPath, setCurrentPath] = useState(path)
@@ -268,11 +268,16 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
             return
         }
         try {
-            const dataset = await invoke.datasetProjectPage.openDrawerAsync({}, {
-                width: 600,
-                title: "Select Dataset",
-            })
-            if (!dataset?.id) {
+            // 调用方已指定数据集（例如从该数据集的文件页打开）时跳过选择数据集。
+            let datasetId = defaultDatasetId
+            if (!datasetId) {
+                const dataset = await invoke.datasetProjectPage.openDrawerAsync({}, {
+                    width: 600,
+                    title: "Select Dataset",
+                })
+                datasetId = dataset?.id
+            }
+            if (!datasetId) {
                 return
             }
             const result = await invoke.selectFileRole.openDrawerAsync(
@@ -280,7 +285,7 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
                 { width: 450, title: "Add File to Dataset" }
             )
             await addFileToDatasetApi({
-                dataset_id: dataset.id,
+                dataset_id: datasetId,
                 path: result.path,
                 // this browser always lists the project data dir, so paths are
                 // relative to base_dir/data/<project_id>
@@ -291,6 +296,7 @@ const SysFileBrowser: FC<any> = ({ type="data", path="/", onSelectFile, onClose 
                 is_copy: result.is_copy,
             })
             messageApi.success("File added to dataset")
+            onFileAdded?.()
         } catch (error) {
             console.log("Dataset selection cancelled or failed", error)
         }
