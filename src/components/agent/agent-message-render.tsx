@@ -5,6 +5,7 @@ import XMarkdown from "@ant-design/x-markdown";
 import {
   openAgentWorkspaceTab,
   sessionWorkspaceKey,
+  setActiveAgentWorkspaceTab,
   updateAgentWorkspaceTab,
   useAgentWorkspaceStore,
 } from "@/layout/agent-workspace-store";
@@ -143,8 +144,17 @@ const toolCallTabKey = (view: CallView) => `tool-call:${view.callId || view.name
  */
 const toolCallTabTitle = (view: CallView) => view.purpose?.trim() || view.name;
 
-/** 打开 / 更新详情标签：同一调用始终复用同一个标签 key。 */
-const openToolCallTab = (conversationId: string | undefined, view: CallView) => {
+/** 打开 / 更新详情标签：同一调用始终复用同一个标签 key。
+ *
+ * `focus` 区分两种调用来源：
+ *  - 用户点击调用行（`true`）：必须切到该标签，即使用户当前在看别的标签；
+ *  - effect 里回填结果（`false`）：只同步内容，不抢焦点，也不重复写 store。
+ */
+const openToolCallTab = (
+  conversationId: string | undefined,
+  view: CallView,
+  focus = false,
+) => {
   if (!conversationId) return;
   const key = toolCallTabKey(view);
   const title = toolCallTabTitle(view);
@@ -158,26 +168,39 @@ const openToolCallTab = (conversationId: string | undefined, view: CallView) => 
     purpose: view.purpose,
   };
 
-  // 已打开且内容没变时不做任何写入（幂等）。
-  //
-  // 最关键的是 executing / output / isError：调用行在每次消息列表渲染时都会同步，
-  // 若内容相同仍然写 store，就会「写 store → 重渲染 → 再同步」无限循环
-  // （Maximum update depth exceeded）。input 按引用比较（message.data 引用稳定）。
   const session = useAgentWorkspaceStore.getState().bySession[sessionWorkspaceKey(conversationId)];
   const existing = session?.tabs.find((tab) => tab.key === key);
+
   if (existing) {
+    // 内容是否与标签里的一致。
+    //
+    // 最关键的是 executing / output / isError：调用行在每次消息列表渲染时都会同步，
+    // 若内容相同仍然写 store，就会「写 store → 重渲染 → 再同步」无限循环
+    // （Maximum update depth exceeded）。input 按引用比较（message.data 引用稳定）。
     const prev = existing.params ?? {};
-    if (
+    const unchanged =
       existing.title === title &&
       prev.input === params.input &&
       prev.output === params.output &&
       prev.isError === params.isError &&
       prev.executing === params.executing &&
       prev.metadata === params.metadata &&
-      prev.purpose === params.purpose
-    ) {
+      prev.purpose === params.purpose;
+
+    if (unchanged) {
+      // 内容没变：点击时只切过去；后台同步时什么也不做（避免多余的写 store）。
+      if (focus && session?.active !== key) {
+        setActiveAgentWorkspaceTab(conversationId, key);
+      }
       return;
     }
+
+    if (focus) {
+      // 点击：更新内容并激活（openAgentWorkspaceTab 已存在时会原地更新 + 聚焦）。
+      openAgentWorkspaceTab(conversationId, { key, title, view: "agentToolCallDetail", params });
+      return;
+    }
+
     // 内容有变化：原地更新标签内容，但不抢焦点（用户可能正在看别的标签）。
     updateAgentWorkspaceTab(conversationId, { key, title, view: "agentToolCallDetail", params });
     return;
@@ -237,7 +260,8 @@ export function ToolCallRow({
         type="button"
         title={canOpen ? "Open tool call details" : undefined}
         // 没有会话 ID（如 New Chat）时无法为该会话开标签，行不可点击。
-        onClick={() => canOpen && openToolCallTab(conversationId, view)}
+        // 点击一律聚焦该调用对应的标签（即使之前已经打开过）。
+        onClick={() => canOpen && openToolCallTab(conversationId, view, true)}
         style={{
           ...PANEL_HEADER_STYLE,
           cursor: canOpen ? "pointer" : "default",
