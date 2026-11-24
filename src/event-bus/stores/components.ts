@@ -27,9 +27,20 @@ const MULTI_INSTANCE_CATEGORIES = new Set<string>([
     // 计划进度：同一个计划可能同时在表格展开行 / 右侧工作区标签里展示，
     // 后端上报状态后所有实例都要刷新。
     "agent-plan-progress",
+    // Agent 会话标题异步生成后，左侧面板可能存在多个实例或堆叠分区。
+    "agent-session",
 ]);
 
 const isMultiCategory = (category: string) => MULTI_INSTANCE_CATEGORIES.has(category);
+
+/**
+ * 广播用的保留 id：把事件发给该类目下所有已注册实例。
+ *
+ * 后端推送 `component.invoke` 时用 `id: "*"` 表示「不针对某个具体组件」，
+ * 这里把它显式导出，避免各处硬编码裸字符串 "*" 造成语义混淆
+ * （真实组件 id 理论上也可能是任意字符串）。
+ */
+export const BROADCAST_ID = "*";
 
 // 统一的组件 store
 export type ComponentStore = {
@@ -45,6 +56,7 @@ export type ComponentStore = {
     "runtime-status": Record<string, Set<any> | any>;
     "agent-session-resource": Record<string, Set<any> | any>;
     "agent-plan-progress": Record<string, Set<any> | any>;
+    "agent-session": Record<string, Set<any> | any>;
     "analysis-node": Record<string, any>;
     "ai-summary": Record<string, any>;
     graph: Record<string, any>; 
@@ -55,6 +67,8 @@ export type ComponentStore = {
     unregister: <T>(category: keyof ComponentStore, id: string, instance?: T) => void;
     print: () => ComponentStore;
     invoke: (category: keyof ComponentStore, id: string, method: string, args?: any[]) => void;
+    /** 把 method 派发给该 category 下所有注册实例（等价于 invoke(category, BROADCAST_ID, ...)）。 */
+    invokeAll: (category: keyof ComponentStore, method: string, args?: any[]) => void;
 };
 
 export const useComponentStore = create<ComponentStore>((set, get) => ({
@@ -70,6 +84,7 @@ export const useComponentStore = create<ComponentStore>((set, get) => ({
     "runtime-status": {},
     "agent-session-resource": {},
     "agent-plan-progress": {},
+    "agent-session": {},
     "analysis-node": {},
     "ai-summary": {},
     graph: {},
@@ -135,6 +150,10 @@ export const useComponentStore = create<ComponentStore>((set, get) => ({
 
             return { [category]: map };
         });
+    },
+
+    invokeAll: (category, method, args = []) => {
+        get().invoke(category, BROADCAST_ID, method, args);
     },
 
     invoke: (category, id, method, args = []) => {

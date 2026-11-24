@@ -1,4 +1,4 @@
-import { FC, useCallback, useEffect, useRef, useState } from 'react';
+import { FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Empty, Flex, Popconfirm, Spin, Tooltip } from 'antd';
 import {
   CommentOutlined,
@@ -17,8 +17,10 @@ import {
   loadMoreAgentConversations,
   removeAgentConversation,
   setAgentConversationKeyword,
+  updateAgentConversationTitle,
   useAgentConversationStore,
 } from '@/components/agent/agent-conversation-store';
+import { BROADCAST_ID, useComponentStore } from '@/event-bus/stores/components';
 import { formatRelativeTime } from '@/utils/time';
 import SiderPanelLayout from '../common/sider-panel-layout';
 import './agent-session-list.css';
@@ -92,6 +94,25 @@ const AgentSessionList: FC<AgentSessionListProps> = ({
   useEffect(() => {
     void ensureAgentConversations();
   }, []);
+
+  const { register, unregister } = useComponentStore();
+  const realtimeInstance = useMemo(
+    () => ({
+      sessionTitleUpdated: (args?: any) => {
+        // 后端以字符串下发 session_id（雪花 ID 超出 JS 安全整数范围）。
+        const sessionID = String(args?.session_id ?? '').trim();
+        const title = String(args?.title ?? '').trim();
+        if (sessionID && title) {
+          updateAgentConversationTitle(sessionID, title);
+        }
+      },
+    }),
+    []
+  );
+  useEffect(() => {
+    register('agent-session', BROADCAST_ID, realtimeInstance);
+    return () => unregister('agent-session', BROADCAST_ID, realtimeInstance);
+  }, [register, unregister, realtimeInstance]);
 
   // 输入防抖后交给 store 做服务端搜索（重置到第一页）。
   useEffect(() => {

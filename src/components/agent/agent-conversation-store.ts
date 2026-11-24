@@ -246,3 +246,30 @@ export const upsertConversation = (conv?: AgentConversationItem | null) => {
     return next;
   });
 };
+
+/**
+ * 异步标题生成完成后增量回填，不触发整页重载。
+ *
+ * `id` 由后端以字符串下发（雪花 ID 超过 Number.MAX_SAFE_INTEGER，不能走 JSON number）。
+ */
+export const updateAgentConversationTitle = (id: string, title: string): void => {
+  const sessionID = (id ?? '').trim();
+  const nextTitle = String(title ?? '').trim();
+  if (!sessionID || !nextTitle) {
+    return;
+  }
+  useAgentConversationStore.setState((state) => {
+    let changed = false;
+    const conversations = state.conversations.map((item) => {
+      if (item.id !== sessionID || item.title === nextTitle) {
+        return item;
+      }
+      changed = true;
+      return { ...item, title: nextTitle };
+    });
+    return {
+      ...(changed ? { conversations } : {}),
+      titles: { ...state.titles, [sessionID]: nextTitle },
+    };
+  });
+};

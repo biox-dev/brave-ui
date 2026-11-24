@@ -2,7 +2,7 @@ import { ActionDispatcher } from "./dispatcher";
 import { useUIStore } from "@/event-bus/stores/ui";
 import { useFormStore } from "@/event-bus/stores/form";
 import { useRouterStore } from "@/event-bus/stores/router";
-import { useComponentStore } from "@/event-bus/stores/components";
+import { BROADCAST_ID, useComponentStore, type ComponentStore } from "@/event-bus/stores/components";
 import { openBottomTerminal } from "@/layout/bottom-panel-store";
 
 
@@ -12,6 +12,21 @@ export type ShowNotificationPayload = { type: "success" | "error" | "info" | "wa
 export type RouterGoPayload = { path: string, state?: any };
 export type FormSetValuePayload = { form: string; field: string; value: any };
 export type FormResetPayload = { form: string };
+
+/**
+ * 后端推送的组件事件。
+ *
+ * - `id` 为具体组件 id 时只投递给该实例；
+ * - `id` 缺省或为 `"*"` 时广播给该 category 下所有实例（见 BROADCAST_ID）；
+ * - `parentId` 用于弹窗 + 左栏共存场景，额外投递给父级实例。
+ */
+export type ComponentInvokePayload = {
+  category: keyof ComponentStore;
+  id?: string;
+  method: string;
+  args?: any;
+  parentId?: string;
+};
 
 /** 后端容器终端事件：Agent 在某个模板的终端里执行命令。 */
 export type TerminalExecPayload = {
@@ -48,11 +63,20 @@ export function registerActions() {
   });
   ActionDispatcher.register(
     "component.invoke",
-    ({ category, id, method, args ,parentId}:any) => {
-      // debugger
-      useComponentStore.getState().invoke(category, id, method, args);
-      if(parentId){
-        useComponentStore.getState().invoke(category, parentId, method, args);
+    ({ category, id, method, args, parentId }: ComponentInvokePayload) => {
+      if (!category || !method) {
+        console.warn("[LLM] component.invoke missing category/method", { category, method });
+        return;
+      }
+      const store = useComponentStore.getState();
+      // id 缺省 / "*" 表示广播给该类目的全部实例，不指向单个组件。
+      if (!id || id === BROADCAST_ID) {
+        store.invokeAll(category, method, args);
+      } else {
+        store.invoke(category, id, method, args);
+      }
+      if (parentId) {
+        store.invoke(category, parentId, method, args);
       }
     }
   );
