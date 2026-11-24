@@ -219,52 +219,6 @@ const buildListColumn = (
   },
 });
 
-/** 选择器态使用的详情列（仅数据集文件沿用）。 */
-const buildDetailColumns = (locale: string): ColumnsType<DatasetFileItem> => [
-  {
-    title: "File Name",
-    dataIndex: "file_name",
-    key: "file_name",
-    ellipsis: true,
-  },
-  {
-    title: "File ID",
-    dataIndex: "file_id",
-    key: "file_id",
-    width: 180,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Dataset",
-    dataIndex: "dataset_name",
-    key: "dataset_name",
-    width: 180,
-    ellipsis: true,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Role",
-    dataIndex: "role",
-    key: "role",
-    width: 100,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Path",
-    dataIndex: "path",
-    key: "path",
-    ellipsis: true,
-    render: (value: string) => <Tooltip placement="left" title={value || "-"} >{value || "-"}</Tooltip>,
-  },
-  {
-    title: "Created At",
-    dataIndex: "created_at",
-    key: "created_at",
-    width: 210,
-    render: (value: string) => formatRelativeTime(value, locale),
-  },
-];
-
 const FileListPage = ({
   source,
   file_id,
@@ -480,12 +434,9 @@ const FileListPage = ({
     [isDatasetSource, locale]
   );
 
+  // 选择器态与非选择器态统一使用同一种列表风格，只是多出选择列。
   const columns: ColumnsType<DatasetFileItem> = selectable
-    ? [
-      ...(isDatasetSource ? buildDetailColumns(locale) : [listColumn]),
-      actionsColumn,
-      selectColumn,
-    ]
+    ? [listColumn, actionsColumn, selectColumn]
     : [listColumn, actionsColumn];
 
   const handleConfirm = () => {
@@ -592,8 +543,8 @@ const FileListPage = ({
           dataSource={data}
           loading={isLoading || isFetching}
           pagination={false}
-          showHeader={selectable}
-          scroll={selectable ? { x: isDatasetSource ? 1200 : 900 } : undefined}
+          showHeader={false}
+          scroll={selectable ? { x: 900 } : undefined}
           rowClassName={(record) =>
             String(record.id) === String(selectedId) ? "project-report-row-selected" : ""
           }
