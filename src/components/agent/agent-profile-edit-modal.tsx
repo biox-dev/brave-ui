@@ -3,12 +3,14 @@ import { Button, Flex, Form, Input, Select, Skeleton, Space, Switch, Tag, Typogr
 import { EditOutlined } from "@ant-design/icons";
 import {
   getAgentProfileApi,
+  getAgentProfileOptionsApi,
   getAgentSkillApi,
   listAgentSkillApi,
   listAgentToolApi,
   saveAgentProfileApi,
   type AgentEnvInfo,
   type AgentProfileItem,
+  type AgentProfileModelOption,
   type AgentProfileSaveRequest,
   type AgentSkillItem,
   type AgentToolItem,
@@ -24,6 +26,7 @@ interface ProfileFormValues {
   description?: string;
   system_prompt?: string;
   model?: string;
+  reasoning_effort?: string;
   skills?: string[];
   tools?: string[];
   inject_memory?: boolean;
@@ -68,6 +71,10 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
   const [skills, setSkills] = useState<AgentSkillItem[]>([]);
   // 工具目录（来自 /agent/tool/list）：用于 Tools 多选项与 hover 详情。
   const [tools, setTools] = useState<AgentToolItem[]>([]);
+  // 可选模型（来自 /agent/profile/options，对应 agent.providers 配置表）。
+  const [modelOptions, setModelOptions] = useState<AgentProfileModelOption[]>([]);
+  // 推理强度可选值（none / low / medium / high / max）。
+  const [reasoningEfforts, setReasoningEfforts] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   // 仅保存 system_prompt 的加载态（Save Prompt 按钮）。
@@ -85,6 +92,36 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
   const selectedSkills = Form.useWatch("skills", form);
   // 监听已选工具，用于渲染详情 Tag 与“未注册工具名”的兼容展示。
   const selectedTools = Form.useWatch("tools", form);
+  // 监听已选模型，用于定位模型能力（是否支持推理）并过滤推理强度选项。
+  const selectedModel = Form.useWatch("model", form);
+
+  // 当前选中模型的元信息（未匹配到配置时为空）。
+  const currentModelMeta = useMemo(
+    () => modelOptions.find((m) => m.name === selectedModel),
+    [modelOptions, selectedModel]
+  );
+
+  // 模型下拉选项：已配置模型 + 当前值（已从配置中移除时仍可见、可保留或改选）。
+  const modelSelectOptions = useMemo(() => {
+    const known = modelOptions.map((m) => ({
+      label: m.label && m.label !== m.name ? `${m.label} (${m.name})` : m.name,
+      value: m.name,
+    }));
+    if (selectedModel && !modelOptions.some((m) => m.name === selectedModel)) {
+      known.unshift({ label: `${selectedModel} (not configured)`, value: selectedModel });
+    }
+    return known;
+  }, [modelOptions, selectedModel]);
+
+  // 推理强度下拉选项；none 表示关闭思考模式。
+  const reasoningEffortOptions = useMemo(
+    () =>
+      reasoningEfforts.map((value) => ({
+        label: value === "none" ? "None (thinking off)" : value.charAt(0).toUpperCase() + value.slice(1),
+        value,
+      })),
+    [reasoningEfforts]
+  );
 
   // Tools 下拉选项：注册表工具 + 已选但已不存在的工具名（保留旧配置可见、可移除）。
   const toolOptions = useMemo(() => {
@@ -116,16 +153,20 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
     const load = async () => {
       setLoading(true);
       try {
-        // 技能 / 工具列表用于下拉选项；编辑时并发查询目标 Profile。
-        const [skillsRes, toolsRes, profileRes] = await Promise.all([
+        // 技能 / 工具列表用于下拉选项；编辑时并发查询目标 Profile；
+        // 模型 / 推理强度选项来自后端 agent.providers 配置（弹窗打开即请求）。
+        const [skillsRes, toolsRes, profileRes, optionsRes] = await Promise.all([
           listAgentSkillApi(),
           listAgentToolApi(),
           profileId ? getAgentProfileApi(profileId) : Promise.resolve(null),
+          getAgentProfileOptionsApi(),
         ]);
         if (cancelled) return;
 
         setSkills(skillsRes.data ?? []);
         setTools(toolsRes.data ?? []);
+        setModelOptions(optionsRes.data?.models ?? []);
+        setReasoningEfforts(optionsRes.data?.reasoning_efforts ?? []);
 
         const record = profileRes?.data ?? null;
         setEditing(record);
@@ -135,6 +176,7 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
             description: record.description,
             system_prompt: record.system_prompt,
             model: record.model,
+            reasoning_effort: record.reasoning_effort,
             skills: record.skills ?? [],
             tools: record.tools ?? [],
             inject_memory: record.context?.inject_memory ?? true,
@@ -170,6 +212,7 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
     description: values.description,
     system_prompt: values.system_prompt,
     model: values.model,
+    reasoning_effort: values.reasoning_effort,
     skills: values.skills ?? [],
     tools: values.tools ?? [],
     context: {
@@ -297,8 +340,34 @@ const AgentProfileEditModal: FC<AgentProfileEditModalProps> = ({
         <Input placeholder="Short description (optional)" />
       </Form.Item>
 
-      <Form.Item name="model" label="Model">
-        <Input placeholder="Model name, e.g. deepseek-v4-flash (optional)" />
+      <Form.Item
+        name="model"
+        label="Model"
+        tooltip="本 Profile 使用的模型（来自后端 agent.providers 配置）；留空回退到请求级 / Provider 默认模型。"
+      >
+        <Select
+          allowClear
+          showSearch
+          optionFilterProp="label"
+          placeholder="Select model (empty = provider default)"
+          options={modelSelectOptions}
+        />
+      </Form.Item>
+
+      <Form.Item
+        name="reasoning_effort"
+        label="Reasoning Effort"
+        tooltip={
+          currentModelMeta && !currentModelMeta.can_reason
+            ? "当前模型不支持推理 / 思考过程，部分取值可能无效。"
+            : "none 关闭思考模式；low / medium / high / max 开启并指定强度。留空沿用模型配置的默认值。"
+        }
+      >
+        <Select
+          allowClear
+          placeholder="Default (from model config)"
+          options={reasoningEffortOptions}
+        />
       </Form.Item>
 
       <Form.Item

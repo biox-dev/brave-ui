@@ -714,6 +714,11 @@ export interface AgentProfileItem {
   /** 本 Profile 启用的工具名白名单；为空表示注入注册表中的全部工具。 */
   tools?: string[];
   context?: AgentProfileContext;
+  /**
+   * 思考模式与推理强度：none 关闭思考，low / medium / high / max 开启并指定强度。
+   * 为空表示不指定（沿用模型配置 agent.providers.<model>.reasoning_effort）。
+   */
+  reasoning_effort?: string;
   created_at: string;
   updated_at: string;
 }
@@ -730,11 +735,39 @@ export interface AgentProfileSaveRequest {
   /** 工具名白名单（为空表示注入全部工具）。 */
   tools?: string[];
   context?: AgentProfileContext;
+  /** 思考模式与推理强度（none / low / medium / high / max；为空表示不指定）。 */
+  reasoning_effort?: string;
   is_default?: boolean;
+}
+
+// Profile 编辑弹窗的模型下拉选项（对应后端 /agent/profile/options 的 models 项）。
+export interface AgentProfileModelOption {
+  /** 模型名（agent.providers 的 key，写入 Profile.model）。 */
+  name: string;
+  /** 展示名。 */
+  label: string;
+  /** 模型厂商标识（openai / deepseek / anthropic …）。 */
+  provider?: string;
+  /** 是否支持推理 / 思考过程。 */
+  can_reason?: boolean;
+  /** 该模型配置的默认推理强度。 */
+  reasoning_effort?: string;
+}
+
+// Profile 编辑选项（对应后端 /agent/profile/options）。
+export interface AgentProfileOptionsResponse {
+  models: AgentProfileModelOption[];
+  /** 推理强度可选值（none / low / medium / high / max）。 */
+  reasoning_efforts: string[];
 }
 
 export const listAgentProfileApi = () => {
   return http.get<AgentProfileItem[]>("/agent/profile/list");
+};
+
+// Profile 编辑选项：模型下拉（来自 agent.providers）与推理强度可选值。
+export const getAgentProfileOptionsApi = () => {
+  return http.get<AgentProfileOptionsResponse>("/agent/profile/options");
 };
 
 // 按 ID 查询单个 Agent Profile（内置 Profile 任意用户可读，自定义 Profile 仅限本人）。

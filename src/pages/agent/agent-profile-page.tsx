@@ -151,6 +151,9 @@ const AgentProfilePage = ({
         <Space size={4} wrap>
           <Text>{value || "-"}</Text>
           {record.provider && <Tag color="cyan">{record.provider}</Tag>}
+          {record.reasoning_effort && (
+            <Tag color="purple">reasoning: {record.reasoning_effort}</Tag>
+          )}
         </Space>
       ),
     },
