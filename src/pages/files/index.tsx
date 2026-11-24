@@ -86,7 +86,7 @@ const Files: FC<any> = () => {
                                 }}
 
                             ></AnalysisResultPage> */}
-                            <ViewResolver view="datasetFilePage"></ViewResolver>
+                            <ViewResolver view="datasetProjectPage"></ViewResolver>
                         </>
                     },
                     //  {

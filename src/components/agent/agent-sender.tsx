@@ -4,7 +4,6 @@ import { Button, Dropdown, Flex, GetRef } from "antd";
 import {
   CloudServerOutlined,
   CodeOutlined,
-  DatabaseOutlined,
   ExperimentOutlined,
   FileOutlined,
   NodeIndexOutlined,
@@ -15,8 +14,9 @@ import {
   UnorderedListOutlined,
 } from "@ant-design/icons";
 import { invoke } from "@/core/ui-system/invokeV2";
-import type { DatasetFileItem, DatasetItem } from "@/api/data";
+import type { DatasetFileItem } from "@/api/data";
 import type { ContainerTemplateItem } from "@/api/container";
+import type { DatasetPickResult } from "@/components/layout-sider/data-dataset-page/dataset-project-page";
 import { useAgentSenderStore, type AgentRefKind } from "./agent-sender.store";
 
 /** Sender slot 模式的 slotConfig 类型（可插入 tag 引用）。 */
@@ -63,11 +63,11 @@ export interface AgentSenderProps {
 /**
  * Agent 输入区（独立组件）。
  *
- * footer 左下角的「+」向上弹出四个引用入口（通过 invoke 弹出对应页面的「选择模式」挑条目，
+ * footer 左下角的「+」向上弹出三个引用入口（通过 invoke 弹出对应页面的「选择模式」挑条目，
  * 选中后在光标处插入引用 chip，提交时该 chip 以 `@<kind>:<id>` 文本拼进消息文本）：
- *   - Data Files：`invoke.datasetFilePage`，数据集文件（go_dataset -> go_file），**多选**，`@file:<id>`；
  *   - Node Files：`invoke.analysisNodeFilePage`，分析节点产物文件，**多选**，`@file:<id>`；
- *   - Datasets：`invoke.datasetProjectPage`，数据集（go_dataset），**点击条目即插入**，`@dataset:<id>`；
+ *   - Datasets：`invoke.datasetProjectPage`，数据集浏览器：可多选数据集（`@dataset:<id>`），
+ *     也可点进某个数据集多选其文件（`@file:<id>`）；
  *   - Containers：`invoke.containerTemplatePage`，容器模板（go_container_template_definition），**点击条目即插入**，`@container:<id>`。
  *
  * 另外支持「外部页面把引用插进来」：任意页面调用 hooks/useInsertAgentRef
@@ -198,24 +198,8 @@ const AgentSender: FC<AgentSenderProps> = ({
     senderRef.current?.focus({ cursor: "end" });
   }, [pendingRef, consumePendingRef, insertRef]);
 
-  // Data Files：invoke 弹出 dataset-file-page 的选择模式（多选 + Confirm），
+  // Node Files：invoke 弹出 analysis-node-file-page 的选择模式（多选 + Confirm），
   // Confirm 时该页面用 onOk 回传选中的 DatasetFileItem[]，openDrawerAsync 据此 resolve。
-  const handleSelectDatasetFile = async () => {
-    try {
-      const picked = (await invoke.datasetFilePage.openDrawerAsync(
-        { multiple: true },
-        { width: 1000, title: "Select Data Files" }
-      )) as DatasetFileItem | DatasetFileItem[] | undefined;
-      insertPickedFiles(picked);
-    } catch {
-      // 用户取消选择，无需处理。
-    } finally {
-      // 无论选中还是取消，都把焦点交还输入框。
-      focusInputAfterPicker();
-    }
-  };
-
-  // Node Files：invoke 弹出 analysis-node-file-page 的选择模式（同上，支持多选）。
   const handleSelectNodeFile = async () => {
     try {
       const picked = (await invoke.analysisNodeFilePage.openDrawerAsync(
@@ -231,21 +215,28 @@ const AgentSender: FC<AgentSenderProps> = ({
     }
   };
 
-  // Datasets：invoke 弹出 dataset-project-page 的选择模式（点击条目即回传，无 Confirm 按钮）。
-  // 提交时以 `@dataset:<id>` 参与消息文本，Agent 侧用 get_dataset 解析出数据集路径。
+  // Datasets：invoke 弹出 dataset-project-page 的多选模式（Confirm 回传）：
+  // 可直接勾选多个数据集（`@dataset:<id>`），也可点进某个数据集继续勾选其文件
+  // （`@file:<id>`），Agent 侧分别用 get_dataset / get_file 解析。
   const handleSelectDataset = async () => {
     try {
-      const dataset = (await invoke.datasetProjectPage.openDrawerAsync(
-        { selectOnClick: true },
-        { width: 1000, title: "Select Dataset" }
-      )) as DatasetItem | undefined;
-      const datasetId = String(dataset?.id ?? "").trim();
-      if (!datasetId) return;
-      insertRef(
-        "dataset",
-        datasetId,
-        dataset?.dataset_name || `Dataset-${datasetId}`
-      );
+      const picked = (await invoke.datasetProjectPage.openDrawerAsync(
+        { multiple: true },
+        { width: 1000, title: "Select Datasets / Files" }
+      )) as DatasetPickResult | undefined;
+      if (!picked) return;
+      insertRefs([
+        ...picked.datasets.map((dataset) => ({
+          kind: "dataset" as const,
+          value: String(dataset.id),
+          label: dataset.dataset_name || `Dataset-${dataset.id}`,
+        })),
+        ...picked.files.map((file) => ({
+          kind: "file" as const,
+          value: String(file.id),
+          label: file.file_name || file.file_id || String(file.id),
+        })),
+      ]);
     } catch {
       // 用户取消选择，无需处理。
     } finally {
@@ -304,19 +295,13 @@ const AgentSender: FC<AgentSenderProps> = ({
       footer={(actionNode) => (
         <Flex justify="space-between" align="center" gap="small">
           {/* 引用入口收进左下角的「+」里，点击向上弹出列表：
-              数据集文件 / 分析节点产物文件 / 数据集 / 容器模板。 */}
+              分析节点产物文件 / 数据集（可进数据集挑文件）/ 容器模板。 */}
           <Dropdown
             trigger={["click"]}
             placement="topLeft"
             disabled={locked}
             menu={{
               items: [
-                {
-                  key: "data-files",
-                  icon: <DatabaseOutlined />,
-                  label: "Data Files",
-                  onClick: () => void handleSelectDatasetFile(),
-                },
                 {
                   key: "node-files",
                   icon: <PartitionOutlined />,

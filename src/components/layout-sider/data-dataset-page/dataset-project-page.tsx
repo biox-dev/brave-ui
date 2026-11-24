@@ -1,21 +1,47 @@
-import { useEffect, useMemo, useState } from "react";
-import { Button, Card, Flex, Popconfirm, Space, Table, Tooltip, Typography } from "antd";
-import type { ColumnsType } from "antd/es/table";
-import { DeleteOutlined, EditOutlined, FolderAddOutlined, ImportOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import { useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { useSelector } from "react-redux";
+import { Breadcrumb, Button, Empty, Flex, Popconfirm, Table, Tooltip, Typography } from "antd";
+import type { ColumnsType } from "antd/es/table";
+import {
+  ArrowLeftOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  FileOutlined,
+  FolderAddOutlined,
+  FolderOpenOutlined,
+  ImportOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  TableOutlined,
+} from "@ant-design/icons";
 import { LazyListFooter, LazyListSearch, LazyListSentinel, useLazyList } from "@/components/common/lazy-list";
 import {
   deleteDatasetApi,
+  deleteFileApi,
   ensureDatasetDirApi,
   importDatasetDirFilesApi,
   listDatasetFilesApi,
   pageDatasetByProjectApi,
 } from "@/api/data";
-import type { DatasetFileItem, DatasetItem, DatasetPageQuery } from "@/api/data";
+import type {
+  DatasetFileItem,
+  DatasetFilePageQuery,
+  DatasetItem,
+  DatasetPageQuery,
+  PageRequest,
+  PageResponse,
+} from "@/api/data";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
+import SiderPanelLayout from "../common/sider-panel-layout";
+import "./dataset-project-page.css";
 
-const { Text } = Typography;
+/** 多选模式（`multiple`）下 Confirm 回传的结果：数据集与数据集内的文件。 */
+export interface DatasetPickResult {
+  datasets: DatasetItem[];
+  files: DatasetFileItem[];
+}
 
 export interface DatasetProjectPageProps {
   project_id?: string;
@@ -25,11 +51,12 @@ export interface DatasetProjectPageProps {
   page_size?: number | string;
   title?: string;
   /**
-   * 点击即选：选中行后立即回传并关闭（不再显示 Confirm 按钮），
-   * 用于「点一下就直接引用」的场景。
+   * 多选模式：数据集页勾选数据集、进入数据集后勾选文件，Confirm 回传
+   * `DatasetPickResult`。默认（单选）Confirm 回传单个 `DatasetItem`，
+   * 保持既有调用方（sys-file / assay / 文件上传等）的契约不变。
    */
-  selectOnClick?: boolean;
-  onOk?: (dataset: DatasetItem) => void;
+  multiple?: boolean;
+  onOk?: (picked: DatasetItem | DatasetPickResult) => void;
   onCancel?: () => void;
   close?: () => void;
 }
@@ -39,51 +66,21 @@ const normalizeText = (value?: string) => {
   return trimmed ? trimmed : undefined;
 };
 
-const normalizePageSize = (value?: number | string) => {
+const normalizePageSize = (value: number | string | undefined, fallback: number) => {
   if (typeof value === "number" && Number.isFinite(value) && value > 0) {
     return Math.floor(value);
   }
-
   if (typeof value === "string") {
     const parsed = Number.parseInt(value, 10);
     if (Number.isFinite(parsed) && parsed > 0) {
       return parsed;
     }
   }
-
-  return 10;
+  return fallback;
 };
 
-const columns: ColumnsType<DatasetItem> = [
-  {
-    title: "Dataset Name",
-    dataIndex: "dataset_name",
-    key: "dataset_name",
-    ellipsis: true,
-    render: (value: string, record) => value || `Dataset-${record.id}`,
-  },
-  {
-    title: "Description",
-    dataIndex: "description",
-    key: "description",
-    ellipsis: true,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Metadata",
-    dataIndex: "metadata",
-    key: "metadata",
-    ellipsis: true,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Created At",
-    dataIndex: "created_at",
-    key: "created_at",
-    width: 210,
-    render: (value: string) => (value ? new Date(value).toLocaleString() : "-"),
-  },
-];
+const datasetLabel = (item: DatasetItem) => item.dataset_name || `Dataset-${item.id}`;
+const fileLabel = (item: DatasetFileItem) => item.file_name || item.file_id || `File-${item.id}`;
 
 const formatBytes = (size?: number) => {
   if (typeof size !== "number" || !Number.isFinite(size)) {
@@ -102,126 +99,64 @@ const formatBytes = (size?: number) => {
   return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 };
 
-// One row per go_file bound to the dataset (go_dataset_file -> go_file).
-const datasetFileColumns: ColumnsType<DatasetFileItem> = [
-  {
-    title: "File Name",
-    dataIndex: "file_name",
-    key: "file_name",
-    ellipsis: true,
-    render: (value: string, record) => value || record.file_id || `File-${record.id}`,
-  },
-  {
-    title: "Role",
-    dataIndex: "role",
-    key: "role",
-    width: 110,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Format",
-    dataIndex: "format",
-    key: "format",
-    width: 90,
-    render: (value: string) => value || "-",
-  },
-  {
-    title: "Size",
-    dataIndex: "size",
-    key: "size",
-    width: 100,
-    render: (value: number) => formatBytes(value),
-  },
-  {
-    title: "Path",
-    dataIndex: "path",
-    key: "path",
-    ellipsis: true,
-    render: (value: string) => <Typography.Text ellipsis={{ tooltip: value }}>{value || "-"}</Typography.Text>,
-  },
-];
-
-// DatasetFilesPanel is rendered inside an expanded dataset row and loads the
-// dataset's File rows on demand, so opening one row does not fetch files for
-// every dataset in the page.
-const DatasetFilesPanel = ({ datasetId }: { datasetId: string }) => {
-  const [files, setFiles] = useState<DatasetFileItem[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-
-    listDatasetFilesApi({ dataset_id: datasetId })
-      .then((response) => {
-        if (!cancelled) {
-          setFiles(response.data ?? []);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setFiles([]);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [datasetId]);
-
-  return (
-    <Table<DatasetFileItem>
-      rowKey="id"
-      size="small"
-      columns={datasetFileColumns}
-      dataSource={files}
-      loading={loading}
-      pagination={false}
-      scroll={{ x: 860 }}
-      locale={{ emptyText: "No files bound to this dataset" }}
-    />
+const isSpreadsheetFile = (item: DatasetFileItem) => {
+  const format = String(item.format ?? "").toLowerCase();
+  if (["xlsx", "xlsm", "xls", "csv", "tsv"].includes(format)) {
+    return true;
+  }
+  return [".xlsx", ".xlsm", ".xls", ".csv", ".tsv"].some((ext) =>
+    String(item.path ?? "").toLowerCase().endsWith(ext)
   );
 };
 
-const DatasetProjectPage = ({
-  project_id,
-  dataset_name,
-  description,
-  metadata,
-  page_size,
-  title,
-  selectOnClick = false,
-  onOk,
-  onCancel,
-  close,
-}: DatasetProjectPageProps) => {
+/** 文件夹 / 文件行：图标 + 名称 + 一行摘要，样式沿用侧栏的 project-report-item。 */
+const ItemRow = ({ icon, title, meta }: { icon: ReactNode; title: string; meta?: string }) => (
+  <div className="project-report-item">
+    {icon}
+    <div className="project-report-item-text">
+      <span className="project-report-item-title" title={title}>
+        {title}
+      </span>
+      {meta ? (
+        <span className="project-report-item-meta" title={meta}>
+          {meta}
+        </span>
+      ) : null}
+    </div>
+  </div>
+);
+
+// ---------------------------------------------------------------------------
+// 数据集列表（第一级）
+// ---------------------------------------------------------------------------
+
+interface DatasetListPanelProps {
+  projectId?: string;
+  filters: DatasetPageQuery;
+  pageSize: number;
+  selectable: boolean;
+  multiple: boolean;
+  selectedIds: string[];
+  onSelectRows: (ids: string[], rows: DatasetItem[]) => void;
+  onOpen: (dataset: DatasetItem) => void;
+}
+
+const DatasetListPanel = ({
+  projectId,
+  filters,
+  pageSize,
+  selectable,
+  multiple,
+  selectedIds,
+  onSelectRows,
+  onOpen,
+}: DatasetListPanelProps) => {
   const message = useGlobalMessage();
-  const { projectId } = useSelector((state: { user: { projectId?: string } }) => state.user);
-  const [selectedId, setSelectedID] = useState<string>();
-  // Tracks the dataset currently importing its directory so only that row's
-  // button shows a spinner.
+  // 正在导入目录文件的数据集：只有该行按钮显示 loading。
   const [importingId, setImportingId] = useState<string>();
-  // Datasets whose files are currently expanded (click a row to toggle).
-  const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([]);
-  // Bumped after an import so expanded panels remount and refetch their files.
-  const [filesRefreshKey, setFilesRefreshKey] = useState(0);
-
-  const selectable = Boolean(onOk || onCancel);
-
-  // The backend resolves the project from the caller's active project, the
-  // value below is only forwarded so the page query keeps its previous shape.
-  const resolvedProjectId = useMemo(
-    () => normalizeText(project_id) ?? projectId,
-    [project_id, projectId]
-  );
 
   const {
-    items: data,
+    items: datasets,
     loading,
     loadingMore,
     hasMore,
@@ -233,51 +168,17 @@ const DatasetProjectPage = ({
     sentinelRef,
   } = useLazyList<DatasetItem, DatasetPageQuery>({
     fetcher: (payload) => pageDatasetByProjectApi(payload).then((response) => response.data),
-    query: {
-      project_id: resolvedProjectId,
-      dataset_name: normalizeText(dataset_name),
-      description: normalizeText(description),
-      metadata: normalizeText(metadata),
-    },
-    pageSize: normalizePageSize(page_size),
-    scopeKey: JSON.stringify([resolvedProjectId, dataset_name, description, metadata, page_size]),
+    query: { project_id: projectId, ...filters },
+    pageSize,
+    scopeKey: JSON.stringify([projectId, filters]),
   });
-  const refetch = reload;
-  const isLoading = loading;
+
   const isFetching = loading || loadingMore;
-
-  const selectedItem = useMemo(() => data.find((item) => item.id === selectedId), [data, selectedId]);
-
-  const toggleExpanded = (datasetId: string) => {
-    setExpandedRowKeys((prev) =>
-      prev.includes(datasetId) ? prev.filter((id) => id !== datasetId) : [...prev, datasetId]
-    );
-  };
-
-  // Clicking a dataset row toggles its file list; when the page is used as a
-  // picker the same click selects (or, in click-to-pick mode, immediately
-  // returns) the row instead.
-  const handleRowClick = (record: DatasetItem, event: { target: EventTarget | null }) => {
-    // The expand icon handles its own click, so ignore it here to avoid a
-    // double toggle / an accidental pick.
-    if ((event.target as HTMLElement | null)?.closest?.(".ant-table-row-expand-icon")) {
-      return;
-    }
-    if (selectable) {
-      if (selectOnClick) {
-        onOk?.(record);
-        return;
-      }
-      setSelectedID(record.id);
-      return;
-    }
-    toggleExpanded(record.id);
-  };
 
   const handleCreate = async () => {
     try {
       await invoke.editDatasetPage.openDrawerAsync({}, { width: 480, title: "New Dataset" });
-      refetch();
+      await reload();
     } catch {
       // user cancelled
     }
@@ -287,9 +188,9 @@ const DatasetProjectPage = ({
     try {
       await invoke.editDatasetPage.openDrawerAsync(
         { dataset: record },
-        { width: 720, title: `Edit Dataset: ${record.dataset_name || record.id}` }
+        { width: 720, title: `Edit Dataset: ${datasetLabel(record)}` }
       );
-      refetch();
+      await reload();
     } catch {
       // user cancelled
     }
@@ -299,7 +200,7 @@ const DatasetProjectPage = ({
     try {
       await deleteDatasetApi({ id: record.id });
       message.success("Dataset deleted successfully");
-      refetch();
+      await reload();
     } catch {
       message.error("Failed to delete dataset");
     }
@@ -315,9 +216,8 @@ const DatasetProjectPage = ({
     }
   };
 
-  // Import every file under the dataset workspace directory (utils.GetDatasetDir)
-  // into go_file / go_dataset_file. The backend skips files already bound to the
-  // dataset (same path + dataset_id), so re-running it is idempotent.
+  // 把数据集工作目录下尚未绑定的文件批量登记为 go_file / go_dataset_file，
+  // 后端按 path + dataset_id 判重，重复执行是幂等的。
   const handleImportDirFiles = async (record: DatasetItem) => {
     setImportingId(record.id);
     try {
@@ -333,9 +233,7 @@ const DatasetProjectPage = ({
       } else {
         message.success(summary);
       }
-      // Refresh both the dataset list and any expanded file panel.
-      setFilesRefreshKey((value) => value + 1);
-      refetch();
+      await reload();
     } catch {
       message.error("Failed to import dataset dir files");
     } finally {
@@ -343,86 +241,457 @@ const DatasetProjectPage = ({
     }
   };
 
-  const actionsColumn: ColumnsType<DatasetItem>[number] = {
-    title: "Actions",
-    key: "actions",
-    width: 190,
-    align: "right",
-    fixed: "right",
-    render: (_: unknown, record) => (
-      <span
-        className="project-report-item-actions project-report-item-actions-static"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <Tooltip title="Create Dir">
-          <Button
-            type="text"
-            size="small"
-            icon={<FolderAddOutlined />}
-            onClick={() => handleEnsureDir(record)}
-          />
-        </Tooltip>
-        <Tooltip title="Import Dir Files">
-          <Button
-            type="text"
-            size="small"
-            icon={<ImportOutlined />}
-            loading={importingId === record.id}
-            disabled={Boolean(importingId) && importingId !== record.id}
-            onClick={() => handleImportDirFiles(record)}
-          />
-        </Tooltip>
-        <Tooltip title="Edit">
-          <Button
-            type="text"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          />
-        </Tooltip>
-        <Popconfirm
-          title="Delete this dataset?"
-          description="This will also remove its project, file and sample associations."
-          onConfirm={() => handleDelete(record)}
-        >
-          <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-        </Popconfirm>
-      </span>
-    ),
-  };
+  const columns: ColumnsType<DatasetItem> = [
+    {
+      title: "Dataset",
+      dataIndex: "dataset_name",
+      ellipsis: { showTitle: false },
+      render: (_: string, record) => (
+        <ItemRow
+          icon={<FolderOpenOutlined className="project-report-item-icon" />}
+          title={datasetLabel(record)}
+          meta={[record.description, record.path].filter(Boolean).join(" · ") || undefined}
+        />
+      ),
+    },
+    {
+      title: "Actions",
+      key: "actions",
+      width: 130,
+      align: "right",
+      render: (_: unknown, record) => (
+        <span className="project-report-item-actions" onClick={(event) => event.stopPropagation()}>
+          <Tooltip title="Create Dir">
+            <Button type="text" size="small" icon={<FolderAddOutlined />} onClick={() => handleEnsureDir(record)} />
+          </Tooltip>
+          <Tooltip title="Import Dir Files">
+            <Button
+              type="text"
+              size="small"
+              icon={<ImportOutlined />}
+              loading={importingId === record.id}
+              disabled={Boolean(importingId) && importingId !== record.id}
+              onClick={() => handleImportDirFiles(record)}
+            />
+          </Tooltip>
+          <Tooltip title="Edit">
+            <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+          </Tooltip>
+          <Popconfirm
+            title="Delete this dataset?"
+            description="This will also remove its project, file and sample associations."
+            onConfirm={() => handleDelete(record)}
+          >
+            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </span>
+      ),
+    },
+  ];
 
-  const selectColumn: ColumnsType<DatasetItem>[number] = {
-    title: "Action",
-    key: "action",
-    width: 120,
-    fixed: "right",
-    render: (_: unknown, record) => (
-      <Button
-        type={record.id === selectedId ? "primary" : "default"}
-        size="small"
-        onClick={(event) => {
-          event.stopPropagation();
-          if (selectOnClick) {
-            onOk?.(record);
-            return;
+  return (
+    <div className="dataset-project-panel-body">
+      <div className="dataset-project-toolbar">
+        <LazyListSearch value={keyword} onChange={setKeyword} placeholder="Search datasets" />
+        <Button type="primary" size="small" icon={<PlusOutlined />} onClick={handleCreate}>
+          New
+        </Button>
+        <Tooltip title="Refresh">
+          <Button type="text" size="small" icon={<ReloadOutlined />} loading={isFetching} onClick={() => reload()} />
+        </Tooltip>
+      </div>
+
+      {datasets.length === 0 && !isFetching ? (
+        <div className="dataset-project-empty">
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={error ? "Failed to load datasets" : "No datasets"} />
+        </div>
+      ) : (
+        <Table<DatasetItem>
+          rowKey="id"
+          size="small"
+          showHeader={false}
+          columns={columns}
+          dataSource={datasets}
+          loading={isFetching}
+          pagination={false}
+          scroll={{ x: 540 }}
+          rowClassName={(record) => (selectedIds.includes(record.id) ? "project-report-row-selected" : "")}
+          rowSelection={
+            selectable
+              ? {
+                  type: multiple ? "checkbox" : "radio",
+                  selectedRowKeys: selectedIds,
+                  onChange: (keys, rows) => onSelectRows(keys.map(String), rows),
+                }
+              : undefined
           }
-          setSelectedID(record.id);
-        }}
-      >
-        {record.id === selectedId ? "Selected" : "Select"}
-      </Button>
-    ),
+          onRow={(record) => ({
+            // 点击数据集即「进入文件夹」；勾选 / 单选由左侧的选择列负责。
+            onClick: (event) => {
+              if ((event.target as HTMLElement | null)?.closest?.(".ant-table-selection-column")) {
+                return;
+              }
+              onOpen(record);
+            },
+          })}
+        />
+      )}
+
+      <LazyListSentinel sentinelRef={sentinelRef} />
+      <LazyListFooter
+        loadingMore={loadingMore}
+        hasMore={hasMore}
+        hasItems={datasets.length > 0}
+        total={total}
+        labels={{ loading: "Loading more…", noMore: "No more datasets", totalPrefix: "total " }}
+      />
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// 数据集内的文件列表（第二级）
+// ---------------------------------------------------------------------------
+
+// /data/dataset/files 一次返回该数据集的全部文件（后端不分页），这里在本地做
+// 关键字过滤 + 分页切片，既保留列表的滚动懒加载体验，又保证同一数据集只请求一次。
+// 缓存放在调用方的 ref 里，刷新时清空即可重新拉取。
+const createDatasetFilesFetcher = (
+  datasetId: string,
+  cache: { current: Promise<DatasetFileItem[]> | null }
+) => {
+  return (payload: PageRequest<DatasetFilePageQuery>): Promise<PageResponse<DatasetFileItem>> => {
+    if (!cache.current) {
+      const request = listDatasetFilesApi({ dataset_id: datasetId }).then((response) => response.data ?? []);
+      cache.current = request;
+      // 请求失败时不缓存，下次重试仍会真正发起请求。
+      void request.catch(() => {
+        if (cache.current === request) cache.current = null;
+      });
+    }
+
+    return cache.current.then((all) => {
+      const keyword = payload.keyword?.trim().toLowerCase();
+      const matched = keyword
+        ? all.filter((file) =>
+            [file.file_name, file.file_id, file.path, file.role].some((value) =>
+              String(value ?? "").toLowerCase().includes(keyword)
+            )
+          )
+        : all;
+      const page = payload.page ?? 1;
+      const size = payload.page_size ?? 20;
+      const start = (page - 1) * size;
+
+      return {
+        data: matched.slice(start, start + size),
+        total: matched.length,
+        page,
+        page_size: size,
+      };
+    });
   };
+};
 
-  const tableColumns: ColumnsType<DatasetItem> = selectable
-    ? [...columns, actionsColumn, selectColumn]
-    : [...columns, actionsColumn];
+interface DatasetFilesPanelProps {
+  dataset: DatasetItem;
+  pageSize: number;
+  selectable: boolean;
+  multiple: boolean;
+  selectedIds: string[];
+  onSelectRows: (ids: string[], rows: DatasetFileItem[]) => void;
+  onToggle: (file: DatasetFileItem) => void;
+}
 
-  const handleConfirm = () => {
-    if (!selectedItem || !onOk) {
+const DatasetFilesPanel = ({
+  dataset,
+  pageSize,
+  selectable,
+  multiple,
+  selectedIds,
+  onSelectRows,
+  onToggle,
+}: DatasetFilesPanelProps) => {
+  const message = useGlobalMessage();
+  // 非分页接口的本地缓存（进入数据集只请求一次），刷新时清空。
+  const cacheRef = useRef<Promise<DatasetFileItem[]> | null>(null);
+  // 版本号：上传 / 编辑 / 删除后自增，触发列表重新拉取。
+  const [version, setVersion] = useState(0);
+
+  const fetcher = useMemo(() => createDatasetFilesFetcher(dataset.id, cacheRef), [dataset.id]);
+  const {
+    items: files,
+    loading,
+    loadingMore,
+    hasMore,
+    total,
+    keyword,
+    setKeyword,
+    error,
+    sentinelRef,
+  } = useLazyList<DatasetFileItem, DatasetFilePageQuery>({
+    fetcher,
+    pageSize,
+    scopeKey: dataset.id,
+    reloadKey: version,
+  });
+
+  const refresh = () => {
+    cacheRef.current = null;
+    setVersion((value) => value + 1);
+  };
+  const isFetching = loading || loadingMore;
+
+  const handleOpenSheet = (file: DatasetFileItem) => {
+    if (!isSpreadsheetFile(file)) {
+      message.warning("This file format is not supported for opening");
       return;
     }
-    onOk(selectedItem);
+    invoke.univerView.open(
+      { file_id: file.file_id },
+      { width: "90%", title: `Sheet: ${fileLabel(file)}`, footer: null }
+    );
+  };
+
+  const handleEdit = async (file: DatasetFileItem) => {
+    try {
+      await invoke.editFilePage.openDrawerAsync(
+        { file },
+        { width: 480, title: `Edit File: ${fileLabel(file)}` }
+      );
+      refresh();
+    } catch {
+      // user cancelled
+    }
+  };
+
+  const handleDelete = async (file: DatasetFileItem) => {
+    try {
+      await deleteFileApi({ id: file.id });
+      message.success("File deleted successfully");
+      refresh();
+    } catch {
+      message.error("Failed to delete file");
+    }
+  };
+
+  const handleUpload = async () => {
+    try {
+      await invoke.collectedFileUpload.openDrawerAsync(
+        { title: `Upload to ${datasetLabel(dataset)}`, defaultDatasetId: dataset.id },
+        { width: 520, title: "Upload Files" }
+      );
+    } catch {
+      // user cancelled
+      return;
+    }
+    refresh();
+  };
+
+  const columns: ColumnsType<DatasetFileItem> = [
+    {
+      title: "File",
+      dataIndex: "file_name",
+      ellipsis: { showTitle: false },
+      render: (_: string, record) => (
+        <ItemRow
+          icon={<FileOutlined className="project-report-item-icon" />}
+          title={fileLabel(record)}
+          meta={[record.format, record.role, formatBytes(record.size)].filter(Boolean).join(" · ") || undefined}
+        />
+      ),
+    },
+    {
+      title: "Actions",
+      key: "actions",
+      width: 110,
+      align: "right",
+      render: (_: unknown, record) => (
+        <span className="project-report-item-actions" onClick={(event) => event.stopPropagation()}>
+          <Tooltip title="Open Sheet">
+            <Button type="text" size="small" icon={<TableOutlined />} onClick={() => handleOpenSheet(record)} />
+          </Tooltip>
+          <Tooltip title="Edit">
+            <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+          </Tooltip>
+          <Popconfirm
+            title="Delete this file?"
+            description="This will remove the file and its dataset associations."
+            onConfirm={() => handleDelete(record)}
+          >
+            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </span>
+      ),
+    },
+  ];
+
+  return (
+    <div className="dataset-project-panel-body">
+      <div className="dataset-project-toolbar">
+        <LazyListSearch value={keyword} onChange={setKeyword} placeholder="Search files" />
+        <Tooltip title="Upload">
+          <Button type="text" size="small" icon={<PlusOutlined />} onClick={handleUpload} />
+        </Tooltip>
+        <Tooltip title="Refresh">
+          <Button type="text" size="small" icon={<ReloadOutlined />} loading={isFetching} onClick={refresh} />
+        </Tooltip>
+      </div>
+
+      {files.length === 0 && !isFetching ? (
+        <div className="dataset-project-empty">
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={error ? "Failed to load files" : "No files"} />
+        </div>
+      ) : (
+        <Table<DatasetFileItem>
+          rowKey="id"
+          size="small"
+          showHeader={false}
+          columns={columns}
+          dataSource={files}
+          loading={isFetching}
+          pagination={false}
+          scroll={{ x: 520 }}
+          rowClassName={(record) => (selectedIds.includes(record.id) ? "project-report-row-selected" : "")}
+          rowSelection={
+            selectable && multiple
+              ? {
+                  type: "checkbox",
+                  selectedRowKeys: selectedIds,
+                  onChange: (keys, rows) => onSelectRows(keys.map(String), rows),
+                }
+              : undefined
+          }
+          onRow={(record) => ({
+            onClick: (event) => {
+              if ((event.target as HTMLElement | null)?.closest?.(".ant-table-selection-column")) {
+                return;
+              }
+              // 选择器里点文件即勾选；浏览态点文件直接打开表格。
+              if (selectable && multiple) {
+                onToggle(record);
+                return;
+              }
+              handleOpenSheet(record);
+            },
+          })}
+        />
+      )}
+
+      <LazyListSentinel sentinelRef={sentinelRef} />
+      <LazyListFooter
+        loadingMore={loadingMore}
+        hasMore={hasMore}
+        hasItems={files.length > 0}
+        total={total}
+        labels={{ loading: "Loading more…", noMore: "No more files", totalPrefix: "total " }}
+      />
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// 页面：数据集列表 <-> 数据集内文件（面包屑返回）
+// ---------------------------------------------------------------------------
+
+/**
+ * 数据集浏览器（替代原数据集表格页与 `dataset-file-page`）。
+ *
+ * 结构类似文件夹：
+ * - 第一级懒加载展示当前项目下的数据集；
+ * - 点击数据集进入第二级，懒加载展示该数据集绑定的文件；
+ * - 顶部面包屑 + 返回按钮回到数据集列表。
+ *
+ * 选择模式：
+ * - 单选（默认）：Confirm 回传选中的 `DatasetItem`（既有调用方契约）；
+ * - `multiple`：可同时勾选多个数据集，也可进入数据集勾选文件，Confirm 回传
+ *   `DatasetPickResult`（Agent 输入区的引用插入依赖这个模式）。
+ */
+const DatasetProjectPage = ({
+  project_id,
+  dataset_name,
+  description,
+  metadata,
+  page_size,
+  title,
+  multiple = false,
+  onOk,
+  onCancel,
+  close,
+}: DatasetProjectPageProps) => {
+  // 后端按「当前用户激活的项目」查询，这里的 project_id 只沿用旧的查询形状。
+  const { projectId } = useSelector((state: { user: { projectId?: string } }) => state.user);
+  const selectable = Boolean(onOk || onCancel);
+
+  const [activeDataset, setActiveDataset] = useState<DatasetItem>();
+  const [pickedDatasets, setPickedDatasets] = useState<Record<string, DatasetItem>>({});
+  const [pickedFiles, setPickedFiles] = useState<Record<string, DatasetFileItem>>({});
+
+  const resolvedProjectId = useMemo(
+    () => normalizeText(project_id) ?? projectId,
+    [project_id, projectId]
+  );
+  const filters = useMemo<DatasetPageQuery>(
+    () => ({
+      dataset_name: normalizeText(dataset_name),
+      description: normalizeText(description),
+      metadata: normalizeText(metadata),
+    }),
+    [dataset_name, description, metadata]
+  );
+
+  const datasetIds = Object.keys(pickedDatasets);
+  const fileIds = Object.keys(pickedFiles);
+  const totalPicked = datasetIds.length + fileIds.length;
+
+  // 保留不在当前页的已选项（跨页勾选），因此用 id 合并而不是直接覆盖。
+  const selectDatasets = (ids: string[], rows: DatasetItem[]) => {
+    setPickedDatasets((prev) => {
+      if (!multiple) {
+        const first = rows[0] ?? (ids[0] ? prev[ids[0]] : undefined);
+        return first ? { [first.id]: first } : {};
+      }
+      const next: Record<string, DatasetItem> = {};
+      ids.forEach((id) => {
+        const item = prev[id] ?? rows.find((row) => row.id === id);
+        if (item) next[id] = item;
+      });
+      return next;
+    });
+  };
+
+  const selectFiles = (ids: string[], rows: DatasetFileItem[]) => {
+    setPickedFiles((prev) => {
+      const next: Record<string, DatasetFileItem> = {};
+      ids.forEach((id) => {
+        const item = prev[id] ?? rows.find((row) => row.id === id);
+        if (item) next[id] = item;
+      });
+      return next;
+    });
+  };
+
+  const toggleFile = (file: DatasetFileItem) => {
+    setPickedFiles((prev) => {
+      const next = { ...prev };
+      if (next[file.id]) {
+        delete next[file.id];
+      } else {
+        next[file.id] = file;
+      }
+      return next;
+    });
+  };
+
+  const handleConfirm = () => {
+    if (!onOk || totalPicked === 0) {
+      return;
+    }
+    if (!multiple) {
+      onOk(Object.values(pickedDatasets)[0]);
+      return;
+    }
+    onOk({ datasets: Object.values(pickedDatasets), files: Object.values(pickedFiles) });
   };
 
   const handleCancel = () => {
@@ -430,94 +699,77 @@ const DatasetProjectPage = ({
       onCancel();
       return;
     }
-    if (close) {
-      close();
-    }
+    close?.();
   };
 
   return (
-    <Card
-      size="small"
-      title={title || "Dataset List By Project"}
-      extra={
-        <Space>
-          <LazyListSearch
-            value={keyword}
-            onChange={setKeyword}
-            placeholder="Search datasets"
-            className="project-report-panel-search"
-          />
-          <Text type="secondary">Total: {total}</Text>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-            New
-          </Button>
-          <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
-            Refresh
-          </Button>
-        </Space>
+    <SiderPanelLayout
+      className="dataset-project-panel"
+      title={activeDataset ? datasetLabel(activeDataset) : title || "Datasets"}
+      actions={
+        activeDataset ? (
+          <Tooltip title="Back to datasets">
+            <Button
+              type="text"
+              size="small"
+              icon={<ArrowLeftOutlined />}
+              aria-label="Back to datasets"
+              onClick={() => setActiveDataset(undefined)}
+            />
+          </Tooltip>
+        ) : undefined
+      }
+      footer={
+        selectable ? (
+          <Flex align="center" justify="space-between" gap="small" style={{ width: "100%" }}>
+            <span className="dataset-project-picked">
+              {multiple ? `${datasetIds.length} dataset(s) · ${fileIds.length} file(s)` : ""}
+            </span>
+            <Flex gap="small">
+              <Button size="small" onClick={handleCancel}>
+                Cancel
+              </Button>
+              <Button size="small" type="primary" disabled={totalPicked === 0} onClick={handleConfirm}>
+                {multiple && totalPicked > 0 ? `Confirm (${totalPicked})` : "Confirm"}
+              </Button>
+            </Flex>
+          </Flex>
+        ) : undefined
       }
     >
-      <Table<DatasetItem>
-        rowKey="id"
-        columns={tableColumns}
-        dataSource={data}
-        loading={isLoading || isFetching}
-        size="small"
-        scroll={{ x: 980 }}
-        locale={{ emptyText: error ? "Failed to load datasets" : "No datasets" }}
-        expandable={{
-          expandedRowKeys,
-          onExpand: (expanded, record) => {
-            setExpandedRowKeys((prev) =>
-              expanded ? [...prev.filter((id) => id !== record.id), record.id] : prev.filter((id) => id !== record.id)
-            );
-          },
-          expandedRowRender: (record) => (
-            <DatasetFilesPanel key={`${record.id}:${filesRefreshKey}`} datasetId={record.id} />
-          ),
-        }}
-        rowSelection={
-          selectable
-            ? {
-                type: "radio",
-                selectedRowKeys: selectedId ? [selectedId] : [],
-                onChange: (selectedRowKeys) => {
-                  const id = String(selectedRowKeys[0] || "");
-                  if (selectOnClick) {
-                    const picked = data.find((item) => String(item.id) === id);
-                    if (picked) {
-                      onOk?.(picked);
-                    }
-                    return;
-                  }
-                  setSelectedID(id);
-                },
-              }
-            : undefined
-        }
-        onRow={(record) => ({
-          onClick: (event) => handleRowClick(record, event),
-        })}
-        pagination={false}
-      />
-      <LazyListSentinel sentinelRef={sentinelRef} />
-      <LazyListFooter
-        loadingMore={loadingMore}
-        hasMore={hasMore}
-        hasItems={data.length > 0}
-        total={total}
-        labels={{ loading: "Loading more…", noMore: "No more datasets", totalPrefix: "total " }}
-      />
-
-      {selectable && !selectOnClick && (
-        <Flex justify="end" gap="small" style={{ marginTop: 12 }}>
-          <Button onClick={handleCancel}>Cancel</Button>
-          <Button type="primary" disabled={!selectedItem} onClick={handleConfirm}>
-            Confirm
-          </Button>
-        </Flex>
+      {activeDataset ? (
+        <>
+          <Breadcrumb
+            className="dataset-project-breadcrumb"
+            items={[
+              { title: <Typography.Link onClick={() => setActiveDataset(undefined)}>Datasets</Typography.Link> },
+              { title: datasetLabel(activeDataset) },
+            ]}
+          />
+          <DatasetFilesPanel
+            key={activeDataset.id}
+            dataset={activeDataset}
+            pageSize={normalizePageSize(page_size, 20)}
+            selectable={selectable}
+            multiple={multiple}
+            selectedIds={fileIds}
+            onSelectRows={selectFiles}
+            onToggle={toggleFile}
+          />
+        </>
+      ) : (
+        <DatasetListPanel
+          projectId={resolvedProjectId}
+          filters={filters}
+          pageSize={normalizePageSize(page_size, 10)}
+          selectable={selectable}
+          multiple={multiple}
+          selectedIds={datasetIds}
+          onSelectRows={selectDatasets}
+          onOpen={setActiveDataset}
+        />
       )}
-    </Card>
+    </SiderPanelLayout>
   );
 };
 
