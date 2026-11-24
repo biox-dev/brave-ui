@@ -19,7 +19,7 @@ import {
 } from "@ant-design/icons";
 import { Button, Empty, Popconfirm, Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { FC, useMemo } from "react";
+import { FC, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 import { invoke } from "@/core/ui-system/invokeV2";
@@ -30,9 +30,24 @@ export interface ProjectLiteratureListProps {
   collapsed?: boolean;
   /** 点击标题栏时切换折叠态（未传入则标题栏不可点击）。 */
   onToggleCollapse?: () => void;
+  /** 选择器模式：确认时回传选中的文献（multiple 为 true 时回传数组）。 */
+  onOk?: (
+    literature: ProjectLiteratureItem | ProjectLiteratureItem[]
+  ) => void;
+  onCancel?: () => void;
+  close?: () => void;
+  /** 多选模式（仅在选择器模式下生效）。 */
+  multiple?: boolean;
 }
 
-const ProjectLiteratureList: FC<ProjectLiteratureListProps> = ({ collapsed = false, onToggleCollapse }) => {
+const ProjectLiteratureList: FC<ProjectLiteratureListProps> = ({
+  collapsed = false,
+  onToggleCollapse,
+  onOk,
+  onCancel,
+  close,
+  multiple = false,
+}) => {
   const navigate = useNavigate();
   const location = useLocation();
   const message = useGlobalMessage();
@@ -40,10 +55,34 @@ const ProjectLiteratureList: FC<ProjectLiteratureListProps> = ({ collapsed = fal
   const { project } = useSelector((state: any) => state.user);
   const projectId = typeof project === "string" ? project : project?.project_id;
 
-  const selectedId = useMemo(() => {
+  const routeSelectedId = useMemo(() => {
     const match = location.pathname.match(/\/literature-writing\/([^/]+)/);
     return match ? decodeURIComponent(match[1]) : undefined;
   }, [location.pathname]);
+
+  // 作为选择器（通过 invoke 打开）时使用本地选中态，普通模式沿用路由选中态。
+  const selectable = Boolean(onOk || onCancel);
+  // 本地选中结果用 Map 按点击顺序保存：既能跨分页保留选择，又能保持添加顺序。
+  const [picked, setPicked] = useState<Map<string, ProjectLiteratureItem>>(new Map());
+  const pickedItems = useMemo(() => Array.from(picked.values()), [picked]);
+  const isPicked = (id: string) => picked.has(String(id));
+  const selectedId = selectable ? pickedItems[0]?.id : routeSelectedId;
+
+  // handleSelect 在多选模式下切换选中状态，单选模式下直接替换选中项。
+  const handleSelect = (record: ProjectLiteratureItem) => {
+    setPicked((prev) => {
+      if (!multiple) {
+        return new Map([[String(record.id), record]]);
+      }
+      const next = new Map(prev);
+      if (next.has(String(record.id))) {
+        next.delete(String(record.id));
+      } else {
+        next.set(String(record.id), record);
+      }
+      return next;
+    });
+  };
 
   const {
     items: data,
@@ -65,6 +104,46 @@ const ProjectLiteratureList: FC<ProjectLiteratureListProps> = ({ collapsed = fal
   const refetch = reload;
   const isLoading = loading;
   const isFetching = loading || loadingMore;
+
+  // 选择列（checkbox / radio）的回调：onChange 只包含当前页的选中项，
+  // 因此多选时要把本页被取消勾选的条目从 prev 里移除、再合入本页勾选项，
+  // 这样才能保留跨分页的选择。
+  const handleSelectRows = (ids: string[], rows: ProjectLiteratureItem[]) => {
+    setPicked((prev) => {
+      if (!multiple) {
+        const first = rows[0] ?? (ids[0] ? prev.get(String(ids[0])) : undefined);
+        return first ? new Map([[String(first.id), first]]) : new Map();
+      }
+      const next = new Map(prev);
+      data.forEach((item) => {
+        const id = String(item.id);
+        if (!ids.includes(id)) {
+          next.delete(id);
+        }
+      });
+      rows.forEach((row) => next.set(String(row.id), row));
+      return next;
+    });
+  };
+
+  const handleConfirm = () => {
+    if (!onOk || pickedItems.length === 0) {
+      return;
+    }
+    // 多选时回传数组，单选时回传单个对象，保持既有调用方兼容。
+    const payload = multiple ? pickedItems : pickedItems[0];
+    (onOk as (
+      value: ProjectLiteratureItem | ProjectLiteratureItem[]
+    ) => void)(payload);
+  };
+
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+      return;
+    }
+    close?.();
+  };
 
   const openCreate = async () => {
     if (!projectId) {
@@ -210,6 +289,23 @@ const ProjectLiteratureList: FC<ProjectLiteratureListProps> = ({ collapsed = fal
           <Button type="text" size="small" icon={<ReloadOutlined />} onClick={() => refetch()} />
         </>
       }
+      footer={
+        selectable ? (
+          <>
+            {multiple && pickedItems.length > 0 && (
+              <span style={{ marginRight: "auto" }}>{pickedItems.length} selected</span>
+            )}
+            <Button onClick={handleCancel}>Cancel</Button>
+            <Button
+              type="primary"
+              disabled={pickedItems.length === 0}
+              onClick={handleConfirm}
+            >
+              Confirm
+            </Button>
+          </>
+        ) : undefined
+      }
     >
       {data.length === 0 && !isLoading ? (
         <Empty
@@ -226,10 +322,33 @@ const ProjectLiteratureList: FC<ProjectLiteratureListProps> = ({ collapsed = fal
           pagination={false}
           showHeader={false}
           rowClassName={(record) =>
-            record.id === selectedId ? "project-report-row-selected" : ""
+            isPicked(record.id) || String(record.id) === String(selectedId)
+              ? "project-report-row-selected"
+              : ""
+          }
+          rowSelection={
+            selectable
+              ? {
+                  type: multiple ? "checkbox" : "radio",
+                  selectedRowKeys: pickedItems.map((item) => item.id),
+                  onChange: (keys, rows) =>
+                    handleSelectRows(keys.map(String), rows as ProjectLiteratureItem[]),
+                }
+              : undefined
           }
           onRow={(record) => ({
-            onClick: () => navigate(`/literature-writing/${record.id}`),
+            onClick: (event) => {
+              // 勾选交给选择列，避免点 checkbox 时又触发一次行点击切换。
+              if (
+                (event.target as HTMLElement | null)
+                  ?.closest?.(".ant-table-selection-column")
+              ) {
+                return;
+              }
+              selectable
+                ? handleSelect(record)
+                : navigate(`/literature-writing/${record.id}`);
+            },
           })}
         />
       )}

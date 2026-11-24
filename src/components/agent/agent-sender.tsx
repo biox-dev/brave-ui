@@ -2,6 +2,7 @@ import { FC, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { Sender, type SenderProps } from "@ant-design/x";
 import { Button, Dropdown, Flex, GetRef } from "antd";
 import {
+  BookOutlined,
   CloudServerOutlined,
   CodeOutlined,
   ExperimentOutlined,
@@ -16,6 +17,8 @@ import {
 import { invoke } from "@/core/ui-system/invokeV2";
 import type { AnalysisItem } from "@/api/analysis";
 import type { ContainerTemplateItem } from "@/api/container";
+import type { ProjectLiteratureItem, ProjectReport } from "@/api/project";
+import type { ScriptItem, WorkflowItem } from "@/api/workflow";
 import type { DatasetPickResult } from "@/components/layout-sider/data-dataset-page/dataset-project-page";
 import type { AnalysisNodePickResult } from "@/components/layout-sider/data-dataset-page/analysis-node-file-page";
 import { useAgentSenderStore, type AgentRefKind } from "./agent-sender.store";
@@ -42,6 +45,7 @@ const REF_ICONS: Record<AgentRefKind, ReactNode> = {
   script: <CodeOutlined />,
   workflow: <PartitionOutlined />,
   analysis: <ExperimentOutlined />,
+  literature: <BookOutlined />,
   plan: <UnorderedListOutlined />,
 };
 
@@ -72,6 +76,10 @@ export interface AgentSenderProps {
  *     **分析节点本身**（`@analysis_node:<id>`），也可点进节点多选其产出文件（`@file:<id>`）；
  *   - Analysis Workflow：`invoke.analysisList`，分析运行记录，**多选** + Confirm，`@analysis:<id>`
  *     （Agent 侧用 get_analysis_workflow 解析状态 / 参数 / 节点分布）；
+ *   - Scripts：`invoke.scriptPage`，分析脚本，**多选** + Confirm，`@script:<id>`；
+ *   - Workflows：`invoke.workflowPage`，分析工作流，**多选** + Confirm，`@workflow:<id>`；
+ *   - Project Reports：`invoke.projectReport`，项目报告，**多选** + Confirm，`@report:<id>`；
+ *   - Literature：`invoke.projectLiterature`，项目参考文献，**多选** + Confirm，`@literature:<id>`；
  *   - Containers：`invoke.containerTemplatePage`，容器模板（go_container_template_definition），**点击条目即插入**，`@container:<id>`。
  *
  * 另外支持「外部页面把引用插进来」：任意页面调用 hooks/useInsertAgentRef
@@ -276,6 +284,122 @@ const AgentSender: FC<AgentSenderProps> = ({
     }
   };
 
+  // Scripts：invoke 弹出 script-page 的多选模式（Confirm 回传 ScriptItem[] / ScriptItem）。
+  // 提交时以 `@script:<id>` 参与消息文本，Agent 侧用 get_script 解析。
+  const handleSelectScript = async () => {
+    try {
+      const picked = (await invoke.scriptPage.openDrawerAsync(
+        { multiple: true },
+        { width: 1000, title: "Select Scripts" }
+      )) as ScriptItem | ScriptItem[] | undefined;
+      const scripts = Array.isArray(picked) ? picked : picked ? [picked] : [];
+      insertRefs(
+        scripts
+          .map((script) => {
+            const scriptId = String(script?.id ?? "").trim();
+            return {
+              kind: "script" as const,
+              value: scriptId,
+              label: script?.name || script?.component_id || `Script-${scriptId}`,
+            };
+          })
+          .filter((item) => item.value)
+      );
+    } catch {
+      // 用户取消选择，无需处理。
+    } finally {
+      // 无论选中还是取消，都把焦点交还输入框。
+      focusInputAfterPicker();
+    }
+  };
+
+  // Workflows：invoke 弹出 workflow-page 的多选模式（Confirm 回传 WorkflowItem[] / WorkflowItem）。
+  // 提交时以 `@workflow:<id>` 参与消息文本，Agent 侧用 get_workflow 解析。
+  const handleSelectWorkflow = async () => {
+    try {
+      const picked = (await invoke.workflowPage.openDrawerAsync(
+        { multiple: true },
+        { width: 1000, title: "Select Workflows" }
+      )) as WorkflowItem | WorkflowItem[] | undefined;
+      const workflows = Array.isArray(picked) ? picked : picked ? [picked] : [];
+      insertRefs(
+        workflows
+          .map((workflow) => {
+            const workflowId = String(workflow?.id ?? "").trim();
+            return {
+              kind: "workflow" as const,
+              value: workflowId,
+              label: workflow?.name || workflow?.workflow_id || `Workflow-${workflowId}`,
+            };
+          })
+          .filter((item) => item.value)
+      );
+    } catch {
+      // 用户取消选择，无需处理。
+    } finally {
+      // 无论选中还是取消，都把焦点交还输入框。
+      focusInputAfterPicker();
+    }
+  };
+
+  // Project Reports：invoke 弹出 project-report 的多选模式（Confirm 回传 ProjectReport[] / ProjectReport）。
+  // 提交时以 `@report:<id>` 参与消息文本，Agent 侧用 get_report 解析。
+  const handleSelectProjectReport = async () => {
+    try {
+      const picked = (await invoke.projectReport.openDrawerAsync(
+        { multiple: true },
+        { width: 1000, title: "Select Project Reports" }
+      )) as ProjectReport | ProjectReport[] | undefined;
+      const reports = Array.isArray(picked) ? picked : picked ? [picked] : [];
+      insertRefs(
+        reports
+          .map((report) => {
+            const reportId = String(report?.id ?? "").trim();
+            return {
+              kind: "report" as const,
+              value: reportId,
+              label: report?.title || `Report-${reportId}`,
+            };
+          })
+          .filter((item) => item.value)
+      );
+    } catch {
+      // 用户取消选择，无需处理。
+    } finally {
+      // 无论选中还是取消，都把焦点交还输入框。
+      focusInputAfterPicker();
+    }
+  };
+
+  // Literature：invoke 弹出 project-literature 的多选模式（Confirm 回传 ProjectLiteratureItem[] / ProjectLiteratureItem）。
+  // 提交时以 `@literature:<id>` 参与消息文本。
+  const handleSelectLiterature = async () => {
+    try {
+      const picked = (await invoke.projectLiterature.openDrawerAsync(
+        { multiple: true },
+        { width: 1000, title: "Select Literature" }
+      )) as ProjectLiteratureItem | ProjectLiteratureItem[] | undefined;
+      const literatures = Array.isArray(picked) ? picked : picked ? [picked] : [];
+      insertRefs(
+        literatures
+          .map((literature) => {
+            const literatureId = String(literature?.id ?? "").trim();
+            return {
+              kind: "literature" as const,
+              value: literatureId,
+              label: literature?.title || `Literature-${literatureId}`,
+            };
+          })
+          .filter((item) => item.value)
+      );
+    } catch {
+      // 用户取消选择，无需处理。
+    } finally {
+      // 无论选中还是取消，都把焦点交还输入框。
+      focusInputAfterPicker();
+    }
+  };
+
   // Containers：invoke 弹出 container-template-page 的选择模式（点击条目即回传，无 Confirm 按钮）。
   // 提交时以 `@container:<id>` 参与消息文本，Agent 侧用 get_container_template 解析展示名与描述。
   const handleSelectContainer = async () => {
@@ -326,7 +450,8 @@ const AgentSender: FC<AgentSenderProps> = ({
       footer={(actionNode) => (
         <Flex justify="space-between" align="center" gap="small">
           {/* 引用入口收进左下角的「+」里，点击向上弹出列表：
-              数据集（可进数据集挑文件）/ 分析节点（可进节点挑文件）/ 分析运行记录 / 容器模板。 */}
+              数据集（可进数据集挑文件）/ 分析节点（可进节点挑文件）/ 分析运行记录 /
+              脚本 / 工作流 / 项目报告 / 参考文献 / 容器模板。 */}
           <Dropdown
             trigger={["click"]}
             placement="topLeft"
@@ -349,8 +474,30 @@ const AgentSender: FC<AgentSenderProps> = ({
                   label: "Analysis Workflow",
                   onClick: () => void handleSelectAnalysisWorkflow(),
                 },
+                {                  key: "scripts",
+                  icon: <CodeOutlined />,
+                  label: "Script",
+                  onClick: () => void handleSelectScript(),
+                },
                 {
-                  key: "containers",
+                  key: "workflows",
+                  icon: <PartitionOutlined />,
+                  label: "Workflow",
+                  onClick: () => void handleSelectWorkflow(),
+                },
+                {
+                  key: "project-reports",
+                  icon: <ReadOutlined />,
+                  label: "Project Report",
+                  onClick: () => void handleSelectProjectReport(),
+                },
+                {
+                  key: "literature",
+                  icon: <BookOutlined />,
+                  label: "Literature",
+                  onClick: () => void handleSelectLiterature(),
+                },
+                {                  key: "containers",
                   icon: <CloudServerOutlined />,
                   label: "Containers",
                   onClick: () => void handleSelectContainer(),

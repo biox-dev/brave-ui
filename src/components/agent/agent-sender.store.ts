@@ -11,6 +11,7 @@ import { create } from "zustand";
  * - script：分析脚本（Agent 侧用 get_script 查看脚本名称 / 描述 / 容器模板 / 脚本文件与 io_schema 路径）；
  * - workflow：分析工作流（Agent 侧用 get_workflow 查看元数据 / DAG 定义 / io_schema）；
  * - analysis：一次分析运行（Agent 侧用 get_analysis_workflow 查看状态 / 参数 / 节点分布）；
+ * - literature：项目参考文献（Agent 侧按 @literature:<id> 读取标题 / 正文）；
  * - plan：Agent 计划（Agent 侧计划工具按 @plan:<id> 读取步骤树）。
  */
 export type AgentRefKind =
@@ -22,6 +23,7 @@ export type AgentRefKind =
   | "script"
   | "workflow"
   | "analysis"
+  | "literature"
   | "plan";
 
 /** 一次「把引用 chip 插入 Agent 输入框」的请求。 */
