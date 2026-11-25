@@ -31,12 +31,12 @@ import {
   getAgentPendingQuestionsApi,
   listAgentProfileApi,
   type AgentProfileItem,
-  getAgentTaskApi,
   getConversationApi,
   forkConversationApi,
   deleteAgentTurnApi,
   retryAgentTurnApi,
   type AgentAskUserAnswer,
+  type AgentActiveTaskStatus,
   type AgentConversationItem,
   type AgentEnvInfo,
   type AgentEventItem,
@@ -108,6 +108,31 @@ const isToolResultKind = (kind?: string) => kind === "tool_result" || kind === "
 // 后端用字符串 "0" 表示“无当前任务”，需一并视为空。
 function isValidTaskId(id?: string): id is string {
   return !!id && id !== "0";
+}
+
+// 由会话快照推导本轮 UI 状态。
+//
+// 三态返回值：
+//   - null      → 没有活跃轮次（current_task_id 为空）；
+//   - undefined → 有活跃任务但快照缺失（任务行被外删 / 查询失败），调用方保持现状；
+//   - 对象      → 已知状态：running / waiting / resumable 三者互斥。
+//
+// canceled 与 failed 一样可能保留检查点（后端 keepCurrentTask = Resumable），因此
+// 可续跑判定只看 resumable 而不只看 failed。
+function deriveTurnState(
+  taskId?: string,
+  active?: AgentActiveTaskStatus,
+): { running: boolean; waiting: boolean; resumable: boolean } | null | undefined {
+  if (!isValidTaskId(taskId)) return null;
+  if (!active) return undefined;
+  const resumable = !!active.resumable && active.status !== AgentTaskStatus.Completed;
+  const terminal =
+    active.status === AgentTaskStatus.Failed || active.status === AgentTaskStatus.Canceled;
+  return {
+    running: active.status === AgentTaskStatus.Running || active.status === AgentTaskStatus.Created,
+    waiting: active.status === AgentTaskStatus.WaitingPermission,
+    resumable: resumable && terminal,
+  };
 }
 
 // 把后端消息映射为本地气泡。
@@ -711,6 +736,46 @@ const AgentChat: FC<AgentChatProps> = ({
     });
   };
 
+  // 按会话快照同步本轮 UI 状态（切换会话 / 刷新 / 轮次结束统一走这里）。
+  //
+  // 快照来自 /agent/conversation/get 的 active_task：一次请求即可判定
+  // running / waiting_permission / 可续跑，无需再按 taskId 单独查询任务。
+  const applySessionSnapshot = useCallback((conv: AgentConversationItem) => {
+    const taskId = conv.current_task_id;
+    const turn = deriveTurnState(taskId, conv.active_task);
+    if (turn === null) {
+      // 没有活跃轮次：清空运行态。
+      if (isValidTaskId(taskId)) activeTurnsRef.current.delete(taskId);
+      setCurrentTaskId(undefined);
+      setSending(false);
+      setWaiting(false);
+      setResumableTaskId(undefined);
+      return;
+    }
+    if (!turn) return; // 快照缺失：保持现状，避免把正在运行的一轮误判为已结束。
+    if (!isValidTaskId(taskId)) return;
+
+    if (turn.running || turn.waiting) {
+      activeTurnsRef.current.set(taskId, {
+        taskId,
+        convId: conv.id,
+        waiting: turn.waiting,
+        sending: true,
+      });
+      setCurrentTaskId(taskId);
+      setSending(true);
+      setWaiting(turn.waiting);
+      setResumableTaskId(undefined);
+      return;
+    }
+    // 终态（completed / failed / canceled）：撤销活跃轮次；可续跑时保留 Continue 入口。
+    activeTurnsRef.current.delete(taskId);
+    setCurrentTaskId(undefined);
+    setSending(false);
+    setWaiting(false);
+    setResumableTaskId(turn.resumable ? taskId : undefined);
+  }, []);
+
   // 拉取任务待确认的权限请求（仅保留 pending 状态）。
   const loadPermissions = async (taskId: string) => {
     if (!taskId) return;
@@ -878,51 +943,21 @@ const AgentChat: FC<AgentChatProps> = ({
       // 切换会话时先重置续跑提示，后续按目标任务状态重新判定。
       setResumableTaskId(undefined);
 
+      // 运行态直接由会话详情里的快照推导（不再按 taskId 单独查任务）。
+      applySessionSnapshot(conv);
+
       const taskId = conv.current_task_id;
       if (!isValidTaskId(taskId)) {
-        setCurrentTaskId(undefined);
-        setSending(false);
-        setWaiting(false);
         setPendingPermissions([]);
         setPendingQuestions([]);
         return;
       }
-
-      // 已有活跃轮次：复用或新建。
-      let turn = activeTurnsRef.current.get(taskId);
-      if (!turn) {
-        turn = { taskId, convId: conv.id, waiting: false, sending: true };
-        activeTurnsRef.current.set(taskId, turn);
-        try {
-          const t = await getAgentTaskApi(taskId);
-          const st = t.data.status;
-          if (
-            st === AgentTaskStatus.Completed ||
-            st === AgentTaskStatus.Failed ||
-            st === AgentTaskStatus.Canceled
-          ) {
-            // 任务已终态：清掉活跃轮次，不再恢复；failed 且存在检查点时提供继续入口。
-            activeTurnsRef.current.delete(taskId);
-            setCurrentTaskId(undefined);
-            setSending(false);
-            setWaiting(false);
-            setPendingPermissions([]);
-            setPendingQuestions([]);
-            setResumableTaskId(
-              st === AgentTaskStatus.Failed && t.data.resumable ? taskId : undefined
-            );
-            return;
-          }
-          turn.waiting = st === AgentTaskStatus.WaitingPermission;
-        } catch {
-          // 查询任务失败时按 running 处理，避免丢失实时流。
-        }
+      if (!activeTurnsRef.current.has(taskId)) {
+        // 终态轮次：无需恢复权限 / 提问卡片。
+        setPendingPermissions([]);
+        setPendingQuestions([]);
+        return;
       }
-
-      setCurrentTaskId(taskId);
-      setSending(turn.sending);
-      setWaiting(turn.waiting);
-      setResumableTaskId(undefined);
 
       // 恢复该任务待确认的权限，保证刷新后切换到会话时按钮仍在。
       loadPermissions(taskId);
@@ -977,23 +1012,6 @@ const AgentChat: FC<AgentChatProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialConversationId]);
 
-  // 手动刷新对话时同步任务的可续跑状态（failed + resumable）。
-  const refreshResumableTask = async (taskId: string) => {
-    if (!isValidTaskId(taskId)) {
-      setResumableTaskId(undefined);
-      return;
-    }
-    try {
-      const res = await getAgentTaskApi(taskId);
-      const task = res.data;
-      setResumableTaskId(
-        task?.status === AgentTaskStatus.Failed && task.resumable ? taskId : undefined
-      );
-    } catch {
-      setResumableTaskId(undefined);
-    }
-  };
-
   // 重新拉取当前会话（最新一页消息）：用于手动同步后端最新状态。
   //
   // 用 selectedConvIdRef 而不是 conversationId state：本函数会被 WS 回调（首次渲染
@@ -1018,27 +1036,17 @@ const AgentChat: FC<AgentChatProps> = ({
         resetLiveStream();
         void subscribeSession(conv.id, true);
       }
+      // 同步运行态 / 续跑提示。WS 的中间态事件不落库，
+      // 刷新 / 重连后由会话快照补回 waiting，避免丢失实时流。
+      applySessionSnapshot(conv);
       // 同步刷新待确认权限 / 待作答提问，保证按钮与卡片与后端一致。
-      if (isValidTaskId(conv.current_task_id)) {
-        const taskId = conv.current_task_id;
+      const taskId = conv.current_task_id;
+      if (isValidTaskId(taskId) && activeTurnsRef.current.has(taskId)) {
         void loadPermissions(taskId);
         void loadQuestions(taskId);
-        void refreshResumableTask(taskId);
-        // WS 的中间态事件不落库；刷新 / 重连后用任务记录补回 waiting 状态。
-        void getAgentTaskApi(taskId)
-          .then((t) => {
-            if (conv.id !== selectedConvIdRef.current) return;
-            if (t.data?.status === AgentTaskStatus.WaitingPermission) {
-              setWaiting(true);
-            } else if (t.data?.status === AgentTaskStatus.Running) {
-              setWaiting(false);
-            }
-          })
-          .catch(() => {
-            // 查询失败时保持现有状态。
-          });
       } else {
-        setResumableTaskId(undefined);
+        setPendingPermissions([]);
+        setPendingQuestions([]);
       }
     } catch {
       // 错误由全局拦截器提示。
@@ -1048,24 +1056,23 @@ const AgentChat: FC<AgentChatProps> = ({
   };
 
   // task.failed 兜底：若历史里没有 kind=error 的消息（旧数据 / 落库异常），
-  // 用任务记录上的 error 字段补一条错误气泡，保证错误信息稳定可见。
-  const appendTaskError = async (list: ChatMessage[], taskId: string) => {
+  // 用会话快照携带的任务 error 补一条错误气泡，保证错误信息稳定可见。
+  const appendTaskError = (
+    list: ChatMessage[],
+    taskId: string,
+    error?: string,
+  ) => {
     if (list.some((m) => m.taskId === taskId && (m.kind === "error" || m.error))) return;
-    try {
-      const res = await getAgentTaskApi(taskId);
-      const text = (res.data?.error ?? "").trim();
-      if (!text) return;
-      list.push({
-        id: `error-${taskId}`,
-        role: "assistant",
-        kind: "error",
-        content: text,
-        taskId,
-        error: true,
-      });
-    } catch {
-      // 兜底查询失败时忽略：后端写入的 error 消息仍会展示。
-    }
+    const text = (error ?? "").trim();
+    if (!text) return;
+    list.push({
+      id: `error-${taskId}`,
+      role: "assistant",
+      kind: "error",
+      content: text,
+      taskId,
+      error: true,
+    });
   };
 
   // 轮次结束：把 assistant 回复固化到消息列表（若为选中会话），并清理活跃轮次。
@@ -1080,14 +1087,12 @@ const AgentChat: FC<AgentChatProps> = ({
         upsertConversation(conv);
         const nextMessages = mapMessages(conv);
         if (type === "task.failed") {
-          await appendTaskError(nextMessages, turn.taskId);
-          // 后端重启 / 崩溃导致的中断可以续跑：保留一个 Continue 入口。
-          await refreshResumableTask(turn.taskId);
-        } else {
-          setResumableTaskId(undefined);
+          appendTaskError(nextMessages, turn.taskId, conv.active_task?.error);
         }
         setMessages(nextMessages);
         historyApplied = true;
+        // 终态后按快照同步「是否可续跑」（failed / canceled 且保留检查点）。
+        applySessionSnapshot(conv);
         // 轮次结束后回到最新一页（与后续向上滚动加载的游标保持一致）。
         setHasMoreMessages(!!conv.has_more);
         oldestSeqRef.current = conv.next_cursor ?? 0;

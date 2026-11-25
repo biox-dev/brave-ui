@@ -270,12 +270,23 @@ export interface AgentConversationItem {
   /** 历史消息：仅详情 / fork 接口返回，列表接口为空。 */
   messages?: AgentConversationMessageItem[];
   current_task_id?: string;
+  /** 当前轮次的任务状态快照（仅详情接口返回）：无活跃轮次时缺失。 */
+  active_task?: AgentActiveTaskStatus;
   /** 是否还有更早的消息（向上滚动时继续加载）。 */
   has_more?: boolean;
   /** 向上翻页游标：下次请求传 before_seq=next_cursor。 */
   next_cursor?: number;
   created_at: string;
   updated_at: string;
+}
+
+/** 会话当前轮次的状态快照（对应后端 service.ActiveTaskStatus）。 */
+export interface AgentActiveTaskStatus {
+  status: string;
+  /** 是否存在持久化检查点：failed / canceled 且为 true 时可 Continue。 */
+  resumable?: boolean;
+  /** 最近一次错误（status 为 failed 时有效）。 */
+  error?: string;
 }
 
 /** 会话参与者（对应后端 agenttypes.SessionUser）。 */
