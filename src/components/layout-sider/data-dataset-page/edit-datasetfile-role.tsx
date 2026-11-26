@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button, Flex, Form, Select } from "antd";
-import { updateFileApi } from "@/api/data";
-import type { DatasetFileItem } from "@/api/data";
+import { listFileRolesApi, updateFileApi } from "@/api/data";
+import type { DatasetFileItem, RoleOption } from "@/api/data";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 
 export interface EditDatasetFileRoleProps {
@@ -11,21 +11,37 @@ export interface EditDatasetFileRoleProps {
   close?: () => void;
 }
 
-const ROLE_OPTIONS = [
-  { label: "DEFAULT", value: "DEFAULT" },
-  { label: "TABLE", value: "TABLE" },
-  { label: "EXP", value: "EXP" },
-  { label: "PHENOTYPE", value: "PHENOTYPE" },
-];
+const DEFAULT_ROLE = "DEFAULT";
 
 const EditDatasetFileRole = ({ file, onOk, onCancel, close }: EditDatasetFileRoleProps) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [roleOptions, setRoleOptions] = useState<RoleOption[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(true);
   const message = useGlobalMessage();
+
+  // The valid roles are owned by the backend (types.Roles → /data/file/roles),
+  // so adding a role there needs no change here.
+  useEffect(() => {
+    let cancelled = false;
+    listFileRolesApi()
+      .then((response) => {
+        if (!cancelled) setRoleOptions((response.data ?? []) as RoleOption[]);
+      })
+      .catch(() => {
+        if (!cancelled) message.error("Failed to load roles");
+      })
+      .finally(() => {
+        if (!cancelled) setRolesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [message]);
 
   useEffect(() => {
     if (file) {
-      form.setFieldsValue({ role: file.role || "DEFAULT" });
+      form.setFieldsValue({ role: file.role || DEFAULT_ROLE });
     }
   }, [file, form]);
 
@@ -79,7 +95,7 @@ const EditDatasetFileRole = ({ file, onOk, onCancel, close }: EditDatasetFileRol
         <div style={{ padding: "4px 0" }}>{file.dataset_name || "-"}</div>
       </Form.Item>
       <Form.Item name="role" label="Role" rules={[{ required: true, message: "Please select a role" }]}>
-        <Select options={ROLE_OPTIONS} />
+        <Select options={roleOptions} loading={rolesLoading} placeholder="Select a role" />
       </Form.Item>
       <Flex justify="end" gap="small">
         <Button onClick={handleCancel}>Cancel</Button>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button, Flex, Form, Input, Select } from "antd";
-import { updateFileApi } from "@/api/data";
-import type { DatasetFileItem } from "@/api/data";
+import { listFileRolesApi, updateFileApi } from "@/api/data";
+import type { DatasetFileItem, RoleOption } from "@/api/data";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 
 export interface EditFilePageProps {
@@ -11,17 +11,30 @@ export interface EditFilePageProps {
   close?: () => void;
 }
 
-const ROLE_OPTIONS = [
-  { label: "DEFAULT", value: "DEFAULT" },
-  { label: "TABLE", value: "TABLE" },
-  { label: "EXP", value: "EXP" },
-  { label: "PHENOTYPE", value: "PHENOTYPE" },
-];
-
 const EditFilePage = ({ file, onOk, onCancel, close }: EditFilePageProps) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [roleOptions, setRoleOptions] = useState<RoleOption[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(true);
   const message = useGlobalMessage();
+
+  // The valid roles are owned by the backend (types.Roles → /data/file/roles).
+  useEffect(() => {
+    let cancelled = false;
+    listFileRolesApi()
+      .then((response) => {
+        if (!cancelled) setRoleOptions((response.data ?? []) as RoleOption[]);
+      })
+      .catch(() => {
+        if (!cancelled) message.error("Failed to load roles");
+      })
+      .finally(() => {
+        if (!cancelled) setRolesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [message]);
 
   useEffect(() => {
     if (file) {
@@ -94,12 +107,13 @@ const EditFilePage = ({ file, onOk, onCancel, close }: EditFilePageProps) => {
       <Form.Item
         name="role"
         label="Role"
-        tooltip="The file's own role (go_file.role), used as the analysis_result key in workflow forms, e.g. DEFAULT / TABLE / BAM. The stored value is kept when left empty."
+        tooltip="The file's own role (go_file.role), used as the analysis_result key in workflow forms (DEFAULT / TABLE / DATABASE). The stored value is kept when left empty."
       >
         <Select
           allowClear
           placeholder="Select a role"
-          options={ROLE_OPTIONS}
+          options={roleOptions}
+          loading={rolesLoading}
         />
       </Form.Item>
       <Form.Item name="description" label="Description">

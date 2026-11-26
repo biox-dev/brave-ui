@@ -198,14 +198,27 @@ export interface UpdateFileRequest {
 	storage?: string;
 	assay_id?: string;
 	file_key?: string;
-	// role is the file's role (go_file.role), e.g. DEFAULT / TABLE / EXP; it is
-	// what the workflow form's analysis_result map is keyed by.
+	// role is the file's role (go_file.role), e.g. DEFAULT / TABLE / DATABASE; it
+	// is what the workflow form's analysis_result map is keyed by. The valid
+	// values come from listFileRolesApi so the options live on the backend only.
 	role?: string;
 }
 
 export interface DeleteFileRequest {
 	id: string;
 }
+
+// RoleOption is one selectable value of go_file.role / go_assay.role. The list is
+// owned by the backend (types.Roles) so a new role needs no frontend change.
+export interface RoleOption {
+	label: string;
+	value: string;
+}
+
+// listFileRolesApi returns the valid file/assay roles (types.Roles).
+export const listFileRolesApi = () => {
+	return http.get<RoleOption[]>("/data/file/roles");
+};
 
 export const listFileByProjectGroupApi = (projectId: string) => {
 	return http.get<ListFileByProjectGroupResponse>(

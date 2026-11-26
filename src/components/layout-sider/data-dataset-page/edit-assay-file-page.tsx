@@ -31,9 +31,6 @@ const FILE_KEY_OPTIONS = [
   "bed",
   "tsv",
   "csv",
-  "DEFAULT",
-  "TABLE",
-  "PHENOTYPE",
 ].map((value) => ({ value }));
 
 const baseName = (path: string) => path.split("/").filter(Boolean).pop() ?? "";
