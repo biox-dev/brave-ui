@@ -318,6 +318,34 @@ export const describeContainerInstanceApi = (id: string) => {
 };
 
 /**
+ * 「清理全部容器资源」的结果（对应后端 types.ContainerCleanupResult）。
+ *
+ * 清理是尽力而为的：单条失败不会中断整体流程，失败原因收集在 errors 里。
+ */
+export interface ContainerCleanupResult {
+    /** 清理前扫描到的 ContainerInstance 总数。 */
+    containers_total: number;
+    /** 成功删除的容器数（运行时资源 + 实例行）。 */
+    containers_deleted: number;
+    /** 清空的网关路由（go_gateway_route）行数。 */
+    gateway_routes_deleted: number;
+    /** 删除的 AppSession 行数（Web 会话 + 终端会话）。 */
+    app_sessions_deleted: number;
+    /** 逐条失败原因；为空表示全部成功。 */
+    errors?: string[];
+}
+
+/**
+ * 清理系统中的全部容器资源（运行中 + 已停止）。
+ *
+ * 后端会：清空网关路由 → 同步删除所有 ContainerInstance 及其 docker / k8s 运行时容器
+ * → 删除全部 AppSession。属于不可逆操作，接口要求显式传 confirm=true。
+ */
+export const cleanupAllContainersApi = () => {
+    return http.post<ContainerCleanupResult>("/container/instance/cleanup-all", { confirm: true });
+};
+
+/**
  * 默认容器运行时健康状态（对应后端 handler.ContainerHandler.CheckContainerRuntime）。
  *
  * 名称解析与容器实际执行完全同源（ContainerLifecycle.GetRuntime）：容器创建会失败的场景，

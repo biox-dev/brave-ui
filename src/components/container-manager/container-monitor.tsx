@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { Popover, Tooltip, Flex, Typography } from 'antd';
-import { ClockCircleOutlined, ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { Popover, Tooltip, Flex, Typography, Button } from 'antd';
+import { ClockCircleOutlined, DeleteOutlined, ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { http } from '@/api/client/http';
+import { cleanupAllContainersApi } from '@/api/container';
+import { getGlobalMessage } from '@/hooks/useGlobalMessage';
 import { useComponentStore } from '@/event-bus/stores/components';
 
 /**
@@ -25,10 +27,12 @@ interface QueueStatus {
 }
 
 /**
- * 容器队列状态指示器（无开关、无独立刷新按钮）。
+ * 容器队列状态指示器 + 清理入口。
  *
  * - 鼠标移上去：Popover 展示运行中 / 等待中 / 并发上限 / 排队上限等明细；
- * - 点击徽标：立即刷新一次队列状态（刷新时图标旋转）。
+ * - 点击徽标：立即刷新一次队列状态（刷新时图标旋转）；
+ * - 弹窗底部「清理全部容器」按钮：二次确认后调用 /container/instance/cleanup-all，
+ *   删除全部容器（运行中 + 已停止）、网关路由与全部会话。
  */
 const ContainerQueueMonitor: React.FC = () => {
     const [status, setStatus] = useState<QueueStatus | null>(null);
@@ -36,6 +40,10 @@ const ContainerQueueMonitor: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [open, setOpen] = useState(false);
     const [hovered, setHovered] = useState(false);
+    const [cleaning, setCleaning] = useState(false);
+    // confirming 是弹窗内「清理全部容器」的二次确认状态（inline 两步确认，
+    // 避免在 hover 弹窗里再嵌套一个 Popconfirm 导致主弹窗提前关闭）。
+    const [confirming, setConfirming] = useState(false);
 
     const fetchStatus = useCallback(async () => {
         setLoading(true);
@@ -49,6 +57,34 @@ const ContainerQueueMonitor: React.FC = () => {
             setLoading(false);
         }
     }, []);
+
+    /**
+     * 调用「清理全部容器资源」接口：
+     * 删除所有容器实例（运行中 + 已停止）及其 docker / k8s 容器、网关路由与全部会话。
+     *
+     * 成功 / 失败提示统一走全局 message；请求失败的后端错误已由 http 拦截器弹出，
+     * 这里只负责刷新一次队列状态。
+     */
+    const handleCleanup = useCallback(async () => {
+        setCleaning(true);
+        try {
+            const resp = await cleanupAllContainersApi();
+            const result = resp.data;
+            const failed = result.errors?.length ?? 0;
+            const summary = `已清理容器 ${result.containers_deleted}/${result.containers_total}，路由 ${result.gateway_routes_deleted} 条，会话 ${result.app_sessions_deleted} 个`;
+            if (failed > 0) {
+                getGlobalMessage()?.warning(`${summary}，${failed} 项失败`);
+            } else {
+                getGlobalMessage()?.success(summary);
+            }
+            await fetchStatus();
+        } catch {
+            // 后端错误已由 http 拦截器提示，这里无需重复。
+        } finally {
+            setCleaning(false);
+            setConfirming(false);
+        }
+    }, [fetchStatus]);
 
     // 挂载时拉取一次。
     useEffect(() => {
@@ -142,19 +178,38 @@ const ContainerQueueMonitor: React.FC = () => {
                     <span style={{ color: '#52c41a' }}>空闲可用</span>
                 ),
             )}
+           
             <div
                 style={{
                     marginTop: 6,
                     paddingTop: 6,
                     borderTop: '1px solid rgba(0,0,0,0.06)',
-                    color: 'rgba(0,0,0,0.45)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
                 }}
             >
-                <ReloadOutlined spin={loading} style={{ fontSize: 11 }} />
-                <span>点击徽标刷新</span>
+                {confirming ? (
+                    <Flex gap={6} align="center" justify="space-between">
+                        <span style={{ color: '#ff4d4f' }}>确认清理全部容器？</span>
+                        <Flex gap={6}>
+                            <Button size="small" danger loading={cleaning} onClick={handleCleanup}>
+                                确认
+                            </Button>
+                            <Button size="small" disabled={cleaning} onClick={() => setConfirming(false)}>
+                                取消
+                            </Button>
+                        </Flex>
+                    </Flex>
+                ) : (
+                    <Button
+                        type="text"
+                        size="small"
+                        danger
+                        block
+                        icon={<DeleteOutlined />}
+                        onClick={() => setConfirming(true)}
+                    >
+                        清理全部容器
+                    </Button>
+                )}
             </div>
         </div>
     );
@@ -162,45 +217,49 @@ const ContainerQueueMonitor: React.FC = () => {
     return (
         <Popover
             open={open}
-            onOpenChange={setOpen}
+            onOpenChange={(next) => {
+                setOpen(next);
+                // 弹窗关闭时重置二次确认状态（正在清理时保持，避免请求完成前状态错乱）。
+                if (!next && !cleaning) {
+                    setConfirming(false);
+                }
+            }}
             trigger="hover"
             placement="bottomRight"
             mouseEnterDelay={0.1}
             content={content}
         >
-            <Tooltip title={loading ? '刷新中…' : '点击刷新队列状态'}>
-                <Flex
-                    gap={4}
-                    align="center"
-                    onClick={handleClick}
-                    onMouseEnter={() => setHovered(true)}
-                    onMouseLeave={() => setHovered(false)}
-                    style={{
-                        cursor: 'pointer',
-                        userSelect: 'none',
-                        padding: '0 6px',
-                        borderRadius: 4,
-                        background: hovered ? 'rgba(0,0,0,0.06)' : 'transparent',
-                        lineHeight: '20px',
-                        fontSize: 12,
-                        transition: 'background 0.2s',
-                    }}
-                >
-                    <Typography.Text style={{ color: activeColor, fontWeight: 600 }}>
-                        {status.active_count}
-                    </Typography.Text>
-                    <span style={{ color: '#bbb' }}>/</span>
-                    <Typography.Text style={{ color: '#888' }}>
-                        {status.max_concurrency}
-                    </Typography.Text>
-                    {status.pending_count > 0 && (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, color: pendingColor }}>
-                            <ClockCircleOutlined style={{ fontSize: 11 }} />
-                            <span>{status.pending_count}</span>
-                        </span>
-                    )}
-                </Flex>
-            </Tooltip>
+            <Flex
+                gap={4}
+                align="center"
+                onClick={handleClick}
+                onMouseEnter={() => setHovered(true)}
+                onMouseLeave={() => setHovered(false)}
+                style={{
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    padding: '0 6px',
+                    borderRadius: 4,
+                    background: hovered ? 'rgba(0,0,0,0.06)' : 'transparent',
+                    lineHeight: '20px',
+                    fontSize: 12,
+                    transition: 'background 0.2s',
+                }}
+            >
+                <Typography.Text style={{ color: activeColor, fontWeight: 600 }}>
+                    {status.active_count}
+                </Typography.Text>
+                <span style={{ color: '#bbb' }}>/</span>
+                <Typography.Text style={{ color: '#888' }}>
+                    {status.max_concurrency}
+                </Typography.Text>
+                {status.pending_count > 0 && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, color: pendingColor }}>
+                        <ClockCircleOutlined style={{ fontSize: 11 }} />
+                        <span>{status.pending_count}</span>
+                    </span>
+                )}
+            </Flex>
         </Popover>
     );
 };
