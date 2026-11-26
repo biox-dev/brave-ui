@@ -4,6 +4,11 @@ import { useFormStore } from "@/event-bus/stores/form";
 import { useRouterStore } from "@/event-bus/stores/router";
 import { BROADCAST_ID, useComponentStore, type ComponentStore } from "@/event-bus/stores/components";
 import { openBottomTerminal } from "@/layout/bottom-panel-store";
+import {
+  currentPathname,
+  openAgentSessionTerminalTab,
+  parseAgentSessionPath,
+} from "@/layout/workspace-navigation";
 
 
 // 定义各 Action payload 类型
@@ -86,14 +91,27 @@ export function registerActions() {
     useRouterStore.getState().go(payload.path, payload.state);
   });
 
-  // Container terminal：Agent 执行命令时把底部终端调到前台（会话已在后端创建，
+  // Container terminal：Agent 执行命令时把终端调到前台（会话已在后端创建，
   // 打开连接会自动回放历史输出）。终端会话按会话 ID 寻址。
+  //
+  // 打开位置跟随当前路由，与 workspace-navigation 的「同一资源两种打开方式」一致：
+  // - Agent 会话页（`/session`、`/session/:sessionId`）：在右侧工作区 `MainTabs`
+  //   打开 / 聚焦终端标签（`agentAppSessionTerminal`），不打断聊天；
+  // - 其它页面：沿用底部面板终端（openBottomTerminal）。
   ActionDispatcher.register("terminal.exec", (payload: TerminalExecPayload) => {
     const sessionId = payload?.session_id == null ? "" : String(payload.session_id).trim();
     if (!sessionId || payload?.phase !== "start") {
       return;
     }
-    openBottomTerminal(sessionId, `Terminal ${sessionId}`);
+    const title = `Terminal ${sessionId}`;
+    const { matched, sessionId: conversationId } = parseAgentSessionPath(currentPathname());
+    if (matched) {
+      // 会话页：New Chat（`/session` 还没有会话 ID）写进 `__new__` 工作区，
+      // 会话创建后由页面迁移到新会话，标签不会凭空消失。
+      openAgentSessionTerminalTab(conversationId, sessionId, title);
+    } else {
+      openBottomTerminal(sessionId, title);
+    }
     const ui = useUIStore.getState();
     ui.notificationApi?.info({
       message: "Agent is running a command in the terminal",

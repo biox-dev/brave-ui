@@ -38,6 +38,26 @@ export const LITERATURE_TAB_KEY_PREFIX = "session-literature";
 export const PROJECT_REPORT_TAB_KEY_PREFIX = "session-project-report";
 /** 数据集文件（文件查看详情）的标签 key 前缀。 */
 export const DATASET_FILE_TAB_KEY_PREFIX = "session-dataset-file";
+/** 应用会话（= 终端会话）终端的标签 key 前缀；多个入口共用，保证聚焦同一个标签。 */
+export const TERMINAL_TAB_KEY_PREFIX = "session-terminal";
+
+/**
+ * 当前路由的 pathname（非 hook 版本）。
+ *
+ * 事件总线（`actionRegistry`）这类 React 组件之外的地方拿不到 `useLocation`，
+ * 所以直接读地址栏：应用使用 HashRouter（`#/session/xxx`），优先解析 hash 部分；
+ * 非 hash 路由时回退到 `window.location.pathname`。
+ */
+export const currentPathname = (): string => {
+  if (typeof window === "undefined") {
+    return "/";
+  }
+  const hash = window.location.hash || "";
+  if (hash.startsWith("#/")) {
+    return hash.replace(/^#/, "").split("?")[0] || "/";
+  }
+  return window.location.pathname || "/";
+};
 
 /**
  * 解析 pathname 是否命中 Agent 会话页，命中时取出会话 ID。
@@ -93,6 +113,32 @@ export type WorkspaceOpenTarget = {
 /** 资源在右侧工作区里的标签 key（各列表用它判断「这一条是否正在右侧显示」）。 */
 export const workspaceTargetKey = (target: Pick<WorkspaceOpenTarget, "tabKeyPrefix" | "resourceId">) =>
   `${target.tabKeyPrefix}:${target.resourceId}`;
+
+/**
+ * 在 Agent 会话页右侧工作区（`MainTabs`）打开或聚焦一个应用会话终端标签。
+ *
+ * 与 `openWorkspaceTarget` 同一约定：标签用 `view` + `params` 描述，
+ * 由 `ViewResolver` 渲染 `agentAppSessionTerminal`（内嵌 xterm 终端）。
+ * 同一终端会话重复调用只聚焦、不重复开标签。
+ */
+export const openAgentSessionTerminalTab = (
+  sessionId: string | undefined,
+  terminalSessionId: string,
+  title?: string
+): boolean => {
+  const id = String(terminalSessionId ?? "").trim();
+  if (!id) {
+    return false;
+  }
+  const name = (title ?? "").trim() || `Terminal ${id}`;
+  openAgentWorkspaceTab(sessionId, {
+    key: `${TERMINAL_TAB_KEY_PREFIX}:${id}`,
+    title: name,
+    view: "agentAppSessionTerminal",
+    params: { session_id: id, name },
+  });
+  return true;
+};
 
 /** 打开结果：在右侧标签里打开，或退化成路由跳转。 */
 export type WorkspaceOpenResult = "tab" | "route";
