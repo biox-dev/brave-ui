@@ -16,21 +16,21 @@ const AnalysisWorkflowStack = () => {
 
   const sections = useMemo<SiderStackSection[]>(
     () => [
-      {
-        key: 'analysisList',
-        render: ({ collapsed, toggle }) => (
-          <ViewResolver
-            view="analysisList"
-            collapsed={collapsed}
-            onToggleCollapse={toggle}
-          />
-        ),
-      },
+
       {
         key: 'workflowPage',
         render: ({ collapsed, toggle }) => (
           <ViewResolver
             view="workflowPage"
+            collapsed={collapsed}
+            onToggleCollapse={toggle}
+          />
+        ),
+      }, {
+        key: 'analysisList',
+        render: ({ collapsed, toggle }) => (
+          <ViewResolver
+            view="analysisList"
             collapsed={collapsed}
             onToggleCollapse={toggle}
           />
