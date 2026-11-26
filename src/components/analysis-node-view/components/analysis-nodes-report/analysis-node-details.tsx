@@ -273,171 +273,171 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, v
                 </ParamsPanelDock>
             }
         >
-        <PanelLayout
-            className="analysis-node-details-page page-flat"
-            title={selectedSampleDetail?.node?.script_name || "Result Report"}
-            bodyStyle={{ padding: 12 }}
-            extra={
-                <Space>
-                    {/* 把当前分析节点作为 @analysis_node:<id> 引用插进 Agent 输入框，
+            <PanelLayout
+                className="analysis-node-details-page page-flat"
+                title={selectedSampleDetail?.node?.script_name || "Result Report"}
+                bodyStyle={{ padding: 12 }}
+                extra={
+                    <Space>
+                        {/* 把当前分析节点作为 @analysis_node:<id> 引用插进 Agent 输入框，
                         模型收到引用后会用 get_analysis_node 读取节点名称 / 类型 / 工作目录与参数。 */}
-                    <Tooltip
-                        title={
-                            agentRefNodeId
-                                ? `Ask Agent about analysis node ${agentRefNodeId}`
-                                : "Analysis node is not loaded yet"
-                        }
-                    >
-                        <Button
-                            size="small"
-                            icon={<RobotOutlined />}
-                            disabled={!agentRefNodeId}
-                            onClick={() => {
-                                const ok = insertAgentRef("analysis_node", agentRefNodeId, {
-                                    label:
-                                        selectedSampleDetail?.node?.node_name ||
-                                        `AnalysisNode-${agentRefNodeId}`,
-                                });
-                                if (ok) message.success("Reference added to Agent input");
-                            }}
+                        <Tooltip
+                            title={
+                                agentRefNodeId
+                                    ? `Ask Agent about analysis node ${agentRefNodeId}`
+                                    : "Analysis node is not loaded yet"
+                            }
                         >
-                            Ask Agent
-                        </Button>
-                    </Tooltip>
-
-                    {/* 参数面板开关：组件自己声明编辑目标（当前分析节点），面板在右侧停靠。 */}
-                    <Tooltip title={paramsOpen ? "Hide parameters panel" : "Show parameters panel"}>
-                        <Button
-                            size="small"
-                            icon={<ControlOutlined />}
-                            type={paramsOpen ? "primary" : "default"}
-                            disabled={!nodeId}
-                            onClick={() => setParamsOpen((prev) => !prev)}
-                        >
-                            Parameters
-                        </Button>
-                    </Tooltip>
-
-                    {selectedSampleDetail && (
-                        <Space>
-
-                            <Tooltip
-                                title={
-                                    resultView === "nodeParams"
-                                        ? "Back to the result view"
-                                        : `Node Params - ${selectedSampleDetail.node?.id}`
-                                }
+                            <Button
+                                size="small"
+                                icon={<RobotOutlined />}
+                                disabled={!agentRefNodeId}
+                                onClick={() => {
+                                    const ok = insertAgentRef("analysis_node", agentRefNodeId, {
+                                        label:
+                                            selectedSampleDetail?.node?.node_name ||
+                                            `AnalysisNode-${agentRefNodeId}`,
+                                    });
+                                    if (ok) message.success("Reference added to Agent input");
+                                }}
                             >
-                                <Button
-                                    size="small"
-                                    color="cyan"
-                                    variant={resultView === "nodeParams" ? "outlined" : "solid"}
-                                    onClick={() => {
-                                        // 不弹窗：直接在底部 ViewResolver 里切换视图。
-                                        toggleResultView("nodeParams");
-                                    }}
-                                >
-                                    {resultView === "nodeParams" ? "Result" : "Params"}
-                                </Button>
-                            </Tooltip>
+                                Ask Agent
+                            </Button>
+                        </Tooltip>
 
-                            {/* run.sh 命令视图：与 Params / Code 一样在底部 ViewResolver 内联切换，不弹窗。 */}
-                            <Tooltip
-                                title={
-                                    resultView === "nodeCommand"
-                                        ? "Back to the result view"
-                                        : `run.sh - ${selectedSampleDetail.node?.command_path || ""}`
-                                }
+                        {/* 参数面板开关：组件自己声明编辑目标（当前分析节点），面板在右侧停靠。 */}
+                        <Tooltip title={paramsOpen ? "Hide parameters panel" : "Show parameters panel"}>
+                            <Button
+                                size="small"
+                                icon={<ControlOutlined />}
+                                type={paramsOpen ? "primary" : "default"}
+                                disabled={!nodeId}
+                                onClick={() => setParamsOpen((prev) => !prev)}
                             >
-                                <Button
-                                    size="small"
-                                    color="cyan"
-                                    variant={resultView === "nodeCommand" ? "outlined" : "solid"}
-                                    onClick={() => {
-                                        // 不弹窗：直接在底部 ViewResolver 里切换视图。
-                                        toggleResultView("nodeCommand");
-                                    }}
+                                Parameters
+                            </Button>
+                        </Tooltip>
+
+                        {selectedSampleDetail && (
+                            <Space>
+
+                                <Tooltip
+                                    title={
+                                        resultView === "nodeParams"
+                                            ? "Back to the result view"
+                                            : `Node Params - ${selectedSampleDetail.node?.id}`
+                                    }
                                 >
-                                    {resultView === "nodeCommand" ? "Result" : "Command"}
-                                </Button>
-                            </Tooltip>
-                            {/* 命令节点（Agent 创建、无 script）没有脚本可编辑，隐藏编辑入口。 */}
-                            {!selectedSampleDetail.node?.is_command_node && (
-                                <>
-                                    <Tooltip
-                                        title={
-                                            resultView === "createOrUpdateScript"
-                                                ? "Back to the result view"
-                                                : `Edit Script ${selectedSampleDetail.node?.script_id}`
-                                        }
+                                    <Button
+                                        size="small"
+                                        color="cyan"
+                                        variant={resultView === "nodeParams" ? "outlined" : "solid"}
+                                        onClick={() => {
+                                            // 不弹窗：直接在底部 ViewResolver 里切换视图。
+                                            toggleResultView("nodeParams");
+                                        }}
                                     >
-                                        <Button
-                                            size="small"
-                                            color="cyan"
-                                            variant={resultView === "createOrUpdateScript" ? "outlined" : "solid"}
-                                            onClick={() => {
-                                                // 与 Params / Code 一致：不弹窗，直接在底部 ViewResolver 里切换视图。
-                                                toggleResultView("createOrUpdateScript");
-                                            }}
-                                        >
-                                            {resultView === "createOrUpdateScript" ? "Result" : "Edit Script"}
-                                        </Button>
-                                    </Tooltip>
+                                        {resultView === "nodeParams" ? "Result" : "Params"}
+                                    </Button>
+                                </Tooltip>
 
-                                    <Tooltip
-                                        title={
-                                            resultView === "scriptCode"
-                                                ? "Back to the result view"
-                                                : `Script Code ${selectedSampleDetail.node?.script_id}`
-                                        }
+                                {/* run.sh 命令视图：与 Params / Code 一样在底部 ViewResolver 内联切换，不弹窗。 */}
+                                <Tooltip
+                                    title={
+                                        resultView === "nodeCommand"
+                                            ? "Back to the result view"
+                                            : `run.sh - ${selectedSampleDetail.node?.command_path || ""}`
+                                    }
+                                >
+                                    <Button
+                                        size="small"
+                                        color="cyan"
+                                        variant={resultView === "nodeCommand" ? "outlined" : "solid"}
+                                        onClick={() => {
+                                            // 不弹窗：直接在底部 ViewResolver 里切换视图。
+                                            toggleResultView("nodeCommand");
+                                        }}
                                     >
-                                        <Button
-                                            size="small"
-                                            color="cyan"
-                                            variant={resultView === "scriptCode" ? "outlined" : "solid"}
-                                            onClick={() => {
-                                                // 不弹窗：直接在底部 ViewResolver 里切换视图。
-                                                toggleResultView("scriptCode");
-                                            }}
+                                        {resultView === "nodeCommand" ? "Result" : "Command"}
+                                    </Button>
+                                </Tooltip>
+                                {/* 命令节点（Agent 创建、无 script）没有脚本可编辑，隐藏编辑入口。 */}
+                                {!selectedSampleDetail.node?.is_command_node && (
+                                    <>
+                                        <Tooltip
+                                            title={
+                                                resultView === "createOrUpdateScript"
+                                                    ? "Back to the result view"
+                                                    : `Edit Script ${selectedSampleDetail.node?.script_id}`
+                                            }
                                         >
-                                            {resultView === "scriptCode" ? "Result" : "Code"}
-                                        </Button>
-                                    </Tooltip>
-                                </>
-                            )}
+                                            <Button
+                                                size="small"
+                                                color="cyan"
+                                                variant={resultView === "createOrUpdateScript" ? "outlined" : "solid"}
+                                                onClick={() => {
+                                                    // 与 Params / Code 一致：不弹窗，直接在底部 ViewResolver 里切换视图。
+                                                    toggleResultView("createOrUpdateScript");
+                                                }}
+                                            >
+                                                {resultView === "createOrUpdateScript" ? "Result" : "Edit Script"}
+                                            </Button>
+                                        </Tooltip>
 
-                            {selectedSampleDetail.node?.status != "pending" && (
-                                <>
-                                    {selectedSampleDetail.node?.image_status == "exist" ? (
-                                        <>
-                                            {selectedSampleDetail.node?.status == "running" ? (
-                                                <Popconfirm
-                                                    title={"Whether or not to stop?"}
-                                                    onConfirm={async () => {
-                                                        // await stopAnalysisNodeApi(selectedSampleDetail.node?.analysis_node_id, "node");
-                                                        await http.post(`/analysis/node/stop/${analysisNodeId}`)
-                                                        message.success("Stop Success");
-                                                    }}
-                                                >
-                                                    <Button size="small" color="red" variant="solid">
-                                                        Stop
-                                                    </Button>
-                                                </Popconfirm>
-                                            ) : (
-                                                <Popconfirm
-                                                    title={"Whether or not to run?"}
-                                                    onConfirm={async () => {
-                                                        await http.post(`/analysis/${analysisNodeId}/run-node`)
-                                                        message.success("run successfully");
-                                                    }}
-                                                >
-                                                    <Button size="small" color="cyan" variant="solid">
-                                                        {selectedSampleDetail.node?.status == "ready" ? "Run" : "Re-Run"}
-                                                    </Button>
-                                                </Popconfirm>
-                                            )}
+                                        <Tooltip
+                                            title={
+                                                resultView === "scriptCode"
+                                                    ? "Back to the result view"
+                                                    : `Script Code ${selectedSampleDetail.node?.script_id}`
+                                            }
+                                        >
+                                            <Button
+                                                size="small"
+                                                color="cyan"
+                                                variant={resultView === "scriptCode" ? "outlined" : "solid"}
+                                                onClick={() => {
+                                                    // 不弹窗：直接在底部 ViewResolver 里切换视图。
+                                                    toggleResultView("scriptCode");
+                                                }}
+                                            >
+                                                {resultView === "scriptCode" ? "Result" : "Code"}
+                                            </Button>
+                                        </Tooltip>
+                                    </>
+                                )}
 
-                                            {/* {selectedSampleDetail.node?.server_status == "running" ? (
+                                {selectedSampleDetail.node?.status != "pending" && (
+                                    <>
+                                        {selectedSampleDetail.node?.image_status == "exist" ? (
+                                            <>
+                                                {selectedSampleDetail.node?.status == "running" ? (
+                                                    <Popconfirm
+                                                        title={"Whether or not to stop?"}
+                                                        onConfirm={async () => {
+                                                            // await stopAnalysisNodeApi(selectedSampleDetail.node?.analysis_node_id, "node");
+                                                            await http.post(`/analysis/node/stop/${analysisNodeId}`)
+                                                            message.success("Stop Success");
+                                                        }}
+                                                    >
+                                                        <Button size="small" color="red" variant="solid">
+                                                            Stop
+                                                        </Button>
+                                                    </Popconfirm>
+                                                ) : (
+                                                    <Popconfirm
+                                                        title={"Whether or not to run?"}
+                                                        onConfirm={async () => {
+                                                            await http.post(`/analysis/${analysisNodeId}/run-node`)
+                                                            message.success("run successfully");
+                                                        }}
+                                                    >
+                                                        <Button size="small" color="cyan" variant="solid">
+                                                            {selectedSampleDetail.node?.status == "ready" ? "Run" : "Re-Run"}
+                                                        </Button>
+                                                    </Popconfirm>
+                                                )}
+
+                                                {/* {selectedSampleDetail.node?.server_status == "running" ? (
                                                 <>
                                                     <Popconfirm
                                                         title={"Whether or not to stop?"}
@@ -479,313 +479,313 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, v
                                                     </Button>
                                                 </Popconfirm>
                                             )} */}
-                                        </>
-                                    ) : (
-                                        <Popconfirm
-                                            title="Pull?"
-                                            onConfirm={async () => {
-                                                await axios.post(`/container/pull-image/${selectedSampleDetail.node?.container_id}`);
-                                                if (analysis_node_id) {
-                                                    loadSampleDetail(analysis_node_id);
-                                                }
-                                            }}
-                                        >
-                                            <Button size="small" color="blue" variant="solid">
-                                                {selectedSampleDetail.node?.image_status == "pulling" ? "pulling" : "Pull"}
-                                            </Button>
-                                        </Popconfirm>
-                                    )}
+                                            </>
+                                        ) : (
+                                            <Popconfirm
+                                                title="Pull?"
+                                                onConfirm={async () => {
+                                                    await axios.post(`/container/pull-image/${selectedSampleDetail.node?.container_id}`);
+                                                    if (analysis_node_id) {
+                                                        loadSampleDetail(analysis_node_id);
+                                                    }
+                                                }}
+                                            >
+                                                <Button size="small" color="blue" variant="solid">
+                                                    {selectedSampleDetail.node?.image_status == "pulling" ? "pulling" : "Pull"}
+                                                </Button>
+                                            </Popconfirm>
+                                        )}
 
-                                    {/* 底部面板终端（terminal-session）：按节点绑定的容器模板打开 / 聚焦持久终端标签。
+                                        {/* 底部面板终端（terminal-session）：按节点绑定的容器模板打开 / 聚焦持久终端标签。
                                         终端容器由模板单独创建，与节点是否 running 无关，因此不做状态限制；
                                         切页签、收起面板都不会断开 PTY，重复点击只会聚焦已有标签。 */}
-                                    <Tooltip
-                                        title={
-                                            nodeContainerId
-                                                ? `Open terminal session in the bottom panel (container template ${nodeContainerId})`
-                                                : "container_id is missing from the node detail"
-                                        }
-                                    >
+                                        <Tooltip
+                                            title={
+                                                nodeContainerId
+                                                    ? `Open terminal session in the bottom panel (container template ${nodeContainerId})`
+                                                    : "container_id is missing from the node detail"
+                                            }
+                                        >
+                                            <Button
+                                                size="small"
+                                                color="cyan"
+                                                variant="solid"
+                                                disabled={!nodeContainerId}
+                                                onClick={() => {
+                                                    void createContainerTerminalSessionApi({
+                                                        container_template_id: nodeContainerId,
+                                                    })
+                                                        .then((resp) => {
+                                                            openBottomTerminal(
+                                                                resp.data.session_id,
+                                                                resp.data.name || nodeTerminalTitle,
+                                                            );
+                                                        })
+                                                        .catch(() => {
+                                                            message.error("Failed to create terminal session");
+                                                        });
+                                                }}
+                                            >
+                                                Terminal Session
+                                            </Button>
+                                        </Tooltip>
+
+                                        {/* 弹窗终端直接 exec 进该节点自身的容器，必须节点 running 才可用。 */}
+                                        {selectedSampleDetail.node?.status == "running" && (
+                                            <Button
+                                                size="small"
+                                                color="cyan"
+                                                variant="solid"
+                                                onClick={() => setTerminalOpen(true)}
+                                            >
+                                                Terminal
+                                            </Button>
+                                        )}
+
                                         <Button
                                             size="small"
                                             color="cyan"
                                             variant="solid"
-                                            disabled={!nodeContainerId}
                                             onClick={() => {
-                                                void createContainerTerminalSessionApi({
-                                                    container_template_id: nodeContainerId,
-                                                })
-                                                    .then((resp) => {
-                                                        openBottomTerminal(
-                                                            resp.data.session_id,
-                                                            resp.data.name || nodeTerminalTitle,
-                                                        );
-                                                    })
-                                                    .catch(() => {
-                                                        message.error("Failed to create terminal session");
-                                                    });
+                                                invoke.appSessionPage.open(
+                                                    {
+                                                        analysis_node_id: String(selectedSampleDetail.node?.id ?? ""),
+                                                        analysis_node_name: selectedSampleDetail.node?.node_name,
+                                                    },
+                                                    {
+                                                        width: 960,
+                                                        title: `App Session - ${selectedSampleDetail.node?.node_id}`,
+                                                    }
+                                                );
                                             }}
                                         >
-                                            Terminal Session
+                                            App Session
                                         </Button>
-                                    </Tooltip>
+                                    </>
+                                )}
+                            </Space>
+                        )}
 
-                                    {/* 弹窗终端直接 exec 进该节点自身的容器，必须节点 running 才可用。 */}
-                                    {selectedSampleDetail.node?.status == "running" && (
-                                        <Button
-                                            size="small"
-                                            color="cyan"
-                                            variant="solid"
-                                            onClick={() => setTerminalOpen(true)}
-                                        >
-                                            Terminal
-                                        </Button>
+                        {analysisNodeId == analysis_node_id ? (
+                            <Tooltip title={`Close ${analysis_node_id}`}>
+                                <Button
+                                    size="small"
+                                    onClick={() => {
+                                        setParamsOpen(false);
+                                        setAnalysisNodeId(null);
+                                    }}
+                                    icon={<CloseOutlined />}
+                                ></Button>
+                            </Tooltip>
+                        ) : (
+                            <Tooltip title={`${analysis_node_id}`}>
+                                <Button
+                                    size="small"
+                                    onClick={() => {
+                                        setAnalysisNodeId(analysis_node_id || null);
+                                        // 参数面板在页面右侧停靠，只对本组件生效。
+                                        setParamsOpen(true);
+                                    }}
+                                    icon={<EditOutlined />}
+                                />
+                            </Tooltip>
+                        )}
+
+                        <Button
+                            loading={detailLoading}
+                            onClick={() => loadSampleDetail(analysis_node_id)}
+                            size="small"
+                            icon={<RedoOutlined />}
+                        />
+                    </Space>
+                }
+            >
+
+                {!analysis_node_id || !selectedSampleDetail ? (
+                    <Skeleton active paragraph={{ rows: 2 }} />
+                ) : (
+                    <Flex vertical gap={12}>
+                        <Card size="small" variant="borderless" styles={{ body: { padding: 12 } }}>
+                            <Flex justify="space-between" align="flex-start" gap={12} wrap>
+                                <Flex vertical gap={4}>
+                                    <Typography.Text type="secondary">node: {selectedSampleDetail.node?.node_id}</Typography.Text>
+                                    <Typography.Text type="secondary">
+                                        analysis_node_id: {selectedSampleDetail.node?.id}
+                                    </Typography.Text>
+                                    {selectedSampleDetail.node?.script_id && <Typography.Text type="secondary">
+                                        script_id: {selectedSampleDetail.node?.script_id}
+                                    </Typography.Text>}
+
+
+                                    <Typography.Text type="secondary">
+                                        container_name: <Tooltip title={selectedSampleDetail.node?.container_image}>
+                                            {selectedSampleDetail.node?.container_name} ( {selectedSampleDetail.node?.container_template_id} )
+                                        </Tooltip>
+                                    </Typography.Text>
+
+                                    {selectedSampleDetail.node?.sample_id && (
+                                        <Typography.Text type="secondary">sample: {selectedSampleDetail.node?.sample_id}</Typography.Text>
+                                    )}
+                                    {selectedSampleDetail.node?.rerun_reason && (
+                                        <Typography.Text type="secondary">rerun reason: {selectedSampleDetail.node?.rerun_reason}</Typography.Text>
                                     )}
 
-                                    <Button
-                                        size="small"
-                                        color="cyan"
-                                        variant="solid"
+                                    {selectedSampleDetail.node?.output_dir && (
+                                        <Typography.Paragraph type="secondary" style={{ marginBottom: 0, wordBreak: "break-all" }}>
+                                            output: {selectedSampleDetail.node?.output_dir}
+                                        </Typography.Paragraph>
+                                    )}
+                                </Flex>
+                                <Space wrap>
+
+                                    <Tag
+                                        style={{ cursor: "pointer" }}
                                         onClick={() => {
-                                            invoke.appSessionPage.open(
+
+                                            invoke.nodeResolvedIO.open({ node: selectedSampleDetail.node },
                                                 {
-                                                    analysis_node_id: String(selectedSampleDetail.node?.id ?? ""),
-                                                    analysis_node_name: selectedSampleDetail.node?.node_name,
+                                                    title: `IO - ${selectedSampleDetail.node?.node_name}`,
+                                                    width: 800,
+                                                    footer: null,
+                                                })
+                                        }}>IO</Tag>
+                                    {selectedSampleDetail.node?.status == "running" &&
+                                        <Tag
+                                            style={{ cursor: "pointer" }}
+                                            onClick={() => {
+
+                                                invoke.containerInspect.open({
+                                                    params: {
+                                                        inspect: "inspect",
+                                                        id: selectedSampleDetail.node?.analysis_node_id,
+                                                        run_type: "node"
+                                                    }
                                                 },
-                                                {
-                                                    width: 960,
-                                                    title: `App Session - ${selectedSampleDetail.node?.node_id}`,
-                                                }
-                                            );
-                                        }}
-                                    >
-                                        App Session
-                                    </Button>
-                                </>
-                            )}
-                        </Space>
-                    )}
-
-                    {analysisNodeId == analysis_node_id ? (
-                        <Tooltip title={`Close ${analysis_node_id}`}>
-                            <Button
-                                size="small"
-                                onClick={() => {
-                                    setParamsOpen(false);
-                                    setAnalysisNodeId(null);
-                                }}
-                                icon={<CloseOutlined />}
-                            ></Button>
-                        </Tooltip>
-                    ) : (
-                        <Tooltip title={`${analysis_node_id}`}>
-                            <Button
-                                size="small"
-                                onClick={() => {
-                                    setAnalysisNodeId(analysis_node_id || null);
-                                    // 参数面板在页面右侧停靠，只对本组件生效。
-                                    setParamsOpen(true);
-                                }}
-                                icon={<EditOutlined />}
-                            />
-                        </Tooltip>
-                    )}
-
-                    <Button
-                        loading={detailLoading}
-                        onClick={() => loadSampleDetail(analysis_node_id)}
-                        size="small"
-                        icon={<RedoOutlined />}
-                    />
-                </Space>
-            }
-        >
-
-            {!analysis_node_id || !selectedSampleDetail ? (
-                <Skeleton active paragraph={{ rows: 2 }} />
-            ) : (
-                <Flex vertical gap={12}>
-                    <Card size="small" variant="borderless" styles={{ body: { padding: 12 } }}>
-                        <Flex justify="space-between" align="flex-start" gap={12} wrap>
-                            <Flex vertical gap={4}>
-                                <Typography.Text type="secondary">node: {selectedSampleDetail.node?.node_id}</Typography.Text>
-                                <Typography.Text type="secondary">
-                                    analysis_node_id: {selectedSampleDetail.node?.id}
-                                </Typography.Text>
-
-                                <Typography.Text type="secondary">
-                                    script_id: {selectedSampleDetail.node?.script_id}
-                                </Typography.Text>
-
-                                <Typography.Text type="secondary">
-                                    container_name: <Tooltip title={selectedSampleDetail.node?.container_image}>
-                                        {selectedSampleDetail.node?.container_name}
-                                    </Tooltip>
-                                </Typography.Text>
-
-                                {selectedSampleDetail.node?.sample_id && (
-                                    <Typography.Text type="secondary">sample: {selectedSampleDetail.node?.sample_id}</Typography.Text>
-                                )}
-                                {selectedSampleDetail.node?.rerun_reason && (
-                                    <Typography.Text type="secondary">rerun reason: {selectedSampleDetail.node?.rerun_reason}</Typography.Text>
-                                )}
-
-                                {selectedSampleDetail.node?.output_dir && (
-                                    <Typography.Paragraph type="secondary" style={{ marginBottom: 0, wordBreak: "break-all" }}>
-                                        output: {selectedSampleDetail.node?.output_dir}
-                                    </Typography.Paragraph>
-                                )}
-                            </Flex>
-                            <Space wrap>
-
-                                <Tag
-                                    style={{ cursor: "pointer" }}
-                                    onClick={() => {
-
-                                        invoke.nodeResolvedIO.open({ node: selectedSampleDetail.node },
-                                            {
-                                                title: `IO - ${selectedSampleDetail.node?.node_name}`,
-                                                width: 800,
-                                                footer: null,
-                                            })
-                                    }}>IO</Tag>
-                                {selectedSampleDetail.node?.status == "running" &&
-                                    <Tag
-                                        style={{ cursor: "pointer" }}
-                                        onClick={() => {
-
-                                            invoke.containerInspect.open({
-                                                params: {
-                                                    inspect: "inspect",
-                                                    id: selectedSampleDetail.node?.analysis_node_id,
-                                                    run_type: "node"
-                                                }
-                                            },
-                                                {
-                                                    title: `Node Inspect - ${selectedSampleDetail.node?.node_name}`,
-                                                    width: 800,
-                                                    footer: null,
-                                                })
-                                        }}>Node Inspect</Tag>
-                                }
-
-                                {selectedSampleDetail.node?.server_status == "running" &&
-                                    <Tag
-                                        style={{ cursor: "pointer" }}
-                                        onClick={() => {
-
-                                            invoke.containerInspect.open({
-                                                params: {
-                                                    inspect: "inspect",
-                                                    id: selectedSampleDetail.node?.analysis_node_id,
-                                                    run_type: "nserver"
-                                                }
-                                            },
-                                                {
-                                                    title: `Server Inspect - ${selectedSampleDetail.node?.node_name}`,
-                                                    width: 800,
-                                                    footer: null,
-                                                })
-                                        }}>Server Inspect</Tag>
-                                }
-
-
-
-
-
-                                {selectedSampleDetail.status && (
-                                    <Tag
-                                        style={{ cursor: "pointer" }}
-                                        onClick={() => {
-
-                                            invoke.nodeError.open({ node: selectedSampleDetail.node },
-                                                {
-                                                    title: `Error - ${selectedSampleDetail.node?.node_name}`,
-                                                    width: 800,
-                                                    footer: null,
-                                                })
-                                        }}
-                                        color={statusColorMap[selectedSampleDetail.status]}>{selectedSampleDetail.status}</Tag>
-                                )}
-                                {/* 查看节点原始请求参数（request_param，后端以 JSON 字符串返回），只读弹窗。 */}
-                                <Tag
-                                    style={{ cursor: "pointer" }}
-                                    onClick={() => {
-                                        invoke.nodeRequestParam.open({ node: selectedSampleDetail.node },
-                                            {
-                                                title: `Request Param - ${selectedSampleDetail.node?.node_name}`,
-                                                width: 800,
-                                                footer: null,
-                                            })
-                                    }}>Request Param</Tag>
-                                {selectedSampleDetail.status == "done" && <Popconfirm title="is complete?" onConfirm={() => {
-                                    async () => {
-                                        await axios.post(`/complete-node/${selectedSampleDetail.node.analysis_node_id}`)
-                                        message.success("complete success!")
+                                                    {
+                                                        title: `Node Inspect - ${selectedSampleDetail.node?.node_name}`,
+                                                        width: 800,
+                                                        footer: null,
+                                                    })
+                                            }}>Node Inspect</Tag>
                                     }
-                                }}>
-                                    <Button size="small"
-                                    >
-                                        complete node
-                                    </Button>
-                                </Popconfirm>}
-                                {/* {selectedSampleDetail.server_status && (
+
+                                    {selectedSampleDetail.node?.server_status == "running" &&
+                                        <Tag
+                                            style={{ cursor: "pointer" }}
+                                            onClick={() => {
+
+                                                invoke.containerInspect.open({
+                                                    params: {
+                                                        inspect: "inspect",
+                                                        id: selectedSampleDetail.node?.analysis_node_id,
+                                                        run_type: "nserver"
+                                                    }
+                                                },
+                                                    {
+                                                        title: `Server Inspect - ${selectedSampleDetail.node?.node_name}`,
+                                                        width: 800,
+                                                        footer: null,
+                                                    })
+                                            }}>Server Inspect</Tag>
+                                    }
+
+
+
+
+
+                                    {selectedSampleDetail.status && (
+                                        <Tag
+                                            style={{ cursor: "pointer" }}
+                                            onClick={() => {
+
+                                                invoke.nodeError.open({ node: selectedSampleDetail.node },
+                                                    {
+                                                        title: `Error - ${selectedSampleDetail.node?.node_name}`,
+                                                        width: 800,
+                                                        footer: null,
+                                                    })
+                                            }}
+                                            color={statusColorMap[selectedSampleDetail.status]}>{selectedSampleDetail.status}</Tag>
+                                    )}
+                                    {/* 查看节点原始请求参数（request_param，后端以 JSON 字符串返回），只读弹窗。 */}
+                                    <Tag
+                                        style={{ cursor: "pointer" }}
+                                        onClick={() => {
+                                            invoke.nodeRequestParam.open({ node: selectedSampleDetail.node },
+                                                {
+                                                    title: `Request Param - ${selectedSampleDetail.node?.node_name}`,
+                                                    width: 800,
+                                                    footer: null,
+                                                })
+                                        }}>Request Param</Tag>
+                                    {selectedSampleDetail.status == "done" && <Popconfirm title="is complete?" onConfirm={() => {
+                                        async () => {
+                                            await axios.post(`/complete-node/${selectedSampleDetail.node.analysis_node_id}`)
+                                            message.success("complete success!")
+                                        }
+                                    }}>
+                                        <Button size="small"
+                                        >
+                                            complete node
+                                        </Button>
+                                    </Popconfirm>}
+                                    {/* {selectedSampleDetail.server_status && (
                                     <Tag color={statusColorMap[selectedSampleDetail.server_status]}>
                                         {selectedSampleDetail.server_status}
                                     </Tag>
                                 )} */}
 
-                                <Tag
-                                    style={{ cursor: "pointer" }}
-                                    onClick={() => {
+                                    <Tag
+                                        style={{ cursor: "pointer" }}
+                                        onClick={() => {
 
-                                        invoke.nodeLogs.open({ analysis_node_id: selectedSampleDetail.node?.id },
-                                            {
-                                                title: `Logs - ${selectedSampleDetail.node?.node_name}`,
-                                                width: 800,
-                                                footer: null,
-                                            })
-                                    }}>Logs</Tag>
-                            </Space>
-                        </Flex>
-                    </Card>
-                    <AISummaryPanel
-                        ownerType="analysis_node"
-                        ownerId={analysis_node_id}
+                                            invoke.nodeLogs.open({ analysis_node_id: selectedSampleDetail.node?.id },
+                                                {
+                                                    title: `Logs - ${selectedSampleDetail.node?.node_name}`,
+                                                    width: 800,
+                                                    footer: null,
+                                                })
+                                        }}>Logs</Tag>
+                                </Space>
+                            </Flex>
+                        </Card>
+                        <AISummaryPanel
+                            ownerType="analysis_node"
+                            ownerId={analysis_node_id}
+                        />
+                        <AnalysisNodeFilesRender analysis_node_id={analysis_node_id} name="Node Files" />
+                        {/* <NodeParamsRender analysis_node_id={analysis_node_id} name="Node Params" /> */}
+                        {selectedSampleDetail?.result?.output_files && <FilesRender analysis_node_id={analysis_node_id} name="Output Files" files={selectedSampleDetail.result.output_files}></FilesRender>}
+                        {selectedSampleDetail?.result?.cache_files && <FilesRender analysis_node_id={analysis_node_id} name="Cache Files" files={selectedSampleDetail?.result?.cache_files}></FilesRender>}
+
+                        {/* 结果还在跑 / 正在刷新时，结果视图用 Skeleton；代码视图不受影响。 */}
+                        {resultView === "analysisResultDisplay" && (selectedSampleDetail.status == "running" || detailLoading) ? (
+                            <Skeleton active paragraph={{ rows: 6 }} />
+                        ) : (
+                            <ViewResolver {...resultViewProps}></ViewResolver>
+                        )}
+
+
+                    </Flex>
+                )}
+            </PanelLayout>
+
+            {/* 终端弹窗不参与页面滚动区，挂在面板外层（antd Modal 会 portal 到 body）。 */}
+            <Modal
+                open={terminalOpen}
+                onCancel={() => setTerminalOpen(false)}
+                footer={null}
+                destroyOnClose
+                width={960}
+                title={`Terminal - ${selectedSampleDetail.node?.node_name || selectedSampleDetail.node?.node_id || ""}`}
+            >
+                {terminalOpen && (
+                    <AnalysisNodeTerminal
+                        id={selectedSampleDetail.node?.id ?? analysisNodeId ?? analysis_node_id ?? ""}
+                        name={selectedSampleDetail.node?.node_name}
                     />
-                    <AnalysisNodeFilesRender analysis_node_id={analysis_node_id} name="Node Files" />
-                    {/* <NodeParamsRender analysis_node_id={analysis_node_id} name="Node Params" /> */}
-                    {selectedSampleDetail?.result?.output_files && <FilesRender analysis_node_id={analysis_node_id} name="Output Files" files={selectedSampleDetail.result.output_files}></FilesRender>}
-                    {selectedSampleDetail?.result?.cache_files && <FilesRender analysis_node_id={analysis_node_id} name="Cache Files" files={selectedSampleDetail?.result?.cache_files}></FilesRender>}
-
-                    {/* 结果还在跑 / 正在刷新时，结果视图用 Skeleton；代码视图不受影响。 */}
-                    {resultView === "analysisResultDisplay" && (selectedSampleDetail.status == "running" || detailLoading) ? (
-                        <Skeleton active paragraph={{ rows: 6 }} />
-                    ) : (
-                        <ViewResolver {...resultViewProps}></ViewResolver>
-                    )}
-
-
-                </Flex>
-            )}
-        </PanelLayout>
-
-        {/* 终端弹窗不参与页面滚动区，挂在面板外层（antd Modal 会 portal 到 body）。 */}
-        <Modal
-            open={terminalOpen}
-            onCancel={() => setTerminalOpen(false)}
-            footer={null}
-            destroyOnClose
-            width={960}
-            title={`Terminal - ${selectedSampleDetail.node?.node_name || selectedSampleDetail.node?.node_id || ""}`}
-        >
-            {terminalOpen && (
-                <AnalysisNodeTerminal
-                    id={selectedSampleDetail.node?.id ?? analysisNodeId ?? analysis_node_id ?? ""}
-                    name={selectedSampleDetail.node?.node_name}
-                />
-            )}
-        </Modal>
+                )}
+            </Modal>
         </ParamsPanelLayout>
     );
 };
