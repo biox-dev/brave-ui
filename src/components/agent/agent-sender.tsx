@@ -413,7 +413,7 @@ const AgentSender: FC<AgentSenderProps> = ({
       insertRef(
         "container",
         templateId,
-        template?.display_name || template?.name || `Container-${templateId}`
+        template?.name || `Container-${templateId}`
       );
     } catch {
       // 用户取消选择，无需处理。

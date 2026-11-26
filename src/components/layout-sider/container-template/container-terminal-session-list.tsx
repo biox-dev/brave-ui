@@ -116,7 +116,7 @@ type RunTarget = {
  * 「终端会话」列表（左侧栏面板形态）。
  *
  * 数据来自 `GET /container/terminal/session/list`：后端把进程内会话注册表里的会话
- * 与容器模板绑定行 join 起来（`DisplayName` / `ImageName`），并附带
+ * 与容器模板绑定行 join 起来（`Name` / `ImageName`），并附带
  * `TerminalSessionStatus`（存活 / 订阅者 / running / 序号）。
  *
  * - 标题栏「+」按钮：通过 invoke 打开容器模板列表选择模板 → 创建（或复用）该模板的
@@ -307,7 +307,7 @@ const ContainerTerminalSessionList = ({
       })).data;
       openSessionTerminal(
         created.session_id,
-        created.name || selected.display_name || selected.name || String(selected.id),
+        created.name || selected.name || String(selected.id),
       );
       message.success("Terminal session created");
       refetch();

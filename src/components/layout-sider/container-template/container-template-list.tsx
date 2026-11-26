@@ -23,7 +23,7 @@ import {
   ReloadOutlined,
 } from "@ant-design/icons";
 import {
-  deleteContainerTemplateApi,
+  deleteContainerTemplateDefinitionApi,
   exportContainerTemplateApi,
   pageContainerTemplateApi,
   type ContainerTemplateItem,
@@ -86,9 +86,8 @@ export interface ContainerTemplateListProps {
   onToggleCollapse?: () => void;
 }
 
-/** 模板的人类可读名称：优先 display_name，其次 name，最后回退到 id。 */
-const templateDisplayName = (item: ContainerTemplateItem) =>
-  item.display_name || item.name || item.id;
+/** 模板的人类可读名称：优先绑定行展示名（name），最后回退到 id。 */
+const templateDisplayName = (item: ContainerTemplateItem) => item.name || item.id;
 
 const normalizeText = (value?: string) => {
   const trimmed = value?.trim();
@@ -129,7 +128,7 @@ const ContainerTemplateDetailCard = ({ item }: { item: ContainerTemplateItem }) 
       column={1}
       bordered
       items={[
-        { key: "display_name", label: "Display Name", children: templateDisplayName(item) },
+        { key: "name", label: "Name", children: templateDisplayName(item) },
         { key: "id", label: "ID", children: item.id || "-" },
         { key: "spec_id", label: "Spec ID", children: item.spec_id || "-" },
         { key: "app_type", label: "App Type", children: item.app_type || "-" },
@@ -149,7 +148,7 @@ const ContainerTemplateDetailCard = ({ item }: { item: ContainerTemplateItem }) 
         {
           key: "description",
           label: "Description",
-          children: item.definition_description || item.description || "-",
+          children: item.description || "-",
         },
       ]}
     />
@@ -256,7 +255,7 @@ const ContainerTemplateList = ({
   const handleDelete = useCallback(async (record: ContainerTemplateItem) => {
     setDeletingId(record.id);
     try {
-      await deleteContainerTemplateApi({ id: record.id });
+      await deleteContainerTemplateDefinitionApi({ id: record.id });
       message.success("Container template deleted successfully");
       refetch();
     } catch (error) {
@@ -310,9 +309,10 @@ const ContainerTemplateList = ({
     try {
       const resp = await exportContainerTemplateApi({ id: record.id });
       const json = JSON.stringify(resp.data, null, 2);
+      const displayName = templateDisplayName(record);
       invoke.containerTemplateExportDialog.open(
-        { json, name: record.name },
-        { title: `Export: ${record.name}`, width: 720, footer: false }
+        { json, name: displayName },
+        { title: `Export: ${displayName}`, width: 720, footer: false }
       );
     } catch (error) {
       message.error(getErrorMessage(error, "Failed to export container template"));
@@ -397,8 +397,8 @@ const ContainerTemplateList = ({
     () => [
       {
         title: "Template",
-        dataIndex: "display_name",
-        key: "display_name",
+        dataIndex: "name",
+        key: "name",
         ellipsis: { showTitle: false },
         render: (_: unknown, record) => {
           const displayName = templateDisplayName(record);
@@ -627,7 +627,7 @@ const ContainerTemplateList = ({
               String(record.id) === String(selectedId) ? "project-report-row-selected" : ""
             }
             onRow={(record) => ({
-              onClick: () => handleRowClick(record),
+              // onClick: () => handleRowClick(record),
             })}
           />
         )}

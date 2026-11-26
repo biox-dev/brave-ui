@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Form, Input, Select, Switch, Button, Flex, Space, Typography } from "antd";
-import type { ContainerTemplateItem } from "@/api/container";
-import { createContainerTemplateApi, updateContainerTemplateApi } from "@/api/container";
+import type { ContainerTemplateDefinitionItem, ContainerTemplateItem } from "@/api/container";
+import { createContainerTemplateDefinitionApi, updateContainerTemplateDefinitionApi } from "@/api/container";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 
@@ -25,7 +25,7 @@ export interface ContainerTemplateFormProps {
     initialSpecId?: string;
     initialSpecName?: string;
     // openAsync injects onOk/onCancel into params
-    onOk?: (result: ContainerTemplateItem) => void;
+    onOk?: (result?: ContainerTemplateItem | ContainerTemplateDefinitionItem) => void;
     onCancel?: () => void;
     // close is injected by UIContainer
     close?: () => void;
@@ -39,7 +39,8 @@ export interface ContainerTemplateFormProps {
  *   - spec_id：要复用的共享运行配置（ContainerTemplateSpec）；
  *   - image_name：要运行的完整镜像名；
  *   - pull_policy：镜像拉取策略（Always / IfNotPresent / Never）；
- *   - display_name：该绑定行的展示名（为空时回退到配置名）；
+ *   - name：该绑定行的展示名；
+ *   - description：该绑定行自身的描述；
  *   - is_default：是否作为系统唯一默认容器模板。
  *
  * 运行配置的内部字段（命令、资源、端口、环境变量、挂载等）在「Container Template Spec」
@@ -68,11 +69,10 @@ const ContainerTemplateForm = ({
                 spec_id: item.spec_id,
                 image_name: item.image_name,
                 pull_policy: item.pull_policy || "IfNotPresent",
-                // 用绑定行自己的 display_name，而不是 item.name（后者可能是配置名回退值），
-                // 否则保存时会把配置名误写成该绑定行的展示名。
-                display_name: item.display_name || undefined,
-                // 绑定行自身的长描述；与共享运行配置的 description 相互独立。
-                definition_description: item.definition_description || undefined,
+                // 绑定行自己的展示名（ContainerTemplateDefinition.Name）。
+                name: item.name || undefined,
+                // 绑定行自身的描述（ContainerTemplateDefinition.Description）。
+                description: item.description || undefined,
                 is_default: Boolean(item.is_default),
                 spec_label: item.spec_id,
             });
@@ -89,20 +89,17 @@ const ContainerTemplateForm = ({
     }, [item, isEdit, form, initialSpecId, initialSpecName]);
 
     /** 只提交绑定行（ContainerTemplateDefinition）的字段，运行配置仅以 id 引用。 */
-    const buildPayload = (values: Record<string, unknown>) => {
-        const payload: Record<string, unknown> = {
-            spec_id: values.spec_id,
+    const buildPayload = (values: Record<string, unknown>): Partial<ContainerTemplateDefinitionItem> => {
+        const payload: Partial<ContainerTemplateDefinitionItem> = {
+            spec_id: typeof values.spec_id === "string" ? values.spec_id : undefined,
             image_name: typeof values.image_name === "string" ? values.image_name.trim() : "",
-            pull_policy: values.pull_policy || "IfNotPresent",
+            pull_policy: typeof values.pull_policy === "string" ? values.pull_policy : "IfNotPresent",
             is_default: Boolean(values.is_default),
-            display_name: typeof values.display_name === "string" ? values.display_name.trim() : "",
-            definition_description:
-                typeof values.definition_description === "string"
-                    ? values.definition_description.trim()
-                    : "",
+            name: typeof values.name === "string" ? values.name.trim() : "",
+            description: typeof values.description === "string" ? values.description.trim() : "",
         };
-        if (isEdit) {
-            payload.id = item!.id;
+        if (isEdit && item?.id) {
+            payload.id = item.id;
         }
         return payload;
     };
@@ -114,11 +111,13 @@ const ContainerTemplateForm = ({
             const payload = buildPayload(values);
 
             if (isEdit) {
-                await updateContainerTemplateApi(payload as unknown as ContainerTemplateItem & { id: string });
+                await updateContainerTemplateDefinitionApi(payload as Partial<ContainerTemplateDefinitionItem> & {
+                    id: string;
+                });
                 messageApi.success("Container template updated successfully");
                 onOk?.(item!);
             } else {
-                const created = await createContainerTemplateApi(payload);
+                const created = await createContainerTemplateDefinitionApi(payload);
                 messageApi.success("Container template created successfully");
                 onOk?.(created.data);
             }
@@ -215,15 +214,15 @@ const ContainerTemplateForm = ({
             </Form.Item>
 
             <Form.Item
-                name="display_name"
-                label="Display Name"
-                tooltip="Overrides the spec name for this binding only. Leave empty to use the spec name."
+                name="name"
+                label="Name"
+                tooltip="Display name for this template."
             >
-                <Input placeholder="Optional display name for this image binding" />
+                <Input placeholder="Optional display name for this template" />
             </Form.Item>
 
             <Form.Item
-                name="definition_description"
+                name="description"
                 label="Description"
                 tooltip="Long description of this runnable template (what it is used for). Returned to the agent when the user references @container:<id>."
             >

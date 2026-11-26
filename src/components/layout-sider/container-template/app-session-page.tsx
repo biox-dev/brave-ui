@@ -336,9 +336,8 @@ const getDefaultAppSessionName = (item: ContainerTemplateItem) => {
   return `${base}-${Date.now()}`;
 };
 
-/** 模板的人类可读名称：优先 display_name，其次 name，最后回退到 id。 */
-const getTemplateDisplayName = (item: ContainerTemplateItem) =>
-  item.display_name || item.name || String(item.id);
+/** 模板的人类可读名称：优先绑定行展示名（name），最后回退到 id。 */
+const getTemplateDisplayName = (item: ContainerTemplateItem) => item.name || String(item.id);
 
 const getErrorMessage = (error: unknown, fallback: string) => {
   if (typeof error === "object" && error !== null) {

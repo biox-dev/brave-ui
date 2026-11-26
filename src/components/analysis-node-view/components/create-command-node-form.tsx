@@ -60,7 +60,7 @@ const CreateCommandNodeForm = ({ onOk, onCancel, close }: CreateCommandNodeFormP
     () =>
       templates.map((item) => ({
         value: String(item.id),
-        label: `${item.display_name || item.name || item.id}${item.is_default ? " (default)" : ""}`,
+        label: `${item.name || item.id}${item.is_default ? " (default)" : ""}`,
       })),
     [templates]
   );

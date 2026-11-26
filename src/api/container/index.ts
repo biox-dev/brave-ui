@@ -13,15 +13,10 @@ export interface ContainerMount {
 export interface ContainerTemplateItem {
     id: string;
     spec_id: string;
+    // name: 绑定行自身的展示名（ContainerTemplateDefinition.Name）。
     name: string;
-    // display_name: 绑定行自身的展示名；为空时 name 回退到共享运行配置名。
-    // 编辑表单必须读写它，否则会把回退出来的 name 误固化成绑定行展示名。
-    display_name?: string;
+    // description: 绑定行自身的描述（ContainerTemplateDefinition.Description）。
     description: string;
-    // definition_description: 绑定行（ContainerTemplateDefinition）自身的长描述，
-    // 与 description（共享运行配置 spec 的描述）相互独立；Agent 工具 get_container_template
-    // 会把它作为 description 回传给模型。
-    definition_description?: string;
     type: string;
     // image_name: 完整镜像名（含 registry / tag），如 docker.io/rocker/rstudio:4.4。
     image_name: string;
@@ -76,7 +71,7 @@ export interface ContainerTemplateDefinitionItem {
     spec_id: string;
     image_name?: string;
     pull_policy?: string;
-    display_name?: string;
+    name?: string;
     description?: string;
     is_default?: boolean;
     created_at?: string;
@@ -230,16 +225,21 @@ export const pageContainerTemplateApi = (payload: PageRequest<ContainerTemplateP
     return http.post<PageResponse<ContainerTemplateItem>>("/container/template/list-by-page", payload);
 };
 
-export const createContainerTemplateApi = (payload: Partial<ContainerTemplateItem>) => {
-    return http.post<ContainerTemplateItem>("/container/template/create", payload);
+/** 只新增绑定行（ContainerTemplateDefinition）：spec_id 引用已有的共享运行配置。 */
+export const createContainerTemplateDefinitionApi = (payload: Partial<ContainerTemplateDefinitionItem>) => {
+    return http.post<ContainerTemplateDefinitionItem>("/container/template-definition/create", payload);
 };
 
-export const updateContainerTemplateApi = (payload: Partial<ContainerTemplateItem> & { id: string }) => {
-    return http.post<{ message: string }>("/container/template/update", payload);
+/** 只更新绑定行（ContainerTemplateDefinition）自身字段：镜像 / 拉取策略 / 展示名 / 描述 / 默认标记。 */
+export const updateContainerTemplateDefinitionApi = (
+    payload: Partial<ContainerTemplateDefinitionItem> & { id: string }
+) => {
+    return http.post<ContainerTemplateDefinitionItem & { id: string }>("/container/template-definition/update", payload);
 };
 
-export const deleteContainerTemplateApi = (payload: { id: string }) => {
-    return http.post<{ message: string }>("/container/template/delete", payload);
+/** 只删除绑定行（ContainerTemplateDefinition），共享运行配置保留。 */
+export const deleteContainerTemplateDefinitionApi = (payload: { id: string }) => {
+    return http.post<{ message: string }>("/container/template-definition/delete", payload);
 };
 
 export const exportContainerTemplateApi = (payload: { id: string }) => {
