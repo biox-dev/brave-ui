@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useSelector } from "react-redux";
 import { Breadcrumb, Button, Empty, Flex, Popconfirm, Table, Tooltip, Typography } from "antd";
@@ -43,7 +43,10 @@ import {
   useWorkspaceOpener,
   type WorkspaceOpenTarget,
 } from "@/layout/workspace-navigation";
+import type { DatasetPathInfo } from "@/store/userSlice";
+import AskAgentButton from "../common/ask-agent-button";
 import SiderPanelLayout from "../common/sider-panel-layout";
+import { useDatasetProjectPath } from "./use-dataset-project-path";
 import "./dataset-project-page.css";
 
 /** 多选模式（`multiple`）下 Confirm 回传的结果：数据集与数据集内的文件。 */
@@ -68,6 +71,12 @@ export interface DatasetProjectPageProps {
   onOk?: (picked: DatasetItem | DatasetPickResult) => void;
   onCancel?: () => void;
   close?: () => void;
+  /**
+   * 是否把当前浏览路径（已进入的数据集）持久化到 localStorage：
+   * 刷新浏览器或切换左侧面板后再回来仍停在上次的数据集里。
+   * 选择器模式（传了 onOk / onCancel 的抽屉）自动不持久化，默认开启。
+   */
+  persistPath?: boolean;
   /** 纵向堆叠布局注入的折叠态：折叠时仅保留标题栏。 */
   collapsed?: boolean;
   /** 点击标题栏时切换折叠态（未传入则标题栏不可点击）。 */
@@ -111,6 +120,25 @@ const formatBytes = (size?: number) => {
 
   return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 };
+
+// ---------------------------------------------------------------------------
+// 浏览路径：记住「当前进入的数据集」，状态存 redux `user.datasetPath`
+// （reducer 内同步 localStorage），刷新浏览器 / 切换面板后恢复。
+// 快照只带数据集名称等展示字段，文件列表仍按 id 重新拉取。
+// ---------------------------------------------------------------------------
+
+const toDatasetItem = (info?: DatasetPathInfo | null): DatasetItem | undefined =>
+  info?.id
+    ? {
+        id: info.id,
+        dataset_name: info.dataset_name ?? "",
+        description: info.description ?? "",
+        metadata: info.metadata ?? "",
+        path: info.path,
+        created_at: "",
+        updated_at: "",
+      }
+    : undefined;
 
 /**
  * 数据集文件的「打开方式」统一描述：
@@ -270,6 +298,12 @@ const DatasetListPanel = ({
           meta={[record.description, record.path].filter(Boolean).join(" · ") || undefined}
           actions={
             <>
+              {/* 把数据集作为 @dataset:<id> 引用插进 Agent 输入框（Agent 侧用 get_dataset 解析工作目录）。 */}
+              <AskAgentButton
+                kind="dataset"
+                id={record.id}
+                label={datasetLabel(record)}
+              />
               <Tooltip title="Edit">
                 <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
               </Tooltip>
@@ -595,6 +629,13 @@ const DatasetFilesPanel = ({
           meta={[record.format, record.role, formatBytes(record.size)].filter(Boolean).join(" · ") || undefined}
           actions={
             <>
+              {/* 把数据集文件作为 @file:<id> 引用插进 Agent 输入框（Agent 侧用 get_file 解析路径）。
+                  file 引用用的是关联行 id（agent-sender 选文件时同此），不是 file_id。 */}
+              <AskAgentButton
+                kind="file"
+                id={record.id}
+                label={fileLabel(record)}
+              />
               {/* 详情内容（表格查看）由行点击在右侧标签/路由页打开，列表保留查看 + 编辑 + 删除。 */}
               <Tooltip title="Open Sheet">
                 <Button
@@ -784,14 +825,22 @@ const DatasetProjectPage = ({
   onOk,
   onCancel,
   close,
+  persistPath = true,
   collapsed = false,
   onToggleCollapse,
 }: DatasetProjectPageProps) => {
   // 后端按「当前用户激活的项目」查询，这里的 project_id 只沿用旧的查询形状。
   const { projectId } = useSelector((state: { user: { projectId?: string } }) => state.user);
   const selectable = Boolean(onOk || onCancel);
+  // 选择器抽屉不复用上次路径（否则一打开就停在某个数据集里）。
+  const shouldPersistPath = persistPath && !selectable;
 
-  const [activeDataset, setActiveDataset] = useState<DatasetItem>();
+  // 浏览路径：redux `user.datasetPath`（同步 localStorage），与左侧栏折叠态同一套路。
+  const [storedDatasetPath, setStoredDatasetPath] = useDatasetProjectPath();
+
+  const [activeDataset, setActiveDataset] = useState<DatasetItem | undefined>(() =>
+    shouldPersistPath ? toDatasetItem(storedDatasetPath) : undefined
+  );
   const [pickedDatasets, setPickedDatasets] = useState<Record<string, DatasetItem>>({});
   const [pickedFiles, setPickedFiles] = useState<Record<string, DatasetFileItem>>({});
 
@@ -807,6 +856,17 @@ const DatasetProjectPage = ({
     }),
     [dataset_name, description, metadata]
   );
+
+  // 进入 / 返回数据集时写回 store（返回列表即清除记录）；id 与名称都没变时不重复派发。
+  useEffect(() => {
+    if (!shouldPersistPath) {
+      return;
+    }
+    if (storedDatasetPath?.id === activeDataset?.id && storedDatasetPath?.dataset_name === activeDataset?.dataset_name) {
+      return;
+    }
+    setStoredDatasetPath(activeDataset ?? null);
+  }, [shouldPersistPath, activeDataset, storedDatasetPath, setStoredDatasetPath]);
 
   const datasetIds = Object.keys(pickedDatasets);
   const fileIds = Object.keys(pickedFiles);

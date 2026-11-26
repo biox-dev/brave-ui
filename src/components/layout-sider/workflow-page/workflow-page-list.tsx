@@ -18,6 +18,7 @@ import type { ColumnsType } from "antd/es/table";
 import { FC, useCallback, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
+import AskAgentButton from "../common/ask-agent-button";
 import SiderPanelLayout from "../common/sider-panel-layout";
 
 // const splitTags = (tags?: string) =>
@@ -319,7 +320,7 @@ const WorkflowPageList: FC<WorkflowPageListProps> = ({
   const actionsColumn: ColumnsType<WorkflowItem>[number] = {
     title: "Actions",
     key: "actions",
-    width: 96,
+    width: 120,
     align: "right",
     render: (_: unknown, record) => {
       return (
@@ -327,6 +328,12 @@ const WorkflowPageList: FC<WorkflowPageListProps> = ({
           className="project-report-item-actions"
           onClick={(e) => e.stopPropagation()}
         >
+          {/* 把工作流作为 @workflow:<id> 引用插进 Agent 输入框（Agent 侧用 get_workflow 解析）。 */}
+          <AskAgentButton
+            kind="workflow"
+            id={record.id}
+            label={workflowDisplayName(record)}
+          />
           {/* 详情（编辑 / 可视化 / README）全部在详情页里，列表只保留查看与删除。 */}
           <Tooltip title="Open workflow">
             <Button

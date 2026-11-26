@@ -18,6 +18,7 @@ import type { ColumnsType } from "antd/es/table";
 import { FC, useCallback, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
+import AskAgentButton from "../common/ask-agent-button";
 import SiderPanelLayout from "../common/sider-panel-layout";
 
 // const splitTags = (tags?: string) =>
@@ -315,7 +316,7 @@ const ScriptPageList: FC<ScriptPageListProps> = ({
   const actionsColumn: ColumnsType<ScriptItem>[number] = {
     title: "Actions",
     key: "actions",
-    width: 96,
+    width: 120,
     align: "right",
     render: (_: unknown, record) => {
       return (
@@ -323,6 +324,12 @@ const ScriptPageList: FC<ScriptPageListProps> = ({
           className="project-report-item-actions"
           onClick={(e) => e.stopPropagation()}
         >
+          {/* 把脚本作为 @script:<id> 引用插进 Agent 输入框（Agent 侧用 get_script 解析）。 */}
+          <AskAgentButton
+            kind="script"
+            id={record.id}
+            label={scriptDisplayName(record)}
+          />
           {/* 详情（编辑 / 代码 / README / 发布）全部在详情页里，列表只保留查看与删除。 */}
           <Tooltip title="Open script">
             <Button

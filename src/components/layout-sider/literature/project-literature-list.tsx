@@ -27,6 +27,7 @@ import { FC, useCallback, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 import { invoke } from "@/core/ui-system/invokeV2";
+import AskAgentButton from "../common/ask-agent-button";
 import SiderPanelLayout from "../common/sider-panel-layout";
 
 export interface ProjectLiteratureListProps {
@@ -264,13 +265,19 @@ const ProjectLiteratureList: FC<ProjectLiteratureListProps> = ({
       {
         title: "Actions",
         key: "actions",
-        width: 96,
+        width: 120,
         align: "right",
       render: (_, record) => (
         <span
           className="project-report-item-actions"
           onClick={(e) => e.stopPropagation()}
         >
+          {/* 把文献作为 @literature:<id> 引用插进 Agent 输入框（Agent 侧读取标题 / 正文）。 */}
+          <AskAgentButton
+            kind="literature"
+            id={record.id}
+            label={literatureDisplayName(record)}
+          />
           {/* 编辑 / 解除项目绑定已搬到详情页（/literature-writing/:id），列表只保留查看与删除。 */}
           <Tooltip title="Open literature">
             <Button

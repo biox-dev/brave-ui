@@ -17,6 +17,7 @@ import type { ColumnsType } from "antd/es/table";
 import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
+import AskAgentButton from "../common/ask-agent-button";
 import SiderPanelLayout from "../common/sider-panel-layout";
 
 const statusColor = (status: string) => {
@@ -346,13 +347,19 @@ const AnalysisResultList: FC<AnalysisResultListProps> = ({ title, onOk, onCancel
       {
         title: "Actions",
         key: "actions",
-        width: 96,
+        width: 120,
         align: "right",
         render: (_, record) => (
           <span
             className="project-report-item-actions"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* 把节点作为 @analysis_node:<id> 引用插进 Agent 输入框（Agent 侧用 get_analysis_node 解析）。 */}
+            <AskAgentButton
+              kind="analysis_node"
+              id={record.id}
+              label={nodeDisplayName(record)}
+            />
             <Tooltip title="Report">
               <Button
                 type="text"

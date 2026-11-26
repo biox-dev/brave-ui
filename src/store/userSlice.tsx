@@ -78,6 +78,34 @@ const parseLeftStackVisibleSections = (): Record<string, string[]> => {
 }
 const leftStackVisibleSections = parseLeftStackVisibleSections()
 
+/**
+ * 数据集浏览器（layout-sider/data-dataset-page）当前所在路径的快照。
+ *
+ * 只保留恢复面包屑与文件列表所需的字段；文件列表仍按 `id` 重新拉取。
+ */
+export interface DatasetPathInfo {
+    id: string;
+    dataset_name?: string;
+    description?: string;
+    metadata?: string;
+    path?: string;
+}
+
+// 数据集浏览器当前进入的数据集（刷新 / 切换左侧面板后恢复）
+const parseDatasetPath = (): DatasetPathInfo | null => {
+    try {
+        const raw = localStorage.getItem('datasetProjectPath')
+        if (!raw) {
+            return null
+        }
+        const parsed = JSON.parse(raw) as DatasetPathInfo | null
+        return parsed && typeof parsed.id === 'string' && parsed.id ? parsed : null
+    } catch {
+        return null
+    }
+}
+const datasetPath = parseDatasetPath()
+
 export const loadActiveProject = createAsyncThunk(
     'user/loadActiveProject',
     async (_, { rejectWithValue }) => {
@@ -177,6 +205,8 @@ interface UserState {
     leftStackCollapsed: Record<string, string[]>;
     /** 左侧栏堆叠视图分区显示状态：{ [stackKey]: visibleSectionKeys[] }（未配置表示全部显示）。 */
     leftStackVisibleSections: Record<string, string[]>;
+    /** 数据集浏览器当前所在路径（进入的数据集快照）。 */
+    datasetPath: DatasetPathInfo | null;
     userInfo: LoginUserInfo | null;
     /** 容器运行时环境信息（来自 /container/runtime/info，页面刷新时拉取一次）。 */
     runtimeInfo: ContainerRuntimeHealth | null;
@@ -216,6 +246,7 @@ const contextSlice = createSlice({
         sideView:sideView?sideView:'agentChat',
         leftStackCollapsed,
         leftStackVisibleSections,
+        datasetPath,
         userInfo: null as LoginUserInfo | null,
         runtimeInfo: null as ContainerRuntimeHealth | null,
         runtimeLoading: false,
@@ -310,6 +341,13 @@ const contextSlice = createSlice({
             if (action.payload.leftStackVisibleSections !== undefined) {
                 localStorage.setItem('leftStackVisibleSections', JSON.stringify(action.payload.leftStackVisibleSections))
             }
+            if (action.payload.datasetPath !== undefined) {
+                if (action.payload.datasetPath) {
+                    localStorage.setItem('datasetProjectPath', JSON.stringify(action.payload.datasetPath))
+                } else {
+                    localStorage.removeItem('datasetProjectPath')
+                }
+            }
             if (action.payload.sideView !== undefined) {
                 if (action.payload.sideView) {
                     localStorage.setItem('sideView', action.payload.sideView)
@@ -329,16 +367,24 @@ const contextSlice = createSlice({
             state.projectId = "";
             state.project = {};
             state.activeLLMSessionId = null;
+            state.datasetPath = null;
             localStorage.removeItem('Authorization');
             localStorage.removeItem('authorization');
             localStorage.removeItem('RefreshToken');
             localStorage.removeItem('activeProjectReportId');
             localStorage.removeItem('activeLLMSessionId');
+            localStorage.removeItem('datasetProjectPath');
         },
     },
     extraReducers: (builder) => {
         builder.addCase(loadActiveProject.fulfilled, (state, action) => {
-            state.projectId = action.payload?.project_id || "";
+            const nextProjectId = action.payload?.project_id || "";
+            // 切换项目后上次的数据集不再属于当前项目，清空浏览路径。
+            if (state.projectId && nextProjectId && state.projectId !== nextProjectId && state.datasetPath) {
+                state.datasetPath = null;
+                localStorage.removeItem('datasetProjectPath');
+            }
+            state.projectId = nextProjectId;
             state.project = action.payload || {};
         });
         builder.addCase(loadCurrentUser.fulfilled, (state, action) => {

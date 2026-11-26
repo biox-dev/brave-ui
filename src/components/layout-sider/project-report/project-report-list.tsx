@@ -20,6 +20,7 @@ import { FC, useCallback, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 import { invoke } from "@/core/ui-system/invokeV2";
+import AskAgentButton from "../common/ask-agent-button";
 import SiderPanelLayout from "../common/sider-panel-layout";
 
 /** 报告的人类可读名称。 */
@@ -253,13 +254,19 @@ const ProjectReportList: FC<ProjectReportListProps> = ({
       {
         title: "Actions",
         key: "actions",
-        width: 96,
+        width: 120,
         align: "right",
       render: (_, record) => (
         <span
           className="project-report-item-actions"
           onClick={(e) => e.stopPropagation()}
         >
+          {/* 把报告作为 @report:<id> 引用插进 Agent 输入框。 */}
+          <AskAgentButton
+            kind="report"
+            id={record.id}
+            label={reportDisplayName(record)}
+          />
           {/* 发布 / 编辑已搬到报告详情页（/report/:id），列表只保留查看与删除。 */}
           <Tooltip title="Open report">
             <Button
