@@ -388,9 +388,9 @@ const ContainerTemplateList = ({
         setSelectedId(record.id);
         return;
       }
-      void openTerminalTab(record);
+      // void openTerminalTab(record);
     },
-    [onOk, selectable, selectOnClick, openTerminalTab]
+    [onOk, selectable, selectOnClick]
   );
 
   const columns = useMemo<ColumnsType<ContainerTemplateItem>>(
@@ -626,7 +626,7 @@ const ContainerTemplateList = ({
               String(record.id) === String(selectedId) ? "project-report-row-selected" : ""
             }
             onRow={(record) => ({
-              // onClick: () => handleRowClick(record),
+              onClick: () => handleRowClick(record),
             })}
           />
         )}
