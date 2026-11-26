@@ -131,7 +131,7 @@ const ContainerTemplateImportDialog: FC<any> = ({
                 rows={14}
                 placeholder={`{
   "container_template_specs": [ { "id": "...", "name": "...", "command": "", "port": 8787, ... } ],
-  "container_template_definitions": [ { "id": "...", "spec_id": "...", "image_name": "docker.io/rocker/rstudio:4.4", "pull_policy": "IfNotPresent", "name": "", "is_default": false } ]
+  "container_template_definitions": [ { "id": "...", "spec_id": "...", "image_name": "docker.io/rocker/rstudio:4.4", "pull_policy": "IfNotPresent", "name": "" } ]
 }`}
                 style={{ fontFamily: "monospace", fontSize: 12 }}
             />

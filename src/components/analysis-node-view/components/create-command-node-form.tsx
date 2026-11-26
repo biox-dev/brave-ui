@@ -38,7 +38,7 @@ const CreateCommandNodeForm = ({ onOk, onCancel, close }: CreateCommandNodeFormP
         }
         const items = resp.data?.data ?? [];
         setTemplates(items);
-        const preferred = items.find((item) => item.is_default) || items[0];
+        const preferred = items[0];
         if (preferred) {
           setTemplateID(String(preferred.id));
         }
@@ -60,7 +60,7 @@ const CreateCommandNodeForm = ({ onOk, onCancel, close }: CreateCommandNodeFormP
     () =>
       templates.map((item) => ({
         value: String(item.id),
-        label: `${item.name || item.id}${item.is_default ? " (default)" : ""}`,
+        label: `${item.name || item.id}`,
       })),
     [templates]
   );

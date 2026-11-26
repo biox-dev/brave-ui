@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Form, Input, Select, Switch, Button, Flex, Space, Typography } from "antd";
+import { Form, Input, Select, Button, Flex, Space, Typography } from "antd";
 import type { ContainerTemplateDefinitionItem, ContainerTemplateItem } from "@/api/container";
 import { createContainerTemplateDefinitionApi, updateContainerTemplateDefinitionApi } from "@/api/container";
 import { invoke } from "@/core/ui-system/invokeV2";
@@ -40,8 +40,7 @@ export interface ContainerTemplateFormProps {
  *   - image_name：要运行的完整镜像名；
  *   - pull_policy：镜像拉取策略（Always / IfNotPresent / Never）；
  *   - name：该绑定行的展示名；
- *   - description：该绑定行自身的描述；
- *   - is_default：是否作为系统唯一默认容器模板。
+ *   - description：该绑定行自身的描述。
  *
  * 运行配置的内部字段（命令、资源、端口、环境变量、挂载等）在「Container Template Spec」
  * 页面维护 —— 同一套配置可被多个镜像绑定复用，所以不在这里重复编辑。
@@ -73,7 +72,6 @@ const ContainerTemplateForm = ({
                 name: item.name || undefined,
                 // 绑定行自身的描述（ContainerTemplateDefinition.Description）。
                 description: item.description || undefined,
-                is_default: Boolean(item.is_default),
                 spec_label: item.spec_id,
             });
             return;
@@ -94,7 +92,6 @@ const ContainerTemplateForm = ({
             spec_id: typeof values.spec_id === "string" ? values.spec_id : undefined,
             image_name: typeof values.image_name === "string" ? values.image_name.trim() : "",
             pull_policy: typeof values.pull_policy === "string" ? values.pull_policy : "IfNotPresent",
-            is_default: Boolean(values.is_default),
             name: typeof values.name === "string" ? values.name.trim() : "",
             description: typeof values.description === "string" ? values.description.trim() : "",
         };
@@ -230,15 +227,6 @@ const ContainerTemplateForm = ({
                     placeholder="Describe what this runnable template is used for"
                     autoSize={{ minRows: 2, maxRows: 6 }}
                 />
-            </Form.Item>
-
-            <Form.Item
-                name="is_default"
-                label="Default Template"
-                valuePropName="checked"
-                tooltip="Only one template can be default. Scripts created by the agent without an explicit container template use it."
-            >
-                <Switch />
             </Form.Item>
 
             <Flex justify="end" gap="small" style={{ marginTop: 16 }}>

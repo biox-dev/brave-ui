@@ -33,8 +33,6 @@ export interface ContainerTemplateItem {
     labels: Record<string, unknown> | null;
     change_uid: boolean;
     schedule_constraint: Record<string, unknown> | null;
-    // is_default：该模板是否为系统默认（全局唯一）。create_script 未指定容器模板时使用它。
-    is_default?: boolean;
     created_at: string;
     updated_at: string;
 }
@@ -73,7 +71,6 @@ export interface ContainerTemplateDefinitionItem {
     pull_policy?: string;
     name?: string;
     description?: string;
-    is_default?: boolean;
     created_at?: string;
     updated_at?: string;
 }
@@ -230,7 +227,7 @@ export const createContainerTemplateDefinitionApi = (payload: Partial<ContainerT
     return http.post<ContainerTemplateDefinitionItem>("/container/template-definition/create", payload);
 };
 
-/** 只更新绑定行（ContainerTemplateDefinition）自身字段：镜像 / 拉取策略 / 展示名 / 描述 / 默认标记。 */
+/** 只更新绑定行（ContainerTemplateDefinition）自身字段：镜像 / 拉取策略 / 展示名 / 描述。 */
 export const updateContainerTemplateDefinitionApi = (
     payload: Partial<ContainerTemplateDefinitionItem> & { id: string }
 ) => {
@@ -248,16 +245,6 @@ export const exportContainerTemplateApi = (payload: { id: string }) => {
 
 export const importContainerTemplateApi = (payload: ContainerTemplateBundleItem) => {
     return http.post<ContainerTemplateBundleItem>("/container/template/import", payload);
-};
-
-/** 读取系统默认容器模板；没有默认模板时 data 为 null。 */
-export const getDefaultContainerTemplateApi = () => {
-    return http.get<{ data: ContainerTemplateItem | null }>("/container/template/default");
-};
-
-/** 把指定绑定行设为唯一默认模板（后端会清空其它模板的默认标记）。 */
-export const setDefaultContainerTemplateApi = (payload: { id: string }) => {
-    return http.post<ContainerTemplateItem>("/container/template/set-default", payload);
 };
 
 // ===== ContainerTemplateSpec（共享运行配置）CRUD =====

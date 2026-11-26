@@ -403,7 +403,6 @@ const ContainerTemplateList = ({
         render: (_: unknown, record) => {
           const displayName = templateDisplayName(record);
           const meta = [
-            record.is_default ? "Default" : undefined,
             record.app_type,
             record.image_name,
             record.updated_at ? formatRelativeTime(record.updated_at, locale) : undefined,
