@@ -45,6 +45,13 @@ import { openWindow } from "@/core/desktop/openWindow";
 import { useComponentStore } from "@/event-bus/stores/components";
 import { useI18n } from "@/hooks/useI18n";
 import { openBottomTerminal, useBottomPanelStore } from "@/layout/bottom-panel-store";
+import { useAgentWorkspace } from "@/layout/agent-workspace-store";
+import {
+  TERMINAL_TAB_KEY_PREFIX as WORKSPACE_TERMINAL_TAB_KEY_PREFIX,
+  openAgentSessionTerminalTab,
+  useActiveWorkspaceResourceId,
+  useAgentSessionPath,
+} from "@/layout/workspace-navigation";
 import { formatRelativeTime } from "@/utils/time";
 import SiderPanelLayout from "../common/sider-panel-layout";
 
@@ -107,7 +114,7 @@ const buildAppUrl = (containerURL: string, appSession?: AppSessionItem) => {
   return normalizedPrefix.endsWith("/") ? normalizedPrefix : `${normalizedPrefix}/`;
 };
 
-/** 底部终端标签的 key 前缀，与 `openBottomTerminal` 保持一致。 */
+/** 底部面板里终端标签的 key 前缀，与 `openBottomTerminal` 保持一致。 */
 const TERMINAL_TAB_KEY_PREFIX = "terminal:";
 
 /**
@@ -414,20 +421,44 @@ const AppSessionPage = ({
   const isLoading = loading;
   const isFetching = loading || loadingMore;
 
+  // 点击会话行时终端打开的位置跟随当前路由（与 `workspace-navigation` 的约定一致）：
+  // - Agent 会话页（`/session`、`/session/:sessionId`）：打开右侧工作区 `MainTabs` 标签
+  //   （`agentAppSessionTerminal`，内嵌 xterm 终端）；
+  // - 其它页面：打开底部面板终端标签。
+  // 高亮项也来自「实际打开的那个容器」：会话页看激活的工作区标签，
+  // 其它页面看底部面板激活的标签。
+  const agentSession = useAgentSessionPath();
+  const workspace = useAgentWorkspace(agentSession.matched ? agentSession.sessionId : undefined);
+  const activeWorkspaceSessionId = useActiveWorkspaceResourceId(WORKSPACE_TERMINAL_TAB_KEY_PREFIX);
+
   // 底部面板当前激活的标签决定左栏的高亮项：激活 `terminal:<sessionId>` 标签时，
   // 列表里对应的会话行即为选中态。底部面板状态由 `/auth/me` 回填（后端持久化），
   // 所以刷新页面后选中项会随激活标签一起恢复。
   const activeBottomTabKey = useBottomPanelStore((state) => state.active);
-  const activeSessionId = useMemo(
+  const activeBottomSessionId = useMemo(
     () => getTerminalSessionIdFromKey(activeBottomTabKey),
     [activeBottomTabKey]
   );
 
-  // 是否还有终端标签。全部标签都关闭后底部面板已无对应会话，
+  // 是否还有终端标签。全部标签都关闭后已无对应会话，
   // 左栏必须同步取消选中，否则会残留一条「幽灵高亮」。
-  const hasTerminalTab = useBottomPanelStore((state) =>
+  const hasBottomTerminalTab = useBottomPanelStore((state) =>
     state.tabs.some((tab) => tab.kind === "terminal")
   );
+  const hasWorkspaceTerminalTab = useMemo(
+    () =>
+      workspace.tabs.some((tab) =>
+        tab.key.startsWith(`${WORKSPACE_TERMINAL_TAB_KEY_PREFIX}:`)
+      ),
+    [workspace.tabs]
+  );
+
+  const activeSessionId = agentSession.matched
+    ? activeWorkspaceSessionId
+    : activeBottomSessionId;
+  const hasTerminalTab = agentSession.matched
+    ? hasWorkspaceTerminalTab
+    : hasBottomTerminalTab;
 
   // 激活标签变化（点击行 / 在标签栏切换 / 刷新回填）时同步选中行：
   // - 有激活的终端标签 → 选中对应会话行；
@@ -578,26 +609,42 @@ const AppSessionPage = ({
   );
 
   /**
-   * 按「应用会话 ID」在底部面板打开（或聚焦）终端标签。
-   *
-   * 终端会话即应用会话（AppSession），后端终端 WS 路由
-   * `/container/terminal/session/{id}/terminal` 的 `{id}` 就是 `AppSession.ID`：
+   * 打开（或聚焦）一条终端会话的参数：终端会话即应用会话（AppSession），后端终端
+   * WS 路由 `/container/terminal/session/{id}/terminal` 的 `{id}` 就是 `AppSession.ID`：
    * 会话不在内存时后端会按记录认领原容器 / 重建 shell，因此这里只传会话 ID。
-   * 同一会话重复点击只会聚焦已有标签，不会重复连接。
+   *
+   * 打开位置跟随当前路由：
+   * - Agent 会话页：在右侧工作区 `MainTabs` 打开 / 聚焦终端标签；
+   * - 其它页面：在底部面板打开 / 聚焦终端标签（`openBottomTerminal`）。
    */
+  const openTerminalSession = (sessionId: string, title?: string) => {
+    if (!sessionId) {
+      return;
+    }
+    if (agentSession.matched) {
+      // New Chat（`/session` 还没有会话 ID）写进 `__new__` 工作区，
+      // 会话创建后由页面迁移到新会话，标签不会凭空消失。
+      openAgentSessionTerminalTab(agentSession.sessionId, sessionId, title);
+      return;
+    }
+    openBottomTerminal(sessionId, title);
+  };
+
+  /** 按「应用会话 ID」在当前位置打开（或聚焦）终端。 */
   const openTerminalTab = (record: AppSessionItem) => {
     const sessionId = normalizeText(record.id);
     if (!sessionId) {
       return;
     }
-    openBottomTerminal(sessionId, record.name);
+    openTerminalSession(sessionId, record.name);
   };
 
   /**
-   * 点击左栏列表行：打开（或聚焦）该会话的底部终端标签，并立即标记为选中。
+   * 点击左栏列表行：打开（或聚焦）该会话的终端，并立即标记为选中。
    *
-   * 选中态最终由「激活的终端标签」驱动（见 activeSessionId），这里的 setSelectedID
-   * 只是即时反馈，避免等待 store 回填前出现一帧无高亮。
+   * 选中态最终由「当前打开位置里激活的终端标签」驱动
+   * （会话页 = 右侧工作区标签，其它页面 = 底部面板标签，见 activeSessionId），
+   * 这里的 setSelectedID 只是即时反馈，避免等待 store 回填前出现一帧无高亮。
    */
   const handleActivateSession = (record: AppSessionItem) => {
     const sessionId = normalizeText(record.id);
@@ -847,20 +894,20 @@ const AppSessionPage = ({
   };
 
   /**
-   * 按模板新建一条「终端会话」并打开底部终端标签。
+   * 按模板新建一条「终端会话」并打开它（会话页 → 右侧 `MainTabs` 标签，其它页面 → 底部面板）。
    *
    * 终端会话 = 应用会话（AppSession），后端接口是
    * `POST /container/terminal/session/create`（handler `ContainerTerminalSessionCreate`）：
    * 创建时即拉起容器与 shell，返回的 session_id 就是应用会话 ID，因此创建完直接
-   * `openBottomTerminal` 即可（不需要再按模板建立 WebSocket 连接）。
+   * 按当前路由把它打开即可（不需要再按模板建立 WebSocket 连接）。
    */
   const handleCreateTerminalSession = async (item: ContainerTemplateItem) => {
     try {
       const created = (await createContainerTerminalSessionApi({
         container_template_id: item.id,
       })).data;
-      openBottomTerminal(
-        created.session_id,
+      openTerminalSession(
+        String(created.session_id ?? "").trim(),
         created.name || getTemplateDisplayName(item),
       );
       messageApi.success("Terminal session created");
