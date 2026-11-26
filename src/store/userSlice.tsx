@@ -88,7 +88,6 @@ export interface DatasetPathInfo {
     dataset_name?: string;
     description?: string;
     metadata?: string;
-    path?: string;
 }
 
 // 数据集浏览器当前进入的数据集（刷新 / 切换左侧面板后恢复）

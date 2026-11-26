@@ -134,7 +134,6 @@ const toDatasetItem = (info?: DatasetPathInfo | null): DatasetItem | undefined =
         dataset_name: info.dataset_name ?? "",
         description: info.description ?? "",
         metadata: info.metadata ?? "",
-        path: info.path,
         created_at: "",
         updated_at: "",
       }
@@ -295,7 +294,7 @@ const DatasetListPanel = ({
         <ItemRow
           icon={<FolderOpenOutlined className="project-report-item-icon" />}
           title={datasetLabel(record)}
-          meta={[record.description, record.path].filter(Boolean).join(" · ") || undefined}
+          meta={record.description || undefined}
           actions={
             <>
               {/* 把数据集作为 @dataset:<id> 引用插进 Agent 输入框（Agent 侧用 get_dataset 解析工作目录）。 */}

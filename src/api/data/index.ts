@@ -22,9 +22,9 @@ export interface DatasetItem {
 	dataset_key?: string;
 	description: string;
 	metadata: string;
-	// path is the dataset workspace directory (utils.GetDatasetDir); derived
-	// server-side and present on project-scoped dataset responses.
-	path?: string;
+	// The dataset workspace directory is NOT returned on dataset entities; it is
+	// derived from the active project on demand (backend Dataset.WorkspaceDir).
+	// Use the dir-files / ensure-dir endpoints to resolve it.
 	created_at: string;
 	updated_at: string;
 }
