@@ -99,8 +99,9 @@ export type WorkspaceOpenResult = "tab" | "route";
 
 /**
  * 按当前 pathname 决定打开方式：
- * - Agent 会话页（且已有会话 ID）：在右侧 `MainTabs` 打开 / 聚焦标签；
- * - 其它页面（含 New Chat：页面不渲染标签）：路由跳转到 `routePath`。
+ * - Agent 会话页（`/session` 与 `/session/:sessionId`）：在右侧 `MainTabs` 打开 / 聚焦标签；
+ *   New Chat（`/session` 还没有会话 ID）先写进 `__new__` 工作区，会话创建后由页面迁移过去；
+ * - 其它页面：路由跳转到 `routePath`。
  */
 export const openWorkspaceTarget = (
   pathname: string | undefined,
@@ -108,7 +109,7 @@ export const openWorkspaceTarget = (
   target: WorkspaceOpenTarget
 ): WorkspaceOpenResult => {
   const { matched, sessionId } = parseAgentSessionPath(pathname);
-  if (matched && sessionId) {
+  if (matched) {
     openAgentWorkspaceTab(sessionId, {
       key: workspaceTargetKey(target),
       title: target.title,

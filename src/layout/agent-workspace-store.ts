@@ -151,3 +151,35 @@ export const resetAgentWorkspace = (sessionId?: string) => {
     return { bySession: next };
   });
 };
+
+/**
+ * 把一个会话的右侧工作区复制到另一个会话。
+ *
+ * 用在「New Chat 发出第一条消息」的场景：地址从 `/session` 变成 `/session/:id` 后，
+ * 之前在 New Chat 里打开的标签不应该凭空消失。
+ *
+ * 这里刻意「只复制、不删来源」：数据路由的地址切换要比这次 store 更新晚一拍，
+ * 如果当场删掉 `__new__` 工作区，页面会先按旧地址渲染一帧「没有标签」，
+ * 标签栏先关闭再重新出现（闪动）。两边同时有标签就不会出现这一帧。
+ * 遗留的 `__new__` 标签由 AgentSessionPage 在下次进入 New Chat 时清掉。
+ * 目标会话已有标签时保留它的激活标签，只去重追加复制过来的标签。
+ */
+export const moveAgentWorkspace = (from?: string, to?: string) => {
+  const fromKey = sessionWorkspaceKey(from);
+  const toKey = sessionWorkspaceKey(to);
+  if (fromKey === toKey) {
+    return;
+  }
+  useAgentWorkspaceStore.setState((state) => {
+    const source = state.bySession[fromKey];
+    if (!source || source.tabs.length === 0) {
+      return state;
+    }
+    const target = state.bySession[toKey] ?? EMPTY_WORKSPACE;
+    const targetKeys = new Set(target.tabs.map((tab) => tab.key));
+    const tabs = [...target.tabs, ...source.tabs.filter((tab) => !targetKeys.has(tab.key))];
+    return {
+      bySession: { ...state.bySession, [toKey]: { tabs, active: target.active || source.active } },
+    };
+  });
+};

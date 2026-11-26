@@ -1,4 +1,4 @@
-import { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import { FC, useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { Button, Empty } from 'antd';
 import { ExportOutlined, DownloadOutlined, LeftOutlined, UserOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router';
@@ -22,10 +22,10 @@ import {
 import {
   closeAgentWorkspaceTab,
   closeAllAgentWorkspaceTabs,
+  moveAgentWorkspace,
   resetAgentWorkspace,
   setActiveAgentWorkspaceTab,
   useAgentWorkspace,
-  type AgentWorkspaceTab,
 } from '@/layout/agent-workspace-store';
 import './agent-session-page.css';
 
@@ -35,9 +35,6 @@ import './agent-session-page.css';
  */
 type WorkspaceViewProps = { view: string } & Record<string, unknown>;
 const WorkspaceViewResolver = ViewResolver as unknown as FC<WorkspaceViewProps>;
-
-/** New Chat 时使用的共享空标签数组，保持引用稳定（不渲染右侧标签页）。 */
-const NO_TABS: AgentWorkspaceTab[] = [];
 
 /** 下载文件名清洗：移除路径 / 非法字符，空标题时回退。 */
 const sanitizeDownloadName = (name: string, fallback: string) => {
@@ -52,6 +49,7 @@ const sanitizeDownloadName = (name: string, fallback: string) => {
  * - 顶部：通栏 header，右侧只有一个展开 / 折叠按钮（总是显示）；
  * - main：当前会话的聊天（直接渲染 `<AgentChat />`），没有右侧面板时自动撑满；
  * - rightMiddle：聊天内容打开的标签页（有标签时才渲染，关闭全部后聊天自动撑开）；
+ *   New Chat 也有自己的标签（独立的 `__new__` 工作区），列表里的资源点击后在 MainTabs 打开；
  * - right：`SessionResourceStack`（纵向堆叠脚本 / 工作流 / 分析工作流 / 分析节点），
  *   「有数据就堆叠、没数据就空状态」的分支全部收在容器组件内部，
  *   页面只负责传入 sessionId / active / cleared / onClose。
@@ -73,9 +71,20 @@ const AgentSessionPage: FC = () => {
   // 下载进度百分比；null 表示总大小未知（服务端未返回 Content-Length）。
   const [downloadPercent, setDownloadPercent] = useState<number | null>(null);
   const workspace = useAgentWorkspace(sessionId);
-  // New Chat（无会话）时右侧清空：标签页与工作区内容都用这份空状态，不读取上一个会话的残留。
+  // New Chat（无会话）使用独立的 `__new__` 工作区：右侧标签照常渲染（列表里的资源也在 MainTabs 打开），
+  // 会话创建后由 handleConversationChange 复制到新会话，标签不会凭空消失。
   const isNewChat = !sessionId;
-  const tabs = isNewChat ? NO_TABS : workspace.tabs;
+  const tabs = workspace.tabs;
+
+  // 进入 New Chat 时清掉 `__new__` 里遗留的标签：发出第一条消息时它们已经复制到会话工作区
+  // （moveAgentWorkspace 为了不在地址切换的一拍里闪动，不会当场删除来源）。
+  // 用 layout effect 在浏览器绘制前完成，避免进 New Chat 时旧标签闪一下。
+  useLayoutEffect(() => {
+    if (!isNewChat) {
+      return;
+    }
+    resetAgentWorkspace(undefined);
+  }, [isNewChat]);
 
   // 会话实时订阅（登记 + 未落库尾巴快照）由 AgentChat 负责：它持有 conversationId，
   // 切换会话 / 新建会话 / 手动刷新时都能在同一个地方完成订阅与快照应用。
@@ -111,14 +120,6 @@ const AgentSessionPage: FC = () => {
     [setRightPaneCollapsedKeys],
   );
 
-  // New Chat 时清空右侧工作表（标签页）：上一个会话打开的页面不应留在新会话里。
-  useEffect(() => {
-    if (!isNewChat) {
-      return;
-    }
-    resetAgentWorkspace(undefined);
-  }, [isNewChat]);
-
   // 激活标签被关闭后 store 会切到邻居；这里再兜底一次，避免 active 指向已关闭的 key。
   const activeTab = useMemo(
     () => tabs.find((tab) => tab.key === workspace.active) ?? tabs[tabs.length - 1],
@@ -139,12 +140,16 @@ const AgentSessionPage: FC = () => {
   const handleConversationChange = useCallback(
     (id?: string) => {
       if (id) {
+        // New Chat 里打开的右侧标签跟随新会话迁移，避免地址切到 /session/:id 后标签消失。
+        if (!sessionId) {
+          moveAgentWorkspace(undefined, id);
+        }
         navigate(`/session/${encodeURIComponent(id)}`, { replace: true });
         return;
       }
       navigate('/session', { replace: true });
     },
-    [navigate],
+    [navigate, sessionId],
   );
 
   // 导出会话结果：把分析节点输出与报告汇总到会话工作目录的 report 目录。
