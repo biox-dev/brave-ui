@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 import { useSelector } from "react-redux";
 import { Breadcrumb, Button, Empty, Flex, Modal, Popconfirm, Table, Tag, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -158,6 +158,57 @@ const buildDatasetFileTarget = (file: DatasetFileItem): WorkspaceOpenTarget => (
   params: { file_id: String(file.file_id) },
   routePath: `/dataset-file/${encodeURIComponent(String(file.file_id))}`,
 });
+
+// ---------------------------------------------------------------------------
+// 工具栏 Upload：点击直接拉起系统文件选择框（可多选），选中的文件交给
+// `invoke.datasetFileUpload` 弹窗上传。数据集固定为当前数据集，角色走后端
+// 默认值（DEFAULT），不再让用户选 dataset / role。
+// ---------------------------------------------------------------------------
+
+interface DatasetUploadButtonProps {
+  datasetId: string;
+  datasetName: string;
+  /** 至少上传成功一个文件后刷新文件列表。 */
+  onUploaded: () => void;
+}
+
+const DatasetUploadButton = ({ datasetId, datasetName, onUploaded }: DatasetUploadButtonProps) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handlePick = (event: ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(event.target.files ?? []);
+    // 清空 value，保证下次选同一个文件也能触发 change。
+    event.target.value = "";
+    if (picked.length === 0) {
+      return;
+    }
+    invoke.datasetFileUpload.open(
+      { dataset_id: datasetId, dataset_name: datasetName, files: picked, onUploaded },
+      { title: `Upload to ${datasetName}`, width: 560, footer: null, maskClosable: false }
+    );
+  };
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        style={{ display: "none" }}
+        onChange={handlePick}
+      />
+      <Tooltip title="Upload">
+        <Button
+          type="text"
+          size="small"
+          icon={<UploadOutlined />}
+          aria-label="Upload"
+          onClick={() => inputRef.current?.click()}
+        />
+      </Tooltip>
+    </>
+  );
+};
 
 /** 文件夹 / 文件行：图标 + 名称 + 一行摘要，样式沿用侧栏的 project-report-item。
  *
@@ -727,19 +778,6 @@ const DatasetFilesPanel = ({
     }
   };
 
-  const handleUpload = async () => {
-    try {
-      await invoke.collectedFileUpload.openDrawerAsync(
-        { title: `Upload to ${datasetLabel(dataset)}`, defaultDatasetId: dataset.id },
-        { width: 520, title: "Upload Files" }
-      );
-    } catch {
-      // user cancelled
-      return;
-    }
-    refresh();
-  };
-
   const handleEnsureDir = async () => {
     try {
       const response = await ensureDatasetDirApi({ id: dataset.id });
@@ -891,9 +929,13 @@ const DatasetFilesPanel = ({
               onClick={handleImportDirFiles}
             />
           </Tooltip>
-          <Tooltip title="Upload">
-            <Button type="text" size="small" icon={<UploadOutlined />} onClick={handleUpload} />
-          </Tooltip>
+          {/* 直接打开系统文件选择框（可多选），确认后在弹窗里逐个上传并显示进度；
+              数据集固定为当前数据集，角色走后端默认值 DEFAULT。 */}
+          <DatasetUploadButton
+            datasetId={dataset.id}
+            datasetName={datasetLabel(dataset)}
+            onUploaded={refresh}
+          />
           <Tooltip title="System Files">
             <Button
               type="text"

@@ -20,6 +20,8 @@ const viewLoaders = {
         import("./project-report-literature-stack/project-report-literature-stack"),
     sysFileBrowser: () => import("./sys-file/sys-file"),
     datasetProjectPage: () => import("./data-dataset-page/dataset-project-page"),
+    // 数据集内多文件上传弹窗（工具栏 Upload 按钮直接拉起系统文件选择框后打开）。
+    datasetFileUpload: () => import("./data-dataset-page/dataset-file-upload"),
     analysisNodeFilePage: () => import("./data-dataset-page/analysis-node-file-page"),
     assayProjectPage: () => import("./data-dataset-page/assay-project-page"),
     editAssayPage: () => import("./data-dataset-page/edit-assay-page"),
