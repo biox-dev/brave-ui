@@ -8,7 +8,6 @@ import {
     CloudUploadOutlined,
     DeleteOutlined,
     DownloadOutlined,
-    LoadingOutlined,
     PlusOutlined,
     RedoOutlined,
     ReloadOutlined,
@@ -238,22 +237,6 @@ const StorePages = forwardRef<any, any>(({ onOk, onCancel, storeType = "workflow
                     </Flex>
                 )
             },
-        },
-        {
-            title: "Status",
-            dataIndex: "status",
-            key: "status",
-            width: 110,
-            render: (status?: string) => status ? (
-                <Tag
-                    color={status === "running" ? "processing" : "success"}
-                    icon={status === "running" ? <LoadingOutlined /> : undefined}
-                    bordered={false}
-                    style={{ marginInlineEnd: 0 }}
-                >
-                    {status}
-                </Tag>
-            ) : <span style={{ color: "rgba(0, 0, 0, 0.25)" }}>-</span>,
         },
         {
             title: "Updated",
