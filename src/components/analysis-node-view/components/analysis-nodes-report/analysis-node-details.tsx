@@ -644,7 +644,7 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, v
 
                                     <Typography.Text type="secondary">
                                         container_name: <Tooltip title={selectedSampleDetail.node?.container_image}>
-                                            {selectedSampleDetail.node?.container_name} ( {selectedSampleDetail.node?.container_template_id} )
+                                            {selectedSampleDetail.node?.container_name} ( {selectedSampleDetail.node?.container_id} )
                                         </Tooltip>
                                     </Typography.Text>
 
