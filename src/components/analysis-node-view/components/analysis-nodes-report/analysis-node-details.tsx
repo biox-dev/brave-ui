@@ -71,9 +71,16 @@ export interface AnalysisNodeDetailsProps {
      * 避免把用户在看的那个页面的地址改成 `…/scriptCode`。
      */
     viewFromRoute?: boolean;
+    /**
+     * 由「承载本组件的标签页」注入的关闭动作（Agent 会话页右侧 MainTabs 会传）。
+     *
+     * 那种场景下本组件只是一个标签内容：Header 右上角的关闭按钮应该关闭标签，
+     * 而不是去动全局 store 里的 analysisNodeId。
+     */
+    onCloseTab?: () => void;
 }
 
-const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, viewFromRoute }) => {
+const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, viewFromRoute, onCloseTab }) => {
     const [detailLoading, setDetailLoading] = useState(false);
     const [sampleDetailMap, setSampleDetailMap] = useState<Record<string, Partial<AnalysisNodeSample>>>({});
     const { analysisNodeId, setAnalysisNodeId } = useStoreRender();
@@ -189,6 +196,11 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, v
     }, [selectedSampleDetail?.node?.container_id, register, unregister]);
 
     // 节点 id / 脚本 id 在多个视图间复用，先算好避免重复书写。
+    //
+    // 注意：这里的 nodeId 必须由「详情接口 + 组件入参」推导，不能用 useStoreRender 里的 analysisNodeId。
+    // analysisNodeId 是分析报告页自己的全局选中态：在 Agent 会话页的右侧 MainTabs 里打开本组件时
+    // 只会传入 analysis_node_id 入参，store 里仍是 null，直接拿它拼 URL 就会请求到
+    // /analysis/node/stop/null 这类无效地址（按钮看起来有反应，实际什么也没停）。
     const nodeId = String(selectedSampleDetail.node?.id ?? analysis_node_id ?? "");
     const scriptId = selectedSampleDetail.node?.script_id;
 
@@ -414,8 +426,12 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, v
                                                     <Popconfirm
                                                         title={"Whether or not to stop?"}
                                                         onConfirm={async () => {
-                                                            // await stopAnalysisNodeApi(selectedSampleDetail.node?.analysis_node_id, "node");
-                                                            await http.post(`/analysis/node/stop/${analysisNodeId}`)
+                                                            // 用 nodeId（入参 / 详情）而不是全局 store 的 analysisNodeId，见上方说明。
+                                                            if (!nodeId) {
+                                                                message.error("Analysis node id is missing");
+                                                                return;
+                                                            }
+                                                            await http.post(`/analysis/node/stop/${nodeId}`)
                                                             message.success("Stop Success");
                                                         }}
                                                     >
@@ -427,7 +443,11 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, v
                                                     <Popconfirm
                                                         title={"Whether or not to run?"}
                                                         onConfirm={async () => {
-                                                            await http.post(`/analysis/${analysisNodeId}/run-node`)
+                                                            if (!nodeId) {
+                                                                message.error("Analysis node id is missing");
+                                                                return;
+                                                            }
+                                                            await http.post(`/analysis/${nodeId}/run-node`)
                                                             message.success("run successfully");
                                                         }}
                                                     >
@@ -566,12 +586,17 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, v
                             </Space>
                         )}
 
-                        {analysisNodeId == analysis_node_id ? (
+                        {onCloseTab || analysisNodeId == analysis_node_id ? (
                             <Tooltip title={`Close ${analysis_node_id}`}>
                                 <Button
                                     size="small"
                                     onClick={() => {
                                         setParamsOpen(false);
+                                        // 标签内嵌（Agent 会话页 MainTabs）时关闭的是标签，不是全局选中节点。
+                                        if (onCloseTab) {
+                                            onCloseTab();
+                                            return;
+                                        }
                                         setAnalysisNodeId(null);
                                     }}
                                     icon={<CloseOutlined />}
@@ -781,7 +806,7 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, v
             >
                 {terminalOpen && (
                     <AnalysisNodeTerminal
-                        id={selectedSampleDetail.node?.id ?? analysisNodeId ?? analysis_node_id ?? ""}
+                        id={nodeId}
                         name={selectedSampleDetail.node?.node_name}
                     />
                 )}
