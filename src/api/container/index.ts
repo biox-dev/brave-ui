@@ -22,6 +22,10 @@ export interface ContainerTemplateItem {
     image_name: string;
     // pull_policy: Always / IfNotPresent / Never。
     pull_policy: string;
+    // languages: 该模板支持的程序语言（R / PYTHON / CONDA），决定注入哪些包目录变量。
+    languages?: string[];
+    // use_shared_dir: 包目录是否放在 <baseDir>/shared/package（跨项目共享）。
+    use_shared_dir?: boolean;
     command: string;
     cpu: number;
     memory: number;
@@ -71,8 +75,18 @@ export interface ContainerTemplateDefinitionItem {
     pull_policy?: string;
     name?: string;
     description?: string;
+    // languages: 支持的程序语言（R / PYTHON / CONDA）。
+    languages?: string[];
+    // use_shared_dir: 包目录是否放在共享目录下。
+    use_shared_dir?: boolean;
     created_at?: string;
     updated_at?: string;
+}
+
+/** 容器模板支持的程序语言选项（GET /container/template-definition/languages）。 */
+export interface ContainerTemplateLanguageOption {
+    label: string;
+    value: string;
 }
 
 /**
@@ -225,6 +239,11 @@ export const pageContainerTemplateApi = (payload: PageRequest<ContainerTemplateP
 /** 只新增绑定行（ContainerTemplateDefinition）：spec_id 引用已有的共享运行配置。 */
 export const createContainerTemplateDefinitionApi = (payload: Partial<ContainerTemplateDefinitionItem>) => {
     return http.post<ContainerTemplateDefinitionItem>("/container/template-definition/create", payload);
+};
+
+/** 查询容器模板支持的程序语言选项，供表单多选框使用。 */
+export const listContainerTemplateLanguagesApi = () => {
+    return http.get<ContainerTemplateLanguageOption[]>("/container/template-definition/languages");
 };
 
 /** 只更新绑定行（ContainerTemplateDefinition）自身字段：镜像 / 拉取策略 / 展示名 / 描述。 */

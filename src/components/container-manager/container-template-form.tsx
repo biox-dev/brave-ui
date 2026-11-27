@@ -1,7 +1,15 @@
 import { useEffect, useState } from "react";
-import { Form, Input, Select, Button, Flex, Space, Typography } from "antd";
-import type { ContainerTemplateDefinitionItem, ContainerTemplateItem } from "@/api/container";
-import { createContainerTemplateDefinitionApi, updateContainerTemplateDefinitionApi } from "@/api/container";
+import { Form, Input, Select, Button, Flex, Space, Switch, Typography } from "antd";
+import type {
+    ContainerTemplateDefinitionItem,
+    ContainerTemplateItem,
+    ContainerTemplateLanguageOption,
+} from "@/api/container";
+import {
+    createContainerTemplateDefinitionApi,
+    listContainerTemplateLanguagesApi,
+    updateContainerTemplateDefinitionApi,
+} from "@/api/container";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 
@@ -39,6 +47,8 @@ export interface ContainerTemplateFormProps {
  *   - spec_id：要复用的共享运行配置（ContainerTemplateSpec）；
  *   - image_name：要运行的完整镜像名；
  *   - pull_policy：镜像拉取策略（Always / IfNotPresent / Never）；
+ *   - languages：支持的程序语言（R / PYTHON / CONDA），决定注入哪些包目录变量；
+ *   - use_shared_dir：包目录是否放在共享目录（<baseDir>/shared/package）；
  *   - name：该绑定行的展示名；
  *   - description：该绑定行自身的描述。
  *
@@ -56,7 +66,31 @@ const ContainerTemplateForm = ({
     const [form] = Form.useForm();
     const messageApi = useGlobalMessage();
     const [saving, setSaving] = useState(false);
+    const [languageOptions, setLanguageOptions] = useState<ContainerTemplateLanguageOption[]>([]);
     const isEdit = Boolean(item?.id);
+
+    // 语言选项由后端提供（与 Role 一样是枚举），拉取失败时回退到内置三项目语。
+    useEffect(() => {
+        let cancelled = false;
+        listContainerTemplateLanguagesApi()
+            .then((res) => {
+                if (!cancelled) {
+                    setLanguageOptions(res.data ?? []);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setLanguageOptions([
+                        { label: "R", value: "R" },
+                        { label: "Python", value: "PYTHON" },
+                        { label: "Conda", value: "CONDA" },
+                    ]);
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     const specIdValue = Form.useWatch<string | undefined>("spec_id", form);
     const specLabel = Form.useWatch<string | undefined>("spec_label", form);
@@ -72,6 +106,9 @@ const ContainerTemplateForm = ({
                 name: item.name || undefined,
                 // 绑定行自身的描述（ContainerTemplateDefinition.Description）。
                 description: item.description || undefined,
+                // 支持的程序语言与是否使用共享包目录。
+                languages: item.languages || [],
+                use_shared_dir: item.use_shared_dir || false,
                 spec_label: item.spec_id,
             });
             return;
@@ -94,6 +131,8 @@ const ContainerTemplateForm = ({
             pull_policy: typeof values.pull_policy === "string" ? values.pull_policy : "IfNotPresent",
             name: typeof values.name === "string" ? values.name.trim() : "",
             description: typeof values.description === "string" ? values.description.trim() : "",
+            languages: Array.isArray(values.languages) ? (values.languages as string[]) : [],
+            use_shared_dir: Boolean(values.use_shared_dir),
         };
         if (isEdit && item?.id) {
             payload.id = item.id;
@@ -208,6 +247,28 @@ const ContainerTemplateForm = ({
                         { label: "Never", value: "Never" },
                     ]}
                 />
+            </Form.Item>
+
+            <Form.Item
+                name="languages"
+                label="Languages"
+                tooltip="Package languages this template supports. Each selected language gets its own package directory variable (R_PACKAGE_DIR / PYTHON_PACKAGE_DIR / CONDA_PACKAGE_DIR)."
+            >
+                <Select
+                    mode="multiple"
+                    allowClear
+                    placeholder="Select supported languages"
+                    options={languageOptions.map((option) => ({ label: option.label, value: option.value }))}
+                />
+            </Form.Item>
+
+            <Form.Item
+                name="use_shared_dir"
+                label="Shared Package Directory"
+                valuePropName="checked"
+                tooltip="When enabled, package directories live under <baseDir>/shared/package (shared across projects); otherwise under the project data directory."
+            >
+                <Switch />
             </Form.Item>
 
             <Form.Item

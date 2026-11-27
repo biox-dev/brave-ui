@@ -135,6 +135,16 @@ const ContainerTemplateDetailCard = ({ item }: { item: ContainerTemplateItem }) 
         { key: "image_name", label: "Image", children: item.image_name || "-" },
         { key: "pull_policy", label: "Pull Policy", children: item.pull_policy || "-" },
         {
+          key: "languages",
+          label: "Languages",
+          children: item.languages?.length ? item.languages.join(", ") : "-",
+        },
+        {
+          key: "use_shared_dir",
+          label: "Shared Package Dir",
+          children: item.use_shared_dir ? "yes" : "no",
+        },
+        {
           key: "command",
           label: "Command",
           children: item.command ? (
