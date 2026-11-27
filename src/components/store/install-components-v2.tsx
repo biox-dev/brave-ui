@@ -93,6 +93,7 @@ const InstallComponents: FC<any> = ({ storeType, onOk, onCancel }) => {
             }}>Download</Button>
         </Space.Compact>
         <div style={{ marginBottom: "1rem" }}></div>
+
         <StorePages
             ref={pageRef}
             storeType={storeType}
