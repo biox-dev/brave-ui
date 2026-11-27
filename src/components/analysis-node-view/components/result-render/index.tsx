@@ -15,7 +15,6 @@ import { useStoreRender } from "@/context/render/RenderProvider";
 import ComponentsDetailsRender from "@/core/ui-renderer/ComponentsDetailsRender";
 import ViewResolver from "@/core/ui-renderer/ViewResolver";
 import { componentMap, ImgView, UrlComp } from "./components";
-import { FilesRender } from "./components/files-render";
 import LogFile from "@/components/log-file";
 import { resolveAnalysisAssetURL } from "@/utils/analysis-url";
 // import EditParamsPanel from "../edit-params/components/panel";

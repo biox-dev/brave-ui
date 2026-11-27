@@ -18,7 +18,6 @@ import { useStoreRender } from "@/context/render/RenderProvider";
 import { ParamsEdit, ParamsPanelDock, ParamsPanelLayout } from "@/components/edit-params/params-panel";
 import PanelLayout from "@/components/common/panel-layout";
 import { useComponentStore } from "@/event-bus/stores/components";
-import { FilesRender } from "../result-render/components/files-render";
 import { AnalysisNodeFilesRender } from "../result-render/components/analysis-node-files-render";
 import { NodeParamsRender } from "../result-render/components/node-params-render";
 import { createContainerTerminalSessionApi } from "@/api/container-template-terminal";
@@ -780,8 +779,6 @@ const AnalysisNodeDetails: FC<AnalysisNodeDetailsProps> = ({ analysis_node_id, v
                         />
                         <AnalysisNodeFilesRender analysis_node_id={analysis_node_id} name="Node Files" />
                         {/* <NodeParamsRender analysis_node_id={analysis_node_id} name="Node Params" /> */}
-                        {selectedSampleDetail?.result?.output_files && <FilesRender analysis_node_id={analysis_node_id} name="Output Files" files={selectedSampleDetail.result.output_files}></FilesRender>}
-                        {selectedSampleDetail?.result?.cache_files && <FilesRender analysis_node_id={analysis_node_id} name="Cache Files" files={selectedSampleDetail?.result?.cache_files}></FilesRender>}
 
                         {/* 结果还在跑 / 正在刷新时，结果视图用 Skeleton；代码视图不受影响。 */}
                         {resultView === "analysisResultDisplay" && (selectedSampleDetail.status == "running" || detailLoading) ? (
