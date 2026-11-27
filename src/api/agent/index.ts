@@ -270,6 +270,11 @@ export interface AgentConversationItem {
   /** 历史消息：仅详情 / fork 接口返回，列表接口为空。 */
   messages?: AgentConversationMessageItem[];
   current_task_id?: string;
+  /**
+   * 当前轮次任务的状态（列表 / 详情接口回填）：running / waiting_permission 表示真正在执行；
+   * failed / canceled 等中断态仍会保留 current_task_id（可续跑），不能据此显示运行标记。
+   */
+  active_task_status?: string;
   /** 当前轮次的任务状态快照（仅详情接口返回）：无活跃轮次时缺失。 */
   active_task?: AgentActiveTaskStatus;
   /** 是否还有更早的消息（向上滚动时继续加载）。 */

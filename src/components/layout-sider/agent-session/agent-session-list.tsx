@@ -45,7 +45,19 @@ const parseAgentSessionId = (pathname: string): string | undefined => {
   }
 };
 
-const isValidTaskId = (id?: string): boolean => !!id && id !== '0';
+/**
+ * 真正处于执行中的任务状态。
+ *
+ * 注意不能只看 `current_task_id` 是否非 0：用户取消 / 失败但保留检查点时后端会保留该
+ * 指针（用于 Continue），需要结合 `active_task_status` 才能判断是否在运行。
+ */
+const RUNNING_TASK_STATUSES = new Set(['running', 'waiting_permission']);
+
+const taskStatusOf = (item: AgentConversationItem): string =>
+  (item.active_task_status ?? '').trim();
+
+const isSessionRunning = (item: AgentConversationItem): boolean =>
+  RUNNING_TASK_STATUSES.has(taskStatusOf(item));
 
 const conversationTitle = (item: AgentConversationItem): string => {
   const title = item.title?.trim();
@@ -258,6 +270,8 @@ const AgentSessionList: FC<AgentSessionListProps> = ({
             const isActive = item.id === activeSessionId;
             const meta = metaText(item);
             const username = item.username?.trim();
+            const running = isSessionRunning(item);
+            const waiting = running && taskStatusOf(item) === 'waiting_permission';
             return (
               <div key={item.id} className="agent-session-row">
                 <button
@@ -277,8 +291,11 @@ const AgentSessionList: FC<AgentSessionListProps> = ({
                       {meta || labels.unknownUser}
                     </span>
                   </span>
-                  {isValidTaskId(item.current_task_id) && (
-                    <span className="agent-session-item-dot" aria-hidden />
+                  {running && (
+                    <span
+                      className={`agent-session-item-dot${waiting ? ' is-waiting' : ''}`}
+                      aria-hidden
+                    />
                   )}
                 </button>
                 <Popconfirm

@@ -130,6 +130,11 @@
   background: #1677ff;
 }
 
+/* 等待用户确认权限：与「执行中」保持同一点位形态，用琥珀色区分，避免误认为仍在跑。 */
+.agent-session-item-dot.is-waiting {
+  background: #faad14;
+}
+
 /* 删除按钮：默认隐藏，行 hover / 键盘聚焦时出现（避免列表过于嘈杂）。 */
 .agent-session-item-delete {
   position: absolute;
