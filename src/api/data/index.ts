@@ -486,6 +486,9 @@ export interface UploadFileToDatasetRequest {
 	file: File;
 }
 
+/** 上传大文件可能耗时很久，单独放宽超时到 1 小时（默认 15s 会中途断开）。 */
+const UPLOAD_TIMEOUT_MS = 60 * 60 * 1000;
+
 // uploadFileToDatasetApi posts the file with `onUploadProgress` so callers can
 // render a progress bar; `signal` cancels an in-flight upload.
 export const uploadFileToDatasetApi = (
@@ -503,6 +506,7 @@ export const uploadFileToDatasetApi = (
 		headers: {
 			"Content-Type": "multipart/form-data",
 		},
+		timeout: UPLOAD_TIMEOUT_MS,
 		onUploadProgress: (event) => {
 			if (!onProgress) return;
 			const total = event.total ?? 0;

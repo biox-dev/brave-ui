@@ -12,6 +12,7 @@ import {
   FolderAddOutlined,
   FolderOpenOutlined,
   ImportOutlined,
+  LoadingOutlined,
   PlusOutlined,
   ReloadOutlined,
   UploadOutlined,
@@ -39,6 +40,7 @@ import type {
 } from "@/api/data";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useUI } from "@/core/ui-system/useUI";
+import { useUIStore } from "@/core/ui-system/ui.store";
 import { useGlobalMessage } from "@/hooks/useGlobalMessage";
 import {
   DATASET_FILE_TAB_KEY_PREFIX,
@@ -50,6 +52,7 @@ import type { DatasetPathInfo } from "@/store/userSlice";
 import AskAgentButton from "../common/ask-agent-button";
 import SiderPanelLayout from "../common/sider-panel-layout";
 import { useDatasetProjectPath } from "./use-dataset-project-path";
+import { setUploadCallback, useDatasetUploadStore } from "./dataset-upload-store";
 import "./dataset-project-page.css";
 
 /** 多选模式（`multiple`）下 Confirm 回传的结果：数据集与数据集内的文件。 */
@@ -163,6 +166,9 @@ const buildDatasetFileTarget = (file: DatasetFileItem): WorkspaceOpenTarget => (
 // 工具栏 Upload：点击直接拉起系统文件选择框（可多选），选中的文件交给
 // `invoke.datasetFileUpload` 弹窗上传。数据集固定为当前数据集，角色走后端
 // 默认值（DEFAULT），不再让用户选 dataset / role。
+//
+// 上传状态保存在 `dataset-upload-store`：上传中关掉弹窗后仍在后台继续，
+// 此时按钮显示百分比，点击直接重新打开弹窗查看进度（不再拉起文件选择框）。
 // ---------------------------------------------------------------------------
 
 interface DatasetUploadButtonProps {
@@ -174,6 +180,36 @@ interface DatasetUploadButtonProps {
 
 const DatasetUploadButton = ({ datasetId, datasetName, onUploaded }: DatasetUploadButtonProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const uploading = useDatasetUploadStore(
+    (state) => state.sessions[datasetId]?.uploading ?? false
+  );
+  const percent = useDatasetUploadStore((state) => state.sessions[datasetId]?.percent ?? 0);
+
+  const openDialog = (files?: File[]) => {
+    // 回调每次打开都刷新，保证上传完成时刷新的是当前列表。
+    setUploadCallback(datasetId, onUploaded);
+    if (files?.length) {
+      useDatasetUploadStore.getState().addFiles(datasetId, files);
+    } else {
+      useDatasetUploadStore.getState().ensure(datasetId, datasetName);
+    }
+
+    // 同一个数据集的弹窗已经打开时不再重复打开（只把文件追加进会话）。
+    const alreadyOpen = useUIStore
+      .getState()
+      .stack.some(
+        (item) =>
+          item.visible && item.view === "datasetFileUpload" && item.params?.dataset_id === datasetId
+      );
+    if (alreadyOpen) {
+      return;
+    }
+
+    invoke.datasetFileUpload.open(
+      { dataset_id: datasetId, dataset_name: datasetName, onUploaded },
+      { title: `Upload to ${datasetName}`, width: 560, footer: null, maskClosable: false }
+    );
+  };
 
   const handlePick = (event: ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(event.target.files ?? []);
@@ -182,11 +218,26 @@ const DatasetUploadButton = ({ datasetId, datasetName, onUploaded }: DatasetUplo
     if (picked.length === 0) {
       return;
     }
-    invoke.datasetFileUpload.open(
-      { dataset_id: datasetId, dataset_name: datasetName, files: picked, onUploaded },
-      { title: `Upload to ${datasetName}`, width: 560, footer: null, maskClosable: false }
-    );
+    openDialog(picked);
   };
+
+  // 后台上传中：按钮显示进度，点击重新打开上传弹窗。
+  if (uploading) {
+    return (
+      <Tooltip title={`Uploading ${percent}% · click to view`}>
+        <Button
+          type="text"
+          size="small"
+          aria-label="Upload"
+          onClick={() => openDialog()}
+          style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
+        >
+          <LoadingOutlined />
+          <span style={{ fontSize: 12 }}>{percent}%</span>
+        </Button>
+      </Tooltip>
+    );
+  }
 
   return (
     <>

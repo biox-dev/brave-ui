@@ -1,0 +1,33 @@
+/* 上传弹窗（dataset-file-upload）的文件清单。
+ *
+ * 清单只允许纵向滚动：`overflow-y: auto` 时 `overflow-x` 会被规范计算成 `auto`，
+ * 而上传中那一行的 `LoadingOutlined`（`.anticon-spin`，旋转动画）在旋转 45° 时
+ * 包围盒比 14px 宽约 3px，这部分溢出会计入滚动区域 → 容器底部出现横向滚动条，
+ * 随动画每帧出现/消失，容器高度来回跳 15px，整个弹窗不停闪动。
+ * 这里显式关掉横向滚动，并给旋转图标留出溢出空间。
+ */
+.dataset-upload-list {
+  max-height: 280px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  /* 纵向滚动条出现时预留沟槽，避免清单高度（进而弹窗高度）跳动。 */
+  scrollbar-gutter: stable;
+  /* 右侧留白：容纳 loading 图标旋转时约 3px 的包围盒外扩。 */
+  padding-right: 4px;
+}
+
+/* 行内文字列：可收缩 + 隐藏溢出，长文件名只在自身范围内省略。 */
+.dataset-upload-item-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* 状态图标固定宽度槽位：pending / uploading / done / error 切换时行宽不变。 */
+.dataset-upload-item-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+}
