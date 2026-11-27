@@ -51,6 +51,15 @@
   white-space: nowrap;
 }
 
+/* 目录预览树：内容区已负责滚动，这里只收紧行高。 */
+.file-preview-tree {
+  font-size: 12px;
+}
+
+.file-preview-tree .ant-tree-treenode {
+  padding-bottom: 2px;
+}
+
 .file-preview-empty {
   padding: 32px 0;
 }

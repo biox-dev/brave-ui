@@ -1,10 +1,17 @@
 import { FC, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Button, Empty, Flex, Skeleton, Space, Table, Tag, Tooltip, Typography } from "antd";
+import { Alert, Button, Empty, Flex, Skeleton, Space, Table, Tag, Tooltip, Tree, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { FileTextOutlined, ReloadOutlined } from "@ant-design/icons";
+import type { TreeDataNode } from "antd";
+import {
+	FileOutlined,
+	FileTextOutlined,
+	FolderOutlined,
+	ReloadOutlined,
+} from "@ant-design/icons";
 import {
 	previewFileByFileIDApi,
 	type FilePreviewResponse,
+	type FilePreviewTreeNode,
 	type PreviewFileInfo,
 } from "@/api/sheet";
 import { parseDelimitedText } from "./parse-delimited";
@@ -12,6 +19,23 @@ import "./styles.css";
 
 /** 文本内容在前端渲染的上限，避免超大文件把页面卡死。 */
 const TEXT_RENDER_LIMIT = 1_000_000;
+
+/** 目录树节点数超过该值时默认只展开一级，避免一次性渲染太多行。 */
+const TREE_EXPAND_ALL_LIMIT = 200;
+
+const formatBytes = (size?: number): string => {
+	if (typeof size !== "number" || !Number.isFinite(size) || size <= 0) {
+		return "";
+	}
+	const units = ["B", "KB", "MB", "GB", "TB"];
+	let value = size;
+	let unitIndex = 0;
+	while (value >= 1024 && unitIndex < units.length - 1) {
+		value /= 1024;
+		unitIndex += 1;
+	}
+	return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+};
 
 const extractErrorMessage = (error: any): string => {
 	const data = error?.response?.data;
@@ -158,6 +182,60 @@ const FilePreviewPanel: FC<FilePreviewPanelProps> = ({
 	const textTooLarge = textContent.length > TEXT_RENDER_LIMIT;
 	const displayText = textTooLarge ? textContent.slice(0, TEXT_RENDER_LIMIT) : textContent;
 
+	// 目录预览：把后端返回的目录树转换成 antd Tree 的节点。
+	// 顶层目录默认展开；节点不多时全量展开，避免大目录一次性渲染过多行。
+	const fileTree = useMemo(() => {
+		if (preview?.kind !== "tree") {
+			return { nodes: [] as TreeDataNode[], expandedKeys: [] as string[], count: 0 };
+		}
+
+		let count = 0;
+		const topDirKeys: string[] = [];
+		const allDirKeys: string[] = [];
+
+		const toNodes = (nodes: FilePreviewTreeNode[], depth: number): TreeDataNode[] =>
+			nodes.map((node) => {
+				count += 1;
+				const key = node.path || node.name;
+				if (node.is_dir) {
+					allDirKeys.push(key);
+					if (depth === 0) {
+						topDirKeys.push(key);
+					}
+				}
+
+				const sizeText = node.is_dir ? "" : formatBytes(node.size);
+				return {
+					key,
+					isLeaf: !node.is_dir,
+					icon: node.is_dir ? <FolderOutlined /> : <FileOutlined />,
+					title: (
+						<Space size={6}>
+							<span style={{ wordBreak: "break-all" }}>{node.name}</span>
+							{sizeText ? (
+								<Typography.Text type="secondary" style={{ fontSize: 12 }}>
+									{sizeText}
+								</Typography.Text>
+							) : null}
+							{node.truncated ? (
+								<Tag color="orange" style={{ marginInlineEnd: 0 }}>
+									未展开
+								</Tag>
+							) : null}
+						</Space>
+					),
+					children: node.children?.length ? toNodes(node.children, depth + 1) : undefined,
+				};
+			});
+
+		const nodes = toNodes(preview.tree ?? [], 0);
+		return {
+			nodes,
+			expandedKeys: count <= TREE_EXPAND_ALL_LIMIT ? allDirKeys : topDirKeys,
+			count,
+		};
+	}, [preview]);
+
 	const fileName = preview?.file?.file_name || resolvedFileId || "File";
 
 	const renderContent = () => {
@@ -196,6 +274,28 @@ const FilePreviewPanel: FC<FilePreviewPanelProps> = ({
 					showIcon
 					message="无法在线预览"
 					description={preview.message || "该文件为二进制格式，暂不支持在线预览"}
+				/>
+			);
+		}
+		if (preview.kind === "tree") {
+			if (fileTree.nodes.length === 0) {
+				return (
+					<div className="file-preview-empty">
+						<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="空目录" />
+					</div>
+				);
+			}
+			return (
+				<Tree
+					// 切换目录时重建，让 defaultExpandedKeys 按新树生效。
+					key={preview.file_path || resolvedFileId}
+					className="file-preview-tree"
+					showIcon
+					showLine
+					selectable={false}
+					blockNode
+					treeData={fileTree.nodes}
+					defaultExpandedKeys={fileTree.expandedKeys}
 				/>
 			);
 		}
