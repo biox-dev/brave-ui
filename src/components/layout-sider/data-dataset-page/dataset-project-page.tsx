@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useSelector } from "react-redux";
-import { Breadcrumb, Button, Empty, Flex, Popconfirm, Table, Tooltip, Typography } from "antd";
+import { Breadcrumb, Button, Empty, Flex, Modal, Popconfirm, Table, Tag, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
   ArrowLeftOutlined,
@@ -19,12 +19,14 @@ import {
 import { useLocation, useNavigate } from "react-router";
 import { LazyListFooter, LazyListSearch, LazyListSentinel, useLazyList } from "@/components/common/lazy-list";
 import {
+  addSharedDatasetToProjectApi,
   deleteDatasetApi,
   deleteFileApi,
   ensureDatasetDirApi,
   importDatasetDirFilesApi,
   listDatasetFilesApi,
   pageDatasetByProjectApi,
+  pageSharedDatasetApi,
 } from "@/api/data";
 import type {
   DatasetFileItem,
@@ -33,6 +35,7 @@ import type {
   DatasetPageQuery,
   PageRequest,
   PageResponse,
+  SharedDatasetItem,
 } from "@/api/data";
 import { invoke } from "@/core/ui-system/invokeV2";
 import { useUI } from "@/core/ui-system/useUI";
@@ -196,6 +199,157 @@ const ItemRow = ({
 );
 
 // ---------------------------------------------------------------------------
+// 共享数据集选择弹窗：列出所有 shared dataset，勾选后绑定到当前激活项目
+// （go_project_dataset）。已绑定的行禁用勾选，重复导入是幂等的。
+// ---------------------------------------------------------------------------
+
+interface SharedDatasetPickerProps {
+  open: boolean;
+  onClose: () => void;
+  /** 导入成功后回调（对应列表刷新）。 */
+  onImported: () => void;
+}
+
+const SharedDatasetPicker = ({ open, onClose, onImported }: SharedDatasetPickerProps) => {
+  const message = useGlobalMessage();
+  const [items, setItems] = useState<SharedDatasetItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [keywordInput, setKeywordInput] = useState("");
+  const [keyword, setKeyword] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+
+  // 输入防抖，避免每敲一个字都打一次接口。
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setKeyword(keywordInput);
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [keywordInput]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await pageSharedDatasetApi({
+        page,
+        page_size: pageSize,
+        keyword: keyword || undefined,
+      });
+      setItems(response.data?.data ?? []);
+      setTotal(response.data?.total ?? 0);
+    } catch {
+      message.error("Failed to load shared datasets");
+      setItems([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [keyword, message, page, pageSize]);
+
+  useEffect(() => {
+    if (open) {
+      void load();
+    }
+  }, [open, load]);
+
+  // 每次打开都重置勾选与搜索条件。
+  useEffect(() => {
+    if (open) {
+      setSelectedIds([]);
+      setKeywordInput("");
+      setKeyword("");
+      setPage(1);
+    }
+  }, [open]);
+
+  const handleConfirm = async () => {
+    if (selectedIds.length === 0) {
+      message.warning("Select at least one shared dataset");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await addSharedDatasetToProjectApi({ dataset_ids: selectedIds });
+      const added = response.data?.added ?? 0;
+      const skipped = response.data?.skipped ?? 0;
+      message.success(`Added ${added} shared dataset(s)${skipped > 0 ? `, skipped ${skipped}` : ""}`);
+      onImported();
+      onClose();
+    } catch {
+      message.error("Failed to add shared datasets to the project");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      title="Import Shared Datasets"
+      okText="Add to Project"
+      confirmLoading={submitting}
+      onOk={handleConfirm}
+      onCancel={onClose}
+      width={640}
+    >
+      <Flex vertical gap="small">
+        <LazyListSearch
+          value={keywordInput}
+          onChange={setKeywordInput}
+          placeholder="Search shared datasets"
+        />
+        <Table<SharedDatasetItem>
+          rowKey="id"
+          size="small"
+          loading={loading}
+          dataSource={items}
+          pagination={{
+            current: page,
+            pageSize,
+            total,
+            size: "small",
+            showSizeChanger: true,
+            onChange: (nextPage, nextPageSize) => {
+              setPage(nextPage);
+              setPageSize(nextPageSize);
+            },
+          }}
+          locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No shared datasets" /> }}
+          rowSelection={{
+            selectedRowKeys: selectedIds,
+            onChange: (keys) => setSelectedIds(keys.map(String)),
+            getCheckboxProps: (record) => ({ disabled: record.bound }),
+          }}
+          columns={[
+            {
+              title: "Dataset",
+              dataIndex: "dataset_name",
+              render: (_: string, record) => (
+                <Flex align="center" gap={8}>
+                  <span>{datasetLabel(record)}</span>
+                  {record.bound ? <Tag color="green">Added</Tag> : <Tag>Shared</Tag>}
+                </Flex>
+              ),
+            },
+            {
+              title: "Description",
+              dataIndex: "description",
+              ellipsis: true,
+              render: (value: string) => value || "-",
+            },
+          ]}
+        />
+      </Flex>
+    </Modal>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // 数据集列表（第一级）
 // ---------------------------------------------------------------------------
 
@@ -233,6 +387,9 @@ const DatasetListPanel = ({
   onToggleCollapse,
 }: DatasetListPanelProps) => {
   const message = useGlobalMessage();
+
+  // 共享数据集导入弹窗（列出所有 shared dataset，勾选后绑定到当前项目）。
+  const [sharedPickerOpen, setSharedPickerOpen] = useState(false);
 
   const {
     items: datasets,
@@ -321,82 +478,101 @@ const DatasetListPanel = ({
   ];
 
   return (
-    <SiderPanelLayout
-      className="dataset-project-panel"
-      bodyClassName="dataset-project-panel-body"
-      title={title || "Datasets"}
-      titleExtra={total > 0 ? <span className="sider-panel-count">{total}</span> : undefined}
-      collapsed={collapsed}
-      onToggleCollapse={onToggleCollapse}
-      footer={footer}
-      actions={
-        <>
-          <LazyListSearch
-            value={keyword}
-            onChange={setKeyword}
-            placeholder="Search datasets"
-            className="project-report-panel-search"
-          />
-          <Tooltip title="New Dataset">
-            <Button type="text" size="small" icon={<PlusOutlined />} onClick={handleCreate} />
-          </Tooltip>
-          <Tooltip title="Refresh">
-            <Button
-              type="text"
-              size="small"
-              icon={<ReloadOutlined />}
-              loading={isFetching}
-              onClick={() => reload()}
+    <>
+      <SiderPanelLayout
+        className="dataset-project-panel"
+        bodyClassName="dataset-project-panel-body"
+        title={title || "Datasets"}
+        titleExtra={total > 0 ? <span className="sider-panel-count">{total}</span> : undefined}
+        collapsed={collapsed}
+        onToggleCollapse={onToggleCollapse}
+        footer={footer}
+        actions={
+          <>
+            <LazyListSearch
+              value={keyword}
+              onChange={setKeyword}
+              placeholder="Search datasets"
+              className="project-report-panel-search"
             />
-          </Tooltip>
-        </>
-      }
-    >
-      {datasets.length === 0 && !isFetching ? (
-        <div className="dataset-project-empty">
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={error ? "Failed to load datasets" : "No datasets"} />
-        </div>
-      ) : (
-        <Table<DatasetItem>
-          rowKey="id"
-          size="small"
-          showHeader={false}
-          tableLayout="fixed"
-          columns={columns}
-          dataSource={datasets}
-          loading={isFetching}
-          pagination={false}
-          rowClassName={(record) => (selectedIds.includes(record.id) ? "project-report-row-selected" : "")}
-          rowSelection={
-            selectable
-              ? {
-                  type: multiple ? "checkbox" : "radio",
-                  selectedRowKeys: selectedIds,
-                  onChange: (keys, rows) => onSelectRows(keys.map(String), rows),
+            {/* 打开共享数据集选择弹窗，确认后把 shared dataset 绑定到当前项目。 */}
+            <Tooltip title="Import Shared Dataset">
+              <Button
+                type="text"
+                size="small"
+                icon={<ImportOutlined />}
+                onClick={() => setSharedPickerOpen(true)}
+              />
+            </Tooltip>
+            <Tooltip title="New Dataset">
+              <Button type="text" size="small" icon={<PlusOutlined />} onClick={handleCreate} />
+            </Tooltip>
+            <Tooltip title="Refresh">
+              <Button
+                type="text"
+                size="small"
+                icon={<ReloadOutlined />}
+                loading={isFetching}
+                onClick={() => reload()}
+              />
+            </Tooltip>
+          </>
+        }
+      >
+        {datasets.length === 0 && !isFetching ? (
+          <div className="dataset-project-empty">
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={error ? "Failed to load datasets" : "No datasets"} />
+          </div>
+        ) : (
+          <Table<DatasetItem>
+            rowKey="id"
+            size="small"
+            showHeader={false}
+            tableLayout="fixed"
+            columns={columns}
+            dataSource={datasets}
+            loading={isFetching}
+            pagination={false}
+            rowClassName={(record) => (selectedIds.includes(record.id) ? "project-report-row-selected" : "")}
+            rowSelection={
+              selectable
+                ? {
+                    type: multiple ? "checkbox" : "radio",
+                    selectedRowKeys: selectedIds,
+                    onChange: (keys, rows) => onSelectRows(keys.map(String), rows),
+                  }
+                : undefined
+            }
+            onRow={(record) => ({
+              // 点击数据集即「进入文件夹」；勾选 / 单选由左侧的选择列负责。
+              onClick: (event) => {
+                if ((event.target as HTMLElement | null)?.closest?.(".ant-table-selection-column")) {
+                  return;
                 }
-              : undefined
-          }
-          onRow={(record) => ({
-            // 点击数据集即「进入文件夹」；勾选 / 单选由左侧的选择列负责。
-            onClick: (event) => {
-              if ((event.target as HTMLElement | null)?.closest?.(".ant-table-selection-column")) {
-                return;
-              }
-              onOpen(record);
-            },
-          })}
-        />
-      )}
+                onOpen(record);
+              },
+            })}
+          />
+        )}
 
-      <LazyListSentinel sentinelRef={sentinelRef} />
-      <LazyListFooter
-        loadingMore={loadingMore}
-        hasMore={hasMore}
-        hasItems={datasets.length > 0}
-        total={total}
-        labels={{ loading: "Loading more…", noMore: "No more datasets", totalPrefix: "total " }}
+        <LazyListSentinel sentinelRef={sentinelRef} />
+        <LazyListFooter
+          loadingMore={loadingMore}
+          hasMore={hasMore}
+          hasItems={datasets.length > 0}
+          total={total}
+          labels={{ loading: "Loading more…", noMore: "No more datasets", totalPrefix: "total " }}
+        />
+      </SiderPanelLayout>
+
+      <SharedDatasetPicker
+        open={sharedPickerOpen}
+        onClose={() => setSharedPickerOpen(false)}
+        onImported={() => {
+          void reload();
+        }}
       />
-    </SiderPanelLayout>
+    </>
   );
 };
 

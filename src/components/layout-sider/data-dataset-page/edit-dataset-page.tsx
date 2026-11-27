@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Flex, Form, Input, Typography } from "antd";
+import { Button, Flex, Form, Input, Switch, Typography } from "antd";
 import { listDatasetDirFilesApi } from "@/api/data";
 import { createDatasetApi, updateDatasetApi } from "@/api/data";
 import type { DatasetItem } from "@/api/data";
@@ -32,6 +32,7 @@ const EditDatasetPage = ({ dataset, onOk, onCancel, close }: EditDatasetPageProp
       dataset_name: dataset?.dataset_name ?? "",
       description: dataset?.description ?? "",
       metadata: dataset?.metadata ?? "",
+      shared: Boolean(dataset?.shared),
     });
   }, [dataset, form]);
 
@@ -72,6 +73,9 @@ const EditDatasetPage = ({ dataset, onOk, onCancel, close }: EditDatasetPageProp
         dataset_name: String(values.dataset_name ?? "").trim(),
         description: trimOrUndefined(values.description),
         metadata: trimOrUndefined(values.metadata),
+        // Shared datasets live under <baseDir>/shared/dataset/<id>, so other
+        // projects can bind them from the dataset page's Import dialog.
+        shared: Boolean(values.shared),
       };
 
       if (isEdit) {
@@ -83,6 +87,7 @@ const EditDatasetPage = ({ dataset, onOk, onCancel, close }: EditDatasetPageProp
           dataset_name: payload.dataset_name,
           description: payload.description ?? "",
           metadata: payload.metadata ?? "",
+          shared: payload.shared,
         });
       } else {
         const created = await createDatasetApi(payload);
@@ -121,6 +126,14 @@ const EditDatasetPage = ({ dataset, onOk, onCancel, close }: EditDatasetPageProp
       </Form.Item>
       <Form.Item name="metadata" label="Metadata">
         <Input.TextArea rows={3} placeholder="Enter metadata" />
+      </Form.Item>
+      <Form.Item
+        name="shared"
+        label="Shared"
+        valuePropName="checked"
+        tooltip="Shared datasets are stored under <baseDir>/shared/dataset and can be imported into other projects."
+      >
+        <Switch />
       </Form.Item>
       {isEdit && (
         <div style={{ marginBottom: 16 }}>

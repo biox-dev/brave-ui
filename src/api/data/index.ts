@@ -22,11 +22,21 @@ export interface DatasetItem {
 	dataset_key?: string;
 	description: string;
 	metadata: string;
+	// shared marks a dataset whose workspace lives in the storage-wide shared
+	// area (<baseDir>/shared/dataset/<id>) instead of the project directory, so
+	// several projects can bind it. Datasets created from the UI default to false.
+	shared?: boolean;
 	// The dataset workspace directory is NOT returned on dataset entities; it is
 	// derived from the active project on demand (backend Dataset.WorkspaceDir).
 	// Use the dir-files / ensure-dir endpoints to resolve it.
 	created_at: string;
 	updated_at: string;
+}
+
+// SharedDatasetItem is the read model of the shared dataset picker: a shared
+// dataset plus whether the active project already binds it.
+export interface SharedDatasetItem extends DatasetItem {
+	bound: boolean;
 }
 
 export interface DatasetFileItem {
@@ -233,6 +243,9 @@ export interface CreateDatasetRequest {
 	dataset_key?: string;
 	description?: string;
 	metadata?: string;
+	// shared stores the dataset workspace under <baseDir>/shared/dataset/<id>,
+	// making it bindable by other projects. Defaults to false.
+	shared?: boolean;
 }
 
 export interface UpdateDatasetRequest extends CreateDatasetRequest {
@@ -245,6 +258,18 @@ export interface DeleteDatasetRequest {
 
 export const pageDatasetByProjectApi = (payload: PageRequest<DatasetPageQuery>) => {
 	return http.post<PageResponse<DatasetItem>>("/data/dataset/list-by-project-page", payload);
+};
+
+// pageSharedDatasetApi pages every shared dataset, marking the ones already bound
+// to the caller's active project (bound=true).
+export const pageSharedDatasetApi = (payload: PageRequest<DatasetPageQuery>) => {
+	return http.post<PageResponse<SharedDatasetItem>>("/data/dataset/list-shared-page", payload);
+};
+
+// addSharedDatasetToProjectApi binds the selected shared datasets to the caller's
+// active project. Re-adding an already bound dataset is skipped (idempotent).
+export const addSharedDatasetToProjectApi = (payload: { dataset_ids: string[] }) => {
+	return http.post<{ added: number; skipped: number; errors?: string[] }>("/data/dataset/add-shared", payload);
 };
 
 // listDatasetByProjectApi returns every dataset bound to the caller's currently
