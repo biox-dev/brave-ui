@@ -188,7 +188,7 @@ const MessageRow = memo(function MessageRow({
   message: m,
   result,
   conversationId,
-  isTurnEnd,
+  forkSeq,
   forking,
   forkDisabled,
   turnBusy,
@@ -200,16 +200,19 @@ const MessageRow = memo(function MessageRow({
   message: ChatMessage;
   result?: ChatMessage;
   conversationId?: string;
-  isTurnEnd: boolean;
+  /** 非空表示该行是本轮结束位置，值为此轮用于分叉的游标（该轮最大 seq）。 */
+  forkSeq?: number;
   forking: boolean;
   /** 该轮正在删除 / 重试：只锁住被点击的那条按钮。 */
   turnBusy: boolean;
   forkDisabled: boolean;
-  onFork: (message: ChatMessage) => void;
+  onFork: (forkSeq: number) => void;
   onDeleteTurn: (message: ChatMessage) => void;
   onRetryTurn: (message: ChatMessage) => void;
   onGoConfig: () => void;
 }) {
+  const isTurnEnd = forkSeq !== undefined;
+
   // 结果形状与历史和实时两侧一致（content / is_error / metadata）。
   const renderResult = result
     ? (() => {
@@ -312,7 +315,7 @@ const MessageRow = memo(function MessageRow({
                 fontSize: 12,
                 color: m.role === "user" ? "rgba(255,255,255,0.85)" : "#8c8c8c",
               }}
-              onClick={() => onFork(m)}
+              onClick={() => forkSeq !== undefined && onFork(forkSeq)}
             >
               Fork
             </Button>
@@ -693,30 +696,6 @@ const AgentChat: FC<AgentChatProps> = ({
     }
     return rows;
   }, [messages]);
-
-  // 「轮次结束」消息的 id 集合：每个 task 的最后一条消息。
-  //
-  // fork 入口只挂在这些位置（每个 task 一个按钮），语义是「从这一轮结束后分叉」。
-  // 仍然进行中的轮次（currentTaskId）不展示：它的最后一条消息还会继续增长，
-  // 此时分叉会得到一个不完整的轮次。
-  const turnEndMessageIds = useMemo(() => {
-    const lastByTask = new Map<string, string>();
-    for (const m of messages) {
-      // 没有 taskId 的消息（如本地乐观插入的 user 气泡）不参与分组。
-      if (!m.taskId) continue;
-      lastByTask.set(m.taskId, m.id);
-    }
-    const ids = new Set<string>();
-    for (const [taskId, id] of lastByTask) {
-      if (taskId === currentTaskId) continue;
-      ids.add(id);
-    }
-    return ids;
-  }, [messages, currentTaskId]);
-
-  // 该消息是否是某一轮（task）结束后的位置，且当前会话可 fork。
-  const isTurnEndMessage = (m: ChatMessage) =>
-    !!conversationId && m.seq !== undefined && turnEndMessageIds.has(m.id);
 
   // 权限 / 提问决策后兜底登记「活跃轮次」。
   //
@@ -1447,9 +1426,10 @@ const AgentChat: FC<AgentChatProps> = ({
   // 这样可以在不改动原会话的前提下，回到某个轮次结束后重新提问。
   // 回调保持引用稳定，避免每次 token 刷新都把历史行的 memo 冲掉。
   const handleForkFromMessage = useCallback(
-    async (message: ChatMessage) => {
+    // seq 是该轮的最大 seq（见 turnEndAnchors）：按「轮末」而非锚点行自身 seq 分叉，
+    // 避免把并入调用行的 tool_result 切掉。
+    async (seq: number) => {
       const id = selectedConvIdRef.current;
-      const seq = message.seq;
       if (!id || seq === undefined) return;
       setForkingFromSeq(seq);
       try {
@@ -1546,6 +1526,43 @@ const AgentChat: FC<AgentChatProps> = ({
 
   // 列表是否为空：历史与实时都没有内容时展示占位符。
   const hasAnyRow = allRows.length > 0;
+
+  // 每一轮「结束位置」的 fork 游标（渲染行 id → 该轮最大 seq）。
+  //
+  // fork / 删除 / 重试入口只挂在这些行上（每个 task 一组按钮），语义是「这一轮结束后」。
+  // 仍然进行中的轮次（currentTaskId）不展示：它还会继续增长，此时分叉会得到不完整的轮次。
+  //
+  // 为什么必须基于「渲染行」而不是原始 messages：
+  // tool_result 会并入对应的 tool_call 行、不单独成行，而一轮最后落库的往往正是
+  // tool_result（用户取消时错误消息可能先落库，最后一个 tool_result 反而 seq 更大）。
+  // 若按原始 messages 取「最后一条」，锚点会落在一个不存在的行上，整轮都不显示按钮。
+  //
+  // 游标单独取该轮最大 seq（而不是锚点行自身的 seq）：锚点行可能早于它合并进来的
+  // tool_result，用行自身的 seq 分叉会切出「有调用无结果」的半轮历史。
+  const turnEndAnchors = useMemo(() => {
+    if (!conversationId) return new Map<string, number>();
+    const maxSeqByTask = new Map<string, number>();
+    for (const m of messages) {
+      // 没有 taskId / seq 的消息（本地乐观插入的 user 气泡）不参与分组。
+      if (!m.taskId || m.seq === undefined) continue;
+      const prev = maxSeqByTask.get(m.taskId);
+      if (prev === undefined || m.seq > prev) maxSeqByTask.set(m.taskId, m.seq);
+    }
+    // 渲染行里每个 task 的最后一行（跳过没有 seq 的实时行：它不能作为分叉游标）。
+    const rowIdByTask = new Map<string, string>();
+    for (const row of allRows) {
+      const { taskId, id, seq } = row.message;
+      if (!taskId || seq === undefined) continue;
+      rowIdByTask.set(taskId, id);
+    }
+    const anchors = new Map<string, number>();
+    for (const [taskId, rowId] of rowIdByTask) {
+      const seq = maxSeqByTask.get(taskId);
+      if (seq === undefined || taskId === currentTaskId) continue;
+      anchors.set(rowId, seq);
+    }
+    return anchors;
+  }, [messages, allRows, currentTaskId, conversationId]);
 
   return (
     <Flex vertical style={{ height: "100%", minHeight: 480 }}>
@@ -1701,22 +1718,25 @@ const AgentChat: FC<AgentChatProps> = ({
                 </Flex>
               )
             )}
-            {allRows.map(({ message: m, result }) => (
-              <MessageRow
-                key={m.id}
-                message={m}
-                result={result}
-                conversationId={conversationId}
-                isTurnEnd={isTurnEndMessage(m)}
-                forking={forkingFromSeq === m.seq}
-                turnBusy={busyTaskId === m.taskId}
-                forkDisabled={forkingFromSeq !== undefined || busyTaskId !== undefined}
-                onFork={handleForkFromMessage}
-                onDeleteTurn={handleDeleteTurn}
-                onRetryTurn={handleRetryTurn}
-                onGoConfig={goAgentConfig}
-              />
-            ))}
+            {allRows.map(({ message: m, result }) => {
+              const forkSeq = turnEndAnchors.get(m.id);
+              return (
+                <MessageRow
+                  key={m.id}
+                  message={m}
+                  result={result}
+                  conversationId={conversationId}
+                  forkSeq={forkSeq}
+                  forking={forkingFromSeq === forkSeq}
+                  turnBusy={busyTaskId === m.taskId}
+                  forkDisabled={forkingFromSeq !== undefined || busyTaskId !== undefined}
+                  onFork={handleForkFromMessage}
+                  onDeleteTurn={handleDeleteTurn}
+                  onRetryTurn={handleRetryTurn}
+                  onGoConfig={goAgentConfig}
+                />
+              );
+            })}
             {/* {
               sending && (
                 <Flex align="flex-start" gap={8}>
