@@ -8,6 +8,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router';
+import { useSelector } from 'react-redux';
 import { LazyListSearch } from '@/components/common/lazy-list';
 import { useI18n } from '@/hooks/useI18n';
 import type { AgentConversationItem } from '@/api/agent';
@@ -94,6 +95,21 @@ const AgentSessionList: FC<AgentSessionListProps> = ({
   useEffect(() => {
     void ensureAgentConversations();
   }, []);
+
+  // 切换项目后会话列表属于旧项目（后端按当前激活项目过滤），需要重新拉取。
+  // 首次加载（"" → 项目 ID）不在这里刷新，交由上面的 ensureAgentConversations 处理。
+  const projectId = useSelector(
+    (state: { user: { projectId?: string } }) => state.user.projectId
+  );
+  const prevProjectIdRef = useRef(projectId);
+  useEffect(() => {
+    const prev = prevProjectIdRef.current;
+    prevProjectIdRef.current = projectId;
+    if (!prev || !projectId || prev === projectId) {
+      return;
+    }
+    void loadAgentConversations();
+  }, [projectId]);
 
   const { register, unregister } = useComponentStore();
   const realtimeInstance = useMemo(

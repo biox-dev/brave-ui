@@ -1023,6 +1023,22 @@ const DatasetProjectPage = ({
     () => normalizeText(project_id) ?? projectId,
     [project_id, projectId]
   );
+
+  // 切换项目：上次进入的数据集属于旧项目，回到数据集列表并清空已勾选项。
+  // 列表数据由 DatasetListPanel 的 `scopeKey`（含 projectId）变化自动重新拉取，无需额外请求。
+  // 首次拿到项目 ID（"" → 项目 ID）不触发，避免多余的路径清空。
+  const prevProjectIdRef = useRef(resolvedProjectId);
+  useEffect(() => {
+    const prev = prevProjectIdRef.current;
+    prevProjectIdRef.current = resolvedProjectId;
+    if (!prev || !resolvedProjectId || prev === resolvedProjectId) {
+      return;
+    }
+    setActiveDataset(undefined);
+    setPickedDatasets({});
+    setPickedFiles({});
+    setStoredDatasetPath(null);
+  }, [resolvedProjectId, setStoredDatasetPath]);
   const filters = useMemo<DatasetPageQuery>(
     () => ({
       dataset_name: normalizeText(dataset_name),

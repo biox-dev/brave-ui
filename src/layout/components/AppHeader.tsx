@@ -78,8 +78,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({ backgroundColor }) => {
             cancelPendingBottomPanelSave();
 
             await activateProjectApi({ project_id: value.project_id });
-            // 切换项目后回到首页：当前深链路由属于上一个项目，不应带到新项目里去。
-            navigate('/');
+            // 切换项目后跳到新建会话页：当前深链路由属于上一个项目，不应带到新项目里去，
+            // 而 /session 会按新项目重新加载会话与工作区。
+            navigate('/session');
             // 底部面板配置按项目落库，切换后先刷新 userInfo
             // （/auth/me 会按新的激活项目返回 menu_config），再刷新项目信息。
             await dispatch(loadCurrentUser() as any);
